@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.slidingwindow;
 
+import java.io.IOException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
@@ -152,7 +152,22 @@ public class SlidingWindowNumericIterator implements QueryIterator,
   
   @Override
   public void close() {
-    // no-op for now
+    if (iterator != null) {
+      try {
+        iterator.close();
+      } catch (IOException e) {
+        // Don't bother logging.
+        e.printStackTrace();
+      }
+      iterator = null;
+    }
+    
+    try {
+      aggregator.close();
+    } catch (IOException e) {
+      // don't bother logging.
+      e.printStackTrace();
+    }
   }
   
   @Override

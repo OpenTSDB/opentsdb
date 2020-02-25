@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
+import java.io.IOException;
 import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
@@ -40,8 +41,8 @@ import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 public class ExpressionNumericIterator extends BaseExpressionNumericIterator<NumericType> {
 
   /** Interpolators. May be null for literals.*/
-  protected final QueryInterpolator<NumericType> left_interpolator;
-  protected final QueryInterpolator<NumericType> right_interpolator;
+  protected QueryInterpolator<NumericType> left_interpolator;
+  protected QueryInterpolator<NumericType> right_interpolator;
   
   /** The data point set and returned by the iterator. */
   protected final MutableNumericValue dp;
@@ -237,7 +238,25 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
   
   @Override
   public void close() {
-    // no-op for now
+    if (left_interpolator != null) {
+      try {
+        left_interpolator.close();
+      } catch (IOException e) {
+        // don't bother logging.
+        e.printStackTrace();
+      }
+      left_interpolator = null;
+    }
+    
+    if (right_interpolator != null) {
+      try {
+        right_interpolator.close();
+      } catch (IOException e) {
+        // don't bother logging.
+        e.printStackTrace();
+      }
+      right_interpolator = null;
+    }
   }
   
 }

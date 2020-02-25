@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,9 +22,11 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
+import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -72,61 +74,64 @@ public class TopNNumericAggregator {
     if (!optional.isPresent()) {
       return null;
     }
-    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-    
-    long[] long_values = new long[16];
-    double[] double_values = null;
-    int idx = 0;
-    
-    while(iterator.hasNext()) {
-      @SuppressWarnings("unchecked")
-      final TimeSeriesValue<NumericType> value = 
-          (TimeSeriesValue<NumericType>) iterator.next();
-      if (value.value() == null) {
-        continue;
-      }
+    try (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+        optional.get()) {
+      long[] long_values = new long[16];
+      double[] double_values = null;
+      int idx = 0;
       
-      if (value.value().isInteger() && long_values != null) {
-        if (idx >= long_values.length) {
-          // grow
-          long[] temp = new long[long_values.length + 
-                                 (long_values.length >= 1024 ? 32 : long_values.length)];
-          System.arraycopy(long_values, 0, temp, 0, long_values.length);
-          long_values = temp;
-        }
-        long_values[idx++] = value.value().longValue();
-      } else {
-        if (double_values == null) {
-          // shift
-          double_values = new double[long_values.length];
-          for (int i = 0; i < idx; i++) {
-            double_values[i] = (double) long_values[i];
-          }
-          long_values = null;
+      while(iterator.hasNext()) {
+        @SuppressWarnings("unchecked")
+        final TimeSeriesValue<NumericType> value = 
+            (TimeSeriesValue<NumericType>) iterator.next();
+        if (value.value() == null) {
+          continue;
         }
         
-        if (idx >= double_values.length) {
-          // grow
-          double[] temp = new double[double_values.length + 
-                                     (double_values.length >= 1024 ? 32 : double_values.length)];
-          System.arraycopy(double_values, 0, temp, 0, double_values.length);
-          double_values = temp;
+        if (value.value().isInteger() && long_values != null) {
+          if (idx >= long_values.length) {
+            // grow
+            long[] temp = new long[long_values.length + 
+                                   (long_values.length >= 1024 ? 32 : long_values.length)];
+            System.arraycopy(long_values, 0, temp, 0, long_values.length);
+            long_values = temp;
+          }
+          long_values[idx++] = value.value().longValue();
+        } else {
+          if (double_values == null) {
+            // shift
+            double_values = new double[long_values.length];
+            for (int i = 0; i < idx; i++) {
+              double_values[i] = (double) long_values[i];
+            }
+            long_values = null;
+          }
+          
+          if (idx >= double_values.length) {
+            // grow
+            double[] temp = new double[double_values.length + 
+                                       (double_values.length >= 1024 ? 32 : double_values.length)];
+            System.arraycopy(double_values, 0, temp, 0, double_values.length);
+            double_values = temp;
+          }
+          double_values[idx++] = value.value().toDouble();
         }
-        double_values[idx++] = value.value().toDouble();
       }
+      
+      if (idx <= 0) {
+        return null;
+      }
+      
+      final MutableNumericValue dp = new MutableNumericValue();
+      if (long_values != null) {
+        aggregator.run(long_values, 0, idx, dp);
+      } else {
+        aggregator.run(double_values, 0, idx, ((TopNConfig) node.config()).getInfectiousNan(), dp);
+      }
+      return dp.value();
+    } catch (IOException e) {
+      throw new QueryDownstreamException(e.getMessage(), e);
     }
-    
-    if (idx <= 0) {
-      return null;
-    }
-    
-    final MutableNumericValue dp = new MutableNumericValue();
-    if (long_values != null) {
-      aggregator.run(long_values, 0, idx, dp);
-    } else {
-      aggregator.run(double_values, 0, idx, ((TopNConfig) node.config()).getInfectiousNan(), dp);
-    }
-    return dp.value();
   }
   
 }

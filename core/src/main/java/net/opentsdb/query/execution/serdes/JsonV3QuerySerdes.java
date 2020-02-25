@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,6 +75,7 @@ import java.io.OutputStream;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -542,64 +543,69 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     boolean was_event_group = false;
     lock.writeLock().lock(); // since json is not thread safe and we need to form the json in order
     try {
-      for (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator : series.iterators()) {
-        if (!iterator.hasNext()) {
-          continue;
+      final Iterator<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> 
+        iterators = series.iterators().iterator();
+      while (iterators.hasNext()) {
+        try (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+              iterators.next()) {
+          if (!iterator.hasNext()) {
+            continue;
+          }
+  
+          TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
+          if (value == null) {
+            continue;
+          }
+  
+          if (iterator.getType() == StatusType.TYPE) {
+            if (!was_status) {
+              was_status = true;
+            }
+            json.writeStartObject();
+            writeStatus((StatusValue) value, json);
+            wrote_values = true;
+          } else if(iterator.getType() == StatusGroupType.TYPE) {
+            if (!was_status) {
+              was_status = true;
+            }
+            json.writeStartObject();
+            writeStatusGroup((StatusGroupValue) value, json);
+            wrote_values = true;
+          } else if (iterator.getType() == EventType.TYPE) {
+            was_event = true;
+            json.writeStartObject();
+            json.writeObjectFieldStart("EventsType");
+            writeEvents((EventsValue) value, json);
+            json.writeEndObject();
+            wrote_values = true;
+          } else if (iterator.getType() == EventGroupType.TYPE) {
+            was_event_group = true;
+            json.writeStartObject();
+            writeEventGroup((EventsGroupValue) value, json, id);
+            wrote_values = true;
+          } else if (iterator.getType() == NumericType.TYPE) {
+            if (writeNumeric((TimeSeriesValue<NumericType>) value, options,
+                iterator, json, result, start, end, wrote_values)) {
+              wrote_values = true;
+            }
+          } else if (iterator.getType() == NumericSummaryType.TYPE) {
+            if (writeNumericSummary(value, options, iterator, json, result,
+                start, end, wrote_values)) {
+              wrote_values = true;
+            }
+          } else if (iterator.getType() == NumericArrayType.TYPE) {
+            if(writeNumericArray((TimeSeriesValue<NumericArrayType>) value,
+                options, iterator, json, result, start, end, wrote_values)) {
+              wrote_values = true;
+            }
+          } else if (iterator.getType() == AlertType.TYPE) {
+            if (writeAlert((TimeSeriesValue<AlertType>) value, options,
+                iterator, json, result, start, end, wrote_values)) {
+              wrote_values = true;
+            }
+          }
         }
-
-        TimeSeriesValue<? extends TimeSeriesDataType> value = iterator.next();
-        if (value == null) {
-          continue;
-        }
-
-        if (iterator.getType() == StatusType.TYPE) {
-          if (!was_status) {
-            was_status = true;
-          }
-          json.writeStartObject();
-          writeStatus((StatusValue) value, json);
-          wrote_values = true;
-        } else if(iterator.getType() == StatusGroupType.TYPE) {
-          if (!was_status) {
-            was_status = true;
-          }
-          json.writeStartObject();
-          writeStatusGroup((StatusGroupValue) value, json);
-          wrote_values = true;
-        } else if (iterator.getType() == EventType.TYPE) {
-          was_event = true;
-          json.writeStartObject();
-          json.writeObjectFieldStart("EventsType");
-          writeEvents((EventsValue) value, json);
-          json.writeEndObject();
-          wrote_values = true;
-        } else if (iterator.getType() == EventGroupType.TYPE) {
-          was_event_group = true;
-          json.writeStartObject();
-          writeEventGroup((EventsGroupValue) value, json, id);
-          wrote_values = true;
-        } else if (iterator.getType() == NumericType.TYPE) {
-          if (writeNumeric((TimeSeriesValue<NumericType>) value, options,
-              iterator, json, result, start, end, wrote_values)) {
-            wrote_values = true;
-          }
-        } else if (iterator.getType() == NumericSummaryType.TYPE) {
-          if (writeNumericSummary(value, options, iterator, json, result,
-              start, end, wrote_values)) {
-            wrote_values = true;
-          }
-        } else if (iterator.getType() == NumericArrayType.TYPE) {
-          if(writeNumericArray((TimeSeriesValue<NumericArrayType>) value,
-              options, iterator, json, result, start, end, wrote_values)) {
-            wrote_values = true;
-          }
-        } else if (iterator.getType() == AlertType.TYPE) {
-          if (writeAlert((TimeSeriesValue<AlertType>) value, options,
-              iterator, json, result, start, end, wrote_values)) {
-            wrote_values = true;
-          }
-        }
-      }
+      }      
 
       if (wrote_values) {
         // serialize the ID

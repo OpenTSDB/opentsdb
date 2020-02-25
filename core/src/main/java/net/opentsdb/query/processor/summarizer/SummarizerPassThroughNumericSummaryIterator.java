@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
+
+import java.io.IOException;
 
 import com.google.common.reflect.TypeToken;
 
@@ -96,7 +98,15 @@ public class SummarizerPassThroughNumericSummaryIterator implements QueryIterato
   
   @Override
   public void close() {
-    // no-op for now
+    if (iterator != null) {
+      try {
+        iterator.close();
+      } catch (IOException e) {
+        // Don't bother logging.
+        e.printStackTrace();
+      }
+      iterator = null;
+    }
   }
   
   /**

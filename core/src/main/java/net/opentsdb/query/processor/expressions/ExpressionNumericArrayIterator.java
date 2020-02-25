@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2019  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may getNot use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -41,8 +42,8 @@ public class ExpressionNumericArrayIterator extends
   implements NumericArrayType {
 
   /** The iterators. */
-  protected final TypedTimeSeriesIterator left;
-  protected final TypedTimeSeriesIterator right;
+  protected TypedTimeSeriesIterator left;
+  protected TypedTimeSeriesIterator right;
   
   /** The values, either integers or doubles. */
   protected long[] long_values;
@@ -216,6 +217,8 @@ public class ExpressionNumericArrayIterator extends
           + ((ExpressionParseNode) node.config()).getOperator());
     }
     
+    close();
+    
     return this;
   }
 
@@ -236,7 +239,24 @@ public class ExpressionNumericArrayIterator extends
   
   @Override
   public void close() {
-    // no-op for now
+    if (left != null) {
+      try {
+        left.close();
+      } catch (IOException e) {
+        // don't bother logging.
+        e.printStackTrace();
+      }
+      left = null;
+    }
+    if (right != null) {
+      try {
+        right.close();
+      } catch (IOException e) {
+        // don't bother logging.
+        e.printStackTrace();
+      }
+      right = null;
+    }
   }
   
   @Override

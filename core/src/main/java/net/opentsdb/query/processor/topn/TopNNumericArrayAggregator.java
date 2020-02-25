@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,9 +23,11 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
+import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
+import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -73,26 +75,30 @@ public class TopNNumericArrayAggregator {
     if (!optional.isPresent()) {
       return null;
     }
-    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-    if (!iterator.hasNext()) {
-      return null;
+    try (final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+        optional.get()) {
+      if (!iterator.hasNext()) {
+        return null;
+      }
+      
+      final TimeSeriesValue<NumericArrayType> value = 
+          (TimeSeriesValue<NumericArrayType>) iterator.next();
+      final MutableNumericValue dp = new MutableNumericValue();
+      if (value.value().isInteger()) {
+        aggregator.run(value.value().longArray(), 
+            value.value().offset(), 
+            value.value().end(), 
+            dp);
+      } else {
+        aggregator.run(value.value().doubleArray(), 
+            value.value().offset(), 
+            value.value().end(), 
+            ((TopNConfig) node.config()).getInfectiousNan(), dp);
+      }
+      return dp.value();
+    } catch (IOException e) {
+      throw new QueryDownstreamException(e.getMessage(), e);
     }
-    
-    final TimeSeriesValue<NumericArrayType> value = 
-        (TimeSeriesValue<NumericArrayType>) iterator.next();
-    final MutableNumericValue dp = new MutableNumericValue();
-    if (value.value().isInteger()) {
-      aggregator.run(value.value().longArray(), 
-          value.value().offset(), 
-          value.value().end(), 
-          dp);
-    } else {
-      aggregator.run(value.value().doubleArray(), 
-          value.value().offset(), 
-          value.value().end(), 
-          ((TopNConfig) node.config()).getInfectiousNan(), dp);
-    }
-    return dp.value();
   }
   
 }
