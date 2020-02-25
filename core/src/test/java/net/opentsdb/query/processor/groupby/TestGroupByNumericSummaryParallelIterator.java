@@ -25,6 +25,8 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.MockObjectPool;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryPipelineContext;
@@ -32,13 +34,18 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
+import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJobPool;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.utils.MockBigSmallLinkedBlockingQueue;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -48,7 +55,8 @@ import static org.mockito.Mockito.when;
 public class TestGroupByNumericSummaryParallelIterator {
   public static MockTSDB TSDB;
   public static NumericInterpolatorConfig NUMERIC_CONFIG;
-  private static GroupByFactory groupByFactory;
+  private static GroupByFactory FACTORY;
+  private static MockObjectPool JOB_POOL;
 
   private GroupByConfig config;
   private GroupBy node;
@@ -77,11 +85,26 @@ public class TestGroupByNumericSummaryParallelIterator {
       .setDataType(NumericType.TYPE.toString())
       .build();
 
-    groupByFactory = (GroupByFactory) TSDB.registry.getQueryNodeFactory(GroupByFactory.TYPE);
+    Predicate<GroupByJob> p = groupByJob -> groupByJob.totalTsCount > 5;
+    FACTORY = mock(GroupByFactory.class);
+    MockBigSmallLinkedBlockingQueue queue = new MockBigSmallLinkedBlockingQueue(true, 
+        p);
+    when(FACTORY.getQueue()).thenReturn(queue);
+    when(FACTORY.predicate()).thenReturn(p);
+    when(FACTORY.tsdb()).thenReturn(TSDB);
+    
+    GroupByJobPool allocator = FACTORY.new GroupByJobPool();
+    JOB_POOL = new MockObjectPool(DefaultObjectPoolConfig.newBuilder()
+        .setInitialCount(5)
+        .setAllocator(allocator)
+        .setId(allocator.type)
+        .build());
+    when(FACTORY.jobPool()).thenReturn(JOB_POOL);
   }
   
   @Before
   public void before() throws Exception {
+    JOB_POOL.resetCounters();
     rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
@@ -334,6 +357,6 @@ public class TestGroupByNumericSummaryParallelIterator {
     when(node.pipelineContext()).thenReturn(context);
     when(context.tsdb()).thenReturn(TSDB);
     when(result.source()).thenReturn(node);
-    when(node.factory()).thenReturn(groupByFactory);
+    when(node.factory()).thenReturn(FACTORY);
   }
 }

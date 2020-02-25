@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,10 +23,12 @@ import com.stumbleupon.async.Callback;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
+import net.opentsdb.data.ArrayAggregatorConfig;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -64,6 +66,9 @@ public class GroupBy extends AbstractQueryNode {
    * when running in parallel.
    */
   private DownsampleConfig downsampleConfig;
+  
+  /** An optional array agg config when we have an array based downsample. */
+  private ArrayAggregatorConfig agg_config;
 
   /**
    * Default ctor.
@@ -99,11 +104,18 @@ public class GroupBy extends AbstractQueryNode {
                   }
                   break;
                 }
-                if(node instanceof Downsample){
+                if (node instanceof Downsample){
                   Downsample downsample = (Downsample) node;
                   downsampleConfig = (DownsampleConfig) downsample.config();
                   break;
                 }
+              }
+              
+              if (downsampleConfig != null) {
+                agg_config = DefaultArrayAggregatorConfig.newBuilder()
+                    .setArraySize(downsampleConfig.intervals())
+                    .setInfectiousNaN(config.getInfectiousNan())
+                    .build();
               }
               return null;
             });
@@ -180,8 +192,11 @@ public class GroupBy extends AbstractQueryNode {
     return upstream.size();
   }
 
-  public DownsampleConfig getDownsampleConfig() {
+  DownsampleConfig getDownsampleConfig() {
     return downsampleConfig;
   }
 
+  ArrayAggregatorConfig aggregatorConfig() {
+    return agg_config;
+  }
 }

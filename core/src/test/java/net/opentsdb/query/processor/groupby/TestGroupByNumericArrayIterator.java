@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -24,10 +25,14 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
@@ -37,12 +42,18 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.MockObjectPool;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
+import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJobPool;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.MockBigSmallLinkedBlockingQueue;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -73,10 +84,12 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestGroupByNumericArrayIterator {
-
+  private static final long BASE_TIME = 1514764800000L;
+  
   public static MockTSDB TSDB;
   public static NumericInterpolatorConfig NUMERIC_CONFIG;
-  private static GroupByFactory groupByFactory;
+  private static GroupByFactory FACTORY;
+  private static MockObjectPool JOB_POOL;
 
   private Registry registry;
   private NumericInterpolatorConfig numeric_config;
@@ -105,11 +118,27 @@ public class TestGroupByNumericArrayIterator {
             .setDataType(NumericType.TYPE.toString())
             .build();
 
-    groupByFactory = (GroupByFactory) TSDB.registry.getQueryNodeFactory(GroupByFactory.TYPE);
+    Predicate<GroupByJob> p = groupByJob -> groupByJob.totalTsCount > 5;
+    FACTORY = mock(GroupByFactory.class);
+    MockBigSmallLinkedBlockingQueue queue = new MockBigSmallLinkedBlockingQueue(true, 
+        p);
+    when(FACTORY.getQueue()).thenReturn(queue);
+    when(FACTORY.predicate()).thenReturn(p);
+    when(FACTORY.tsdb()).thenReturn(TSDB);
+    
+    GroupByJobPool allocator = FACTORY.new GroupByJobPool();
+    JOB_POOL = new MockObjectPool(DefaultObjectPoolConfig.newBuilder()
+        .setInitialCount(5)
+        .setAllocator(allocator)
+        .setId(allocator.type)
+        .build());
+    when(FACTORY.jobPool()).thenReturn(JOB_POOL);
   }
   
   @Before
   public void before() throws Exception {
+    JOB_POOL.resetCounters();
+    
     result = mock(GroupByResult.class);
     source_result = mock(QueryResult.class);
     time_spec = mock(TimeSpecification.class);
@@ -133,7 +162,7 @@ public class TestGroupByNumericArrayIterator {
     when(node.config()).thenReturn(config);
     context = mock(QueryPipelineContext.class);
     when(node.pipelineContext()).thenReturn(context);
-    when(node.factory()).thenReturn(groupByFactory);
+    when(node.factory()).thenReturn(FACTORY);
     final TSDB tsdb = mock(TSDB.class);
     when(context.tsdb()).thenReturn(tsdb);
     final TimeSeriesQuery q = mock(TimeSeriesQuery.class);
@@ -487,6 +516,7 @@ public class TestGroupByNumericArrayIterator {
     TimeSeriesValue<NumericArrayType> v = (TimeSeriesValue<NumericArrayType>) iterator.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
+    System.out.println(Arrays.toString(v.value().doubleArray()));
     assertEquals(5, v.value().doubleArray()[0], 0.001);
     assertTrue(Double.isNaN(v.value().doubleArray()[1]));
     assertEquals(13, v.value().doubleArray()[2], 0.001);
@@ -497,9 +527,6 @@ public class TestGroupByNumericArrayIterator {
 
   @Test
   public void testAccumulationInParallel() {
-
-    final long BASE_TIME = 1514764800000L;
-
     DownsampleConfig dsConfig =
         DownsampleConfig.newBuilder()
             .setAggregator("sum")
@@ -556,7 +583,6 @@ public class TestGroupByNumericArrayIterator {
 
     GroupByNumericArrayIterator iterator =
         new GroupByNumericArrayIterator(node, this.result, source_map, queueThreshold, timeSeriesPerJob, threadCount);
-    assertTrue(iterator.hasNext());
 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> v = (TimeSeriesValue<NumericArrayType>) iterator.next();
@@ -631,6 +657,72 @@ public class TestGroupByNumericArrayIterator {
     assertFalse(iterator.hasNext());
   }
 
+  @Test
+  public void testAccumulationInParallelManyJobs() {
+    DownsampleConfig dsConfig =
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setId("foo")
+            .setInterval("1s")
+            .setRunAll(true)
+            .setStart(Long.toString(BASE_TIME / 1000))
+            .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+            .addInterpolatorConfig(numeric_config)
+            .setRunAll(false)
+            .build();
+
+    SemanticQuery q =
+        SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart(Long.toString(BASE_TIME / 1000))
+            .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+            .setExecutionGraph(Collections.emptyList())
+            .build();
+
+    when(context.query()).thenReturn(q);
+    Downsample ds = new Downsample(mock(QueryNodeFactory.class), context, dsConfig);
+    ds.initialize(null);
+    QueryResult ds_of_ds_result = mock(QueryResult.class);
+    when(ds_of_ds_result.timeSpecification()).thenReturn(time_spec);
+    Downsample.DownsampleResult dsResult = ds.new DownsampleResult(ds_of_ds_result);
+    when(result.downstreamResult()).thenReturn(dsResult);
+    when(dsResult.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new MillisecondTimeStamp(BASE_TIME));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(1));
+    
+    List<TimeSeries> series = Lists.newArrayList();
+    for (int i = 0; i < 1024; i++) {
+      TimeSeries ts = new NumericArrayTimeSeries(
+              BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+              new MillisecondTimeStamp(BASE_TIME));
+      
+      for (int x = 0; x < 10; x++) {
+        ((NumericArrayTimeSeries) ts).add(1);
+      }
+      series.add(dsResult.new DownsampleTimeSeries(ts));
+    }
+    
+    when(this.result.isSourceProcessInParallel()).thenReturn(true);
+    when(node.getDownsampleConfig()).thenReturn(dsConfig);
+    
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(
+        node, this.result, series, queueThreshold, 16, threadCount);
+    assertTrue(iterator.hasNext());
+    
+    TimeSeriesValue<NumericArrayType> v = (TimeSeriesValue<NumericArrayType>) iterator.next();
+    
+    assertEquals(BASE_TIME, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(10, v.value().end());
+    long[] expected = new long[10];
+    Arrays.fill(expected, 1024);
+    assertArrayEquals(expected, v.value().longArray());
+    assertFalse(iterator.hasNext());
+    
+    assertEquals(5, JOB_POOL.claim_success);
+    assertEquals(59, JOB_POOL.claim_empty_pool);
+  }
+  
   class MockSeries implements TimeSeries {
 
     @Override

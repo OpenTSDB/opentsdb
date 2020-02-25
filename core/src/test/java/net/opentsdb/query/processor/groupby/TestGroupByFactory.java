@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,51 +17,16 @@ package net.opentsdb.query.processor.groupby;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 import net.opentsdb.configuration.Configuration;
 import org.junit.Test;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericMillisecondShard;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
-import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
-import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
 
 public class TestGroupByFactory {
   
@@ -72,6 +37,7 @@ public class TestGroupByFactory {
     assertTrue(factory.types().contains(NumericType.TYPE));
     Configuration configuration = mock(Configuration.class);
     TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getRegistry()).thenReturn(mock(Registry.class));
     when(tsdb.getConfig()).thenReturn(configuration);
     factory.initialize(tsdb, null).join(1);
     assertEquals(GroupByFactory.TYPE, factory.id());
