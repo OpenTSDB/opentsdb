@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.base.Strings;
@@ -193,7 +194,7 @@ public class ByteIdOverride implements TimeSeriesByteId {
   }
 
   @Override
-  public ByteMap<byte[]> tags() {
+  public Map<byte[], byte[]> tags() {
     return id.tags();
   }
 
