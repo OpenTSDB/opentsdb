@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //This program is free software: you can redistribute it and/or modify it
 //under the terms of the GNU Lesser General Public License as published by
@@ -13,12 +13,12 @@
 package net.opentsdb.data;
 
 import java.util.List;
+import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.ByteSet;
-import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
  * An identifier for a time series. The identity can be as simple as the alias
@@ -74,7 +74,7 @@ public interface TimeSeriesByteId extends TimeSeriesId,
    * 
    * @return A non-null map of zero or more tag pairs.
    */
-  public ByteMap<byte[]> tags();
+  public Map<byte[], byte[]> tags();
   
   /**
    * A list of tag names (tagk) that were represented in every source series

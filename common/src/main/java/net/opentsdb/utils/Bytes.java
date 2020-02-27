@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -660,12 +660,13 @@ public final class Bytes {
   }
   
   /**
-   * Evaluates two byte maps of byte arrays for equality. Either map may be null.
+   * Evaluates two maps of byte arrays for equality. Either map may be null.
    * @param a A byte map of byte arrays, possibly null.
    * @param b A byte map of byte arrays, possibly null.
    * @return True if the maps contain the same byte array contents, false if not.
    */
-  public static boolean equals(final ByteMap<byte[]> a, final ByteMap<byte[]> b) {
+  public static boolean equals(final Map<byte[], byte[]> a, 
+                               final Map<byte[], byte[]> b) {
     if (a == null && b == null) {
       return true;
     }
@@ -791,10 +792,10 @@ public final class Bytes {
   public static final ByteMapComparator BYTE_MAP_CMP = new ByteMapComparator();
   
   /** {@link Comparator} for ByteMap&lt;byte[]&gt;s .Support nulls.  */
-  public static class ByteMapComparator implements Comparator<ByteMap<byte[]>> {
+  public static class ByteMapComparator implements Comparator<Map<byte[], byte[]>> {
     private ByteMapComparator() { }
     @Override
-    public int compare(final ByteMap<byte[]> a, final ByteMap<byte[]> b) {
+    public int compare(final Map<byte[], byte[]> a, final Map<byte[], byte[]> b) {
       if (a == b || a == null && b == null) {
         return 0;
       }
