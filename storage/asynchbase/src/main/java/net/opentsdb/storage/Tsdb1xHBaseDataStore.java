@@ -80,6 +80,12 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   public static final String KB_ENABLED_KEY = "kerberos.enable";
   public static final String SASL_CLIENT_KEY = "sasl.clientconfig";
   public static final String META_SPLIT_KEY = "meta.split";
+  public static final String MTLS_REGISTRY_KEY = "mtls.token.registry";
+  public static final String MTLS_CERT_KEY = "mtls.certificate";
+  public static final String MTLS_KEY_KEY = "mtls.key";
+  public static final String MTLS_CA_KEY = "mtls.ca";
+  public static final String MTLS_REFRESH_KEY = "mtls.refresh.interva";
+  public static final String MTLS_TOKEN_RENEWAL_KEY = "mtls.token.renewalPeriod";
   
   public static final String MULTI_GET_CONCURRENT_KEY = "tsd.query.multiget.concurrent";
   public static final String MULTI_GET_BATCH_KEY = "tsd.query.multiget.batch_size";
@@ -203,6 +209,30 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
         config.register(getConfigKey(META_SPLIT_KEY), "false", false, 
             "Whether or not the meta table is split.");
       }
+      if (!config.hasProperty(getConfigKey(MTLS_REGISTRY_KEY))) {
+        config.register(getConfigKey(MTLS_REGISTRY_KEY), null, false, 
+            "TODO");
+      }
+      if (!config.hasProperty(getConfigKey(MTLS_CERT_KEY))) {
+        config.register(getConfigKey(MTLS_CERT_KEY), null, false, 
+            "TODO");
+      }
+      if (!config.hasProperty(getConfigKey(MTLS_KEY_KEY))) {
+        config.register(getConfigKey(MTLS_KEY_KEY), null, false, 
+            "TODO");
+      }
+      if (!config.hasProperty(getConfigKey(MTLS_CA_KEY))) {
+        config.register(getConfigKey(MTLS_CA_KEY), null, false, 
+            "TODO");
+      }
+      if (!config.hasProperty(getConfigKey(MTLS_REFRESH_KEY))) {
+        config.register(getConfigKey(MTLS_REFRESH_KEY), 300000, false, 
+            "TODO");
+      }
+      if (!config.hasProperty(getConfigKey(MTLS_TOKEN_RENEWAL_KEY))) {
+        config.register(getConfigKey(MTLS_TOKEN_RENEWAL_KEY), 3600, false, 
+            "TODO");
+      }
       
       // more bits
       if (!config.hasProperty(EXPANSION_LIMIT_KEY)) {
@@ -293,6 +323,22 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
         config.getString(getConfigKey(SASL_CLIENT_KEY)));
     async_config.overrideConfig("hbase.meta.split", 
         config.getString(getConfigKey(META_SPLIT_KEY)));
+    if (config.getString(getConfigKey(MTLS_REGISTRY_KEY)) != null && 
+        config.getString(getConfigKey(MTLS_CERT_KEY)) != null) {
+      async_config.overrideConfig("hbase.client.mtls.token.registry", 
+          config.getString(getConfigKey(MTLS_REGISTRY_KEY)));
+      async_config.overrideConfig("hbase.client.mtls.certificate", 
+          config.getString(getConfigKey(MTLS_CERT_KEY)));
+      async_config.overrideConfig("hbase.client.mtls.key", 
+          config.getString(getConfigKey(MTLS_KEY_KEY)));
+      async_config.overrideConfig("hbase.client.mtls.ca", 
+          config.getString(getConfigKey(MTLS_CA_KEY)));
+      async_config.overrideConfig("hbase.client.mtls.refresh.interval", 
+          config.getString(getConfigKey(MTLS_REFRESH_KEY)));
+      async_config.overrideConfig("hbase.client.mtls.token.renewalPeriod", 
+          config.getString(getConfigKey(MTLS_TOKEN_RENEWAL_KEY)));
+      async_config.overrideConfig("hbase.security.authentication", "mtlstemp");
+    }
     
     enable_appends = config.getBoolean(ENABLE_APPENDS_KEY);
     enable_appends_coproc = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
