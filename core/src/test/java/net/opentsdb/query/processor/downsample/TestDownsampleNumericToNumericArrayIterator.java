@@ -193,6 +193,52 @@ public class TestDownsampleNumericToNumericArrayIterator {
   }
 
   @Test
+  public void downsample2Days() throws Exception {
+    long BASE_TIME = 1514764800000L;
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+            new MillisecondTimeStamp(BASE_TIME), new MillisecondTimeStamp(BASE_TIME + 1000000000L));
+    for (int i = 0; i < 10; i++) {
+      ((NumericMillisecondShard) source).add(BASE_TIME + i * 86400L * 1000L, i);
+    }
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder().setAggregator("sum").setId("foo")
+            .setInterval("2d").setStart("1514764800").setEnd("1515628800")
+            .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock(BASE_TIME, BASE_TIME + 1515628800000L);
+    final DownsampleNumericToNumericArrayIterator it =
+            new DownsampleNumericToNumericArrayIterator(node, result, source);
+    final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
+            .getPlugin(NumericArrayAggregatorFactory.class, "sum");
+    if (factory == null) {
+      throw new IllegalArgumentException(
+              "No numeric array aggregator factory found for type: " + "sum");
+    }
+
+    NumericArrayAggregator numericArrayAggregator =
+            factory.newAggregator(config.getInfectiousNan());
+
+    double[] nans = new double[config.intervals()];
+    Arrays.fill(nans, Double.NaN);
+    numericArrayAggregator.accumulate(nans);
+
+    it.nextPool(numericArrayAggregator);
+
+    double[] doubleArray = numericArrayAggregator.doubleArray();
+
+    assertEquals(5, doubleArray.length);
+
+    assertFalse(it.hasNext());
+
+    assertEquals(1.0, doubleArray[0], 0.0);
+    assertEquals(5.0, doubleArray[1], 0.0);
+    assertEquals(9.0, doubleArray[2], 0.0);
+    assertEquals(13.0, doubleArray[3], 0.0);
+    assertEquals(17.0, doubleArray[4], 0.0);
+
+  }
+
+  @Test
   public void downsampleAvg10SecondsGroupbySum() throws Exception {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
@@ -1058,7 +1104,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
   }
 
   @Test
-  public void downsample1SecondsDoubleAndLongMixSumAccuReset() throws Exception {
+  public void downsample1MinutesDoubleAndLongMixSumAccuReset() throws Exception {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
     long BASE_TIME = 1514764800000L;
@@ -1114,7 +1160,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
   }
 
   @Test
-  public void downsample1SecondsDoubleAndLongMixCountAccuReset() throws Exception {
+  public void downsample1MinutesDoubleAndLongMixCountAccuReset() throws Exception {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
     long BASE_TIME = 1514764800000L;
@@ -1170,7 +1216,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
   }
 
   @Test
-  public void downsample1SecondsDoubleAndLongMixAvgAccuReset() throws Exception {
+  public void downsample1MinutesDoubleAndLongMixAvgAccuReset() throws Exception {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
     long BASE_TIME = 1514764800000L;
@@ -1228,7 +1274,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
   }
 
   @Test
-  public void downsample1SecondsDoubleAndLongMixMinAccuReset() throws Exception {
+  public void downsample1MinutesDoubleAndLongMixMinAccuReset() throws Exception {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
     long BASE_TIME = 1514764800000L;
@@ -1284,7 +1330,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
   }
 
   @Test
-  public void downsample1SecondsDoubleAndLongMaxAccuReset() throws Exception {
+  public void downsample1MinutesDoubleAndLongMaxAccuReset() throws Exception {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
     long BASE_TIME = 1514764800000L;

@@ -33,7 +33,10 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
+import java.time.Duration;
+import java.time.Period;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -173,8 +176,20 @@ public class DownsampleNumericToNumericArrayIterator
     this.aggEnum = AggEnum.valueOf(config.getAggregator().toLowerCase());
     interval_start = this.result.start().getCopy();
     interval_end = this.result.end().getCopy();
-    intervals = ((DownsampleConfig) node.config()).intervals();
-    intervalPart = (int) ((DownsampleConfig) node.config()).interval().get(ChronoUnit.SECONDS);
+    intervals = config.intervals();
+
+    TemporalAmount interval = config.interval();
+    if(interval instanceof Period) {
+      long days = 0;
+      days += interval.get(ChronoUnit.YEARS) * 365L;
+      days += interval.get(ChronoUnit.MONTHS) * 30L;
+      days += interval.get(ChronoUnit.DAYS);
+      intervalPart = (int) (days * 86_400L);
+    } else if (interval instanceof Duration) {
+      intervalPart = (int) interval.get(ChronoUnit.SECONDS);
+    } else {
+      new IllegalStateException("Unsupported interval format: " + interval.getClass().getName());
+    }
 
     final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         source.iterator(NumericType.TYPE);
