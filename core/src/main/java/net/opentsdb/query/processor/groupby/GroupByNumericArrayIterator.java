@@ -154,9 +154,7 @@ public class GroupByNumericArrayIterator
       this.blockingQueue = groupByFactory.getQueue();
       this.timeSeriesPerJob = timeSeriesPerJob;
       this.result = (GroupByResult) result;
-      final NumericArrayAggregatorFactory factory =
-          tsdb
-              .getRegistry()
+      final NumericArrayAggregatorFactory factory = tsdb.getRegistry()
               .getPlugin(
                   NumericArrayAggregatorFactory.class,
                   ((GroupByConfig) node.config()).getAggregator());
@@ -257,19 +255,15 @@ public class GroupByNumericArrayIterator
       final ArrayAggregatorConfig agg_config,
       final PooledObject[] pooled_arrays,
       final int index) {
-    NumericArrayAggregator aggregator = (NumericArrayAggregator)
+    final NumericArrayAggregator aggregator = (NumericArrayAggregator)
         factory.newAggregator(agg_config);
     if (aggregator == null) {
       throw new IllegalArgumentException(
           "No aggregator found of type: " + ((GroupByConfig) node.config()).getAggregator());
     }
     
-    final double[] nans;
     if (((GroupByFactory) ((GroupBy) node).factory()).doublePool() != null) {
       pooled_arrays[index] = ((GroupByFactory) ((GroupBy) node).factory()).doublePool().claim(size);
-      nans = (double[]) pooled_arrays[index].object();
-    } else {
-      nans = new double[size];
     }
     return aggregator;
   }
@@ -337,7 +331,6 @@ public class GroupByNumericArrayIterator
       final List<TimeSeries> tsList, 
       final NumericArrayAggregator[] combiners, 
       final PooledObject[] pooled_arrays) {
-
     final int tsCount = tsList.size();
     final int jobCount = (int) Math.ceil((double) tsCount / timeSeriesPerJob);
 

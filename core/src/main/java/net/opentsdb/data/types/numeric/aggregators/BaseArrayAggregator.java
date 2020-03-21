@@ -131,9 +131,11 @@ public abstract class BaseArrayAggregator implements NumericArrayAggregator {
   @Override
   public String toString() {
     if (isInteger()) {
-      return Arrays.toString(long_accumulator);
+      return new String(getClass().getSimpleName() + ": " 
+          + Arrays.toString(long_accumulator));
     } else {
-      return Arrays.toString(double_accumulator);
+      return new String(getClass().getSimpleName() + ": " 
+          + Arrays.toString(double_accumulator));
     }
   }
 
