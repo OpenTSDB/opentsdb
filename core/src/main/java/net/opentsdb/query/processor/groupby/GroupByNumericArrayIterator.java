@@ -400,7 +400,7 @@ public class GroupByNumericArrayIterator
         }
       }
     }
-    if (aggregator.end() < 1) {
+    if (aggregator.end() <= aggregator.offset()) {
       has_next = false;
     }
   }

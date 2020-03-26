@@ -164,7 +164,7 @@ public class BlockingQueueArrayObjectPool implements ArrayObjectPool, TimerTask 
     public void release() {
       if (was_pooled) {
         if (!pool.offer(this)) {
-          LOG.warn("Failed to return a pooled object to the pool for " + config.id());
+          LOG.warn("Failed to return a pooled object to the pool for " + config.id() + "  Size: " + pool.size());
           tsdb.getStatsCollector().incrementCounter("objectpool.offer.failure", 
               "pool", config.id());
         }
