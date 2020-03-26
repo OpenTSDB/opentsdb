@@ -207,13 +207,10 @@ public abstract class BaseQueryContext implements QueryContext {
       @Override
       public Deferred<Void> call(final Void ignored) throws Exception {
         if (query.getCacheMode() == null || 
-            query.getCacheMode() == CacheMode.BYPASS ||
-            tsdb.getRegistry().getDefaultPlugin(
-                ReadCacheQueryPipelineContext.class) == null) {
+            query.getCacheMode() == CacheMode.BYPASS) {
           pipeline = new LocalPipeline(BaseQueryContext.this, builder_sinks);
           return pipeline.initialize(local_span);
         }
-        
         pipeline = new ReadCacheQueryPipelineContext(
             BaseQueryContext.this, builder_sinks);
         return pipeline.initialize(local_span)
@@ -227,9 +224,7 @@ public abstract class BaseQueryContext implements QueryContext {
           .addCallbackDeferring(new FilterCB());
     } else {
       if (query.getCacheMode() == null || 
-          query.getCacheMode() == CacheMode.BYPASS ||
-          tsdb.getRegistry().getDefaultPlugin(
-              ReadCacheQueryPipelineContext.class) == null) {
+          query.getCacheMode() == CacheMode.BYPASS) {
         pipeline = new LocalPipeline(BaseQueryContext.this, builder_sinks);
         return pipeline.initialize(local_span);
       } else {
