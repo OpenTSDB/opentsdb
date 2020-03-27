@@ -16,6 +16,8 @@
 package net.opentsdb.meta.impl.es;
 
 import com.google.common.collect.Lists;
+import java.time.temporal.ChronoUnit;
+import java.util.concurrent.TimeUnit;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
@@ -197,7 +199,8 @@ public class ESMetaResponse implements MetaResponse {
               }
 
               tsdb.getStatsCollector()
-                  .incrementCounter("es.client.query.latency", "colo", "namespace", "type",
+                  .addTime("es.client.query.es.latency", response.getTookInMillis(), ChronoUnit.MILLIS,
+                      "colo", "namespace", "type",
                       search_response.getKey(), query.type() == QueryType.NAMESPACES ? "all_namespaces":
                           meta_query.namespace(), query.type().toString());
 
