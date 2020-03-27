@@ -332,9 +332,10 @@ public abstract class BaseQueryContext implements QueryContext {
    */
   protected void log(final LogLevel level, final QueryNode node, final String log) {
     if (level == LogLevel.ERROR || level == LogLevel.WARN) {
-      if (cacheable.get()) {
-        cacheable.set(false);
-      }
+      // TODO - disable for now
+      //if (cacheable.get()) {
+      //  cacheable.set(false);
+      //}
     }
     if (level.ordinal() > query.getLogLevel().ordinal()) {
       return;
