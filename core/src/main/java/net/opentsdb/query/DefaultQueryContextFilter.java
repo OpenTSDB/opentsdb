@@ -72,6 +72,7 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
   protected static final String HEADER_KEY = "tsd.queryfilter.filter.headers";
   protected static final String USER_KEY = "tsd.queryfilter.filter.users";
   protected static final String PREAGG_KEY = "tsd.queryfilter.filter.preagg";
+  protected static final String DEFAULT_CACHE_MODE = "tsd.queryfilter.cache.mode.default";
   
   protected static final QueryExecutionException BLACKLISTED = 
       new QueryExecutionException("Access forbidden due to blacklist.", 403);
@@ -112,6 +113,11 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
           .setSource(this.getClass().toString())
           .isDynamic()
           .build());
+    }
+    
+    if (!tsdb.getConfig().hasProperty(DEFAULT_CACHE_MODE)) {
+      tsdb.getConfig().register(DEFAULT_CACHE_MODE, null, true, 
+          "The default cache mode, can be null.");
     }
     
     return Deferred.fromResult(null);
@@ -326,6 +332,27 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
         
         new_configs.addAll(rebuilt.values());
         builder.setExecutionGraph(new_configs);
+      }
+    }
+    
+    // cache mode
+    if (query.getCacheMode() == null || 
+        (builder != null && builder.getCacheMode() == null)) {
+      final String default_cache_mode = tsdb.getConfig().getString(DEFAULT_CACHE_MODE);
+      if (!Strings.isNullOrEmpty(default_cache_mode)) {
+        final CacheMode mode = CacheMode.valueOf(default_cache_mode);
+        if (builder == null) {
+          builder = ((SemanticQuery) query).toBuilder();
+          builder.setCacheMode(mode);
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Overriding cache mode for query to " + mode);
+          }
+        } else {
+          builder.setCacheMode(mode);
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Overriding cache mode for query to " + mode);
+          }
+        }
       }
     }
     

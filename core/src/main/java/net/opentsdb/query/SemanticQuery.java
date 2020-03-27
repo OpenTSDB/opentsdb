@@ -395,6 +395,10 @@ public class SemanticQuery implements TimeSeriesQuery {
       return this;
     }
     
+    public CacheMode getCacheMode() {
+      return cache_mode;
+    }
+    
     public Builder setSerdesConfigs(final List<SerdesOptions> serdes_config) {
       this.serdes_config = serdes_config;
       return this;
