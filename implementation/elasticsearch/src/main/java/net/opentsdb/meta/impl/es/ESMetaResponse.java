@@ -21,6 +21,7 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.BatchMetaQuery;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
@@ -194,6 +195,12 @@ public class ESMetaResponse implements MetaResponse {
                         + "ms from "
                         + search_response.getKey());
               }
+
+              tsdb.getStatsCollector()
+                  .incrementCounter("es.client.query.latency", "colo", "namespace", "type",
+                      search_response.getKey(), query.type() == QueryType.NAMESPACES ? "all_namespaces":
+                          meta_query.namespace(), query.type().toString());
+
               long startTime = System.currentTimeMillis();
               switch (query.type()) {
                 case NAMESPACES:
