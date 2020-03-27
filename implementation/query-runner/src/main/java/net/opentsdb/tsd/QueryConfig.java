@@ -88,6 +88,9 @@ public class QueryConfig implements TimerTask {
   /** A schedule timeout used to cancel runs. */
   protected Timeout timeout;
   
+  /** An optional result parser. */
+  protected final ResultParser parser;
+  
   /** A flag set when we've been canceled. */
   protected final AtomicBoolean cancel;
   
@@ -120,6 +123,19 @@ public class QueryConfig implements TimerTask {
     callbacks = Lists.newArrayListWithExpectedSize(endpoints.size());
     for (int i = 0; i < endpoints.size(); i++) {
       callbacks.add(new ResponseCallback(i, TsdbQueryRunner.TSDB));
+    }
+    if (!Strings.isNullOrEmpty(builder.parser)) {
+      // TODO - class and plugins
+      if (builder.parser.equalsIgnoreCase("opentsdbv3")) {
+        parser = new V3ResultParser();
+        LOG.info("Using " + builder.parser + " for check " + id);
+      } else {
+        LOG.warn("Unknown parser: " + builder.parser);
+        parser = null;
+      }
+    } else {
+      LOG.info("No parser loaded for check " + id);
+      parser = null;
     }
   }
   
@@ -161,6 +177,11 @@ public class QueryConfig implements TimerTask {
         throw new IllegalArgumentException("File " + file + " was missing the query.");
       }
       config.setQuery(temp.toString());
+      
+      temp = node.get("parser");
+      if (temp != null && !temp.isNull()) {
+        config.setParser(temp.asText());
+      }
       
       return config.build();
     } catch (FileNotFoundException e) {
@@ -494,6 +515,14 @@ public class QueryConfig implements TimerTask {
                 tags);
           }
         }
+        
+        if (parser != null) {
+          if (status_code == 200) {
+            parser.parse(temp_file, QueryConfig.this, tags);
+          } else {
+            LOG.debug("Skipping parsing for non-200: " + status_code);
+          }
+        }
       } catch (Throwable t) {
         LOG.error("Failed to run query: " + shuffled_endpoints.get(index), t);
       } finally {
@@ -513,6 +542,7 @@ public class QueryConfig implements TimerTask {
     private List<String> endpoints;
     private String frequency;
     private String query;
+    private String parser;
     private TsdbQueryRunner runner;
     
     public Builder setId(final String id) {
@@ -532,6 +562,11 @@ public class QueryConfig implements TimerTask {
     
     public Builder setQuery(final String query) {
       this.query = query;
+      return this;
+    }
+    
+    public Builder setParser(final String parser) {
+      this.parser = parser;
       return this;
     }
     
