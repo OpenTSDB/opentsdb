@@ -142,9 +142,14 @@ public class V3ResultParser implements ResultParser {
           VALUES_COUNT, values, tags);
       TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
           NANS_COUNT, nans, tags);
-      final int delta = (int) ((DateTime.currentTimeMillis() / 1000) - last_ts);
-      TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
-          TIMESTAMP_LAG, delta, tags);
+      final int delta;
+      if (values > 0) {
+        delta = (int) ((DateTime.currentTimeMillis() / 1000) - last_ts);
+          TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
+              TIMESTAMP_LAG, delta, tags);
+      } else {
+        delta = 0;
+      }
       LOG.debug("Successfully parsed [" + config.id + "] Results: " + result_count 
           + " Time series: " + time_series_count + " Values: " + values 
           + " Nans: " + nans + " Lag: " + delta + "(s)");

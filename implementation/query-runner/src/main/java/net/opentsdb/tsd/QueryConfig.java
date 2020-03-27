@@ -129,6 +129,9 @@ public class QueryConfig implements TimerTask {
       if (builder.parser.equalsIgnoreCase("opentsdbv3")) {
         parser = new V3ResultParser();
         LOG.info("Using " + builder.parser + " for check " + id);
+      } else if (builder.parser.equalsIgnoreCase("opentsdbv2")) {
+        parser = new V2ResultParser();
+        LOG.info("Using " + builder.parser + " for check " + id);
       } else {
         LOG.warn("Unknown parser: " + builder.parser);
         parser = null;
@@ -397,6 +400,7 @@ public class QueryConfig implements TimerTask {
         final List<String> args = Lists.newArrayList();
         args.add(runner.curl_exec);
         args.add("-sS"); // suppress the progress bar but keep errors.
+        args.add("-L"); // follow redirects.
         //args.add("-vv"); // for debugging
         args.add("-w");
         args.add("\"" + TsdbQueryRunner.CURL_STATUS + runner.curl_metrics + "\"");
