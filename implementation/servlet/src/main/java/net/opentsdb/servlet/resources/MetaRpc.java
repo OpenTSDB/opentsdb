@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import java.time.temporal.ChronoUnit;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.auth.Authentication;
@@ -32,6 +33,7 @@ import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
 import net.opentsdb.utils.Bytes;
@@ -79,8 +81,11 @@ public class MetaRpc {
         }
         final TSDB tsdb = (TSDB) obj;
 
+        StatsTimer timer = null;
         if (tsdb.getStatsCollector() != null) {
             tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "meta");
+            timer = tsdb.getStatsCollector().startTimer("query.user.latency", ChronoUnit.MILLIS);
+
         }
 
         // check auth.
@@ -286,7 +291,9 @@ public class MetaRpc {
           response.getOutputStream().write(data);
           response.getOutputStream().close();
           stream.close();
-
+          if (timer != null) {
+            timer.stop("endpoint", "meta");
+          }
         } catch (Throwable t) {
             LOG.error("Unexpected exception triggering query.", t);
             GenericExceptionMapper.serialize(t, response);
