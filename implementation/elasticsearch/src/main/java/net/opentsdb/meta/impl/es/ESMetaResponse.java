@@ -200,9 +200,9 @@ public class ESMetaResponse implements MetaResponse {
 
               tsdb.getStatsCollector()
                   .addTime("es.client.query.es.latency", response.getTookInMillis(), ChronoUnit.MILLIS,
-                      "colo", "namespace", "type",
-                      search_response.getKey(), query.type() == QueryType.NAMESPACES ? "all_namespaces":
-                          meta_query.namespace(), query.type().toString());
+                      "es_colo", search_response.getKey(),
+                      "namespace", query.type() == QueryType.NAMESPACES ? "all_namespaces": meta_query.namespace(),
+                      "type", query.type().toString());
 
               long startTime = System.currentTimeMillis();
               switch (query.type()) {
