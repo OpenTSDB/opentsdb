@@ -16,7 +16,7 @@ AGGREGATORS = ("avg", "count", "dev", "diff",
 FILL_POLICIES = ("none", "nan", "null", "zero")
 METHODS = ("gt", "ge", "lt", "le", "eq", "ne")
 ALARMS = ("warn", "crit")
-log = logging.getLogger("repair-tsd")
+log = logging.getLogger("check_tsd_v2")
 log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 logformat = "%(message)s"
