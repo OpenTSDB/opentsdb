@@ -165,16 +165,19 @@ def _process_metric(m, args, comparisons):
                 mresult[alarm] += 1
                 break
     mresult["metric_avg"] = sum(avglist)/len(avglist)
+    log.debug("Number of datapoints outside of threshold: {}".format(mresult["crit"]))
     mresult["crit_percent"] = mresult["crit"] / value_count * 100
     mresult["warn_percent"] = mresult["warn"] / value_count * 100
     if mresult["crit"] > 0:
-        if args.percent_over > 0 and mresult["crit_percent"] > args.percent_over:
-            mresult["crit_alarm"] = True
+        if args.percent_over > 0 and mresult["crit_percent"] < args.percent_over:
+            log.debug("Calculated Critical Percent: {}, less than value of percent_over argument: {}".format(mresult["crit_percent"], args.percent_over))
+            mresult["crit_alarm"] = False
         else:
             mresult["crit_alarm"] = True
     if mresult["warn"] > 0:
-        if args.percent_over > 0 and mresult["warn_percent"] > args.percent_over:
-            mresult["warn_alarm"] = True
+        if args.percent_over > 0 and mresult["warn_percent"] < args.percent_over:
+            log.debug("Calculated Warning Percent: {}, less than value of percent_over argument: {}".format(mresult["crit_percent"], args.percent_over))
+            mresult["warn_alarm"] = False
         else:
             mresult["warn_alarm"] = True
     return mresult
@@ -284,7 +287,7 @@ def main():
             warn = True
         alerts = r["crit"] + r["warn"]
         perc = r["crit_percent"] + r["warn_percent"]
-        log.info("{} => alarmed {} times in range. ({}% alarms). Avg. Value: {}".format(",".join(r["tags"]),
+        log.info("{} => outside threshold {} times in range. ({}% alarms). Avg. Value: {}".format(",".join(r["tags"]),
                                                                                         alerts, perc, r["metric_avg"]))
     log.info("{} total metrics processed".format(len(total)))
     crit_count = len(crits)
