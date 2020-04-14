@@ -275,8 +275,6 @@ def main():
     total = []
     for r in process_metrics(query, args, comparisons):
         total.append(r["tags"])
-        if not r["crit_alarm"] and not r["warn_alarm"]:
-            continue
         if args.alarm_empty and r["empty"]:
             log.info("{} => no data returned in range.".format(",".join(r["tags"])))
             crits.append(r["tags"])
