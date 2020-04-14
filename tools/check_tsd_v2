@@ -153,7 +153,7 @@ def _process_metric(m, args, comparisons):
     for ts, d in m["dps"].items():
         log.debug("Processing timestamp {} value {}".format(ts,d))
         try:
-            ts = float(ts)
+            ts = int(ts)
         except ValueError:
             log.error("Bad timestamp for {}: {}".format(",".join(mresult["tags"]), ts))
             mresult["crit_alarm"] = True
