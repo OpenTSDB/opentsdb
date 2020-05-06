@@ -34,6 +34,7 @@ import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.Bytes;
 import org.hbase.async.FilterList;
 import org.hbase.async.FuzzyRowFilter;
+import org.hbase.async.KeyRegexpFilter;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
@@ -1633,7 +1634,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     assertEquals(300, dps[0].aggregatedSize());
     // assert fuzzy
     for (final MockScanner scanner : storage.getScanners()) {
-      assertTrue(scanner.getFilter() instanceof FuzzyRowFilter);
+      assertTrue(scanner.getFilter() instanceof FilterList);
+      FilterList filter_list = (FilterList) scanner.getFilter();
+      assertEquals(2, filter_list.size());
+      assertTrue(filter_list.filters().get(0) instanceof FuzzyRowFilter);
+      assertTrue(filter_list.filters().get(1) instanceof KeyRegexpFilter);
     }
   }
 
@@ -1664,7 +1669,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     assertEquals(300, dps[0].aggregatedSize());
     // assert fuzzy
     for (final MockScanner scanner : storage.getScanners()) {
-      assertTrue(scanner.getFilter() instanceof FuzzyRowFilter);
+      assertTrue(scanner.getFilter() instanceof FilterList);
+      FilterList filter_list = (FilterList) scanner.getFilter();
+      assertEquals(2, filter_list.size());
+      assertTrue(filter_list.filters().get(0) instanceof FuzzyRowFilter);
+      assertTrue(filter_list.filters().get(1) instanceof KeyRegexpFilter);
     }
   }
 
@@ -1690,7 +1699,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     assertEquals(0, dps.length);
     // assert fuzzy
     for (final MockScanner scanner : storage.getScanners()) {
-      assertTrue(scanner.getFilter() instanceof FuzzyRowFilter);
+      assertTrue(scanner.getFilter() instanceof FilterList);
+      FilterList filter_list = (FilterList) scanner.getFilter();
+      assertEquals(2, filter_list.size());
+      assertTrue(filter_list.filters().get(0) instanceof FuzzyRowFilter);
+      assertTrue(filter_list.filters().get(1) instanceof KeyRegexpFilter);
     }
   }
 
