@@ -139,7 +139,7 @@ public class TestQueryUtil {
         true,
         true,
         0);
-    verify(scanner, times(2)).getCurrentKey();
+    verify(scanner, times(3)).getCurrentKey();
     // TODO - validate the regex and fuzzy filter
     verify(scanner, times(1)).setFilter(any(FilterList.class));
     verify(scanner, times(1)).setStartKey(any(byte[].class));
