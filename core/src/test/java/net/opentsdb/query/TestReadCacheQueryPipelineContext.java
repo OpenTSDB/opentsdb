@@ -206,7 +206,7 @@ public class TestReadCacheQueryPipelineContext {
       ts += ctx.interval_in_seconds;
     }
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(2147483647), "1h", ctx.slices, ctx.expirations);
     assertEquals(0, ctx.sinks.size());
   }
   
@@ -230,7 +230,7 @@ public class TestReadCacheQueryPipelineContext {
       ts += ctx.interval_in_seconds;
     }
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(2147483647), "1h", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -253,7 +253,7 @@ public class TestReadCacheQueryPipelineContext {
       ts += ctx.interval_in_seconds;
     }
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -272,7 +272,7 @@ public class TestReadCacheQueryPipelineContext {
     assertEquals(1, ctx.slices.length);
     assertEquals(1514764800, ctx.slices[0]);
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1d", ctx.slices, ctx.expirations);
+        ctx.hash(3600), "1d", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -286,7 +286,7 @@ public class TestReadCacheQueryPipelineContext {
     assertSame(keygen_plugin, ctx.key_gen);
     assertTrue(ctx.skip_cache);
     verify(keygen_plugin, never()).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -300,7 +300,7 @@ public class TestReadCacheQueryPipelineContext {
     assertSame(keygen_plugin, ctx.key_gen);
     assertTrue(ctx.skip_cache);
     verify(keygen_plugin, never()).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -323,7 +323,7 @@ public class TestReadCacheQueryPipelineContext {
       ts += ctx.interval_in_seconds;
     }
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -346,7 +346,7 @@ public class TestReadCacheQueryPipelineContext {
       ts += ctx.interval_in_seconds;
     }
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1d", ctx.slices, ctx.expirations);
+        ctx.hash(3600), "1d", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -397,7 +397,7 @@ public class TestReadCacheQueryPipelineContext {
       ts += ctx.interval_in_seconds;
     }
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1d", ctx.slices, ctx.expirations);
+        ctx.hash(60), "1d", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -439,7 +439,7 @@ public class TestReadCacheQueryPipelineContext {
     assertSame(keygen_plugin, ctx.key_gen);
     assertTrue(ctx.skip_cache);
     verify(keygen_plugin, never()).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
   }
   
   @Test
@@ -482,7 +482,7 @@ public class TestReadCacheQueryPipelineContext {
       ts += ctx.interval_in_seconds;
     }
     verify(keygen_plugin, times(1)).generate(
-        query.buildHashCode().asLong(), "1h", ctx.slices, ctx.expirations);
+        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
     assertEquals(1, ctx.sinks.size());
     assertSame(SINK, ctx.sinks.get(0));
   }

@@ -261,7 +261,13 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         expirations = new long[slices.length];
         expirations[0] = min_interval * 1000; // needs to be in millis
         
-        keys = key_gen.generate(original_query_hash, 
+        // TODO - blah. This will let us zoom in or change the query time range
+        // properly but it's ugly. E.g. if we start with a daily view, we may
+        // auto downsample to 5 minutes. But if the user then zooms into a couple
+        // hour view, we want 1 minute data. Tried changing the query earlier
+        // but that breaks a few things.
+        long hash = hash(ds_interval); 
+        keys = key_gen.generate(hash, 
             string_interval, slices, expirations);
         if (tip_query) {
           keys = Arrays.copyOf(keys, keys.length - 1);
@@ -270,10 +276,10 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         
         if (context.query().getCacheMode() == CacheMode.CLEAR) {
           LOG.info("Clearing cache for query " 
-              + original_query_hash
+              + hash
               + " at timestamps " + Arrays.toString(slices));
           context.logInfo("Clearing cache for query " 
-              + original_query_hash
+              + hash
               + " at timestamps " + Arrays.toString(slices));
           cache.delete(slices, keys);
           stats.incrementCounter(SEGMENTS_CLEAR, keys.length, NULL_TAGS);
@@ -1290,5 +1296,13 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       }
     }
     return ids;
+  }
+  
+  protected long hash(final int ds_interval) {
+    return Const.HASH_FUNCTION().newHasher()
+        .putLong(original_query_hash)
+        .putInt(ds_interval)
+        .hash()
+        .asLong();
   }
 }
