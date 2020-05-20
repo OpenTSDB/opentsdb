@@ -1234,6 +1234,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
       
       ArrayData(final JsonNode data) {
         long_data = new long[data.size()];
+        if (data.size() < 1) {
+          was_read = true;
+          return;
+        }
+        
         for (final JsonNode node : data) {
           if (node.isDouble() || node.isTextual() && 
               node.asText().toLowerCase().equals("nan")) {

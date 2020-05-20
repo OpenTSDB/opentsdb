@@ -126,7 +126,7 @@ public class TestReadCacheQueryPipelineContext {
     TSDB.runnables.clear();
     
     sink = mock(QuerySink.class);
-    context = mock(QueryContext.class);
+    context = mock(BaseQueryContext.class);
     cache_plugin = mock(QueryReadCache.class);
     keygen_plugin = mock(ReadCacheKeyGenerator.class);
     
