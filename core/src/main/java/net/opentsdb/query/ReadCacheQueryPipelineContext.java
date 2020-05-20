@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2019  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -145,7 +146,24 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     // so we either cache the whole shebang or we bypass the cache.
     interval_in_seconds = 0;
     int ds_interval = Integer.MAX_VALUE;
-    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+    final QueryNodeFactory ds_factory = context.tsdb().getRegistry()
+        .getQueryNodeFactory(DownsampleFactory.TYPE);
+    if (ds_factory == null) {
+      LOG.error("Unable to find a factory for the downsampler.");
+    }
+    if (((DownsampleFactory) ds_factory).intervals() == null) {
+      LOG.error("No auto intervals for the downsampler.");
+    }
+    
+    // This will hold our mutated downsamplers. After we look at all of them we
+    // need to settle on a common resolution for proper caching since we cache
+    // everything right now, not on a per time series basis.
+    List<QueryNodeConfig> downsamplers = null;
+    final List<QueryNodeConfig> execution_graph = 
+        Lists.newArrayList(context.query().getExecutionGraph());
+    Iterator<QueryNodeConfig> iterator = execution_graph.iterator();
+    while (iterator.hasNext()) {
+      QueryNodeConfig config = iterator.next();
       if (config instanceof TopNConfig) {
         skip_cache = true;
         LOG.warn("Skipping cache as we had a TOPN query.");
@@ -168,15 +186,6 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         }
       }
       
-      final QueryNodeFactory factory = context.tsdb().getRegistry()
-          .getQueryNodeFactory(DownsampleFactory.TYPE);
-      if (factory == null) {
-        LOG.error("Unable to find a factory for the downsampler.");
-      }
-      if (((DownsampleFactory) factory).intervals() == null) {
-        LOG.error("No auto intervals for the downsampler.");
-      }
-      
       if (config instanceof DownsampleConfig) {
         String interval;
         if (((DownsampleConfig) config).getRunAll()) {
@@ -187,7 +196,13 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           final long delta = context.query().endTime().msEpoch() - 
               context.query().startTime().msEpoch();
           interval = DownsampleFactory.getAutoInterval(delta, 
-              ((DownsampleFactory) factory).intervals(), null);
+              ((DownsampleFactory) ds_factory).intervals(), null);
+          
+          iterator.remove();
+          if (downsamplers == null) {
+            downsamplers = Lists.newArrayList();
+          }
+          downsamplers.add(config);
         } else {
           // normal interval
           interval = ((DownsampleConfig) config).getInterval();
@@ -216,6 +231,17 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       return Deferred.fromResult(null);
     }
 
+    if (downsamplers != null) {
+      for (int i = 0; i < downsamplers.size(); i++) {
+        DownsampleConfig config = ((DownsampleConfig.Builder) downsamplers.get(i).toBuilder())
+            .setInterval(string_interval)
+            .setSources(downsamplers.get(i).getSources())
+            .setId(downsamplers.get(i).getId())
+            .build();
+        execution_graph.add(config);
+      }
+    }
+    
     class CB implements Callback<Void, ArrayList<Void>> {
       final int ds_interval;
       
@@ -337,13 +363,13 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     
     // TODO - handle the case wherein a summary is in the middle of a DAG. That
     // could happen. For now we assume it's always at the end.
-    Map<String, QueryNodeConfig> summarizers = Maps.newHashMap();
-    List<QueryNodeConfig> new_execution_graph = Lists.newArrayList();
-    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+    final Map<String, QueryNodeConfig> summarizers = Maps.newHashMap();
+    iterator = execution_graph.iterator();
+    while (iterator.hasNext()) {
+      QueryNodeConfig config = iterator.next();
       if (config instanceof SummarizerConfig) {
         summarizers.put(config.getId(), config);
-      } else {
-        new_execution_graph.add(config);
+        iterator.remove();
       }
     }
     
@@ -357,7 +383,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         // TODO - handle multiple filters
         // add summarizer sources
         for (final QueryNodeConfig config : summarizers.values()) {
-          // wtf? figure this out
+          // ******* WTF? figure this out
           for (final Object source : config.getSources()) {
             new_serdes_filter.add((String) source);
           }
@@ -372,7 +398,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           }
         }
         
-        builder.setExecutionGraph(new_execution_graph);
+        builder.setExecutionGraph(execution_graph);
         builder.setSerdesConfigs(Lists.newArrayList(
             JsonV2QuerySerdesOptions.newBuilder()
                 .setFilter(Lists.newArrayList(new_serdes_filter))
@@ -416,6 +442,10 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         deferreds.add(summarizer.initialize(span));
       }
       return Deferred.group(deferreds).addCallback(new CB(ds_interval));
+    } else if (downsamplers != null) {
+      SemanticQuery.Builder builder = ((SemanticQuery) context.query()).toBuilder()
+          .setExecutionGraph(execution_graph);
+      ((BaseQueryContext) context).resetQuery(builder.build());
     }
     
     try {
@@ -434,8 +464,8 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     cache_latch = new AtomicInteger(slices.length);
     try {
       cache.fetch(this, keys, this, null);
-    } catch(Exception e) {
-      onCacheError(-1, e);
+    } catch(Throwable t) {
+      onCacheError(-1, t);
     }
   }
   
@@ -902,6 +932,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   }
   
   boolean okToRunMisses(final int hits) {
+    // TODO - configure the 60 pct
     return hits > 0 && ((double) hits / (double) keys.length) > .60;
   }
   

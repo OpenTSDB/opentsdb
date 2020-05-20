@@ -157,6 +157,7 @@ public class CombinedCachedNumericArray implements
     } catch (Throwable t) {
       LOG.error("Unexpected exception building combined cache result.", t);
       this.idx = 0;
+      called = true;
     }
   }
 
