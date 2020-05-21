@@ -646,8 +646,9 @@ public class SaltScanner {
   private void validateAndTriggerCallback(final List<KeyValue> kvs, 
           final Map<byte[], List<Annotation>> annotations) {
 
+    int scannersRunning = countdown.decrementAndGet();
     if (kvs.size() > 0) {
-      kv_map.put(index, kvs);
+      kv_map.put(scannersRunning, kvs);
     }
     
     for (final byte[] key : annotations.keySet()) {
@@ -658,7 +659,6 @@ public class SaltScanner {
       }
     }
     
-    int scannersRunning = countdown.decrementAndGet();
     if (scannersRunning <= 0) {
       try {
         mergeAndReturnResults();
