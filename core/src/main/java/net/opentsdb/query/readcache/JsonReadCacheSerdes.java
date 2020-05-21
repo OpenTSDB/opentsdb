@@ -1056,14 +1056,14 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
             BaseTimeSeriesStringId.newBuilder();
         JsonNode temp = node.get("metric");
         if (temp != null && !temp.isNull()) {
-          builder.setMetric(temp.asText());
+          builder.setMetric(temp.asText().trim());
         }
         temp = node.get("tags");
         if (temp != null && !temp.isNull()) {
           final Iterator<Entry<String, JsonNode>> iterator = temp.fields();
           while (iterator.hasNext()) {
             final Entry<String, JsonNode> entry = iterator.next();
-            builder.addTags(entry.getKey(), entry.getValue().asText());
+            builder.addTags(entry.getKey().trim(), entry.getValue().asText().trim());
           }
         }
 
@@ -1075,7 +1075,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         temp = node.get("aggregateTags");
         if (temp != null && !temp.isNull()) {
           for (final JsonNode tag : temp) {
-            builder.addAggregatedTag(tag.asText());
+            builder.addAggregatedTag(tag.asText().trim());
           }
         }
         id = builder.build();
