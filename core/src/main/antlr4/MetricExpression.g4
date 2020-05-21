@@ -78,7 +78,7 @@ not : N O T | '!'
 TRUE : T R U E;
 FALSE: F A L S E;
 
-ABSOLUTE: A B S
+ABSOLUTE: A B S;
 
 modulo : '%' ;
 
