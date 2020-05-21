@@ -164,10 +164,6 @@ public class GroupByNumericArrayIterator
                 + ((GroupByConfig) node.config()).getAggregator());
       }
 
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Group by queue threshold {}", queueThreshold);
-      }
-
       int size;
       DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
       if (null == downsampleConfig) {
@@ -335,7 +331,7 @@ public class GroupByNumericArrayIterator
     final int jobCount = (int) Math.ceil((double) tsCount / timeSeriesPerJob);
 
     final long start = System.currentTimeMillis();
-    final int totalTsCount = this.result.timeSeries().size();
+    final int totalTsCount = this.result.getTsCountInQuery();
 
     final PooledObject[] jobs = new PooledObject[jobCount];
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);

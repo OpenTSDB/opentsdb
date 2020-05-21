@@ -205,11 +205,13 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     threads = new Thread[threadCount];
 
     LOG.info(
-        "Initialized Group by factory {}: {} {}:{} ",
+        "Initialized Group by factory {}: {} {}: {} {}: {}",
         GROUPBY_QUEUE_THRESHOLD_KEY,
         configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY),
         GROUPBY_THREAD_COUNT_KEY,
-        threadCount);
+        threadCount,
+        GROUPBY_TIMESERIES_PER_JOB_KEY,
+        configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY));
 
     for (int i = 0; i < threads.length; i++) {
       Thread thread = new Thread(() -> {
