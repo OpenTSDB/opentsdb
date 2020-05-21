@@ -45,6 +45,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.storage.MockBase;
@@ -1605,7 +1606,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     sub.setMetric(METRIC_STRING);
     sub.setAggregator("sum");
     sub.setDownsample("1h-sum");
-    sub.setFilters(Arrays.asList(new TagVLiteralOrFilter("host", TAGV_STRING)));
+    sub.setFilters(Lists.newArrayList(new TagVLiteralOrFilter("host", TAGV_STRING)));
 
     ts_query.setQueries(Arrays.asList(sub));
     ts_query.validateAndSetQuery();
