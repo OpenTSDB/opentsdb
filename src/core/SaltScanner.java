@@ -944,8 +944,9 @@ public class SaltScanner {
       final Map<byte[], List<Annotation>> annotations,
       final List<SimpleEntry<byte[], List<HistogramDataPoint>>> histograms) {
 
+    int scannersRunning = countdown.decrementAndGet();
     if (kvs.size() > 0) {
-      kv_map.put(index, kvs);
+      kv_map.put(scannersRunning, kvs);
     }
     
     for (final byte[] key : annotations.keySet()) {
@@ -957,10 +958,9 @@ public class SaltScanner {
     }
     
     if (histograms.size() > 0) {
-      histMap.put(index, histograms);
+      histMap.put(scannersRunning, histograms);
     }
 
-    int scannersRunning = countdown.decrementAndGet();
     if (scannersRunning <= 0) {
       try {
         mergeAndReturnResults();
