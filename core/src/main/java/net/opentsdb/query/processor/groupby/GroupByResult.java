@@ -58,6 +58,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
   protected final List<TimeSeries> results;
 
   private boolean sourceProcessInParallel;
+
+  private int tsCountInQuery;
   
   /**
    * The default ctor.
@@ -79,7 +81,9 @@ public class GroupByResult extends BaseWrappedQueryResult {
     this.node = node;
     final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
     if (next.idType().equals(Const.TS_STRING_ID)) {
-      for (final TimeSeries series : next.timeSeries()) {
+      List<TimeSeries> timeSeries = next.timeSeries();
+      tsCountInQuery = timeSeries.size();
+      for (final TimeSeries series : timeSeries) {
         final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
         final StringBuilder buf = new StringBuilder()
             .append(id.metric());
@@ -129,7 +133,9 @@ public class GroupByResult extends BaseWrappedQueryResult {
       }
     } else if (next.idType().equals(Const.TS_BYTE_ID)) {
       final List<byte[]> keys = ((GroupByConfig) node.config()).getEncodedTagKeys();
-      for (final TimeSeries series : next.timeSeries()) {
+      List<TimeSeries> timeSeries = next.timeSeries();
+      tsCountInQuery = timeSeries.size();
+      for (final TimeSeries series : timeSeries) {
         final TimeSeriesByteId id = (TimeSeriesByteId) series.id();
         // TODO - bench me, may be a better way
         final ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -213,5 +219,9 @@ public class GroupByResult extends BaseWrappedQueryResult {
 
   public boolean isSourceProcessInParallel() {
     return sourceProcessInParallel;
+  }
+
+  public int getTsCountInQuery() {
+    return tsCountInQuery;
   }
 }
