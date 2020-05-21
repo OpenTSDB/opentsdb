@@ -34,7 +34,6 @@ logicalOperands : relationalExpression | TRUE | FALSE
            ;
 
 arthmeticExpression : '(' arthmeticExpression ')'                       #paren_arith_rule
-                    |  ABSOLUTE '('   arthmeticExpression ')'              #abs_rule
                     |  arthmeticExpression '%' arthmeticExpression      #mod_arith_rule
                     | arthmeticExpression ('/'|'*') arthmeticExpression #divmul_arith_rule
                     | arthmeticExpression ('-'|'+') arthmeticExpression #addsub_arith_rule
@@ -77,8 +76,6 @@ not : N O T | '!'
 
 TRUE : T R U E;
 FALSE: F A L S E;
-
-ABSOLUTE: A B S
 
 modulo : '%' ;
 
