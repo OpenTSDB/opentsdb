@@ -177,7 +177,7 @@ public class QueryStats {
     AVG_UID_TO_STRING ("avgUidToStringTime", true),
     MAX_COMPACTION_TIME ("maxCompactionTime", true),
     AVG_COMPACTION_TIME ("avgCompactionTime", true),
-    MAX_SCANNER_UID_TO_STRING_TIME ("maxScannerUidtoStringTime", true),
+    MAX_SCANNER_UID_TO_STRING_TIME ("maxScannerUidToStringTime", true),
     AVG_SCANNER_UID_TO_STRING_TIME ("avgScannerUidToStringTime", true),
     MAX_SCANNER_MERGE_TIME ("maxSaltScannerMergeTime", true),
     AVG_SCANNER_MERGE_TIME ("avgSaltScannerMergeTime", true),
@@ -410,7 +410,7 @@ public class QueryStats {
         obj.put("query", stats.query);
         obj.put("remote", stats.remote_address);
         obj.put("user", stats.user);
-        obj.put("headers", stats.headers);;
+        obj.put("headers", stats.headers);
         obj.put("queryStart", stats.query_start_ms);
         obj.put("elapsed", DateTime.msFromNanoDiff(DateTime.nanoTime(), 
             stats.query_start_ns));
