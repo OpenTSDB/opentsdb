@@ -71,7 +71,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
   public static final String GROUPBY_QUEUE_THRESHOLD_KEY = "groupby.queue.threshold";
   public static final int DEFAULT_GROUPBY_QUEUE_THRESHOLD = 10_000;
 
-  public static final String GROUPBY_TIMESERIES_PER_JOB_KEY = "groupby.timesereis.perjob";
+  public static final String GROUPBY_TIMESERIES_PER_JOB_KEY = "groupby.timeseries.perjob";
   public static final int DEFAULT_GROUPBY_TIMESERIES_PER_JOB = 512;
 
   public static final String GROUPBY_THREAD_COUNT_KEY = "groupby.thread.count";
