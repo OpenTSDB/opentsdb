@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Optional;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesStringId;
@@ -71,7 +74,8 @@ import net.opentsdb.utils.DateTime;
  * @since 3.0
  */
 public class HttpQueryV3Result implements QueryResult {
-
+  private static final Logger LOG = LoggerFactory.getLogger(HttpQueryV3Result.class);
+  
   /** The node that owns us. */
   private final QueryNode node;
   
@@ -331,7 +335,18 @@ public class HttpQueryV3Result implements QueryResult {
         final Iterator<Entry<String, JsonNode>> iterator = temp.fields();
         while (iterator.hasNext()) {
           final Entry<String, JsonNode> entry = iterator.next();
-          builder.addTags(entry.getKey(), entry.getValue().asText());
+          String tag = entry.getValue().asText();
+          if (tag.contains("\u0000")) {
+            LOG.warn("Stripping null UTF8 from tag: " + tag + " from source: " 
+                + HttpQueryV3Result.this.node.config().getId());
+            tag = tag.replace("\u0000", "");
+          }
+          if (tag.endsWith("\n")) {
+            LOG.warn("Stripping null from tag: " + tag + " from source: " 
+                + HttpQueryV3Result.this.node.config().getId());
+            tag = tag.substring(0, tag.length() - 1);
+          }
+          builder.addTags(entry.getKey(), tag);
         }
       }
 
