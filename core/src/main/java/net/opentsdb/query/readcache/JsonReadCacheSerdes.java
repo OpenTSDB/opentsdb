@@ -1063,6 +1063,18 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
           final Iterator<Entry<String, JsonNode>> iterator = temp.fields();
           while (iterator.hasNext()) {
             final Entry<String, JsonNode> entry = iterator.next();
+            String tag = entry.getValue().asText();
+            if (tag.contains("\u0000")) {
+              LOG.warn("Stripping null UTF8 from tag: " + tag + " from source: " 
+                  + JsonCachedResult.this.node.config().getId());
+              tag = tag.replace("\u0000", "");
+            }
+            if (tag.endsWith("\n")) {
+              LOG.warn("Stripping null from tag: " + tag + " from source: " 
+                  + JsonCachedResult.this.node.config().getId());
+              tag = tag.substring(0, tag.length() - 1);
+            }
+            builder.addTags(entry.getKey(), tag);
             builder.addTags(entry.getKey().trim(), entry.getValue().asText().trim());
           }
         }
@@ -1586,7 +1598,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         
         int start = timestamps[i];
         int end = 0;
-        if (i + 1 >= timestamps.length) {
+        if (i + 1 >= timestamps.length && timestamps.length > 1) {
           long delta = (long) timestamps[i] - (long) timestamps[i - 1];
           end = (int) (start + delta);
         } else {
