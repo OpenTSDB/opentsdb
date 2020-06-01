@@ -16,6 +16,7 @@ package net.opentsdb.configuration.providers;
 
 import java.io.IOException;
 import java.util.Base64;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,7 +170,13 @@ public class AWSSecretsProvider extends BaseSecretProvider {
   public void reload() {
     // no-op
   }
-
+  
+  @Override
+  public void populateRawMap(Map<String, String> map) {
+    // TODO Auto-generated method stub
+    
+  }
+  
   /**
    * Helper to register configuration parameters.
    * @param config The non-null config object.
@@ -197,5 +204,6 @@ public class AWSSecretsProvider extends BaseSecretProvider {
         (Strings.isNullOrEmpty(id) ? "" : id + ".") 
           + suffix;
   }
+
   
 }

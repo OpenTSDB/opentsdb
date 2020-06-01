@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 package net.opentsdb.configuration.provider;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import com.google.common.base.Strings;
 
@@ -86,6 +88,25 @@ public class CommandLineProvider extends BaseProvider {
   @Override
   public void reload() {
     // no-op
+  }
+  
+  @Override
+  public void populateRawMap(final Map<String, String> map) {
+    if (args == null || args.length < 1) {
+      return;
+    }
+    
+    final ArgP args = new ArgP(false);
+    for (int i = 0; i < this.args.length; i++) {
+      if (this.args[i] != null && this.args[i].startsWith("--")) {
+        String[] split = this.args[i].split("=");
+        args.addOption(split[0], "Foo");
+      }
+    }
+    args.parse(this.args);
+    for (final Entry<String, String> entry : args.getParsed().entrySet()) {
+      map.put(entry.getKey().replace("--", ""), entry.getValue());
+    }
   }
   
   public static class CommandLine implements ProviderFactory {

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package net.opentsdb.configuration;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.ConfigurationValueValidator.ValidationResult;
@@ -144,6 +143,11 @@ public class UnitTestConfiguration extends Configuration {
     @Override
     public void reload() {
       // no-op
+    }
+    
+    @Override
+    public void populateRawMap(final Map<String, String> map) {
+      
     }
     
   }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -104,6 +104,11 @@ public class MapProvider implements Provider, ProviderFactory {
     // no-op
   }
 
+  @Override
+  public void populateRawMap(final Map<String, String> map) {
+    map.putAll(properties);
+  }
+  
   @Override
   public long lastReload() {
     return 0;
