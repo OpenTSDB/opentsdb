@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -219,6 +219,11 @@ public class PropertiesFileProvider extends BaseProvider {
     } catch (IOException e) {
       LOG.error("Failed to read file: " + file_name, e);
     }
+  }
+  
+  @Override
+  public void populateRawMap(final Map<String, String> map) {
+    map.putAll(cache);
   }
   
   /**

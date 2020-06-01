@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,10 +17,14 @@ package net.opentsdb.configuration.provider;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.io.Files;
 
 import io.netty.util.HashedWheelTimer;
@@ -117,5 +121,100 @@ public class YamlJsonFileProvider extends YamlJsonBaseProvider {
       }
     }
   }
+ 
+  @Override
+  public void populateRawMap(final Map<String, String> map) {
+    final File file = new File(file_name);
+    if (!file.exists()) {
+      LOG.warn("No file found at: " + file_name);
+      return;
+    }
+    
+    InputStream stream = null;
+    try {
+      stream = Files.asByteSource(file).openStream();
+      
+      JsonNode node = Configuration.OBJECT_MAPPER.readTree(stream);
+      if (node == null) {
+        LOG.error("The uri was empty: " + uri + ". Skipping "
+            + "loading.");
+        return;
+      }
+      
+      if (!node.isObject()) {
+        LOG.error("The file must contain an object/map of key values: " 
+            + uri + ". Skipping loading. Type: " + node.getNodeType());
+        return;
+      }
+      
+      recursiveToMap(node, null, map);
+    } catch (IOException e) {
+      LOG.error("Failed to open file: " + uri);
+    } finally {
+      if (stream != null) {
+        try {
+          stream.close();
+        } catch (IOException e) {
+          LOG.warn("Failed to close stream: " + uri);
+        }
+      }
+    }
+  }
   
+  private void recursiveToMap(final JsonNode node, 
+                              final String key, 
+                              final Map<String, String> map) {
+    switch (node.getNodeType()) {
+    case STRING:
+    case BOOLEAN:
+    case NUMBER:
+      map.put(key, node.asText());
+      break;
+    case NULL:
+      // no-op
+      break;
+    case ARRAY:
+      // can't do deep nesting here but if we have simple numbers or strings we
+      // can comma delimit.
+      StringBuilder buffer = null;
+      for (final JsonNode child : node) {
+        switch (child.getNodeType()) {
+        case STRING:
+        case BOOLEAN:
+        case NUMBER:
+          if (buffer == null) {
+            buffer = new StringBuilder()
+                .append(child.asText());
+          } else {
+            buffer.append(",")
+                  .append(child.asText());
+          }
+        default:
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Ignoring node of type: " + child.getNodeType() 
+              + " nested in an array.");
+          }
+        }
+        break;
+      }
+      if (buffer != null) {
+        map.put(key, buffer.toString());
+      }
+      break;
+      
+    case OBJECT:
+      final Iterator<Entry<String, JsonNode>> iterator = node.fields();
+      while (iterator.hasNext()) {
+        final Entry<String, JsonNode> entry = iterator.next();
+        recursiveToMap(entry.getValue(), 
+                       key != null ? key + "." + entry.getKey() : entry.getKey(), 
+                       map);
+      }
+      break;
+    default:
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Ignoring node of type: " + node.getNodeType());
+      }
+    }
+  }
 }

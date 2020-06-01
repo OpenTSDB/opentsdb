@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationOverride;
 
 import java.io.Closeable;
+import java.util.Map;
 
 import io.netty.util.TimerTask;
 
@@ -69,5 +70,11 @@ public interface Provider extends Closeable, TimerTask {
    * @return A non-null factory.
    */
   public ProviderFactory factory();
+  
+  /**
+   * Used to populate a raw, flat map of all registered and unregistered settings.
+   * @param map A non-null map to populate with values.
+   */
+  public void populateRawMap(final Map<String, String> map);
   
 }

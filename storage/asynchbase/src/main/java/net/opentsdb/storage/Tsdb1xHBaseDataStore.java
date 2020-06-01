@@ -307,6 +307,12 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       }
     }
     
+    /** Copy all configs, then we'll override with node specific entries. */
+    final Map<String, String> flat = config.asRawUnsecuredMap();
+    for (final Entry<String, String> entry : flat.entrySet()) {
+      async_config.overrideConfig(entry.getKey(), entry.getValue());
+    }
+    
     async_config.overrideConfig("hbase.zookeeper.quorum", 
         config.getString(getConfigKey(ZK_QUORUM_KEY)));
     async_config.overrideConfig("hbase.zookeeper.znode.parent", 
@@ -319,6 +325,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       async_config.overrideConfig("hbase.security.authentication", 
           "kerberos");
     }
+    
     async_config.overrideConfig("hbase.sasl.clientconfig", 
         config.getString(getConfigKey(SASL_CLIENT_KEY)));
     async_config.overrideConfig("hbase.meta.split", 

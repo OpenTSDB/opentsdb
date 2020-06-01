@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -986,6 +986,28 @@ public class Configuration implements Closeable {
   public Map<String, String> asUnsecuredMap() {
     final Map<String, String> map = 
         Maps.newHashMapWithExpectedSize(merged_config.size());
+    for (final Entry<String, ConfigurationEntry> entry : 
+        merged_config.entrySet()) {
+      final Object value = entry.getValue().getValue();
+      if (value != null) {
+        map.put(entry.getKey(), value.toString());        
+      }
+    }
+    return Collections.unmodifiableMap(map);
+  }
+  
+  /**
+   * Returns the full config, including un-registered entries, as a non-obfuscated
+   * map.
+   * @return A non-null unmodifiable, possibly empty map.
+   */
+  public Map<String, String> asRawUnsecuredMap() {
+    final Map<String, String> map = Maps.newHashMap();
+    for (int i = 0; i < providers.size(); i++) {
+      providers.get(i).populateRawMap(map);
+    }
+    
+    // now for registered values with their defaults
     for (final Entry<String, ConfigurationEntry> entry : 
         merged_config.entrySet()) {
       final Object value = entry.getValue().getValue();

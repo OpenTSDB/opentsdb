@@ -18,6 +18,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -165,6 +166,11 @@ public class HttpProvider extends YamlJsonBaseProvider {
     }
   }
 
+  @Override
+  public void populateRawMap(Map<String, String> map) {
+    // no-op 
+  }
+  
   String getFileName() {
     return uri.replaceAll(CACHE_REPLACE, "_");
   }
@@ -198,4 +204,6 @@ public class HttpProvider extends YamlJsonBaseProvider {
       }
     }
   }
+
+  
 }
