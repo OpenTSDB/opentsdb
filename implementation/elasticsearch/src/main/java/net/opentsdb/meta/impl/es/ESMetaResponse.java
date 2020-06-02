@@ -100,9 +100,11 @@ public class ESMetaResponse implements MetaResponse {
         if (response.getHits().getTotalHits() > max_hits) {
           max_hits = response.getHits().getTotalHits();
         }
-
+        tsdb.getStatsCollector().incrementCounter("es.cluster.documents.totalHits", 
+            response.getHits().getTotalHits(), "cluster", response_entry.getKey());
         // if we have too many results, bail out with a no-data error.
         if (max_hits > max_cardinality) {
+          tsdb.getStatsCollector().incrementCounter("es.documents.tooManyHits", (String[]) null);
           if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Too many hits from ES: " + response.getHits().getTotalHits());
           }
@@ -145,9 +147,10 @@ public class ESMetaResponse implements MetaResponse {
           parseTimeseries(query, metaQuery, response, metric, isMultiGet, result);
         }
       }
+      tsdb.getStatsCollector().incrementCounter("es.documents.totalHits", max_hits, (String[]) null);
       result.setTotalHits(max_hits);
       if (LOGGER.isTraceEnabled()) {
-        LOGGER.trace("Total meta results: " + result.timeSeries().size() + " Multiget? " + isMultiGet);
+        LOGGER.trace("Total meta results: " + result.timeSeries().size());
       }
 
       final_results.put(namespacedKey, result);
@@ -189,6 +192,8 @@ public class ESMetaResponse implements MetaResponse {
               if (response.getHits().getTotalHits() > max_hits) {
                 max_hits = response.getHits().getTotalHits();
               }
+              tsdb.getStatsCollector().incrementCounter("es.cluster.documents.totalHits", 
+                  response.getHits().getTotalHits(), "cluster", search_response.getKey());
 
               if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace(
