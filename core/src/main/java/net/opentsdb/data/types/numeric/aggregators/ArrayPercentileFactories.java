@@ -29,6 +29,9 @@ import net.opentsdb.data.AggregatorConfig;
  * Instantiates a bunch of factories for various percentile functions, the same
  * we had in TSDB 2.x and {@link PercentilesFactories}. 
  * 
+ * TODO - <b>WARNING</b> Super memory and GC inefficient with the 2d array. We
+ * should use a 1d with proper offsets and shifting.
+ * 
  * @since 3.0
  */
 public class ArrayPercentileFactories extends BaseArrayFactory {
@@ -183,10 +186,12 @@ public class ArrayPercentileFactories extends BaseArrayFactory {
             }
             
             if (indices[i] < 0) {
+              idx++;
               continue;
             }
             accumulator[i] = null;
             indices[i] = -1;
+            idx++;
             continue;
           }
           
@@ -324,10 +329,16 @@ public class ArrayPercentileFactories extends BaseArrayFactory {
         }
         
         accumulator = new double[agg.accumulator.length][];
+        indices = new int[agg.accumulator.length];
         for (int i = 0; i < agg.accumulator.length; i++) {
+          if (agg.accumulator[i] == null) {
+            accumulator[i] = null;
+            indices[i] = -1;
+            continue;
+          }
           accumulator[i] = Arrays.copyOf(agg.accumulator[i], agg.accumulator[i].length);
+          indices[i] = agg.indices[i];
         }
-        indices = Arrays.copyOf(agg.indices, agg.indices.length);
       } else {
         for (int i = 0; i < agg.accumulator.length; i++) {
           if (agg.accumulator[i] == null) {
@@ -346,7 +357,7 @@ public class ArrayPercentileFactories extends BaseArrayFactory {
             accumulator[i] = ac;
           }
           
-          System.arraycopy(accumulator[i], indices[i], ac, 0, agg.indices[i]);
+          System.arraycopy(ac, 0, accumulator[i], indices[i], agg.indices[i]);
           indices[i] += agg.indices[i];
         }
       }
