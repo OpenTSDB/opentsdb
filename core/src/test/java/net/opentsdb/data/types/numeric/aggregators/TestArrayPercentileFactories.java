@@ -20,43 +20,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import net.opentsdb.data.types.numeric.aggregators.ArrayPercentileFactories.PercentileType;
 
 public class TestArrayPercentileFactories extends BaseTestNumericArray {
-  
-  private static long[][] LONGS;
-  private static double[][] DOUBLES;
-  private static Object[] MIXED;
-  
-  @BeforeClass
-  public static void beforeClass() {
-    BaseTestNumericArray.beforeClass();
-    LONGS = new long[1024][];
-    DOUBLES = new double[1024][];
-    MIXED = new Object[1024];
-    for (int i = 0; i < 1024; i++) {
-      long[] dps = new long[4];
-      double[] dbls = new double[4];
-      for (int x = 0; x < 4; x++) {
-        dps[x] = x + i;
-        if (i == 42 && x == 2) {
-          dbls[x] = Double.NaN;
-        } else {
-          dbls[x] = x + i;
-        }
-      }
-      LONGS[i] = dps;
-      DOUBLES[i] = dbls;
-      if (i % 2 == 0) {
-        MIXED[i] = dps;
-      } else {
-        MIXED[i] = dbls;
-      }
-    }
-  }
   
   @Test
   public void longs() {
@@ -255,6 +223,71 @@ public class TestArrayPercentileFactories extends BaseTestNumericArray {
       agg.accumulate(6.5, 0);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
+  }
+  
+  @Test
+  public void combineLong() {
+    ArrayPercentileFactories.ArrayPercentile agg1 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    agg1.accumulate(new long[] { 3, 2, 9, -1 });
+    agg1.accumulate(new long[] { 4, 5, 8, -19 });
+
+    ArrayPercentileFactories.ArrayPercentile agg2 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    agg2.accumulate(new long[] { 3, 8, 0, 2 });
+
+    ArrayPercentileFactories.ArrayPercentile combiner = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    combiner.combine(agg1);
+    combiner.combine(agg2);
+
+    assertArrayEquals(new double[] { 4, 8, 9, 2 }, combiner.doubleArray(), 0.001);
+    agg1.close();
+    agg2.close();
+    combiner.close();
+  }
+  
+  @Test
+  public void combineDoubles() {
+    ArrayPercentileFactories.ArrayPercentile agg1 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    agg1.accumulate(new double[] { 3, Double.NaN, 9, -1 });
+    agg1.accumulate(new double[] { 4, 5, Double.NaN, -19 });
+
+    ArrayPercentileFactories.ArrayPercentile agg2 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    agg2.accumulate(new double[] { 3, 8, Double.NaN, 2 });
+
+    ArrayPercentileFactories.ArrayPercentile combiner = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    combiner.combine(agg1);
+    combiner.combine(agg2);
+
+    assertArrayEquals(new double[] {4, 8, 9, 2}, combiner.doubleArray(), 0.0001);
+    agg1.close();
+    agg2.close();
+    combiner.close();
+  }
+  
+  @Test
+  public void combineWithInfectiousNan() {
+    ArrayPercentileFactories.ArrayPercentile agg1 = 
+        new ArrayPercentileFactories.ArrayPercentile(true, NON_POOLED, PercentileType.P99);
+    agg1.accumulate(new double[] { 3, Double.NaN, 9, -1 });
+    agg1.accumulate(new double[] { 4, 5, Double.NaN, -19 });
+
+    ArrayPercentileFactories.ArrayPercentile agg2 = 
+        new ArrayPercentileFactories.ArrayPercentile(true, NON_POOLED, PercentileType.P99);
+    agg2.accumulate(new double[] { 3, 8, Double.NaN, 2 });
+
+    ArrayPercentileFactories.ArrayPercentile combiner = 
+        new ArrayPercentileFactories.ArrayPercentile(true, NON_POOLED, PercentileType.P99);
+    combiner.combine(agg1);
+    combiner.combine(agg2);
+    assertArrayEquals(new double[] {4, Double.NaN, Double.NaN, 2}, combiner.doubleArray(), 0.0001);
+    agg1.close();
+    agg2.close();
+    combiner.close();
   }
   
   @Test

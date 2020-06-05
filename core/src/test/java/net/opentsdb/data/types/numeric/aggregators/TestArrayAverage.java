@@ -300,22 +300,22 @@ public class TestArrayAverage extends BaseTestNumericArray {
     agg.accumulate(-24.0, 1);
     assertArrayEquals(new double[] { Double.NaN, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertArrayEquals(new int[] { 0, 1, 0, 0 }, agg.counts);
+    assertArrayEquals(new int[] { 0, 1, 0, 0 }, agg.int_array);
     
     agg.accumulate(42.0, 0);
     assertArrayEquals(new double[] { 42, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertArrayEquals(new int[] { 1, 1, 0, 0 }, agg.counts);
+    assertArrayEquals(new int[] { 1, 1, 0, 0 }, agg.int_array);
     
     agg.accumulate(3.0, 0);
     assertArrayEquals(new double[] { 45, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertArrayEquals(new int[] { 2, 1, 0, 0 }, agg.counts);
+    assertArrayEquals(new int[] { 2, 1, 0, 0 }, agg.int_array);
     
     agg.accumulate(Double.NaN, 1);
     assertArrayEquals(new double[] { 45, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertArrayEquals(new int[] { 2, 1, 0, 0 }, agg.counts);
+    assertArrayEquals(new int[] { 2, 1, 0, 0 }, agg.int_array);
     
     // oob
     try {
@@ -330,7 +330,7 @@ public class TestArrayAverage extends BaseTestNumericArray {
     agg.accumulate(-1.0, 3);
     assertArrayEquals(new double[] { 45, -24, 5, -1 }, 
         agg.double_accumulator, 0.001);
-    assertArrayEquals(new int[] { 2, 1, 2, 1 }, agg.counts);
+    assertArrayEquals(new int[] { 2, 1, 2, 1 }, agg.int_array);
     
     assertFalse(agg.isInteger());
     assertNull(agg.longArray());
@@ -363,22 +363,22 @@ public class TestArrayAverage extends BaseTestNumericArray {
     agg.accumulate(-24.0, 1);
     assertPooledArrayEquals(new double[] { Double.NaN, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] { 0, 1, 0, 0 }, agg.counts);
+    assertPooledArrayEquals(new int[] { 0, 1, 0, 0 }, agg.int_array);
     
     agg.accumulate(42.0, 0);
     assertPooledArrayEquals(new double[] { 42, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] { 1, 1, 0, 0 }, agg.counts);
+    assertPooledArrayEquals(new int[] { 1, 1, 0, 0 }, agg.int_array);
     
     agg.accumulate(3.0, 0);
     assertPooledArrayEquals(new double[] { 45, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] { 2, 1, 0, 0 }, agg.counts);
+    assertPooledArrayEquals(new int[] { 2, 1, 0, 0 }, agg.int_array);
     
     agg.accumulate(Double.NaN, 1);
     assertPooledArrayEquals(new double[] { 45, -24, Double.NaN, Double.NaN }, 
         agg.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] { 2, 1, 0, 0 }, agg.counts);
+    assertPooledArrayEquals(new int[] { 2, 1, 0, 0 }, agg.int_array);
     
     // others to match the doubles() UT.
     agg.accumulate(0.0, 2);
@@ -387,7 +387,7 @@ public class TestArrayAverage extends BaseTestNumericArray {
     agg.accumulate(-1.0, 3);
     assertPooledArrayEquals(new double[] { 45, -24, 5, -1 }, 
         agg.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] { 2, 1, 2, 1 }, agg.counts);
+    assertPooledArrayEquals(new int[] { 2, 1, 2, 1 }, agg.int_array);
     
     assertFalse(agg.isInteger());
     assertNull(agg.longArray());
@@ -523,11 +523,11 @@ public class TestArrayAverage extends BaseTestNumericArray {
         new ArrayAverageFactory.ArrayAverage(false, NON_POOLED);
     combiner.combine(agg1);
     assertArrayEquals(new double[] {7, 5, 9, -20}, combiner.double_accumulator, 0.001);
-    assertArrayEquals(new int[] {2, 1, 1, 2}, combiner.counts);
+    assertArrayEquals(new int[] {2, 1, 1, 2}, combiner.int_array);
 
     combiner.combine(agg2);
     assertArrayEquals(new double[] {10, 13, 9, -18}, combiner.double_accumulator, 0.001);
-    assertArrayEquals(new int[] {3, 2, 1, 3}, combiner.counts);
+    assertArrayEquals(new int[] {3, 2, 1, 3}, combiner.int_array);
 
     assertArrayEquals(new double[] {3.3333333333333335, 6.5, 9, -6}, combiner.doubleArray(), 0.0001);
     agg1.close();
@@ -558,14 +558,14 @@ public class TestArrayAverage extends BaseTestNumericArray {
         new ArrayAverageFactory.ArrayAverage(false, POOLED);
     combiner.combine(agg1);
     assertPooledArrayEquals(new long[] {45, -37, 5, 0}, combiner.long_accumulator);
-    assertPooledArrayEquals(new int[] {2, 2, 2, 2}, combiner.counts);
+    assertPooledArrayEquals(new int[] {2, 2, 2, 2}, combiner.int_array);
     assertPoolCounters(INT_POOL, 1, 0, 0, 0);
     assertPoolCounters(LONG_POOL, 1, 0, 0, 0);
     assertPoolCounters(DOUBLE_POOL, 0, 0, 0, 0);
 
     combiner.combine(agg2);
     assertPooledArrayEquals(new long[] {54, -49, 11, 2}, combiner.long_accumulator);
-    assertPooledArrayEquals(new int[] {3, 3, 3, 3}, combiner.counts);
+    assertPooledArrayEquals(new int[] {3, 3, 3, 3}, combiner.int_array);
     assertPoolCounters(INT_POOL, 1, 0, 0, 0);
     assertPoolCounters(LONG_POOL, 1, 0, 0, 0);
     assertPoolCounters(DOUBLE_POOL, 0, 0, 0, 0);
@@ -602,14 +602,14 @@ public class TestArrayAverage extends BaseTestNumericArray {
         new ArrayAverageFactory.ArrayAverage(false, POOLED);
     combiner.combine(agg1);
     assertPooledArrayEquals(new double[] {7, 5, 9, -20}, combiner.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] {2, 1, 1, 2}, combiner.counts);
+    assertPooledArrayEquals(new int[] {2, 1, 1, 2}, combiner.int_array);
     assertPoolCounters(INT_POOL, 1, 0, 0, 0);
     assertPoolCounters(LONG_POOL, 0, 0, 0, 0);
     assertPoolCounters(DOUBLE_POOL, 1, 0, 0, 0);
     
     combiner.combine(agg2);
     assertPooledArrayEquals(new double[] {10, 13, 9, -18}, combiner.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] {3, 2, 1, 3}, combiner.counts);
+    assertPooledArrayEquals(new int[] {3, 2, 1, 3}, combiner.int_array);
     assertPoolCounters(INT_POOL, 1, 0, 0, 0);
     assertPoolCounters(LONG_POOL, 0, 0, 0, 0);
     assertPoolCounters(DOUBLE_POOL, 1, 0, 0, 0);
@@ -646,14 +646,14 @@ public class TestArrayAverage extends BaseTestNumericArray {
         new ArrayAverageFactory.ArrayAverage(false, POOLED);
     combiner.combine(agg1);
     assertPooledArrayEquals(new long[] {45, -37, 5, 0}, combiner.long_accumulator);
-    assertPooledArrayEquals(new int[] {2, 2, 2, 2}, combiner.counts);
+    assertPooledArrayEquals(new int[] {2, 2, 2, 2}, combiner.int_array);
     assertPoolCounters(INT_POOL, 1, 0, 0, 0);
     assertPoolCounters(LONG_POOL, 1, 0, 0, 0);
     assertPoolCounters(DOUBLE_POOL, 0, 0, 0, 0);
     
     combiner.combine(agg2);
     assertPooledArrayEquals(new double[] {48, -29, 5, 2}, combiner.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] {3, 3, 2, 3}, combiner.counts);
+    assertPooledArrayEquals(new int[] {3, 3, 2, 3}, combiner.int_array);
     assertPoolCounters(INT_POOL, 1, 0, 0, 0);
     assertPoolCounters(LONG_POOL, 1, 0, 0, 1);
     assertPoolCounters(DOUBLE_POOL, 1, 0, 0, 0);
@@ -682,11 +682,11 @@ public class TestArrayAverage extends BaseTestNumericArray {
         new ArrayAverageFactory.ArrayAverage(true, NON_POOLED);
     combiner.combine(agg1);
     assertArrayEquals(new double[] {7, Double.NaN, Double.NaN, -20}, combiner.double_accumulator, 0.001);
-    assertArrayEquals(new int[] {2, 0, 0, 2}, combiner.counts);
+    assertArrayEquals(new int[] {2, 0, 0, 2}, combiner.int_array);
 
     combiner.combine(agg2);
     assertArrayEquals(new double[] {10, Double.NaN, Double.NaN, -18}, combiner.double_accumulator, 0.001);
-    assertArrayEquals(new int[] {3, 0, 0, 3}, combiner.counts);
+    assertArrayEquals(new int[] {3, 0, 0, 3}, combiner.int_array);
 
     assertArrayEquals(new double[] {3.3333333333333335, Double.NaN, Double.NaN, -6}, combiner.doubleArray(), 0.0001);
     agg1.close();
@@ -709,11 +709,11 @@ public class TestArrayAverage extends BaseTestNumericArray {
         new ArrayAverageFactory.ArrayAverage(true, POOLED);
     combiner.combine(agg1);
     assertPooledArrayEquals(new double[] {7, Double.NaN, Double.NaN, -20}, combiner.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] {2, 0, 0, 2}, combiner.counts);
+    assertPooledArrayEquals(new int[] {2, 0, 0, 2}, combiner.int_array);
 
     combiner.combine(agg2);
     assertPooledArrayEquals(new double[] {10, Double.NaN, Double.NaN, -18}, combiner.double_accumulator, 0.001);
-    assertPooledArrayEquals(new int[] {3, 0, 0, 3}, combiner.counts);
+    assertPooledArrayEquals(new int[] {3, 0, 0, 3}, combiner.int_array);
 
     assertPooledArrayEquals(new double[] {3.3333333333333335, Double.NaN, Double.NaN, -6}, combiner.doubleArray(), 0.0001);
     assertPoolCounters(INT_POOL, 3, 0, 0, 1);

@@ -26,20 +26,25 @@ import org.junit.BeforeClass;
 
 import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.DoubleArrayPool;
+import net.opentsdb.pools.IntArrayPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.MockArrayObjectPool;
 
 public class BaseTestNumericArray {
 
-  protected static ArrayAverageFactory NON_POOLED;
-  protected static ArrayAverageFactory POOLED;
+  protected static BaseArrayFactoryWithIntPool NON_POOLED;
+  protected static BaseArrayFactoryWithIntPool POOLED;
   protected static MockArrayObjectPool LONG_POOL;
   protected static MockArrayObjectPool DOUBLE_POOL;
+  protected static MockArrayObjectPool INT_POOL;
+  protected static long[][] LONGS;
+  protected static double[][] DOUBLES;
+  protected static Object[] MIXED;
   
   @BeforeClass
   public static void beforeClass() {
-    NON_POOLED = mock(ArrayAverageFactory.class);
-    POOLED = mock(ArrayAverageFactory.class);
+    NON_POOLED = mock(BaseArrayFactoryWithIntPool.class);
+    POOLED = mock(BaseArrayFactoryWithIntPool.class);
     LONG_POOL = new MockArrayObjectPool(DefaultObjectPoolConfig.newBuilder()
         .setAllocator(new LongArrayPool())
         .setInitialCount(4)
@@ -52,8 +57,38 @@ public class BaseTestNumericArray {
         .setArrayLength(5)
         .setId(DoubleArrayPool.TYPE)
         .build());
+    INT_POOL = new MockArrayObjectPool(DefaultObjectPoolConfig.newBuilder()
+        .setAllocator(new IntArrayPool())
+        .setInitialCount(4)
+        .setArrayLength(5)
+        .setId(IntArrayPool.TYPE)
+        .build());
     when(POOLED.longPool()).thenReturn(LONG_POOL);
     when(POOLED.doublePool()).thenReturn(DOUBLE_POOL);
+    when(POOLED.intPool()).thenReturn(INT_POOL);
+    
+    LONGS = new long[1024][];
+    DOUBLES = new double[1024][];
+    MIXED = new Object[1024];
+    for (int i = 0; i < 1024; i++) {
+      long[] dps = new long[4];
+      double[] dbls = new double[4];
+      for (int x = 0; x < 4; x++) {
+        dps[x] = x + i;
+        if (i == 42 && x == 2) {
+          dbls[x] = Double.NaN;
+        } else {
+          dbls[x] = x + i;
+        }
+      }
+      LONGS[i] = dps;
+      DOUBLES[i] = dbls;
+      if (i % 2 == 0) {
+        MIXED[i] = dps;
+      } else {
+        MIXED[i] = dbls;
+      }
+    }
   }
   
   @Before
