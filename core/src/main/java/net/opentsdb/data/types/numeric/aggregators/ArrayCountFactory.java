@@ -190,6 +190,10 @@ public class ArrayCountFactory extends BaseArrayFactory {
     @Override
     public void combine(final NumericArrayAggregator aggregator) {
       final BaseArrayAggregator agg = (BaseArrayAggregator) aggregator;
+      if (agg.long_accumulator == null) {
+        return;
+      }
+      
       if (long_accumulator == null && double_accumulator == null) {
         initLong(agg.long_accumulator, 0, agg.end);
         return;
