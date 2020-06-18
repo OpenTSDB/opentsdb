@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import java.time.temporal.ChronoUnit;
+import java.util.Set;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.auth.Authentication;
@@ -235,7 +236,7 @@ public class MetaRpc {
 
             json.writeObjectFieldStart("tagKeysAndValues");
             if (metadata_storage_result.tags() != null) {
-              for (final Map.Entry<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>>
+              for (final Map.Entry<UniqueKeyPair<String, Long>, Set<UniqueKeyPair<String, Long>>>
 
                       tags :
                       metadata_storage_result.tags().entrySet()) {

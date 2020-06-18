@@ -20,6 +20,7 @@ import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
+import java.util.Set;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UniqueKeyPair;
@@ -54,7 +55,7 @@ public interface MetaDataStorageResult {
 
   public Collection<UniqueKeyPair<String, Long>> metrics();
 
-  public Map<UniqueKeyPair<String, Long>, List<UniqueKeyPair<String, Long>>> tags();
+  public Map<UniqueKeyPair<String, Long>, Set<UniqueKeyPair<String, Long>>> tags();
   
   public Collection<UniqueKeyPair<String, Long>> tagKeysOrValues();
 }
