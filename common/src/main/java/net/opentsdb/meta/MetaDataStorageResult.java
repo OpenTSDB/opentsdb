@@ -55,7 +55,7 @@ public interface MetaDataStorageResult {
 
   public Collection<UniqueKeyPair<String, Long>> metrics();
 
-  public Map<UniqueKeyPair<String, Long>, Set<UniqueKeyPair<String, Long>>> tags();
+  public Map<UniqueKeyPair<String, Long>, Collection<UniqueKeyPair<String, Long>>> tags();
   
   public Collection<UniqueKeyPair<String, Long>> tagKeysOrValues();
 }

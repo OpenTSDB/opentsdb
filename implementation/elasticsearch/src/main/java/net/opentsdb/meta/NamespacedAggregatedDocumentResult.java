@@ -53,7 +53,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   private Set<TimeSeriesId> ids;
   private Throwable throwable;
   private Map<Integer, UniqueKeyPair<String, Long>> metrics;
-  private Map<UniqueKeyPair<String, Long>, Set<UniqueKeyPair<String, Long>>> tags;
+  private Map<UniqueKeyPair<String, Long>, Collection<UniqueKeyPair<String, Long>>> tags;
   private Map<Integer, UniqueKeyPair<String, Long>> tag_keys_or_values;
   private MetaResult result;
   private final BatchMetaQuery query;
@@ -147,12 +147,12 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
   }
 
   @Override
-  public Map<UniqueKeyPair<String, Long>, Set<UniqueKeyPair<String, Long>>> tags() {
+  public Map<UniqueKeyPair<String, Long>, Collection<UniqueKeyPair<String, Long>>> tags() {
     if (tags == null) {
       return Collections.emptyMap();
     }
     // sort
-    for (final Set<UniqueKeyPair<String, Long>> values : tags.values()) {
+    for (final Collection<UniqueKeyPair<String, Long>> values : tags.values()) {
       if (values == null) {
         continue;
       }
@@ -260,6 +260,33 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     }
   }
 
+  /**
+   * Adds the list of tag values to a tag key identified by aggregation field for {@link
+   * BatchMetaQuery}.
+   *
+   * @param values A non-null (possibly empty) list.
+   * @See {@link BatchMetaQuery#aggregationField()}
+   */
+  public void addTags(final List<UniqueKeyPair<String, Long>> values) {
+    addTags(new UniqueKeyPair(query.aggregationField(), 1l), values);
+  }
+
+  /**
+   * Adds the given tag to the proper list.
+   * @param key
+   * @param value
+   */
+  public void addTag(final  UniqueKeyPair<String, Long> key, final UniqueKeyPair<String, Long> value) {
+    if (tags == null) {
+      tags = Maps.newTreeMap(query.order() == Order.ASCENDING ? UniqueKeyPair_CMP : REVERSE_UniqueKeyPair_CMP);
+    }
+    Collection<UniqueKeyPair<String, Long>> values = tags.get(key);
+    if (values == null) {
+      values = Lists.newArrayList();
+      tags.put(key, values);
+    }
+    values.add(value);
+  }
 
   /**
    * Adds a tag value or key to the list.
