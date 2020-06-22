@@ -146,6 +146,11 @@ public class ESMetaResponse implements MetaResponse {
           final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
           parseTimeseries(query, metaQuery, response, metric, isMultiGet, result);
         }
+        // if result if empty after we process all our clusters, set to NO_DATA.
+        if (isMultiGet && result.timeSeries().isEmpty()) {
+          result.resetResult(MetaResult.NO_DATA);
+        }
+
       }
       tsdb.getStatsCollector().incrementCounter("es.documents.totalHits", max_hits, (String[]) null);
       result.setTotalHits(max_hits);
@@ -753,10 +758,7 @@ public class ESMetaResponse implements MetaResponse {
         result.addTimeSeries(id, meta_query, metric, false);
       }
     }
-    
-    if (isMultiGet && result.timeSeries().isEmpty()) {
-      result.resetResult(MetaResult.NO_DATA);
-    }
+
     return result;
   }
 
