@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.data.Aggregator;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -36,6 +37,7 @@ import net.opentsdb.query.QueryResult;
  */
 public class TimeShiftNumericArrayIterator implements QueryIterator,
     TimeSeriesValue<NumericArrayType> {
+
   /** The iterator. */
   private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
 
@@ -98,5 +100,10 @@ public class TimeShiftNumericArrayIterator implements QueryIterator,
   @Override
   public TypeToken<NumericArrayType> type() {
     return value.type();
+  }
+
+  @Override
+  public TimeSeriesValue<? extends TimeSeriesDataType> nextPool(Aggregator aggregator) {
+    return iterator.nextPool(aggregator);
   }
 }
