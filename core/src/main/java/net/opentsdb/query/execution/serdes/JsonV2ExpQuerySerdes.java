@@ -19,8 +19,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Map.Entry;
 
 import net.opentsdb.data.TimeSeriesDataType;
@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -44,6 +44,8 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -61,7 +63,6 @@ import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.Pair;
 
 /**
  * A serializer mimicking the output of OpenTSDB 2.x's /api/query/exp 
@@ -75,6 +76,15 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
   private static final Logger LOG = LoggerFactory.getLogger(
       JsonV2ExpQuerySerdes.class);
   
+  // TODO - proper interpolation config
+  // TODO - interpolation config for summaries.
+  private static final NumericInterpolatorConfig NIC = 
+      (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+      .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+      .setRealFillPolicy(FillWithRealPolicy.NONE)
+      .setDataType(NumericType.TYPE.toString())
+      .build();
+  
   /** The TSDB we belong to. */
   private final TSDB tsdb;
   
@@ -85,7 +95,9 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
   private final JsonGenerator json;
   
   /** Whether or not we've serialized the first result set. */
-  private boolean initialized;
+  private final AtomicBoolean initialized;
+  
+  private final QueryContext context;
   
   /**
    * Default ctor.
@@ -104,6 +116,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
       throw new IllegalArgumentException("Stream cannot be null.");
     }
     tsdb = context.tsdb();
+    this.context = context;
     this.options = options;
     try {
       json = JSON.getFactory().createGenerator(stream);
@@ -111,25 +124,27 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
       throw new RuntimeException("Failed to instantiate a JSON "
           + "generator", e);
     }
+    initialized = new AtomicBoolean();
   }
   
   // TODO - better way to avoid sync I hope.
   @Override
   public Deferred<Object> serialize(final QueryResult result, 
-                                                 final Span span) {
+                                    final Span span) {
     if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }
     final JsonV2QuerySerdesOptions opts = (JsonV2QuerySerdesOptions) options;
     
-    if (!initialized) {
-      try {
-        json.writeStartObject();
-        json.writeArrayFieldStart("outputs");
-      } catch (IOException e) {
-        throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
+    synchronized(this) {
+      if (initialized.compareAndSet(false, true)) {
+        try {
+          json.writeStartObject();
+          json.writeArrayFieldStart("outputs");
+        } catch (IOException e) {
+          throw new RuntimeException("Unexpected exception: " + e.getMessage(), e);
+        }
       }
-      initialized = true;
     }
     
     final List<TimeSeries> series;
@@ -153,202 +168,148 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
     class ResolveCB implements Callback<Object, ArrayList<TimeSeriesStringId>> {
 
       @Override
-      public Object call(final ArrayList<TimeSeriesStringId> ids) 
+      public synchronized Object call(final ArrayList<TimeSeriesStringId> ids) 
             throws Exception {
-        
-        // TODO - proper interpolation config
-        // TODO - interpolation config for summaries.
-        NumericInterpolatorConfig nic = 
-            (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .setDataType(NumericType.TYPE.toString())
-            .build();
         
         QueryInterpolatorFactory factory = tsdb
             .getRegistry().getPlugin(QueryInterpolatorFactory.class, 
-                nic.getType());
-        
+                NIC.getType());
         if (factory == null) {
-          throw new IllegalArgumentException("No interpolator factory found for: " + 
-              nic.getType() == null ? "Default" : nic.getType());
+          return Deferred.fromError(new IllegalArgumentException("No interpolator factory found for: " + 
+              NIC.getType() == null ? "Default" : NIC.getType()));
         }
         
         try {
-          int idx = 0;
-          final Map<String, List<Pair<TimeSeriesStringId, TimeSeries>>> 
-              outputs = Maps.newHashMap();
-          
-          for (final TimeSeries series : 
-              series != null ? series : result.timeSeries()) {
-            final TimeSeriesStringId id;
-            if (ids != null) {
-              id = (ids.get(idx++));
-            } else {
-              id = (TimeSeriesStringId) series.id();
-            }
-            
-            List<Pair<TimeSeriesStringId, TimeSeries>> s = outputs.get(id.alias());
-            if (s == null) {
-              s = Lists.newArrayList();
-              outputs.put(id.alias(), s);
-            }
-            s.add(new Pair<>(id, series));
+          // Note we only have one expression result per QueryResult so don't 
+          // bother with the outer set or alias now.
+          final List<TimeSeries> results = series != null ? series : result.timeSeries();
+          final TimeSeriesStringId[] id_array = new TimeSeriesStringId[results.size()];
+          final TimeSeries[] series_array = new TimeSeries[results.size()];
+          for (int i = 0; i < results.size(); i++) {
+            final TimeSeries series = results.get(i);
+            id_array[i] = ids != null ? ids.get(i) : (TimeSeriesStringId) series.id();
+            series_array[i] = series;
           }
           
+          json.writeStartObject();
+          json.writeStringField("id", result.dataSource());
+          json.writeArrayFieldStart("dps");
           
-          for (final Entry<String, List<Pair<TimeSeriesStringId, TimeSeries>>> 
-              entry : outputs.entrySet()) {
-            List<QueryInterpolator<?>> iterators = Lists.newArrayList();
-            TimeStamp next_ts = new MillisecondTimeStamp(0);
-            TimeStamp next_next_ts = new MillisecondTimeStamp(0);
-            next_ts.setMax();
+          final List<TypedTimeSeriesIterator<?>> iterators = Lists.newArrayList();
+          TimeStamp next_ts = new MillisecondTimeStamp(0);
+          TimeStamp next_next_ts = new MillisecondTimeStamp(0);
+          next_ts.setMax();
+          
+          boolean has_next = false;
+          
+          TypeToken<? extends TimeSeriesDataType> type = null;
+          for (int x = 0; x < id_array.length; x++) {
+            if (type == null) {
+              // TODO may throw if the underlying iterator doesn't have a type.
+              type = series_array[x].types().iterator().next();
+            }
             
-            json.writeStartObject();
-            json.writeStringField("id", entry.getKey() == null ? 
-                "null!?!?!" : entry.getKey());
-            json.writeArrayFieldStart("dps");
-            boolean has_next = false;
-            for (final Pair<TimeSeriesStringId, TimeSeries> pair : entry.getValue()) {
-              final QueryInterpolator<?> interp;
-              Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
-                  pair.getValue().iterator(NumericType.TYPE);
-              if (!optional.isPresent()) {
-                optional = pair.getValue().iterator(NumericSummaryType.TYPE);
-                if (!optional.isPresent()) {
-                  continue;
-                }
-                final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-                if (!iterator.hasNext()) {
-                  iterator.close();
-                  continue;
-                }
-                interp = factory.newInterpolator(NumericSummaryType.TYPE, iterator, nic);
-              } else {
-                final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = optional.get();
-                if (!iterator.hasNext()) {
-                  iterator.close();
-                  continue;
-                }
-                interp = factory.newInterpolator(NumericType.TYPE, iterator, nic);
-              }
-              
-              // TODO - filter on start timestamp.
+            final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
+                series_array[x].iterator(type);
+            if (!optional.isPresent()) {
+              continue;
+            }
+            
+            final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = 
+                optional.get();
+            if (!iterator.hasNext()) {
+              iterator.close();
+              continue;
+            }
+            
+            if (type == NumericArrayType.TYPE) {
+              iterators.add(iterator);
+              has_next = true;
+              next_ts.update(result.timeSpecification().start());
+            } else if (type == NumericType.TYPE) {
+              final QueryInterpolator<?> interp = 
+                  factory.newInterpolator(NumericType.TYPE, iterator, NIC);
               if (interp.hasNext()) {
                 has_next = true;
                 next_ts.update(interp.nextReal());
                 iterators.add(interp);
               }
-            }
-            
-            TimeStamp first_ts = next_ts.getCopy();
-            int set_count = 0;
-            while (has_next) {
-              
-              // TODO - filter on end time stamp
-              set_count++;
-              json.writeStartArray();
-              json.writeNumber(next_ts.epoch());
-              
-              for (int i = 0; i < iterators.size(); i++) {
-                has_next = false;
-                next_next_ts.setMax();
-                TimeSeriesValue<?> value = 
-                    (TimeSeriesValue<?>) iterators.get(i).next(next_ts);
-                if (value.type() == NumericType.TYPE) {
-                  if (value.value() == null) {
-                    json.writeNull();
-                  } else if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
-                    json.writeNumber(((TimeSeriesValue<NumericType>) value).value().longValue());
-                  } else {
-                    json.writeNumber(((TimeSeriesValue<NumericType>) value).value().doubleValue());
-                  }
-                } else if (value.type() == NumericSummaryType.TYPE) {
-                  final Collection<Integer> summaries = 
-                      ((TimeSeriesValue<NumericSummaryType>) value).value()
-                      .summariesAvailable();
-                  if (!summaries.isEmpty()) {
-                    // JUST grab the first
-                    int summary = summaries.iterator().next();
-                    final NumericType v = ((TimeSeriesValue<NumericSummaryType>) value)
-                        .value().value(summary);
-                    if (v == null) {
-                      json.writeNull();
-                    } else if (v.isInteger()) {
-                      json.writeNumber(v.longValue());
-                    } else {
-                      json.writeNumber(v.doubleValue());
-                    }
-                  } else {
-                    json.writeNull();
-                  }
-                }
-                
-                if (iterators.get(i).hasNext()) {
-                  has_next = true;
-                  next_next_ts.update(iterators.get(i).nextReal());
-                }
+            } else if (type == NumericSummaryType.TYPE) {
+              final QueryInterpolator<?> interp = 
+                  factory.newInterpolator(NumericSummaryType.TYPE, iterator, NIC);
+              if (interp.hasNext()) {
+                has_next = true;
+                next_ts.update(interp.nextReal());
+                iterators.add(interp);
               }
-              
-              json.writeEndArray();
-              if (has_next) {
-                next_ts.update(next_next_ts);
-              }
+            } else {
+              throw new IllegalStateException("Unknown type: " + type);
             }
-            
-            // shut-em down.
-            for (int i = 0; i < iterators.size(); i++) {
-              iterators.get(i).close();
-              iterators.set(i, null);
-            }
-            
-            json.writeEndArray();
-            
-            // dpsMeta
-            json.writeObjectFieldStart("dpsMeta");
-            json.writeNumberField("firstTimestamp", first_ts.epoch());
-            json.writeNumberField("lastTimestamp", next_ts.epoch());
-            json.writeNumberField("setCount", set_count);
-            json.writeNumberField("series", iterators.size());
-            json.writeEndObject();
-            
-            json.writeArrayFieldStart("meta");
-            
-            // timestamp
+          }
+          
+          TimeStamp first_ts = next_ts.getCopy();
+          
+          final int set_count;
+          if (!has_next) {
+            set_count = 0;
+          } else if (type == NumericArrayType.TYPE) {
+            set_count = serializeArray(result, iterators);
+          } else {
+            set_count = serializeRawOrSummary(iterators, next_ts, next_next_ts);
+          }
+          
+          // shut-em down.
+          for (int i = 0; i < iterators.size(); i++) {
+            iterators.get(i).close();
+            iterators.set(i, null);
+          }
+          
+          json.writeEndArray();
+          
+          // dpsMeta
+          json.writeObjectFieldStart("dpsMeta");
+          json.writeNumberField("firstTimestamp", first_ts.msEpoch());
+          json.writeNumberField("lastTimestamp", next_ts.msEpoch());
+          json.writeNumberField("setCount", set_count);
+          json.writeNumberField("series", iterators.size());
+          json.writeEndObject();
+          
+          json.writeArrayFieldStart("meta");
+          
+          // timestamp
+          json.writeStartObject();
+          json.writeNumberField("index", 0);
+          json.writeArrayFieldStart("metrics");
+          json.writeString("timestamp");
+          json.writeEndArray();
+          json.writeEndObject();
+          
+          // time series IDs
+          for (int i = 0; i < id_array.length; i++) {
+            TimeSeriesStringId id = id_array[i];
             json.writeStartObject();
-            json.writeNumberField("index", 0);
+            json.writeNumberField("index", i + 1);
+            
             json.writeArrayFieldStart("metrics");
-            json.writeString("timestamp");
+            json.writeString(id.metric());
             json.writeEndArray();
+            
+            json.writeObjectFieldStart("commonTags");
+            for (final Entry<String, String> tag : id.tags().entrySet()) {
+              json.writeStringField(tag.getKey(), tag.getValue());
+            }
             json.writeEndObject();
             
-            // time series IDs
-            for (int i = 0; i < entry.getValue().size(); i++) {
-              TimeSeriesStringId id = entry.getValue().get(i).getKey();
-              json.writeStartObject();
-              json.writeNumberField("index", i + 1);
-              
-              json.writeArrayFieldStart("metrics");
-              json.writeString(id.metric());
-              json.writeEndArray();
-              
-              json.writeObjectFieldStart("commonTags");
-              for (final Entry<String, String> tag : id.tags().entrySet()) {
-                json.writeStringField(tag.getKey(), tag.getValue());
-              }
-              json.writeEndObject();
-              
-              json.writeArrayFieldStart("aggregatedTags");
-              for (final String agg : id.aggregatedTags()) {
-                json.writeString(agg);
-              }
-              json.writeEndArray();
-              json.writeEndObject();
+            json.writeArrayFieldStart("aggregatedTags");
+            for (final String agg : id.aggregatedTags()) {
+              json.writeString(agg);
             }
-            
             json.writeEndArray();
             json.writeEndObject();
           }
+          
+          json.writeEndArray();
+          json.writeEndObject();
           
           json.flush();
           
@@ -358,6 +319,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
               "Unexpected exception "
               + "serializing: " + result, 500, e));
         }
+        
         return Deferred.fromResult(null);
       }
       
@@ -386,6 +348,139 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
     } catch (Exception e) {
       LOG.error("Unexpected exception", e);
       throw new QueryExecutionException("Failed to resolve IDs", 500, e);
+    }
+  }
+  
+  int serializeRawOrSummary(final List<TypedTimeSeriesIterator<?>> iterators,
+                            final TimeStamp next_ts, 
+                            final TimeStamp next_next_ts) throws IOException {
+    boolean has_next = true;
+    int set_count = 0;
+    
+    while (has_next) {
+      if (next_ts.compare(Op.LT, context.query().startTime())) {
+        has_next = false;
+        for (int i = 0; i < iterators.size(); i++) {
+          final QueryInterpolator<?> interpolator = 
+              (QueryInterpolator<?>) iterators.get(i);
+          if (iterators.get(i).hasNext()) {
+            has_next = true;
+            interpolator.next(next_ts);
+            next_next_ts.update(interpolator.nextReal());
+          }
+        }
+        
+        if (has_next) {
+          next_ts.update(next_next_ts);
+          if (next_ts.compare(Op.GTE, context.query().endTime())) {
+            return set_count;
+          }
+        }
+        
+        continue;
+      }
+      
+      set_count++;
+      json.writeStartArray();
+      json.writeNumber(next_ts.msEpoch());
+      
+      has_next = false;
+      for (int i = 0; i < iterators.size(); i++) {
+        final QueryInterpolator<?> interpolator = 
+            (QueryInterpolator<?>) iterators.get(i);
+        next_next_ts.setMax();
+        TimeSeriesValue<?> value = 
+            (TimeSeriesValue<?>) interpolator.next(next_ts);
+        if (value.type() == NumericType.TYPE) {
+          if (value.value() == null) {
+            json.writeNumber(Double.NaN);
+          } else if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
+            json.writeNumber(((TimeSeriesValue<NumericType>) value).value().longValue());
+          } else {
+            json.writeNumber(((TimeSeriesValue<NumericType>) value).value().doubleValue());
+          }
+        } else if (value.type() == NumericSummaryType.TYPE) {
+          final Collection<Integer> summaries = 
+              ((TimeSeriesValue<NumericSummaryType>) value).value()
+              .summariesAvailable();
+          if (!summaries.isEmpty()) {
+            // JUST grab the first
+            int summary = summaries.iterator().next();
+            final NumericType v = ((TimeSeriesValue<NumericSummaryType>) value)
+                .value().value(summary);
+            if (v == null) {
+              json.writeNumber(Double.NaN);
+            } else if (v.isInteger()) {
+              json.writeNumber(v.longValue());
+            } else {
+              json.writeNumber(v.doubleValue());
+            }
+          } else {
+            json.writeNumber(Double.NaN);
+          }
+        }
+        
+        if (iterators.get(i).hasNext()) {
+          has_next = true;
+          next_next_ts.update(interpolator.nextReal());
+        }
+      }
+      
+      json.writeEndArray();
+      if (has_next) {
+        next_ts.update(next_next_ts);
+      }
+
+      if (next_ts.compare(Op.GTE, context.query().endTime())) {
+        return set_count;
+      }
+    }
+    
+    return set_count;
+  }
+
+  int serializeArray(final QueryResult result, 
+                     final List<TypedTimeSeriesIterator<?>> iterators) 
+                         throws IOException {
+    int index = 0;
+    final TimeStamp next_ts = result.timeSpecification().start().getCopy();
+    
+    while (next_ts.compare(Op.LT, context.query().startTime())) {
+      index++;
+      next_ts.add(result.timeSpecification().interval());
+    }
+    
+    final TimeSeriesValue[] values = new TimeSeriesValue[iterators.size()];
+    for (int i = 0; i < iterators.size(); i++) {
+      values[i] = iterators.get(i).next();
+    }
+    
+    while (true) {
+      json.writeStartArray();
+      json.writeNumber(next_ts.msEpoch());
+      
+      for (int i = 0; i < values.length; i++) {
+        final NumericArrayType value = 
+            ((TimeSeriesValue<NumericArrayType>) values[i]).value();
+        
+        if (value.offset() + index >= value.end()) {
+          // done!
+          return iterators.size();
+        }
+        
+        if (value.isInteger()) {
+          json.writeNumber(value.longArray()[value.offset() + index]);
+        } else {
+          json.writeNumber(value.doubleArray()[value.offset() + index]);
+        }
+      }
+    
+      index++;
+      next_ts.add(result.timeSpecification().interval());
+      json.writeEndArray();
+      if (next_ts.compare(Op.GTE, context.query().endTime())) {
+        return iterators.size();
+      }
     }
   }
   

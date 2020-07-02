@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -232,6 +234,17 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
       response.reset(timestamp, fill);
     }
     return response;
+  }
+
+  @Override
+  public TypeToken getType() {
+    return NumericType.TYPE;
+  }
+
+  @Override
+  public Object next() {
+    throw new UnsupportedOperationException("This is an interpolator. "
+        + "Please call next(TimeStamp timestamp)");
   }
   
 }

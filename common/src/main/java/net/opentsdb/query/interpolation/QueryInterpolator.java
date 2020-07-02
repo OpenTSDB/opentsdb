@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.io.Closeable;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.QueryFillPolicy;
 
 /**
@@ -30,7 +31,8 @@ import net.opentsdb.query.QueryFillPolicy;
  * 
  * @since 3.0
  */
-public interface QueryInterpolator<T extends TimeSeriesDataType> extends Closeable {
+public interface QueryInterpolator<T extends TimeSeriesDataType> 
+    extends TypedTimeSeriesIterator, Closeable {
   
   /** @return Whether or not the underlying source has another real value. */
   public boolean hasNext();

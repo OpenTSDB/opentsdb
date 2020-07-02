@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
@@ -181,6 +182,17 @@ public class TestBaseQueryIntperolatorFactory {
     
     @Override
     public void close() { }
+
+    @Override
+    public TypeToken getType() {
+      return NumericType.TYPE;
+    }
+
+    @Override
+    public Object next() {
+      throw new UnsupportedOperationException("This is an interpolator. "
+        + "Please call next(TimeStamp timestamp)");
+    }
     
   }
   
@@ -216,6 +228,17 @@ public class TestBaseQueryIntperolatorFactory {
     @Override
     public void close() { }
     
+    @Override
+    public TypeToken getType() {
+      return NumericType.TYPE;
+    }
+
+    @Override
+    public Object next() {
+      throw new UnsupportedOperationException("This is an interpolator. "
+        + "Please call next(TimeStamp timestamp)");
+    }
+    
   }
   
   static class MockInterpolatorMissTimeSeries implements 
@@ -245,6 +268,17 @@ public class TestBaseQueryIntperolatorFactory {
     @Override
     public void close() { }
     
+    @Override
+    public TypeToken getType() {
+      return NumericType.TYPE;
+    }
+
+    @Override
+    public Object next() {
+      throw new UnsupportedOperationException("This is an interpolator. "
+        + "Please call next(TimeStamp timestamp)");
+    }
+    
   }
   
   static class MockInterpolatorMissIterator implements 
@@ -272,5 +306,16 @@ public class TestBaseQueryIntperolatorFactory {
     
     @Override
     public void close() { }
+  
+    @Override
+    public TypeToken getType() {
+      return NumericType.TYPE;
+    }
+
+    @Override
+    public Object next() {
+      throw new UnsupportedOperationException("This is an interpolator. "
+        + "Please call next(TimeStamp timestamp)");
+    }
   }
 }
