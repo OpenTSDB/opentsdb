@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1601,11 +1601,14 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         if (i + 1 >= timestamps.length && timestamps.length > 1) {
           long delta = (long) timestamps[i] - (long) timestamps[i - 1];
           end = (int) (start + delta);
-        } else {
+        } else if (timestamps.length > 1) {
           end = timestamps[i + 1];
         }
-        for (int x = 0; x < serializers.length; x++) {
-          serializers[x].serialize(json, start, end);
+        
+        if (end > 0) {
+          for (int x = 0; x < serializers.length; x++) {
+            serializers[x].serialize(json, start, end);
+          }
         }
         
         json.writeEndArray();
@@ -1768,8 +1771,9 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
               if (v.timestamp().epoch() >= end) {
                 break;
               }
-              
-              if (v.value().isInteger()) {
+              if (v.value() == null) {
+                continue;
+              } else if (v.value().isInteger()) {
                 json.writeNumberField(Long.toString(v.timestamp().epoch()), 
                     v.value().longValue());
               } else {

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.util.NoSuchElementException;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -218,5 +219,16 @@ public class ReadAheadNumericInterpolator implements
       response.reset(timestamp, fill);
     }
     return response;
+  }
+
+  @Override
+  public TypeToken getType() {
+    return NumericType.TYPE;
+  }
+
+  @Override
+  public Object next() {
+    throw new UnsupportedOperationException("This is an interpolator. "
+        + "Please call next(TimeStamp timestamp)");
   }
 }

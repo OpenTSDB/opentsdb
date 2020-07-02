@@ -22,6 +22,7 @@ import java.util.Optional;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -286,5 +287,16 @@ public class NumericSummaryInterpolator implements
         advanceSynchronized();
       }
     }
+  }
+
+  @Override
+  public TypeToken getType() {
+    return NumericSummaryType.TYPE;
+  }
+
+  @Override
+  public Object next() {
+    throw new UnsupportedOperationException("This is an interpolator. "
+        + "Please call next(TimeStamp timestamp)");
   }
 }

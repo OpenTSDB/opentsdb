@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2018  The OpenTSDB Authors.
+// Copyright (C) 2016-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
 import javax.servlet.AsyncContext;
@@ -49,7 +48,6 @@ import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
@@ -58,7 +56,6 @@ import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
-import net.opentsdb.servlet.resources.RawQueryRpc.RunTSDQuery;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
@@ -278,6 +275,7 @@ public class ExpressionRpc {
     if (serdes == null) {
       serdes = JsonV2QuerySerdesOptions.newBuilder()
           .setId("JsonV2ExpQuerySerdes")
+          .setType("JsonV2ExpQuerySerdes")
           .build();
     }
     
@@ -309,8 +307,7 @@ public class ExpressionRpc {
     
     return null;
   }
-
-
+  
   private void asyncRun(final Trace trace, final Span query_span, final Span setup_span,
       final AsyncContext async, SemanticQueryContext context) {
     class AsyncTimeout implements AsyncListener {
