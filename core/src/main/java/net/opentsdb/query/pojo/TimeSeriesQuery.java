@@ -42,6 +42,7 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -57,6 +58,7 @@ import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.query.processor.expressions.ExpressionParser;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.rate.RateConfig;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.JSON;
 
 import java.util.Collections;
@@ -730,6 +732,34 @@ public class TimeSeriesQuery extends Validatable
     }
     
     builder.setExecutionGraph(nodes);
+    
+    // Set the outputs properly
+    if (outputs != null && !outputs.isEmpty()) {
+      final List<String> outs = Lists.newArrayListWithExpectedSize(
+          outputs.size());
+      // TODO - alias
+      for (final Output output : outputs) {
+        outs.add(output.getId());
+      }
+      builder.addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+          .setId("JsonV2ExpQuerySerdes")
+          .setType("JsonV2ExpQuerySerdes")
+          .setFilter(outs)
+          .build());
+    } else if (expressions != null && !expressions.isEmpty()) {
+      // just take the expressions
+      final List<String> outs = Lists.newArrayListWithExpectedSize(
+          expressions.size());
+      for (final Expression expression : expressions) {
+        outs.add(expression.getId());
+      }
+      builder.addSerdesConfig(JsonV2QuerySerdesOptions.newBuilder()
+          .setId("JsonV2ExpQuerySerdes")
+          .setType("JsonV2ExpQuerySerdes")
+          .setFilter(outs)
+          .build());
+    }
+    
     return builder;
   }
   

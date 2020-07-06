@@ -170,7 +170,6 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
       @Override
       public synchronized Object call(final ArrayList<TimeSeriesStringId> ids) 
             throws Exception {
-        
         QueryInterpolatorFactory factory = tsdb
             .getRegistry().getPlugin(QueryInterpolatorFactory.class, 
                 NIC.getType());
@@ -319,7 +318,6 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
               "Unexpected exception "
               + "serializing: " + result, 500, e));
         }
-        
         return Deferred.fromResult(null);
       }
       
@@ -393,6 +391,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
             (TimeSeriesValue<?>) interpolator.next(next_ts);
         if (value.type() == NumericType.TYPE) {
           if (value.value() == null) {
+            // TODO - actual null or keep it NaN?
             json.writeNumber(Double.NaN);
           } else if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
             json.writeNumber(((TimeSeriesValue<NumericType>) value).value().longValue());
@@ -409,6 +408,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
             final NumericType v = ((TimeSeriesValue<NumericSummaryType>) value)
                 .value().value(summary);
             if (v == null) {
+              // TODO - actual null or keep it NaN?
               json.writeNumber(Double.NaN);
             } else if (v.isInteger()) {
               json.writeNumber(v.longValue());
@@ -428,7 +428,13 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
       
       json.writeEndArray();
       if (has_next) {
+        if (next_ts.compare(Op.EQ, next_next_ts)) {
+          LOG.error("Unexpected exception: Same timestamp as before: " + next_ts);
+          return set_count;
+        }
         next_ts.update(next_next_ts);
+      } else {
+        return set_count;
       }
 
       if (next_ts.compare(Op.GTE, context.query().endTime())) {
