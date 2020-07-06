@@ -246,9 +246,11 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     
     class CB implements Callback<Void, ArrayList<Void>> {
       final int ds_interval;
+      final Set<String> serdes_filter;
       
-      CB(final int ds_interval) {
+      CB(final int ds_interval, final Set<String> serdes_filter) {
         this.ds_interval = ds_interval;
+        this.serdes_filter = serdes_filter;
       }
       
       @Override
@@ -338,7 +340,13 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         
         final Set<String> serdes_sources = computeSerializationSources();
         for (final String source : serdes_sources) {
-          countdowns.put(source, new AtomicInteger(sinks.size()));
+          if (serdes_filter != null && !serdes_filter.isEmpty()) {
+            if (serdes_filter.contains(source)) {
+              countdowns.put(source, new AtomicInteger(sinks.size()));  
+            }
+          } else {
+            countdowns.put(source, new AtomicInteger(sinks.size()));
+          }
         }
         
         if (context.query().isTraceEnabled()) {
@@ -443,15 +451,34 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         }
         deferreds.add(summarizer.initialize(span));
       }
-      return Deferred.group(deferreds).addCallback(new CB(ds_interval));
+      return Deferred.group(deferreds).addCallback(new CB(ds_interval, new_serdes_filter));
     } else if (downsamplers != null) {
+      // make sure to filter out stuff we don't need.
+      if (context.query().getSerdesConfigs() != null && 
+          !context.query().getSerdesConfigs().isEmpty()) {
+        for (final SerdesOptions config : context.query().getSerdesConfigs()) {
+          for (final String id : config.getFilter()) {
+            old_serdes_filters.add(id);
+          }
+        }
+      }
       SemanticQuery.Builder builder = ((SemanticQuery) context.query()).toBuilder()
           .setExecutionGraph(execution_graph);
       ((BaseQueryContext) context).resetQuery(builder.build());
+    } else {
+      // make sure to filter out stuff we don't need.
+      if (context.query().getSerdesConfigs() != null && 
+          !context.query().getSerdesConfigs().isEmpty()) {
+        for (final SerdesOptions config : context.query().getSerdesConfigs()) {
+          for (final String id : config.getFilter()) {
+            old_serdes_filters.add(id);
+          }
+        }
+      }
     }
     
     try {
-      return Deferred.fromResult(new CB(ds_interval).call(null));
+      return Deferred.fromResult(new CB(ds_interval, old_serdes_filters).call(null));
     } catch (Exception e) {
       return Deferred.fromError(e);
     }

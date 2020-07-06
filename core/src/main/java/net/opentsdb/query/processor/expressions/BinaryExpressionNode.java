@@ -326,7 +326,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
           result.set(results);
           result.join();
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Sending expression upstream: " + config.getId());
+            LOG.trace("Sending expression upstream: " + expression_config.getId());
           }
           sendUpstream(result);
         } catch (Exception e) {
@@ -334,7 +334,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
         }
       }
     } else if (LOG.isTraceEnabled()) {
-      LOG.trace("Not all results are in for: " + config.getId());
+      LOG.trace("Not all results are in for: " + expression_config.getId());
     }
   }
   
