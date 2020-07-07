@@ -129,7 +129,7 @@ public class Tsdb1xQueryResult implements QueryResult {
   @Override
   public List<TimeSeries> timeSeries() {
     // TODO - double check to see this isn't called from multiple threads.
-    if (final_results == null) {
+    if (final_results == null || final_results.size() != results.values().size()) {
       final_results = Lists.newArrayList(results.values());
     }
     return final_results;
