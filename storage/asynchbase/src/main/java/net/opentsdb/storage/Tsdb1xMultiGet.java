@@ -864,6 +864,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     
     if (++rollup_index >= node.rollupIntervals().size()) {
       rollup_index = -1;
+      // null out the filter as it doesn't apply on the raw table.
+      //filter = null;
     }
     setInitialTimestamp();
     setEndTimestamps();
