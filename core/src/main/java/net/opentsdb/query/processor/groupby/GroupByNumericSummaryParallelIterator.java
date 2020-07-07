@@ -74,7 +74,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
 
   // TEMP
   enum AggEnum {
-    sum, count, min, max, last, avg;
+    sum, zimsum, count, min, mimmin, max, mimmax, last, avg;
   }
   
   private final int intervals;
@@ -280,6 +280,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     for (int i = 0; i < accumulators.length; i++) {
       switch (agg) {
       case sum:
+      case zimsum:
       case count:
         for (int x = 0; x < intervals; x++) {
           if (Double.isInfinite(accumulators[i].accumulator[x])) {
@@ -293,6 +294,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         }
         break;
       case min:
+      case mimmin:
         for (int x = 0; x < intervals; x++) {
           if (Double.isInfinite(accumulators[i].accumulator[x])) {
             continue;
@@ -307,6 +309,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         }
         break;
       case max:
+      case mimmax:
       case last: // WARNING: Last has no meaning in group by.
         for (int x = 0; x < intervals; x++) {
           if (Double.isInfinite(accumulators[i].accumulator[x])) {
@@ -421,6 +424,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
             
             switch (agg) {
             case sum:
+            case zimsum:
               if (Double.isInfinite(accumulator[bucket])) {
                 accumulator[bucket] = v.toDouble();
               } else {
@@ -437,6 +441,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
               }
               break;
             case min:
+            case mimmin:
               if (Double.isInfinite(accumulator[bucket])) {
                 accumulator[bucket] = v.toDouble();
               } else {
@@ -446,6 +451,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
               }
               break;
             case max:
+            case mimmax:
             case last:
               if (Double.isInfinite(accumulator[bucket])) {
                 accumulator[bucket] = v.toDouble();
