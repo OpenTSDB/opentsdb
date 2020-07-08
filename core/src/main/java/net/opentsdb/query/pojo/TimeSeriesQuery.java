@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
@@ -54,11 +55,11 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.query.processor.expressions.ExpressionParser;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.rate.RateConfig;
-import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.JSON;
 
 import java.util.Collections;
@@ -66,6 +67,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Pojo builder class used for serdes of the expression query
@@ -76,7 +80,19 @@ import java.util.Set;
 @JsonDeserialize(builder = TimeSeriesQuery.Builder.class)
 public class TimeSeriesQuery extends Validatable 
     implements Comparable<TimeSeriesQuery>{
+  private static final Logger LOG = LoggerFactory.getLogger(TimeSeriesQuery.class);
+  
   public static final String RATE_1_TO_RESET_KEY = "tsd.query.convert.2x.rate1toReset";
+  
+  /** We'll add a downsampler if not present and auto is configured. */
+  public static final String AUTO_DOWNSAMPLE_KEY = "tsd.query.convert.2x.downsample.auto";
+  
+  /** What function to use for auto downsampling when the downsampler is missing. */
+  public static final String AUTO_DOWNSAMPLE_FUNCTION_KEY = 
+      "tsd.query.convert.2x.downsample.function";
+  
+  /** Cached link to the downsample factory. */
+  private static DownsampleFactory DOWNSAMPLE_FACTORY;
   
   /** An optional name for the query */
   private String name;
@@ -675,9 +691,10 @@ public class TimeSeriesQuery extends Validatable
       // downsampler
       final Downsampler downsampler = metric.getDownsampler() != null ? 
           metric.getDownsampler() : time.getDownsampler();
-      if (downsampler != null) {
-        node = downsampler(metric, interpolator, downsampler);
-        nodes.add(node);
+      final QueryNodeConfig ds = downsampler(metric, interpolator, downsampler, tsdb);
+      if (ds != null) {
+        nodes.add(ds);
+        node = ds;
       }
       
       if (metric.isRate()) {
@@ -770,9 +787,72 @@ public class TimeSeriesQuery extends Validatable
    */
   private QueryNodeConfig downsampler(final Metric metric, 
                                       final String interpolator, 
-                                      final Downsampler downsampler) {
+                                      final Downsampler downsampler,
+                                      final TSDB tsdb) {
+    if (!tsdb.getConfig().hasProperty(AUTO_DOWNSAMPLE_KEY)) {
+      synchronized(tsdb.getConfig()) { 
+        if (!tsdb.getConfig().hasProperty(AUTO_DOWNSAMPLE_KEY)) {
+          tsdb.getConfig().register(AUTO_DOWNSAMPLE_KEY, false, true,
+              "For 2.x queries, whether or not to add a downsampler if the auto "
+              + "map is configured and no downsampler is provided. If enabled then"
+              + "the way to get back to raw data is to set the downsampler to none.");
+        }
+        
+        if (!tsdb.getConfig().hasProperty(AUTO_DOWNSAMPLE_FUNCTION_KEY)) {
+          tsdb.getConfig().register(AUTO_DOWNSAMPLE_FUNCTION_KEY, "avg", true,
+              "For 2.x queries missing a downsampler and auto downsampling is "
+              + "enabled, the function to use to aggregate.");
+        }
+      }
+    }
     
-    FillPolicy policy = downsampler.getFillPolicy().getPolicy();
+    if (downsampler == null) {
+      // see if we're doing auto.
+      if (!tsdb.getConfig().getBoolean(AUTO_DOWNSAMPLE_KEY)) {
+        return null;
+      }
+      
+      if (DOWNSAMPLE_FACTORY == null) {
+        synchronized(TimeSeriesQuery.class) {
+          if (DOWNSAMPLE_FACTORY == null) {
+            final QueryNodeFactory ds_factory = tsdb.getRegistry()
+                .getQueryNodeFactory(DownsampleFactory.TYPE);
+            if (ds_factory == null) {
+              LOG.error("Unable to find a factory for the downsampler.");
+            }
+            DOWNSAMPLE_FACTORY = (DownsampleFactory) ds_factory;
+          }
+        }
+      }
+      
+      if (DOWNSAMPLE_FACTORY == null || 
+          DOWNSAMPLE_FACTORY.intervals() == null || 
+          DOWNSAMPLE_FACTORY.intervals().isEmpty()) {
+        return null;
+      }
+      
+      DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
+          .setAggregator(tsdb.getConfig().getString(AUTO_DOWNSAMPLE_FUNCTION_KEY))
+          .setInterval("auto")
+          .setIntervals(DOWNSAMPLE_FACTORY.intervals())
+          .setFill(true)
+          .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+              .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+              .setRealFillPolicy(FillWithRealPolicy.NONE)
+              .setType(interpolator)
+              .setDataType(NumericType.TYPE.toString())
+              .build())
+          .setId("downsample_" + metric.getId())
+          .addSource(metric.getId());;
+       return ds.build();
+    }
+    
+    // due to the above we can now pass in a DS of none to bypass.
+    if (downsampler.getAggregator().toLowerCase().contains("none")) {
+      return null;
+    }
+    
+    final FillPolicy policy = downsampler.getFillPolicy().getPolicy();
     DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
         .setAggregator(downsampler.getAggregator())
         .setInterval(downsampler.getInterval())

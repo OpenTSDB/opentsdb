@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 package net.opentsdb.query.pojo;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -111,7 +110,9 @@ public class Downsampler extends Validatable implements Comparable<Downsampler> 
     if (aggregator == null || aggregator.isEmpty()) {
       throw new IllegalArgumentException("Missing or empty aggregator");
     }
-    if (tsdb.getRegistry().getPlugin(NumericAggregatorFactory.class, 
+    
+    if (!aggregator.equalsIgnoreCase("none") && 
+        tsdb.getRegistry().getPlugin(NumericAggregatorFactory.class, 
         aggregator.toLowerCase()) == null) {
       throw new IllegalArgumentException("Invalid aggregator: " + aggregator);
     }

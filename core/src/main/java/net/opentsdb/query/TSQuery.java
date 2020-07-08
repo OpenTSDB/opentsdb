@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013-2017  The OpenTSDB Authors.
+// Copyright (C) 2013-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -510,7 +510,7 @@ public final class TSQuery {
         final DownsamplingSpecification spec = 
             new DownsamplingSpecification(tsdb, sub.getDownsample());
         final Downsampler.Builder builder = Downsampler.newBuilder()
-            .setAggregator(spec.getFunction().toString())
+            .setAggregator(spec.getFunction() == null ? "none" : spec.getFunction().toString())
             .setInterval(spec.getStringInterval());
         if (spec.getFillPolicy() != null) {
           builder.setFillPolicy(NumericFillPolicy.newBuilder()
