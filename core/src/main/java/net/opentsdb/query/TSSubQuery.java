@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
@@ -437,13 +436,13 @@ public final class TSSubQuery {
   /** @param tags an optional list of tags for specificity or grouping
    * As of 2.2 this will convert the existing tags to filter
    * @deprecated */
-  public void setTags(Map<String, String> tags) {
+  public void setTags(final Map<String, String> tags) {
     if (filters == null) {
       filters = new ArrayList<TagVFilter>(tags.size());
+      TagVFilter.tagsToFilters(tags, filters);
     } else {
-      filters.clear();
+      // In v3 we'll ignore tags.
     }
-    TagVFilter.tagsToFilters(tags, filters);
   }
 
   /** @param downsample the downsampling function to use, e.g. "2h-avg" */
@@ -463,7 +462,7 @@ public final class TSSubQuery {
   
   /** @param filters A list of filters to use when querying
    * @since 2.2 */
-  public void setFilters(List<TagVFilter> filters) {
+  public void setFilters(final List<TagVFilter> filters) {
     this.filters = filters;
   }
   
