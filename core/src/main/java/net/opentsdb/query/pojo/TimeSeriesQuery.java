@@ -644,12 +644,10 @@ public class TimeSeriesQuery extends Validatable
       }
     }
     
-    Map<String, String> id_to_node_roots = Maps.newHashMap();
-    
+    final Map<String, String> id_to_node_roots = Maps.newHashMap();
     final List<QueryNodeConfig> nodes = Lists.newArrayList();
     int metric_id = 1;
     for (final Metric metric : metrics) {
-      
       DefaultTimeSeriesDataSourceConfig.Builder source =
           (DefaultTimeSeriesDataSourceConfig.Builder) DefaultTimeSeriesDataSourceConfig.newBuilder()
       .setMetric(MetricLiteralFilter.newBuilder()
@@ -692,7 +690,7 @@ public class TimeSeriesQuery extends Validatable
       
       final Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null 
           : getFilter(metric.getFilter());
-      QueryNodeConfig gb = groupBy(metric, interpolator, downsampler, filter, node);
+      final QueryNodeConfig gb = groupBy(metric, interpolator, downsampler, filter, node);
       if (gb != null) {
         nodes.add(gb);
         node = gb;
@@ -703,7 +701,6 @@ public class TimeSeriesQuery extends Validatable
     
     if (expressions != null) {
       for (final Expression expression : expressions) {
-        
         final Set<String> variables = ExpressionParser.parseVariables(expression.getExpr());
         final List<String> vars = Lists.newArrayListWithExpectedSize(variables.size());
         for (final String var : variables) {
@@ -886,7 +883,9 @@ public class TimeSeriesQuery extends Validatable
                  .addSource(parent.getId());
         return gb_config.build();
       }
-    } else if (!agg.toLowerCase().equals("none")) {
+    }
+    
+    if (!agg.toLowerCase().equals("none")) {
       // we agg all 
       FillPolicy policy = downsampler == null ? 
           FillPolicy.NONE : downsampler.getFillPolicy().getPolicy();
