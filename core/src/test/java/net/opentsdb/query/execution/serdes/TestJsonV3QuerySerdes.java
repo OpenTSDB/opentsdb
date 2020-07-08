@@ -40,6 +40,7 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -85,6 +86,7 @@ public class TestJsonV3QuerySerdes {
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(UnitTestConfiguration.getConfiguration());
     Registry registry = mock(Registry.class);
     when(tsdb.getRegistry()).thenReturn(registry);
     when(tsdb.getRegistry().getPlugin(eq(NumericAggregatorFactory.class), anyString()))

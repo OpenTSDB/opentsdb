@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import java.util.NoSuchElementException;
 import java.util.TimeZone;
 
 import com.google.common.base.MoreObjects;
@@ -165,16 +164,17 @@ public final class DownsamplingSpecification {
     
     // FUNCTION.
     if (parts[1].toLowerCase().equals("none")) {
-      throw new IllegalArgumentException("cannot use the NONE "
-          + "aggregator for downsampling");
+      // For v3, we'll allow this and drop the downsampler.
+      function = null;
+    } else {
+      NumericAggregatorFactory agg_factory = tsdb.getRegistry()
+          .getPlugin(NumericAggregatorFactory.class, parts[1]);
+      if (agg_factory == null) {
+        throw new IllegalArgumentException("No such downsampling function: " +
+            parts[1]);
+      }
+      function = agg_factory.newAggregator(false);
     }
-    NumericAggregatorFactory agg_factory = tsdb.getRegistry()
-        .getPlugin(NumericAggregatorFactory.class, parts[1]);
-    if (agg_factory == null) {
-      throw new IllegalArgumentException("No such downsampling function: " +
-          parts[1]);
-    }
-    function = agg_factory.newAggregator(false);
 
     // FILL POLICY.
     if (3 == parts.length) {
