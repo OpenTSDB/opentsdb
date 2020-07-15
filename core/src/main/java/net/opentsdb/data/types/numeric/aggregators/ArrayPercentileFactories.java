@@ -289,6 +289,9 @@ public class ArrayPercentileFactories extends BaseArrayFactory {
     @Override
     public double[] doubleArray() {
       if (double_accumulator == null) {
+        if (accumulator == null) {
+          throw new IllegalStateException("Aggregator didn't have any data.");
+        }
         // run it!
         initDouble(accumulator.length);
         Percentile percentile = null;
@@ -320,14 +323,13 @@ public class ArrayPercentileFactories extends BaseArrayFactory {
       }
       
       final ArrayPercentile agg = (ArrayPercentile) aggregator;
+      if (agg.accumulator == null) {
+        return;
+      }
       
       // TODO - We may be able to get away with simply using the ref to the first
       // array.
       if (accumulator == null) {
-        if (agg.accumulator == null) {
-          return;
-        }
-        
         accumulator = new double[agg.accumulator.length][];
         indices = new int[agg.accumulator.length];
         for (int i = 0; i < agg.accumulator.length; i++) {

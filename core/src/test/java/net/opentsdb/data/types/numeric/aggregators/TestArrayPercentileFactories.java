@@ -291,6 +291,69 @@ public class TestArrayPercentileFactories extends BaseTestNumericArray {
   }
   
   @Test
+  public void combineEmptySecond() {
+    ArrayPercentileFactories.ArrayPercentile agg1 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    agg1.accumulate(new long[] { 3, 2, 9, -1 });
+    agg1.accumulate(new long[] { 4, 5, 8, -19 });
+
+    ArrayPercentileFactories.ArrayPercentile agg2 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+
+    ArrayPercentileFactories.ArrayPercentile combiner = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    combiner.combine(agg1);
+    combiner.combine(agg2);
+
+    assertArrayEquals(new double[] { 4, 5, 9, -1 }, combiner.doubleArray(), 0.001);
+    agg1.close();
+    agg2.close();
+    combiner.close();
+  }
+  
+  @Test
+  public void combineEmptyFirst() {
+    ArrayPercentileFactories.ArrayPercentile agg1 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+
+    ArrayPercentileFactories.ArrayPercentile agg2 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    agg2.accumulate(new long[] { 3, 8, 0, 2 });
+    
+    ArrayPercentileFactories.ArrayPercentile combiner = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    combiner.combine(agg1);
+    combiner.combine(agg2);
+
+    assertArrayEquals(new double[] { 3, 8, 0, 2 }, combiner.doubleArray(), 0.001);
+    agg1.close();
+    agg2.close();
+    combiner.close();
+  }
+  
+  @Test
+  public void combineTwoEmpty() {
+    ArrayPercentileFactories.ArrayPercentile agg1 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+
+    ArrayPercentileFactories.ArrayPercentile agg2 = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    
+    ArrayPercentileFactories.ArrayPercentile combiner = 
+        new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P99);
+    combiner.combine(agg1);
+    combiner.combine(agg2);
+
+    try {
+      combiner.doubleArray();
+      fail("IllegalStateException");
+    } catch (IllegalStateException e) { }
+    agg1.close();
+    agg2.close();
+    combiner.close();
+  }
+  
+  @Test
   public void p999() throws Exception {
     ArrayPercentileFactories.ArrayPercentile agg = 
         new ArrayPercentileFactories.ArrayPercentile(false, NON_POOLED, PercentileType.P999);
