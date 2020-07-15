@@ -144,6 +144,9 @@ public class ESMetaResponse implements MetaResponse {
       if (max_hits > 0) {
         for (final Map.Entry<String, MultiSearchResponse> response_entry : response.entrySet()) {
           final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
+          if (response.getFailedShards() > 0) {
+            LOGGER.warn("Failing shards from host " + response_entry.getKey() + ": " + response.getFailedShards());
+          }
           parseTimeseries(query, metaQuery, response, metric, isMultiGet, result);
         }
         // if result if empty after we process all our clusters, set to NO_DATA.
