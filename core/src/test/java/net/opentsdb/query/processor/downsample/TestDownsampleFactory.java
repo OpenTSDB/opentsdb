@@ -410,7 +410,7 @@ public class TestDownsampleFactory {
     
     DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator("avg")
-        .setInterval("1h")
+        .setInterval("1m")
         .addInterpolatorConfig(numeric_config)
         .setId("downsample")
         .addSource("m1")
@@ -480,7 +480,7 @@ public class TestDownsampleFactory {
     assertEquals(1514764800, ((DownsampleConfig) new_node).startTime().epoch());
     assertEquals(1514768400, ((DownsampleConfig) new_node).endTime().epoch());
     assertEquals("avg", ((DownsampleConfig) new_node).getAggregator());
-    assertEquals("1h", ((DownsampleConfig) new_node).getInterval());
+    assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
     assertFalse(((DownsampleConfig) new_node).getRunAll());
     verify(planner, times(2)).replace(any(QueryNodeConfig.class), any(QueryNodeConfig.class));
     assertTrue(dag.hasEdgeConnecting(new_node, graph.get(0)));
@@ -498,7 +498,7 @@ public class TestDownsampleFactory {
     assertEquals(1514764800, ((DownsampleConfig) new_node).startTime().epoch());
     assertEquals(1514768400, ((DownsampleConfig) new_node).endTime().epoch());
     assertEquals("avg", ((DownsampleConfig) new_node).getAggregator());
-    assertEquals("1h", ((DownsampleConfig) new_node).getInterval());
+    assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
     assertFalse(((DownsampleConfig) new_node).getRunAll());
 
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);

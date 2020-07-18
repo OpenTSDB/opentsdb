@@ -34,6 +34,7 @@ import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
 
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
@@ -45,6 +46,10 @@ import java.util.List;
  * Given the {@link TimeSeriesQuery}, the builder will parse out the start and
  * end timestamps and snap to an interval greater than or equal to the query
  * start time and less than or equal to the query end time using the interval.
+ * <p>
+ * Note that there is an implicit runall conversion when the delta of the time
+ * stamps from the query matches the interval. In that case the runall flag will
+ * be set to true.
  * <p>
  * If the end time would be the same as the start, after snapping, the builder
  * will throw an {@link IllegalArgumentException}.
@@ -64,7 +69,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   private final String end;
 
   /** The raw, original and optional min interval string. */
-  private final String interval;
+  private String interval;
   private final String original_interval;
   private final String min_interval;
   
@@ -86,7 +91,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   private final boolean infectious_nan;
 
   /** Whether or not to reduce to a single value. */
-  private final boolean run_all;
+  private boolean run_all;
 
   /** Whether or not to fill empty timestamps. */
   private final boolean fill;
@@ -178,7 +183,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
           final long delta = end_time.msEpoch() - start_time.msEpoch();
           interval = DownsampleFactory.getAutoInterval(delta, intervals, min_interval);
         } else {
-          // we've just be parsed, not setup, so set back to auto.
+          // we've just been parsed, not setup, so set back to auto.
           interval = "auto";
         }
       } else {
@@ -190,9 +195,21 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits("1m"));
         duration = DateTime.parseDuration2("1m");
       } else {
-        interval_part = DateTime.getDurationInterval(interval);
-        units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
-        duration = DateTime.parseDuration2(interval);
+        final TemporalAmount duration = DateTime.parseDuration2(interval);
+        if (start_time != null && end_time != null && 
+           duration.equals(Duration.of(
+               end_time.epoch() - start_time.epoch(), ChronoUnit.SECONDS))) {
+          // implicit run-all
+          run_all = true;
+          interval = "0all";
+          interval_part = 0;
+          units = null;
+          this.duration = null;
+        } else {
+          interval_part = DateTime.getDurationInterval(interval);
+          units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
+          this.duration = duration;
+        }
       }
     } else {
       interval = "0all";
@@ -200,7 +217,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
       units = null;
       duration = null;
     }
-
+    
     start = builder.start;
     if (!Strings.isNullOrEmpty(builder.start)) {
       if (!run_all) {
@@ -213,17 +230,13 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     }
 
     end = builder.end;
-    if (!Strings.isNullOrEmpty(builder.end)) {
-      if (!run_all) {
-        end_time.snapToPreviousInterval(interval_part, units);
-      }
+    if (!Strings.isNullOrEmpty(builder.end) && !run_all) {
+      end_time.snapToPreviousInterval(interval_part, units);
       // TODO - fall to next interval?
-    } else {
-      if (!run_all) {
-        end_time.snapToPreviousInterval(interval_part, units);
-      }
+    } else if (!run_all) {
+      end_time.snapToPreviousInterval(interval_part, units);
     }
-    
+        
     if (reporting_interval_ms > 0) {
       if (interval.equalsIgnoreCase("0all")) {
         dps_in_interval = (int) ((end_time.msEpoch() - start_time.msEpoch()) / reporting_interval_ms);
@@ -243,10 +256,13 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     
     // make sure we have at least one interval in our range
     // TODO - propper difference function
-    if (start_time != null && end_time.msEpoch() - start_time.msEpoch() <
+    if (!run_all && start_time != null && end_time.msEpoch() - start_time.msEpoch() <
             DateTime.parseDuration(interval)) {
       throw new IllegalArgumentException("The start and stop times of "
-              + "the query must be greater than the interval provided: " + interval);
+              + "the query must be greater than the interval provided: " + interval 
+              + ". Difference after alignment was " 
+              + (end_time.msEpoch() - start_time.msEpoch()) + " with start=" 
+              + start_time.msEpoch() + " and end=" + end_time.msEpoch());
     }
   }
 

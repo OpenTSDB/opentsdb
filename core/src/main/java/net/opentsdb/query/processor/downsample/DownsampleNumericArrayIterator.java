@@ -58,6 +58,9 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
   /** The parent result. */
   protected final DownsampleResult result;
   
+  /** The config. */
+  protected final DownsampleConfig config;
+  
   /** The calculated intervals. */
   protected int intervals;
   
@@ -93,10 +96,11 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     }
     this.node = node;
     this.result = (DownsampleResult) result;
+    this.config = (DownsampleConfig) node.config();
     
-    String agg = ((DownsampleConfig) node.config()).getAggregator();
+    String agg = config.getAggregator();
     if (agg.equalsIgnoreCase("AVG") && 
-        ((DownsampleConfig) node.config()).dpsInInterval() > 0) {
+        config.dpsInInterval() > 0) {
       reporting_average = true;
       //agg = "sum";
     } else {
@@ -107,15 +111,15 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
         .getRegistry().getPlugin(NumericAggregatorFactory.class, agg);
     if (factory == null) {
       throw new IllegalArgumentException("No aggregator found for type: " 
-          + ((DownsampleConfig) node.config()).getAggregator());
+          + config.getAggregator());
     }
     aggregator = factory.newAggregator(
-        ((DownsampleConfig) node.config()).getInfectiousNan());
+        config.getInfectiousNan());
     final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         source.iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();
-      intervals = ((DownsampleConfig) node.config()).intervals();
+      intervals = config.intervals();
     } else {
       iterator = null;
     }
@@ -156,15 +160,19 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     
     final TimeStamp source_ts = 
         result.downstreamResult().timeSpecification().start().getCopy();
-    final TimeStamp end_of_interval = 
-        ((DownsampleConfig) node.config()).startTime().getCopy();
-    end_of_interval.add(((DownsampleConfig) node.config()).interval());
+    final TimeStamp end_of_interval;
+    if (config.getRunAll()) {
+      end_of_interval = config.endTime(); // no need to copy
+    } else {
+      end_of_interval = config.startTime().getCopy();
+        end_of_interval.add(config.interval());
+    }
     
     int source_idx = 0;
     
     // iterate and fill
     for (int i = 0; i < intervals; i++) {
-      while (source_ts.compare(Op.LT, ((DownsampleConfig) node.config()).startTime())) {
+      while (source_ts.compare(Op.LT, config.startTime())) {
         source_ts.add(result.downstreamResult().timeSpecification().interval());
         source_idx++;
       }
@@ -184,7 +192,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
       }
       
       if (accumulator.valueIndex() > 0) {
-        accumulator.run(aggregator, ((DownsampleConfig) node.config()).getInfectiousNan());
+        accumulator.run(aggregator, config.getInfectiousNan());
         if (reporting_average) {
           if (long_values != null) {
             shift();
@@ -201,7 +209,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
             }
           }
           double_values[i] = accumulator.dp().value().toDouble() / 
-              Math.max(((DownsampleConfig) node.config()).dpsInInterval(), count);
+              Math.max(config.dpsInInterval(), count);
         } else {
           if (accumulator.dp().value().isInteger()) {
             if (long_values != null) {
@@ -220,7 +228,9 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
       } else {
         fill(i);
       }
-      end_of_interval.add(((DownsampleConfig) node.config()).interval());
+      if (!config.getRunAll()) {
+        end_of_interval.add(config.interval());
+      }
     }
 
     try {
