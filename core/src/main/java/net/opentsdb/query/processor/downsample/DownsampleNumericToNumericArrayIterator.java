@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019 The OpenTSDB Authors.
+// Copyright (C) 2019-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -103,6 +103,9 @@ public class DownsampleNumericToNumericArrayIterator
 
   /** The iterator pulled from the source. */
   private TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator;
+  
+  /** The first value in our time range if we have at least one. */
+  private TimeSeriesValue<NumericType> value;
 
   /** The partial aggregation defaults for double values */
   private static final double[] partial_doubles =
@@ -134,7 +137,7 @@ public class DownsampleNumericToNumericArrayIterator
    *
    */
    static enum AggEnum {
-    sum, count, min, max, last, avg;
+    sum, zimsum, count, min, mimmin, max, mimmax, last, avg;
   }
 
   /** Enum identifying the aggregation function */
@@ -174,12 +177,14 @@ public class DownsampleNumericToNumericArrayIterator
     config = (DownsampleConfig) node.config();
 
     this.aggEnum = AggEnum.valueOf(config.getAggregator().toLowerCase());
-    interval_start = this.result.start().getCopy();
-    interval_end = this.result.end().getCopy();
+    interval_start = config.getRunAll() ? config.startTime().getCopy() : 
+      this.result.start().getCopy();
+    interval_end = config.getRunAll() ? config.endTime().getCopy() : 
+      this.result.end().getCopy();
     intervals = config.intervals();
 
     TemporalAmount interval = config.interval();
-    if(interval instanceof Period) {
+    if (interval instanceof Period) {
       long days = 0;
       days += interval.get(ChronoUnit.YEARS) * 365L;
       days += interval.get(ChronoUnit.MONTHS) * 30L;
@@ -187,6 +192,8 @@ public class DownsampleNumericToNumericArrayIterator
       intervalPart = (int) (days * 86_400L);
     } else if (interval instanceof Duration) {
       intervalPart = (int) interval.get(ChronoUnit.SECONDS);
+    } else if (config.getRunAll()) {
+      intervalPart = 0;
     } else {
       new IllegalStateException("Unsupported interval format: " + interval.getClass().getName());
     }
@@ -195,12 +202,24 @@ public class DownsampleNumericToNumericArrayIterator
         source.iterator(NumericType.TYPE);
     if (optional.isPresent()) {
       iterator = optional.get();
+      while (iterator.hasNext()) {
+        value = (TimeSeriesValue<NumericType>) iterator.next();
+        if (value.timestamp().compare(Op.GTE, config.startTime()) &&
+            value.timestamp().compare(Op.LT, config.endTime())) {
+          break;
+        }
+      }
+      
+      if (value != null && 
+          (value.timestamp().compare(Op.LT, config.startTime()) ||
+           value.timestamp().compare(Op.GTE, config.endTime()))) {
+        value = null;
+      }
     } else {
       iterator = null;
     }
 
-    has_next = iterator != null ? iterator.hasNext() : false;
-
+    has_next = value != null;
   }
 
   @Override
@@ -217,9 +236,11 @@ public class DownsampleNumericToNumericArrayIterator
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public TimeSeriesValue<NumericArrayType> nextPool(Aggregator aggregator) {
-
     has_next = false;
-
+    if (value == null) {
+      return null;
+    }
+    
     NumericArrayAggregator numericArrayAggregator = (NumericArrayAggregator) aggregator; // group by
                                                                                          // aggregator
     Accumulator accumulator = DownsampleNumericToNumericArrayIterator.threadLocalAccs.get();
@@ -234,33 +255,38 @@ public class DownsampleNumericToNumericArrayIterator
 
     boolean flush = false;
     int index = 0;
-    while (iterator.hasNext()) {
-      TimeSeriesValue<NumericType> next = (TimeSeriesValue<NumericType>) iterator.next();
-
-      if (next.timestamp().compare(Op.GTE, this.interval_start)
-          && next.timestamp().compare(Op.LT, this.interval_end)) {
-
+    do {
+      if (value.timestamp().compare(Op.GTE, interval_start)
+          && value.timestamp().compare(Op.LT, interval_end)) {
         if (nextTs == null) {
-          // Use the first valid dp timestamp as the first Timestamp.
-          nextTs = next.timestamp().getCopy();
-          long nextRoundoffTs =
-              next.timestamp().epoch() - (next.timestamp().epoch() % intervalPart) + intervalPart;
-          nextTs.updateEpoch(nextRoundoffTs);
+          if (config.getRunAll()) {
+            nextTs = config.endTime().getCopy();
+          } else {
+            // Use the first valid dp timestamp as the first Timestamp.
+            nextTs = value.timestamp().getCopy();
+            long nextRoundoffTs =
+                value.timestamp().epoch() - (value.timestamp().epoch() % intervalPart) + intervalPart;
+            nextTs.updateEpoch(nextRoundoffTs);
+          }
         }
 
-        if (next.timestamp().compare(Op.GTE, nextTs)) {
+        if (value.timestamp().compare(Op.GTE, nextTs)) {
           // flush previous interval once new interval starts
           flush = true;
 
           // find the index to update in the Aggregator
           // index will be relative to the start timestamp
-          index = (int) (((nextTs.epoch() - interval_start.epoch() - intervalPart) / intervalPart)
-              % intervals);
+          if (config.getRunAll()) {
+            index = 0;
+          } else {
+            index = (int) (((nextTs.epoch() - interval_start.epoch() - intervalPart) / intervalPart)
+                % intervals);
 
-          // get the next timestamp in the downsample
-          long nextTsRoundoff =
-              next.timestamp().epoch() - (next.timestamp().epoch() % intervalPart) + intervalPart;
-          nextTs.updateEpoch(nextTsRoundoff);
+            // get the next timestamp in the downsample
+            long nextTsRoundoff =
+                value.timestamp().epoch() - (value.timestamp().epoch() % intervalPart) + intervalPart;
+            nextTs.updateEpoch(nextTsRoundoff);
+          }
         }
         
         if (accumulator.isFull() || flush) {
@@ -269,14 +295,13 @@ public class DownsampleNumericToNumericArrayIterator
 
           accumulator.reset();
         }
-        if (next.value().isInteger()) {
-          accumulator.add(next.value().longValue());
+        if (value.value().isInteger()) {
+          accumulator.add(value.value().longValue());
         } else {
-          accumulator.add(next.value().doubleValue());
+          accumulator.add(value.value().doubleValue());
         }
 
         if (flush) {
-
           // increment interval in the groupby aggregator
           double v = getAggValue(localDoubleAggs, localLongAggs);
 
@@ -291,13 +316,28 @@ public class DownsampleNumericToNumericArrayIterator
         }
 
       }
-    }
+      
+      if (iterator.hasNext()) {
+        value = (TimeSeriesValue<NumericType>) iterator.next();
+      } else {
+        value = null;
+      }
+      
+      if (value != null && value.timestamp().compare(Op.GTE, config.endTime())) {
+        value = null;
+      }
+    } while (value != null);
+    
     if (nextTs != null) {
       // capture the last entry in agg interval
       accumulateDoubles(accumulator, localLongAggs, localDoubleAggs);
       accumulateLongs(accumulator, localLongAggs, localDoubleAggs);
-      index = (int) (((nextTs.epoch() - interval_start.epoch() - intervalPart) / intervalPart)
-          % intervals);
+      if (config.getRunAll()) {
+        index = 0;
+      } else {
+        index = (int) (((nextTs.epoch() - interval_start.epoch() - intervalPart) / intervalPart)
+            % intervals);
+      }
       double v = getAggValue(localDoubleAggs, localLongAggs);
       if (numericArrayAggregator instanceof ArrayCount && this.aggEnum == AggEnum.count) {
         ((ArrayCount) numericArrayAggregator).accumulate(v, index, true);
@@ -560,7 +600,6 @@ public class DownsampleNumericToNumericArrayIterator
 
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
-
     final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
         .getPlugin(NumericArrayAggregatorFactory.class, this.aggEnum.name());
     if (factory == null) {
@@ -573,11 +612,8 @@ public class DownsampleNumericToNumericArrayIterator
     double[] nans = new double[config.intervals()];
     Arrays.fill(nans, Double.NaN);
     agg.accumulate(nans);
-
     nextPool(agg);
-
     return this;
-
   }
   
   @Override

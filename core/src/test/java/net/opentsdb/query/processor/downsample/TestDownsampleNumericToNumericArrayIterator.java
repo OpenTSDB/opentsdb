@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019 The OpenTSDB Authors.
+// Copyright (C) 2019-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,9 +39,11 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
@@ -109,8 +111,12 @@ public class TestDownsampleNumericToNumericArrayIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 2000000, 50);
 
-    config = (DownsampleConfig) DownsampleConfig.newBuilder().setAggregator("avg").setId("foo")
-        .setInterval("2m").setStart("1514764800").setEnd("1514765040")
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("avg")
+        .setId("foo")
+        .setInterval("2m")
+        .setStart(Long.toString(BASE_TIME / 1000))
+        .setEnd(Long.toString((BASE_TIME / 1000) + 240))
         .addInterpolatorConfig(numeric_config).build();
     when(node.config()).thenReturn(config);
 
@@ -796,6 +802,84 @@ public class TestDownsampleNumericToNumericArrayIterator {
   }
   
   @Test
+  public void downsampleRunall() throws Exception {
+    // behaves the same with the difference that the old version would return the
+    // first value at BASE_TIME but now we skip it.
+    long BASE_TIME = 1514764800000L;
+    source = setSource(BASE_TIME);
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setStart("1514764825")
+        .setEnd("1514764850")
+        .setRunAll(true)
+        .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock(1514764825000L, 1514764850000L);
+    final DownsampleNumericToNumericArrayIterator it =
+        new DownsampleNumericToNumericArrayIterator(node, result, source);
+    
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericArrayType> value = (TimeSeriesValue<NumericArrayType>)
+        it.next();
+    assertFalse(value.value().isInteger());
+    assertEquals(0, value.value().offset());
+    assertEquals(1, value.value().end());
+    assertEquals(992, value.value().doubleArray()[0], 0.001);
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void downsampleRunallEarly() throws Exception {
+    // behaves the same with the difference that the old version would return the
+    // first value at BASE_TIME but now we skip it.
+    long BASE_TIME = 1514764800000L;
+    source = setSource(BASE_TIME);
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setStart(Long.toString((BASE_TIME + 5000L * 11) / 1000))
+        .setEnd(Long.toString((BASE_TIME + 5000L * 16) / 1000))
+        .setRunAll(true)
+        .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock((BASE_TIME + 5000L * 11) / 1000, 
+        (BASE_TIME + 5000L * 16) / 1000);
+    final DownsampleNumericToNumericArrayIterator it =
+        new DownsampleNumericToNumericArrayIterator(node, result, source);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
+  public void downsampleRunallLate() throws Exception {
+    // behaves the same with the difference that the old version would return the
+    // first value at BASE_TIME but now we skip it.
+    long BASE_TIME = 1514764800000L;
+    source = setSource(BASE_TIME);
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setStart(Long.toString((BASE_TIME - 5000L * 5) / 1000))
+        .setEnd(Long.toString((BASE_TIME - 5000L) / 1000))
+        .setRunAll(true)
+        .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock((BASE_TIME - 5000L * 5) / 1000, 
+        (BASE_TIME - 5000L) / 1000);
+    final DownsampleNumericToNumericArrayIterator it =
+        new DownsampleNumericToNumericArrayIterator(node, result, source);
+    
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void reportingInterval() throws Exception {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
@@ -1385,6 +1469,141 @@ public class TestDownsampleNumericToNumericArrayIterator {
 
   }
 
+  @Test
+  public void downsample5MRunAll() throws Exception {
+    long ts = 1514764800L;
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+        new MillisecondTimeStamp(ts * 1000L), new MillisecondTimeStamp((ts + (60 * 60)) * 1000L));
+    int c = 1;
+    for (int i = 0; i < 60; i++) {
+      ((NumericMillisecondShard) source).add((ts * 1000), c++);
+      ts += 60;
+    }
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setStart("1514765100")
+        .setEnd("1514765400")
+        .setRunAll(true)
+        .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock(1514765100, 1514765400);
+    final DownsampleNumericToNumericArrayIterator it =
+        new DownsampleNumericToNumericArrayIterator(node, result, source);
+    final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
+        .getPlugin(NumericArrayAggregatorFactory.class, "sum");
+    if (factory == null) {
+      throw new IllegalArgumentException(
+          "No numeric array aggregator factory found for type: " + "sum");
+    }
+
+    NumericArrayAggregator numericArrayAggregator =
+        factory.newAggregator(config.getInfectiousNan());
+
+    double[] nans = new double[config.intervals()];
+    Arrays.fill(nans, Double.NaN);
+    numericArrayAggregator.accumulate(nans);
+
+    it.nextPool(numericArrayAggregator);
+
+    double[] doubleArray = numericArrayAggregator.doubleArray();
+    assertEquals(1, doubleArray.length);
+    assertFalse(it.hasNext());
+    assertEquals(40, doubleArray[0], 0.001);
+  }
+  
+  @Test
+  public void downsample5MRunAllDataEarly() throws Exception {
+    long ts = 1514764800L;
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+        new MillisecondTimeStamp(ts * 1000L), new MillisecondTimeStamp((ts + (60 * 60)) * 1000L));
+    int c = 1;
+    for (int i = 0; i < 3; i++) {
+      ((NumericMillisecondShard) source).add((ts * 1000), c++);
+      ts += 60;
+    }
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setStart("1514765100")
+        .setEnd("1514765400")
+        .setRunAll(true)
+        .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock(1514765100, 1514765400);
+    final DownsampleNumericToNumericArrayIterator it =
+        new DownsampleNumericToNumericArrayIterator(node, result, source);
+    final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
+        .getPlugin(NumericArrayAggregatorFactory.class, "sum");
+    if (factory == null) {
+      throw new IllegalArgumentException(
+          "No numeric array aggregator factory found for type: " + "sum");
+    }
+
+    NumericArrayAggregator numericArrayAggregator =
+        factory.newAggregator(config.getInfectiousNan());
+
+    double[] nans = new double[config.intervals()];
+    Arrays.fill(nans, Double.NaN);
+    numericArrayAggregator.accumulate(nans);
+
+    it.nextPool(numericArrayAggregator);
+
+    double[] doubleArray = numericArrayAggregator.doubleArray();
+    assertEquals(1, doubleArray.length);
+    assertFalse(it.hasNext());
+    assertTrue(Double.isNaN(doubleArray[0]));
+  }
+  
+  @Test
+  public void downsample5MRunAllDataLate() throws Exception {
+    long ts = 1514765400L;
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+        new MillisecondTimeStamp(ts * 1000L), new MillisecondTimeStamp((ts + (60 * 60)) * 1000L));
+    int c = 1;
+    for (int i = 0; i < 3; i++) {
+      ((NumericMillisecondShard) source).add((ts * 1000), c++);
+      ts += 60;
+    }
+
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setStart("1514765100")
+        .setEnd("1514765400")
+        .setRunAll(true)
+        .addInterpolatorConfig(numeric_config).build();
+
+    QueryResult result = setupMock(1514765100, 1514765400);
+    final DownsampleNumericToNumericArrayIterator it =
+        new DownsampleNumericToNumericArrayIterator(node, result, source);
+    final NumericArrayAggregatorFactory factory = node.pipelineContext().tsdb().getRegistry()
+        .getPlugin(NumericArrayAggregatorFactory.class, "sum");
+    if (factory == null) {
+      throw new IllegalArgumentException(
+          "No numeric array aggregator factory found for type: " + "sum");
+    }
+
+    NumericArrayAggregator numericArrayAggregator =
+        factory.newAggregator(config.getInfectiousNan());
+
+    double[] nans = new double[config.intervals()];
+    Arrays.fill(nans, Double.NaN);
+    numericArrayAggregator.accumulate(nans);
+
+    it.nextPool(numericArrayAggregator);
+
+    double[] doubleArray = numericArrayAggregator.doubleArray();
+    assertEquals(1, doubleArray.length);
+    assertFalse(it.hasNext());
+    assertTrue(Double.isNaN(doubleArray[0]));
+  }
+  
   private QueryResult setupMock(final long start, final long end) throws Exception {
     return setupMock(Long.toString(start), Long.toString(end));
   }

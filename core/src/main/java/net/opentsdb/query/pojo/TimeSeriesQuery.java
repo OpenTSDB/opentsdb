@@ -852,7 +852,9 @@ public class TimeSeriesQuery extends Validatable
       return null;
     }
     
-    final FillPolicy policy = downsampler.getFillPolicy().getPolicy();
+    final FillPolicy policy = downsampler.getFillPolicy() == null ?
+        // TODO - config
+        FillPolicy.NOT_A_NUMBER : downsampler.getFillPolicy().getPolicy();
     DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
         .setAggregator(downsampler.getAggregator())
         .setInterval(downsampler.getInterval())
@@ -942,7 +944,7 @@ public class TimeSeriesQuery extends Validatable
       for (TagVFilter v : filter.getTags()) {
         if (v.isGroupBy()) {
           if (gb_config == null) {
-            FillPolicy policy = downsampler == null ? 
+            FillPolicy policy = downsampler == null || downsampler.getFillPolicy() == null ? 
                 FillPolicy.NONE : downsampler.getFillPolicy().getPolicy();
             gb_config = (GroupByConfig.Builder) GroupByConfig.newBuilder()
                 .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
