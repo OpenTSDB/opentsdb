@@ -267,8 +267,10 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
           
           // dpsMeta
           json.writeObjectFieldStart("dpsMeta");
-          json.writeNumberField("firstTimestamp", first_ts.msEpoch());
-          json.writeNumberField("lastTimestamp", next_ts.msEpoch());
+          json.writeNumberField("firstTimestamp", 
+              first_ts.msEpoch() == Long.MAX_VALUE ? 0 : first_ts.msEpoch());
+          json.writeNumberField("lastTimestamp", 
+              next_ts.msEpoch() == Long.MAX_VALUE ? 0 : next_ts.msEpoch());
           json.writeNumberField("setCount", set_count);
           json.writeNumberField("series", iterators.size());
           json.writeEndObject();
