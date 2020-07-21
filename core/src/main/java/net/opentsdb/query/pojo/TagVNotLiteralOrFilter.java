@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
+
 /**
  * A filter that lets the user list one or more explicit strings that should
  * NOT be included in a result set for aggregation.
@@ -38,6 +40,14 @@ public class TagVNotLiteralOrFilter extends TagVFilter {
 
   /** Whether or not the match should be case insensitive */
   final protected boolean case_insensitive;
+  
+  /**
+   * Default ctor for the plugin loader.
+   */
+  public TagVNotLiteralOrFilter() {
+    literals = null;
+    case_insensitive = false;
+  }
   
   /**
    * The default Ctor that disables case insensitivity
@@ -140,6 +150,10 @@ public class TagVNotLiteralOrFilter extends TagVFilter {
         + "\"filter\":\"web01|web02|web03\",\"groupBy\":false}";
   }
   
+  public static void initialize(final TSDB tsdb) {
+    // no-op now
+  }
+  
   /**
    * Case insensitive version
    */
@@ -147,6 +161,13 @@ public class TagVNotLiteralOrFilter extends TagVFilter {
     
     /** Name of this filter */
     final public static String FILTER_NAME = "not_iliteral_or";
+    
+    /**
+     * Default ctor for the plugin loader.
+     */
+    public TagVNotILiteralOrFilter() {
+      
+    }
     
     public TagVNotILiteralOrFilter(final String tagk, final String filter) {
       super(tagk, filter, true);
@@ -188,5 +209,10 @@ public class TagVNotLiteralOrFilter extends TagVFilter {
           + "{\"type\":\"not_iliteral_or\",\"tagk\":\"host\","
           + "\"filter\":\"web01|web02|web03\",\"groupBy\":false}";
     }
+  
+    public static void initialize(final TSDB tsdb) {
+      // no-op now
+    }
+    
   }
 }

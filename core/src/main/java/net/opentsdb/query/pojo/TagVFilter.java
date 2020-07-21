@@ -30,8 +30,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.PluginLoader;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -256,42 +258,42 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * @throws IllegalArgumentException really shouldn't happen but you know,
    *         checked exceptions...
    */
-//  public static void initializeFilterMap(final TSDB tsdb) 
-//      throws ClassNotFoundException, NoSuchMethodException, NoSuchFieldException, 
-//      IllegalArgumentException, SecurityException, IllegalAccessException, 
-//      InvocationTargetException {
-//    final List<TagVFilter> filter_plugins = 
-//        PluginLoader.loadPlugins(TagVFilter.class);
-//    if (filter_plugins != null) {
-//      for (final TagVFilter filter : filter_plugins) {
-//        // validate required fields and methods
-//        filter.getClass().getDeclaredMethod("description");
-//        filter.getClass().getDeclaredMethod("examples");
-//        filter.getClass().getDeclaredField("FILTER_NAME");
-//        
-//        final Method initialize = filter.getClass()
-//            .getDeclaredMethod("initialize", TSDB.class);
-//        initialize.invoke(null, tsdb);
-//        
-//        final Constructor<? extends TagVFilter> ctor = 
-//            filter.getClass().getDeclaredConstructor(String.class, String.class);
-//        
-//        final Pair<Class<?>, Constructor<? extends TagVFilter>> existing = 
-//            tagv_filter_map.get(filter.getType());
-//        if (existing != null) {
-//          LOG.warn("Overloading existing filter " + 
-//              existing.getClass().getCanonicalName() + 
-//              " with new filter " + filter.getClass().getCanonicalName());
-//        }
-//        tagv_filter_map.put(filter.getType().toLowerCase(), 
-//            new Pair<Class<?>, Constructor<? extends TagVFilter>>(
-//                filter.getClass(), ctor));
-//        LOG.info("Successfully loaded TagVFilter plugin: " + 
-//            filter.getClass().getCanonicalName());
-//      }
-//      LOG.info("Loaded " + tagv_filter_map.size() + " filters");
-//    }
-//  }
+  public static void initializeFilterMap(final TSDB tsdb) 
+      throws ClassNotFoundException, NoSuchMethodException, NoSuchFieldException, 
+      IllegalArgumentException, SecurityException, IllegalAccessException, 
+      InvocationTargetException {
+    final List<TagVFilter> filter_plugins = 
+        PluginLoader.loadPlugins(TagVFilter.class);
+    if (filter_plugins != null) {
+      for (final TagVFilter filter : filter_plugins) {
+        // validate required fields and methods
+        filter.getClass().getDeclaredMethod("description");
+        filter.getClass().getDeclaredMethod("examples");
+        filter.getClass().getDeclaredField("FILTER_NAME");
+        
+        final Method initialize = filter.getClass()
+            .getDeclaredMethod("initialize", TSDB.class);
+        initialize.invoke(null, tsdb);
+        
+        final Constructor<? extends TagVFilter> ctor = 
+            filter.getClass().getDeclaredConstructor(String.class, String.class);
+        
+        final Pair<Class<?>, Constructor<? extends TagVFilter>> existing = 
+            tagv_filter_map.get(filter.getType());
+        if (existing != null) {
+          LOG.warn("Overloading existing filter " + 
+              existing.getClass().getCanonicalName() + 
+              " with new filter " + filter.getClass().getCanonicalName());
+        }
+        tagv_filter_map.put(filter.getType().toLowerCase(), 
+            new Pair<Class<?>, Constructor<? extends TagVFilter>>(
+                filter.getClass(), ctor));
+        LOG.info("Successfully loaded TagVFilter plugin: " + 
+            filter.getClass().getCanonicalName());
+      }
+      LOG.info("Loaded " + tagv_filter_map.size() + " filters");
+    }
+  }
   
   /**
    * Converts the tag map to a filter list. If a filter already exists for a

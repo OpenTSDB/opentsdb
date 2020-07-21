@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,11 @@ package net.opentsdb.query.pojo;
 
 import java.util.Map;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
 
 /**
  * A filter that allows for regular expression matching on tag values.
@@ -34,6 +35,14 @@ public class TagVRegexFilter extends TagVFilter {
   
   /** Whether or not the regex would match-all. */
   final boolean matches_all;
+  
+  /**
+   * Default ctor for the plugin loader.
+   */
+  public TagVRegexFilter() {
+    pattern = null;
+    matches_all = false;
+  }
   
   /**
    * The default Ctor that disables case insensitivity
@@ -126,4 +135,9 @@ public class TagVRegexFilter extends TagVFilter {
     return "host=regexp(.*)  {\"type\":\"regexp\",\"tagk\":\"host\","
         + "\"filter\":\".*\",\"groupBy\":false}";
   }
+
+  public static void initialize(final TSDB tsdb) {
+    // no-op now
+  }
+  
 }
