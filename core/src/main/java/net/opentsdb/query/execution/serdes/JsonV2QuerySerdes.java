@@ -514,7 +514,9 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         }
       }
       
-      timestamp.add(result.timeSpecification().interval());
+      if (result.timeSpecification().interval() != null) {
+        timestamp.add(result.timeSpecification().interval());
+      }
     }
   }
   

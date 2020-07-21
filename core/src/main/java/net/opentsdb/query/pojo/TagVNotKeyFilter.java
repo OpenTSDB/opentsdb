@@ -20,6 +20,9 @@ import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.NotFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagKeyLiteralOrFilter;
 
 public class TagVNotKeyFilter extends TagVFilter {
   /** Name of this filter */
@@ -39,6 +42,15 @@ public class TagVNotKeyFilter extends TagVFilter {
           FILTER_NAME + " filter");
     }
     post_scan = true;
+  }
+  
+  @Override
+  public QueryFilter convertFilter() {
+    return NotFilter.newBuilder()
+      .setFilter(TagKeyLiteralOrFilter.newBuilder()
+          .setFilter(tagk)
+          .build())
+      .build();
   }
   
   @Override

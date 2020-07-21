@@ -24,6 +24,9 @@ import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.NotFilter;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 
 /**
  * A filter that lets the user list one or more explicit strings that should
@@ -85,6 +88,16 @@ public class TagVNotLiteralOrFilter extends TagVFilter {
       }
     }
     literals = new HashSet<String>(Arrays.asList(split));
+  }
+  
+  @Override
+  public QueryFilter convertFilter() {
+    return NotFilter.newBuilder()
+        .setFilter(TagValueLiteralOrFilter.newBuilder()
+            .setFilter(filter)
+            .setKey(tagk)
+            .build())
+        .build();
   }
   
   @Override

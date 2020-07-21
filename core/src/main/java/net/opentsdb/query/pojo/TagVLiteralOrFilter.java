@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.Set;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.utils.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -100,6 +102,14 @@ public class TagVLiteralOrFilter extends TagVFilter {
         literals.add(value);
       }
     }
+  }
+  
+  @Override
+  public QueryFilter convertFilter() {
+    return TagValueLiteralOrFilter.newBuilder()
+        .setFilter(filter)
+        .setKey(tagk)
+        .build();
   }
   
   @Override

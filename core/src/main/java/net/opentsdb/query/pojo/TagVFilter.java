@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.PluginLoader;
@@ -174,6 +175,12 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    */
   @JsonIgnore
   public abstract String debugInfo();
+  
+  /**
+   * Converts the V2 filter to a V3x filter.
+   * @return A non-null query filter.
+   */
+  public abstract QueryFilter convertFilter();
   
   @Override
   public String toString() {
