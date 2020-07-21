@@ -715,7 +715,7 @@ public class Joiner {
       }
     }
     
-    join_set.add(key, LongHashFunction.xx_r39().hashChars(buf.toString()), ts, is_left);
+    join_set.add(key, LongHashFunction.xx().hashChars(buf.toString()), ts, is_left);
   }
   
   /**
@@ -790,7 +790,7 @@ public class Joiner {
         }
       }
       
-      join_set.add(key, LongHashFunction.xx_r39().hashBytes(buf.toByteArray()), ts, is_left);
+      join_set.add(key, LongHashFunction.xx().hashBytes(buf.toByteArray()), ts, is_left);
     } catch (IOException e) {
       throw new QueryExecutionException("Unexpected exception joining results", 0, e);
     }

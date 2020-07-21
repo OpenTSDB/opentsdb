@@ -915,7 +915,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
                               final TimeStamp base_ts) {
     try {
       final byte[] tsuid = node.schema().getTSUID(row.get(0).key());
-      final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+      final long hash = LongHashFunction.xx().hashBytes(tsuid);
       
       if (!node.pipelineContext().hasId(hash, Const.TS_BYTE_ID)) {
         node.pipelineContext().addId(hash, new TSUID(tsuid, node.schema()));

@@ -752,7 +752,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -828,7 +828,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -904,7 +904,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_SINGLE_SERIES_GAP, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1000,7 +1000,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1059,7 +1059,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1116,7 +1116,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1173,7 +1173,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1839,13 +1839,13 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash_a = LongHashFunction.xx_r39().hashBytes(tsuid_a);
+    final long hash_a = LongHashFunction.xx().hashBytes(tsuid_a);
     final byte[] tsuid_b = schema.getTSUID(makeRowKey(
         METRIC_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_B_BYTES));
-    final long hash_b = LongHashFunction.xx_r39().hashBytes(tsuid_b);
+    final long hash_b = LongHashFunction.xx().hashBytes(tsuid_b);
     TimeStamp start = new SecondTimeStamp(TS_DOUBLE_SERIES);
     TimeStamp end = start.getCopy();
     end.add(duration);
@@ -1888,7 +1888,7 @@ public class TestTsdb1xScannerPush extends UTBase {
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         tagv));
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();

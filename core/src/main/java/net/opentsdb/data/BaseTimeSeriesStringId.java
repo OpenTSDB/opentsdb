@@ -269,7 +269,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
         buf.append(id);
       }
     }
-    return LongHashFunction.xx_r39().hashChars(buf.toString());
+    return LongHashFunction.xx().hashChars(buf.toString());
   }
 
   @Override

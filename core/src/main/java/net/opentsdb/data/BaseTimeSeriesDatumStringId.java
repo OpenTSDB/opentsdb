@@ -157,7 +157,7 @@ public class BaseTimeSeriesDatumStringId implements TimeSeriesDatumStringId {
         buf.append(pair.getValue());
       }
     }
-    return LongHashFunction.xx_r39().hashChars(buf.toString());
+    return LongHashFunction.xx().hashChars(buf.toString());
   }
 
   @Override

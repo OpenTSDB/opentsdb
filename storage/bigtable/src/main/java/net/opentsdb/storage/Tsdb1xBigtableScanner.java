@@ -730,7 +730,7 @@ public class Tsdb1xBigtableScanner {
                                           final FlatRow row, 
                                           final Tsdb1xBigtableQueryResult result, 
                                           final Span span) {
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     synchronized (skips) {
       if (skips.contains(hash)) {
         // discard

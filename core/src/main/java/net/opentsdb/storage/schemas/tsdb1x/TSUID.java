@@ -350,7 +350,7 @@ public class TSUID implements TimeSeriesByteId {
   
   @Override
   public long buildHashCode() {
-    return LongHashFunction.xx_r39().hashBytes(tsuid);
+    return LongHashFunction.xx().hashBytes(tsuid);
   }
   
   /** @return The original TSUID. */
