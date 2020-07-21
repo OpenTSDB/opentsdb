@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,13 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.opentsdb.utils.Config;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -45,6 +43,14 @@ public class TagVLiteralOrFilter extends TagVFilter {
 
   /** Whether or not the match should be case insensitive */
   final protected boolean case_insensitive;
+  
+  /**
+   * Default ctor for the plugin loader.
+   */
+  public TagVLiteralOrFilter() {
+    literals = null;
+    case_insensitive = false;
+  }
   
   /**
    * The default Ctor that disables case insensitivity
@@ -182,6 +188,10 @@ public class TagVLiteralOrFilter extends TagVFilter {
         + "\"filter\":\"web01|web02|web03\",\"groupBy\":false}";
   }
   
+  public static void initialize(final TSDB tsdb) {
+    // no-op now
+  }
+  
   /**
    * Case insensitive version
    */
@@ -189,6 +199,13 @@ public class TagVLiteralOrFilter extends TagVFilter {
     
     /** Name of this filter */
     final public static String FILTER_NAME = "iliteral_or";
+    
+    /**
+     * Default ctor for the plugin loader.
+     */
+    public TagVILiteralOrFilter() {
+      super();
+    }
     
     public TagVILiteralOrFilter(final String tagk, final String filter) {
       super(tagk, filter, true);
@@ -230,5 +247,10 @@ public class TagVLiteralOrFilter extends TagVFilter {
           + "{\"type\":\"iliteral_or\",\"tagk\":\"host\","
           + "\"filter\":\"web01|web02|web03\",\"groupBy\":false}";
     }
+  
+    public static void initialize(final TSDB tsdb) {
+      // no-op now
+    }
+    
   }
 }

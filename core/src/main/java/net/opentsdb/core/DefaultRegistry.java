@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package net.opentsdb.core;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -39,6 +40,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.processor.ProcessorFactory;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.execution.QueryExecutorFactory;
@@ -57,6 +59,7 @@ public class DefaultRegistry implements Registry {
   
   /** Configuration keys. */
   public static final String PLUGIN_CONFIG_KEY = "tsd.plugin.config";
+  public static final String V2_LOAD_FILTERS_KEY = "tsd.plugin.v2.load_filters";
   public static final String DEFAULT_CLUSTERS_KEY = "tsd.query.default_clusters";
   public static final String DEFAULT_GRAPHS_KEY = "tsd.query.default_execution_graphs";
   
@@ -112,6 +115,10 @@ public class DefaultRegistry implements Registry {
           .setSource(getClass().getName())
           .setValidator(new PluginConfigValidator())
           .build());
+    }
+    if (!tsdb.getConfig().hasProperty(V2_LOAD_FILTERS_KEY)) {
+      tsdb.getConfig().register(V2_LOAD_FILTERS_KEY, true, false, 
+          "TODO");
     }
     if (!tsdb.getConfig().hasProperty(DEFAULT_CLUSTERS_KEY)) {
       tsdb.getConfig().register(DEFAULT_CLUSTERS_KEY, null, false, 
@@ -489,6 +496,28 @@ public class DefaultRegistry implements Registry {
   /** Sets up default objects in the registry. */
   @SuppressWarnings("unchecked")
   private Deferred<Object> initDefaults() {
+    if (tsdb.getConfig().getBoolean(V2_LOAD_FILTERS_KEY)) {
+      try {
+        LOG.info("Attempting to load V2 filter plugins.");
+        TagVFilter.initializeFilterMap(tsdb);
+        LOG.info("Finished initializing V2 filter plugins.");
+      } catch (ClassNotFoundException e) {
+        return Deferred.fromError(e);
+      } catch (NoSuchMethodException e) {
+        return Deferred.fromError(e);
+      } catch (NoSuchFieldException e) {
+        return Deferred.fromError(e);
+      } catch (IllegalArgumentException e) {
+        return Deferred.fromError(e);
+      } catch (SecurityException e) {
+        return Deferred.fromError(e);
+      } catch (IllegalAccessException e) {
+        return Deferred.fromError(e);
+      } catch (InvocationTargetException e) {
+        return Deferred.fromError(e);
+      }
+    }
+    
     return Deferred.fromResult(null);
   }
 

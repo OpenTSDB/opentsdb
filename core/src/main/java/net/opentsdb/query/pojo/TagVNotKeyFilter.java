@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +19,18 @@ import java.util.Map;
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
+
 public class TagVNotKeyFilter extends TagVFilter {
   /** Name of this filter */
   final public static String FILTER_NAME = "not_key";
+  
+  /**
+   * Default ctor for the plugin loader.
+   */
+  public TagVNotKeyFilter() {
+    
+  }
   
   public TagVNotKeyFilter(final String tagk, final String filter) {
     super(tagk, "");
@@ -83,4 +92,9 @@ public class TagVNotKeyFilter extends TagVFilter {
     return "host=not_key()  {\"type\":\"not_key\",\"tagk\":\"host\","
         + "\"filter\":\"\",\"groupBy\":false}";
   }
+
+  public static void initialize(final TSDB tsdb) {
+    // no-op now
+  }
+  
 }

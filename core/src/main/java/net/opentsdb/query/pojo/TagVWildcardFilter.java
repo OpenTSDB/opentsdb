@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
 
 /**
  * Performs basic wild card searching. It supports prefix, postfix, infix,
@@ -48,6 +50,17 @@ public class TagVWildcardFilter extends TagVFilter {
   /** Whether or not the wildcard would match-all. */
   final boolean matches_all;
 
+  /**
+   * Default ctor for the plugin loader.
+   */
+  public TagVWildcardFilter() {
+    has_postfix = false;
+    has_prefix = false;
+    components = null;
+    case_insensitive = false;
+    matches_all = false;
+  }
+  
   /**
    * The default Ctor that disables case insensitivity
    * @param tagk The tag key to associate with this filter
@@ -207,12 +220,23 @@ public class TagVWildcardFilter extends TagVFilter {
         + "\"filter\":\"web*.tsdb.net\",\"groupBy\":false}";
   }
   
+  public static void initialize(final TSDB tsdb) {
+    // no-op now
+  }
+  
   /**
    * Case insensitive version
    */
   public static class TagVIWildcardFilter extends TagVWildcardFilter {
     /** Name of this filter */
     final public static String FILTER_NAME = "iwildcard";
+    
+    /**
+     * Default ctor for the plugin loader.
+     */
+    public TagVIWildcardFilter() {
+      
+    }
     
     public TagVIWildcardFilter(final String tagk, final String filter) {
       super(tagk, filter, true);
@@ -239,5 +263,10 @@ public class TagVWildcardFilter extends TagVFilter {
           + "{\"type\":\"iwildcard\",\"tagk\":\"host\","
           + "\"filter\":\"web*.tsdb.net\",\"groupBy\":false}";
     }
+  
+    public static void initialize(final TSDB tsdb) {
+      // no-op now
+    }
+    
   }
 }
