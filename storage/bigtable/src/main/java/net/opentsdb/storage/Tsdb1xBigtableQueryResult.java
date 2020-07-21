@@ -71,7 +71,7 @@ public class Tsdb1xBigtableQueryResult extends
     final byte[] key = row.getRowKey().toByteArray();
     final byte[] tsuid = schema.getTSUID(key);
     final long base_timestamp = schema.baseTimestamp(key);
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     final RowSeq numerics;
     if (((Tsdb1xBigtableQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
       if (interval != null) {
@@ -164,7 +164,7 @@ public class Tsdb1xBigtableQueryResult extends
     final byte[] key = row.getKey().toByteArray();
     final byte[] tsuid = schema.getTSUID(key);
     final long base_timestamp = schema.baseTimestamp(key);
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     final RowSeq numerics;
     if (((Tsdb1xBigtableQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
       if (interval != null) {

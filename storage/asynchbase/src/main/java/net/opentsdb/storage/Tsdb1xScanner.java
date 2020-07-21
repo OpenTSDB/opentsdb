@@ -907,7 +907,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       last_ts.update(base_ts);
       
       final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
-      final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+      final long hash = LongHashFunction.xx().hashBytes(tsuid);
   
       // TODO - find a better spot. We may not pull any data from this row so we
       // shouldn't bother putting it in the ids.
@@ -1125,7 +1125,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
                                           final ArrayList<KeyValue> row, 
                                           final Tsdb1xQueryResult result, 
                                           final Span span) {
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     boolean skip_or_keep;
     synchronized (skips) {
       skip_or_keep = skips.contains(hash);

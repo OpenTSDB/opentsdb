@@ -69,7 +69,7 @@ public class Tsdb1xQueryResult extends
                      final RollupInterval interval) {
     final byte[] tsuid = schema.getTSUID(row.get(0).key());
     final long base_timestamp = schema.baseTimestamp(row.get(0).key());
-    final long hash = LongHashFunction.xx_r39().hashBytes(tsuid);
+    final long hash = LongHashFunction.xx().hashBytes(tsuid);
     final RowSeq numerics;
     if (((Tsdb1xHBaseQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
       if (interval != null) {

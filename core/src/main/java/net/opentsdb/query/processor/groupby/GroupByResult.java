@@ -108,7 +108,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
           }
         }
         
-        final long hash = LongHashFunction.xx_r39().hashChars(buf.toString());
+        final long hash = LongHashFunction.xx().hashChars(buf.toString());
         GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
         if (group == null) {
           if (((GroupByConfig) node.config()).getMergeIds() || 
@@ -167,7 +167,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
             }
           }
           
-          final long hash = LongHashFunction.xx_r39().hashBytes(buf.toByteArray());
+          final long hash = LongHashFunction.xx().hashBytes(buf.toByteArray());
           GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
           if (group == null) {
             if (((GroupByConfig) node.config()).getMergeIds() || 

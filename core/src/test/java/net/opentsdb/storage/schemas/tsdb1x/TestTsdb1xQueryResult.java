@@ -206,7 +206,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     }
     seq.dedupe(tsdb, false, false);
     
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.MILLIS);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
@@ -215,7 +215,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     // another TSUID
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.NANOS);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
@@ -253,7 +253,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     }
     seq.dedupe(tsdb, false, false);
     
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
@@ -262,7 +262,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertEquals(ChronoUnit.SECONDS, result.resolution());
     
     // another TSUID
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
@@ -282,7 +282,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     }
     seq.dedupe(tsdb, false, false);
     
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
     assertEquals(144, result.bytes);
@@ -291,7 +291,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     // B
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
     assertEquals(192, result.bytes);
@@ -329,7 +329,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     }
     seq.dedupe(tsdb, false, true);
     
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
@@ -338,7 +338,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertEquals(ChronoUnit.SECONDS, result.resolution());
     
     // another TSUID
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
@@ -358,7 +358,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     }
     seq.dedupe(tsdb, false, true);
     
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
     assertEquals(144, result.bytes);
@@ -367,7 +367,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     // B
-    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
+    result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
     assertEquals(192, result.bytes);

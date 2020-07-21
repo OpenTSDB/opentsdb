@@ -179,28 +179,28 @@ public class TestTsdb1xMultiGetPush extends UTBase {
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    HASH_A = LongHashFunction.xx_r39().hashBytes(tsuid_a);
+    HASH_A = LongHashFunction.xx().hashBytes(tsuid_a);
     
     final byte[] tsuid_b = schema.getTSUID(makeRowKey(
         METRIC_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_B_BYTES));
-    HASH_B = LongHashFunction.xx_r39().hashBytes(tsuid_b);
+    HASH_B = LongHashFunction.xx().hashBytes(tsuid_b);
     
     final byte[] tsuid_c = schema.getTSUID(makeRowKey(
         METRIC_B_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    HASH_C = LongHashFunction.xx_r39().hashBytes(tsuid_c);
+    HASH_C = LongHashFunction.xx().hashBytes(tsuid_c);
     
     final byte[] tsuid_d = schema.getTSUID(makeRowKey(
         METRIC_B_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_B_BYTES));
-    HASH_D = LongHashFunction.xx_r39().hashBytes(tsuid_d);
+    HASH_D = LongHashFunction.xx().hashBytes(tsuid_d);
   }
   
   @Before
@@ -1809,7 +1809,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash_a = LongHashFunction.xx_r39().hashBytes(tsuid_a);
+    final long hash_a = LongHashFunction.xx().hashBytes(tsuid_a);
     //validate(hash_a, 0, 3, hours);
     System.out.println("A: " + hash_a);
     final byte[] tsuid_b = schema.getTSUID(makeRowKey(
@@ -1817,21 +1817,21 @@ public class TestTsdb1xMultiGetPush extends UTBase {
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_B_BYTES));
-    final long hash_b = LongHashFunction.xx_r39().hashBytes(tsuid_b);
+    final long hash_b = LongHashFunction.xx().hashBytes(tsuid_b);
     System.out.println("B: " + hash_b);
     final byte[] tsuid_c = schema.getTSUID(makeRowKey(
         METRIC_B_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_BYTES));
-    final long hash_c = LongHashFunction.xx_r39().hashBytes(tsuid_c);
+    final long hash_c = LongHashFunction.xx().hashBytes(tsuid_c);
     System.out.println("C: " + hash_c);
     final byte[] tsuid_d = schema.getTSUID(makeRowKey(
         METRIC_B_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
         TAGV_B_BYTES));
-    final long hash_d = LongHashFunction.xx_r39().hashBytes(tsuid_d);
+    final long hash_d = LongHashFunction.xx().hashBytes(tsuid_d);
     
     TimeStamp start = new SecondTimeStamp(TS_DOUBLE_SERIES);
     TimeStamp end = start.getCopy();

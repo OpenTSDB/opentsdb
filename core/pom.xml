@@ -49,7 +49,7 @@
         <dependency>
           <groupId>net.openhft</groupId>
           <artifactId>zero-allocation-hashing</artifactId>
-          <version>0.6</version>
+          <version>0.11</version>
         </dependency>
         
         <!-- used for fast primitive maps. May try others. -->
