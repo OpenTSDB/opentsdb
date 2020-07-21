@@ -48,9 +48,6 @@ import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.query.filter.TagValueRegexFilter;
-import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
@@ -624,22 +621,7 @@ public class TimeSeriesQuery extends Validatable
       for (final Filter filter : filters) {
         final ChainFilter.Builder chain_builder = ChainFilter.newBuilder();
         for (final TagVFilter tag_filter : filter.getTags()) {
-          if (tag_filter instanceof TagVLiteralOrFilter) {
-            chain_builder.addFilter(TagValueLiteralOrFilter.newBuilder()
-                .setKey(tag_filter.getTagk())
-                .setFilter(tag_filter.getFilter())
-                .build());
-          } else if (tag_filter instanceof TagVWildcardFilter) {
-            chain_builder.addFilter(TagValueWildcardFilter.newBuilder()
-                .setKey(tag_filter.getTagk())
-                .setFilter(tag_filter.getFilter())
-                .build());
-          } else if (tag_filter instanceof TagVRegexFilter) {
-            chain_builder.addFilter(TagValueRegexFilter.newBuilder()
-                .setKey(tag_filter.getTagk())
-                .setFilter(tag_filter.getFilter())
-                .build());
-          }
+          chain_builder.addFilter(tag_filter.convertFilter());
           // TODO - case insensitive
         }
         

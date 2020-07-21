@@ -21,6 +21,8 @@ import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueRegexFilter;
 
 /**
  * A filter that allows for regular expression matching on tag values.
@@ -69,6 +71,14 @@ public class TagVRegexFilter extends TagVFilter {
     } else {
       matches_all = false;
     }
+  }
+  
+  @Override
+  public QueryFilter convertFilter() {
+    return TagValueRegexFilter.newBuilder()
+        .setFilter(filter)
+        .setKey(tagk)
+        .build();
   }
   
   @Override

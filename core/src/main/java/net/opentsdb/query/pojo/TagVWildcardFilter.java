@@ -22,6 +22,8 @@ import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.query.filter.TagValueWildcardFilter;
 
 /**
  * Performs basic wild card searching. It supports prefix, postfix, infix,
@@ -132,6 +134,14 @@ public class TagVWildcardFilter extends TagVFilter {
     }
   }
 
+  @Override
+  public QueryFilter convertFilter() {
+    return TagValueWildcardFilter.newBuilder()
+        .setFilter(filter)
+        .setKey(tagk)
+        .build();
+  }
+  
   @Override
   public Deferred<Boolean> match(final Map<String, String> tags) {
     String tagv = tags.get(tagk);
