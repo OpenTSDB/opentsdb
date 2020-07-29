@@ -238,10 +238,9 @@ public class ExpressionRpc {
     LOG.info("Executing new query=" + JSON.serializeToString(
         ImmutableMap.<String, Object>builder()
         .put("headers", log_headers == null ? "null" : log_headers)
-        //.put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
-        //.put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes())) // TODO
         .put("traceId", trace != null ? trace.traceId() : "")
         .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
+        .put("remote", request.getRemoteAddr())
         .put("query", ts_query)
         .build()));
     if (convert_span != null) {
