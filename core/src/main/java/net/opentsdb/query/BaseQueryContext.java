@@ -78,7 +78,7 @@ public abstract class BaseQueryContext implements QueryContext {
   protected Span local_span;
   
   /** Returns true if the pipeline is closed. */
-  private boolean isClosed;
+  private final AtomicBoolean is_closed;
   
   /** Flag to determine if we're cachable or not. */
   protected final AtomicBoolean cacheable;
@@ -99,7 +99,7 @@ public abstract class BaseQueryContext implements QueryContext {
       stats.setQueryContext(this);
     }
     builder_sinks = builder.sinks;
-    isClosed = false;
+    is_closed = new AtomicBoolean(false);
     cacheable = new AtomicBoolean(true);
   }
   
@@ -120,19 +120,20 @@ public abstract class BaseQueryContext implements QueryContext {
 
   @Override
   public void close() {
-    if (null != pipeline) {
-      pipeline.close();
+    if (is_closed.compareAndSet(false, true)) {
+      if (null != pipeline) {
+        pipeline.close();
+      }
+      if (local_span != null) {
+        // TODO - more stats around the context
+        local_span.finish();
+      }
     }
-    if (local_span != null) {
-      // TODO - more stats around the context
-      local_span.finish();
-    }
-    isClosed = true;
   }
   
   @Override
   public boolean isClosed() {
-    return isClosed;
+    return is_closed.get();
   }
 
   @Override

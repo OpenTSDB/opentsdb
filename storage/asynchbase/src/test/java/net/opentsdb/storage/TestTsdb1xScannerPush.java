@@ -631,7 +631,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(UnitTestException.class));
     assertEquals(State.EXCEPTION, scanner.state());
     assertNull(scanner.buffer());

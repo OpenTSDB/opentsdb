@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -197,10 +197,12 @@ public class Tsdb1xScanner implements CloseablePooledObject {
    * @param span An optional tracing span.
    */
   public void fetchNext(final Tsdb1xQueryResult result, final Span span) {
-    if (owner.hasException()) {
+    if (owner.hasException() ||
+        owner.node().pipelineContext().queryContext().isClosed()) {
       scanner.close();
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Closing scanner due to upstream result exception.");
+        LOG.debug("Closing scanner due to upstream result exception or "
+            + "closed context.");
       }
       state = State.COMPLETE;
       owner.scannerDone();
@@ -507,7 +509,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         return null;
       }
       
-      if (owner.hasException()) {
+      if (owner.hasException() || 
+          owner.node().pipelineContext().queryContext().isClosed()) {
         // bail out!
         complete(null, rows.size());
         return null;
@@ -638,7 +641,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
           }
         }
         
-        if (owner.node().push() || !result.isFull()) {
+        if (owner.node().pipelineContext().queryContext().isClosed()) {
+          // fall through.
+        } else if (owner.node().push() || !result.isFull()) {
           // keep going!
           if (child != null) {
             child.setSuccessTags()
@@ -657,10 +662,11 @@ public class Tsdb1xScanner implements CloseablePooledObject {
               HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.getCode());
         }
         
-        if (owner.hasException()) {
+        if (owner.hasException() || 
+            owner.node().pipelineContext().queryContext().isClosed()) {
           complete(child, rows.size());
         } else {
-          // is full
+          // is full or query timed out.
           owner.scannerDone();
         }
       } catch (Throwable t) {
@@ -743,12 +749,12 @@ public class Tsdb1xScanner implements CloseablePooledObject {
               .finish();
         }
         state = State.COMPLETE;
-        owner.scannerDone();
       }
       if (scanner != null) {
         scanner.close(); // TODO - attach a callback for logging in case
       }
       // something goes pear shaped.
+      owner.scannerDone();
       clear();
     }
     
@@ -1099,7 +1105,9 @@ public class Tsdb1xScanner implements CloseablePooledObject {
         owner.exception((ex instanceof DeferredGroupException ? 
             Exceptions.getCause((DeferredGroupException) ex) : ex));
       }
-      scanner.close();
+      if (scanner != null) {
+        scanner.close();
+      }
       clear();
       return null;
     }
