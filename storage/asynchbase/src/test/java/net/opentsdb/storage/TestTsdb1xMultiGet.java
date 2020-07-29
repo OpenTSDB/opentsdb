@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2019  The OpenTSDB Authors.
+// Copyright (C) 2016-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@ package net.opentsdb.storage;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
+
+import io.netty.util.HashedWheelTimer;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeStamp;
@@ -51,7 +54,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -577,7 +579,22 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(State.COMPLETE, mget.state());
     verify(result, times(8)).decode(any(ArrayList.class), any(RollupInterval.class));
   }
-
+  
+  @Test
+  public void fetchNextClosed() throws Exception {
+    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    when(node.pipelineContext().queryContext().isClosed())
+      .thenReturn(true);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.fetchNext(result, null);
+    
+    assertFalse(mget.all_batches_sent.get());
+    assertEquals(State.EXCEPTION, mget.state());
+    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+  }
+  
+  
   @Test
   public void fetchNextSmallEvenBatch() throws Exception {
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
@@ -1244,7 +1261,43 @@ public class TestTsdb1xMultiGet extends UTBase {
   }
   
   @Test
+  public void nextBatchClosed() throws Exception {
+    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    when(node.pipelineContext().queryContext().isClosed())
+      .thenReturn(false)
+      .thenReturn(false)
+      .thenReturn(true);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    mget.fetchNext(result, null);
+    assertEquals(1, storage.getMultiGets().size());
+    assertEquals(4, storage.getMultiGets().get(0).size());
+    
+    List<GetRequest> gets = storage.getMultiGets().get(0);
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(0).key());
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(1).key());
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(2).key());
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(3).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
+    }
+    
+    assertFalse(mget.all_batches_sent.get());
+    assertEquals(State.EXCEPTION, mget.state());
+    verify(result, times(4)).decode(any(ArrayList.class), any(RollupInterval.class));
+  }
+  
+  @Test
   public void close() throws Exception {
+    TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getMaintenanceTimer()).thenReturn(mock(HashedWheelTimer.class));
+    when(context.tsdb()).thenReturn(tsdb);
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     when(result.isFull()).thenReturn(true);
     
@@ -1262,6 +1315,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(-1, mget.rollup_index);
     
+    mget.outstanding.set(0); // hack it
     mget.close();
     assertEquals(-1, mget.timestamp.epoch());
     assertEquals(-1, mget.end_timestamp.epoch());

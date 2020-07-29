@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList.Operator;
@@ -40,6 +41,8 @@ import com.stumbleupon.async.Callback;
 
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.SecondTimeStamp;
@@ -100,7 +103,7 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
+public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xScanners.class);
   
   /** Reference to the Object pool for this instance. */
@@ -323,26 +326,27 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
     return has_failed;
   }
   
-  /** Called by a child when the scanner has finished it's current run. */
-  void scannerDone() {
-    if (has_failed) {
+  /** Called by a child when the scanner has finished it's current run. 
+   * Note that is synchronized to avoid a race with the close() method. */
+  synchronized void scannerDone() {
+    boolean send_upstream = false;
+    scanners_done++;
+    
+    if (has_failed || node.pipelineContext().queryContext().isClosed()) {
       return;
     }
-    boolean send_upstream = false;
-    synchronized (this) {
-      scanners_done++;
-      if (scanners_done >= scanners.get(scanner_index).length) {
-        if (!node.push() && current_result == null) {
-          throw new IllegalStateException("Current result was null but "
-              + "all scanners were finished.");
-        }
-        send_upstream = true;
+    
+    if (scanners_done >= scanners.get(scanner_index).length) {
+      if (!node.push() && current_result == null) {
+        throw new IllegalStateException("Current result was null but "
+            + "all scanners were finished.");
       }
+      send_upstream = true;
     }
     
     if (send_upstream) {
       try {
-        scanners_done = 0;
+        //scanners_done = 0;
         if (node.push()) {
           if (node.sentData()) {
             for (final Tsdb1xPartialTimeSeriesSet set : 
@@ -457,7 +461,22 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject {
   }
 
   @Override
-  public void close() {
+  public void run(final Timeout timeout) {
+    close();
+  }
+  
+  @Override
+  public synchronized void close() {
+    if (initialized && scanners_done != scanners.get(scanner_index).length) {
+      node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
+          this, 100, TimeUnit.MILLISECONDS);
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Waiting on scanners to finish before returning to the pool: " 
+            + scanners_done + " out of " + scanners.get(scanner_index).length);
+      }
+      return;
+    }
+    
     if (scanners != null) {
       for (final Tsdb1xScanner[] scnrs : scanners) {
         for (final Tsdb1xScanner scanner : scnrs) {

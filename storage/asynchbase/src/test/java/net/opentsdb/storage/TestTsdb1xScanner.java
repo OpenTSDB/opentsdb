@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -413,7 +413,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, times(1)).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -492,7 +492,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, times(1)).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -763,7 +763,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
     assertNull(scanner.buffer());
@@ -828,7 +828,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, times(5)).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
     assertNull(scanner.buffer());
@@ -891,7 +891,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
     assertNull(scanner.buffer());
@@ -919,6 +919,37 @@ public class TestTsdb1xScanner extends UTBase {
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(3)).nextRows();
+    verify(hbase_scanner, times(1)).close();
+    verify(results, times(4)).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    verify(owner, times(1)).scannerDone();
+    verify(owner, never()).exception(any(Throwable.class));
+    assertEquals(State.COMPLETE, scanner.state());
+    assertNull(scanner.buffer());
+  }
+  
+  @Test
+  public void scanQueryClosed() throws Exception {
+    Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setMaxNumRows(2);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
+    
+    doAnswer(new Answer<Void>() {
+      int count = 0;
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        if (count++ > 2) {
+          when(owner.node().pipelineContext().queryContext().isClosed()).thenReturn(true);
+        }
+        return null;
+      }
+    }).when(results).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
         any(ArrayList.class), any(RollupInterval.class));
@@ -978,6 +1009,25 @@ public class TestTsdb1xScanner extends UTBase {
   @Test
   public void fetchNextOwnerException() throws Exception {
     when(owner.hasException()).thenReturn(true);
+    Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
+    Tsdb1xScanner scanner = new Tsdb1xScanner();
+    scanner.reset(owner, hbase_scanner, 0, null);
+    
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, never()).nextRows();
+    verify(hbase_scanner, times(1)).close();
+    verify(results, never()).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    verify(owner, times(1)).scannerDone();
+    verify(owner, never()).exception(any(Throwable.class));
+    assertEquals(State.COMPLETE, scanner.state());
+    assertNull(scanner.buffer());
+  }
+  
+  @Test
+  public void fetchNextQueryClosed() throws Exception {
+    when(owner.node().pipelineContext().queryContext().isClosed()).thenReturn(true);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner();
     scanner.reset(owner, hbase_scanner, 0, null);

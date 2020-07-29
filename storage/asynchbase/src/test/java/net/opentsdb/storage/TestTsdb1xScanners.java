@@ -62,7 +62,9 @@ import com.stumbleupon.async.Deferred;
 
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import io.netty.util.HashedWheelTimer;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.Registry;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
@@ -166,7 +168,10 @@ public class TestTsdb1xScanners extends UTBase {
     when(rollup_config.getIdForAggregator("count")).thenReturn(2);
     
     context = mock(QueryPipelineContext.class);
+    QueryContext query_ctx = mock(QueryContext.class);
+    when(context.tsdb()).thenReturn(tsdb);
     when(node.pipelineContext()).thenReturn(context);
+    when(context.queryContext()).thenReturn(query_ctx);
     when(context.query()).thenReturn(query);
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
@@ -2457,7 +2462,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     scanners.scannerDone();
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(1, scanners.scanners_done);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, times(1)).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -2496,7 +2501,7 @@ public class TestTsdb1xScanners extends UTBase {
     for (int i = 0; i < 5; i++) {
       scanners.scannerDone();
     }
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(6, scanners.scanners_done);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, times(1)).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -2556,7 +2561,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     scanners.scannerDone();
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(1, scanners.scanners_done);
     verify(node, times(1)).onError(any(UnitTestException.class));
     verify(node, times(1)).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -2586,7 +2591,7 @@ public class TestTsdb1xScanners extends UTBase {
     }
     
     scanners.scannerDone();
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(1, scanners.scanners_done);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, never()).onNext(any(QueryResult.class));
     assertEquals(2, tsdb.runnables.size());
@@ -2636,7 +2641,7 @@ public class TestTsdb1xScanners extends UTBase {
       scanners.scannerDone();
     }
     
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(6, scanners.scanners_done);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node.parent().tsdb().getQueryThreadPool(), times(2)).submit(any(Runnable.class));
@@ -2662,7 +2667,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     scanners.scannerDone();
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(1, scanners.scanners_done);
     verify(node, times(1)).onError(any(RuntimeException.class));
     verify(node, never()).onNext(any(QueryResult.class));
     assertEquals(0, tsdb.runnables.size());
@@ -2687,7 +2692,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
     scanners.scannerDone();
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(1, scanners.scanners_done);
     verify(node, never()).onError(any(RuntimeException.class));
     verify(node, never()).onNext(any(QueryResult.class));
     assertEquals(2, tsdb.runnables.size());
@@ -2725,7 +2730,7 @@ public class TestTsdb1xScanners extends UTBase {
     for (int i = 0; i < 5; i++) {
       scanners.scannerDone();
     }
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(6, scanners.scanners_done);
     verify(node, never()).onError(any(RuntimeException.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node.parent().tsdb().getQueryThreadPool(), times(2)).submit(any(Runnable.class), any(QueryContext.class));
@@ -2782,7 +2787,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     // finally nothing found
     scanners.scannerDone();
-    assertEquals(0, scanners.scanners_done);
+    assertEquals(1, scanners.scanners_done);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, never()).onNext(any(QueryResult.class));
     assertEquals(1, tsdb.runnables.size()); // used rollup set.
@@ -2878,7 +2883,10 @@ public class TestTsdb1xScanners extends UTBase {
     
     // all done unexpected
     when(scanner2.state()).thenReturn(State.COMPLETE);
-    scanners.scanNext(null);
+    try {
+      scanners.scanNext(null);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
     verify(scanner1, never()).fetchNext(results, null);
     verify(scanner2, times(1)).fetchNext(results, null);
     verify(node, never()).onError(any(Throwable.class));
@@ -2948,6 +2956,7 @@ public class TestTsdb1xScanners extends UTBase {
       assertSame(node, set.node());
     }
     
+    scanners.scanners_done = 1;
     scanners.close();
     assertTrue(scanners.sets.isEmpty());
     assertTrue(scanners.timestamps.isEmpty());
@@ -3073,7 +3082,10 @@ public class TestTsdb1xScanners extends UTBase {
     
     when(client.newScanner(any(byte[].class))).thenReturn(mock(Scanner.class));
     context = mock(QueryPipelineContext.class);
+    QueryContext query_ctx = mock(QueryContext.class);
     when(context.query()).thenReturn(query);
+    when(context.queryContext()).thenReturn(query_ctx);
+    when(context.tsdb()).thenReturn(tsdb);
     when(node.pipelineContext()).thenReturn(context);
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());

@@ -213,10 +213,13 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
   }
 
   @Override
-  public void close() {
+  public synchronized void close() {
     if (executor != null) {
       // releases it to the pool.
       executor.close();
+      // Make sure to null it so don't accidentally close a ref to an active
+      // executor from another node.
+      executor = null;
     }
   }
 

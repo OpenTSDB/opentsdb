@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2019  The OpenTSDB Authors.
+// Copyright (C) 2016-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
@@ -45,6 +46,8 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
@@ -108,7 +111,8 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 2.4
  */
-public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
+public class Tsdb1xMultiGet implements 
+    HBaseExecutor, CloseablePooledObject, TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xMultiGet.class);
   
   /** Reference to the Object pool for this instance. */
@@ -209,6 +213,10 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     has_failed = new AtomicBoolean();
     all_batches_sent = new AtomicBoolean();
     outstanding = new AtomicInteger();
+  }
+  
+  public void run(final Timeout timeout) {
+    close();
   }
   
   /**
@@ -362,6 +370,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
     if (!node.push() && current_result != null) {
       throw new IllegalStateException("Result cannot be set!");
     }
+    if (node.pipelineContext().queryContext().isClosed()) {
+      state = State.EXCEPTION;
+      // this will have been closed, no need to send upstream.
+      return;
+    }
     current_result = result;
     if (span != null && span.isDebug()) {
       child = span.newChild(getClass().getName() + ".fetchNext")
@@ -382,6 +395,14 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
   
   @Override
   public void close() {
+    if (outstanding.get() > 0) {
+      node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
+          this, 100, TimeUnit.MILLISECONDS);
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Waiting on calls to finish before returning to the pool.");
+      }
+      return;
+    }
     node = null;
     source_config = null;
     tsuids = null;
@@ -448,13 +469,13 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
       node.pipelineContext().queryContext().logError(node, 
           "Multiget query failed with exception: " + t.getMessage());
       state = State.EXCEPTION;
-        if (!node.push()) {
+      if (!node.push()) {
         current_result.setException(t);
         final QueryResult result = current_result;
         current_result = null;
         outstanding.set(0);
         node.onNext(result);
-      } else {
+      } else if (!node.pipelineContext().queryContext().isClosed()) {
         node.onError(t);
       }
     } else {
@@ -667,6 +688,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor, CloseablePooledObject {
    */
   @VisibleForTesting
   void nextBatch(final Span span) {
+    if (node.pipelineContext().queryContext().isClosed()) {
+      onError(new RuntimeException("Query context was marked as closed."));
+      return;
+    }
+    
     if (all_batches_sent.get()) {
       LOG.warn("Multiget query was already completed but nextBatch was still called.");
       return;

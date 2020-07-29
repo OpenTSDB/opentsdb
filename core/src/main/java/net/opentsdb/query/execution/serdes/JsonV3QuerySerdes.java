@@ -1059,7 +1059,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       final TimeStamp start,
       final TimeStamp end,
       boolean wrote_values) throws IOException {
-    if (value.value().end() <= value.value().offset()) {
+    if (value.value().end() <= value.value().offset() ||
+        result.timeSpecification() == null) {
       // no data
       return false;
     }
