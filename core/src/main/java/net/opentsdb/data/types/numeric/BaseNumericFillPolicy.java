@@ -32,7 +32,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
  * <li>NULL: isInteger=false, value=null</li>
  * <li>ZERO: isInteger=true, value=0</li>
  * <li>NOT_A_NUMBER: isInteger=false, value=NaN</li>
- * <li>MIN: isInteger=false, value=Double.MIN_VALUE</li>
+ * <li>MIN: isInteger=false, value=-Double.MAX_VALUE</li>
  * <li>MAX: isInteger=false, value=Double.MAX_VALUE</li>
  * <li>SCALAR: isInteger=false, value=UnsupportedOperationException</li>
  * </ul>

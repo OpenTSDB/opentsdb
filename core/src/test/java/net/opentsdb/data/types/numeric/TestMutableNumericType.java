@@ -109,10 +109,10 @@ public class TestMutableNumericType {
       fail("Expected ClassCastException");
     } catch (ClassCastException e) { }
     
-    dp.set(Double.MIN_VALUE);
+    dp.set(-Double.MAX_VALUE);
     assertFalse(dp.isInteger());
-    assertEquals(Double.MIN_VALUE, dp.doubleValue(), 0.001);
-    assertEquals(Double.MIN_VALUE, dp.toDouble(), 0.001);
+    assertEquals(-Double.MAX_VALUE, dp.doubleValue(), 0.001);
+    assertEquals(-Double.MAX_VALUE, dp.toDouble(), 0.001);
     try {
       dp.longValue();
       fail("Expected ClassCastException");

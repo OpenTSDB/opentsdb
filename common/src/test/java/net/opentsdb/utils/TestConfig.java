@@ -368,8 +368,8 @@ public final class TestConfig {
   @Test
   public void getDoubleNegative() throws Exception {
     final Config config = new Config(false);
-    config.overrideConfig("tsd.double", Double.toString(Double.MIN_VALUE));
-    assertEquals(Double.MIN_VALUE, 
+    config.overrideConfig("tsd.double", Double.toString(-Double.MAX_VALUE));
+    assertEquals(-Double.MAX_VALUE, 
         config.getDouble("tsd.double"), 0.000001);
   }
 

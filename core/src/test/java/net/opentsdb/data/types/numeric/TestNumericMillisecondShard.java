@@ -212,7 +212,7 @@ public class TestNumericMillisecondShard {
     // add more of diff values for testing
     shard.add(1486045891050L, Long.MIN_VALUE);
     shard.add(1486045901571L, Double.MAX_VALUE);
-    shard.add(1486045901572L, Double.MIN_VALUE);
+    shard.add(1486045901572L, -Double.MAX_VALUE);
     shard.add(1486045902000L, 0);
     shard.add(1486045903000L, 0f);
     shard.add(1486045904000L, Double.POSITIVE_INFINITY);
@@ -252,7 +252,7 @@ public class TestNumericMillisecondShard {
     v = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1486045901572L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
-    assertEquals(Double.MIN_NORMAL, v.value().doubleValue(), 0.00001);
+    assertEquals(-Double.MAX_VALUE, v.value().doubleValue(), 0.00001);
         
     v = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1486045902000L, v.timestamp().msEpoch());

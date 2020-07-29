@@ -666,11 +666,11 @@ public class TestNumericCodec {
     assertEquals(0, value.timestamp().nanos());
     assertEquals(42.5, value.value().doubleValue(), 0.001);
     
-    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, Double.MIN_VALUE);
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -Double.MAX_VALUE);
     value = NumericCodec.valueFromAppend(base, val, 0);
     assertEquals(base + 180, value.timestamp().epoch());
     assertEquals(0, value.timestamp().nanos());
-    assertEquals(Double.MIN_VALUE, value.value().doubleValue(), 0.001);
+    assertEquals(-Double.MAX_VALUE, value.value().doubleValue(), 0.001);
     
     val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, Double.MAX_VALUE);
     value = NumericCodec.valueFromAppend(base, val, 0);

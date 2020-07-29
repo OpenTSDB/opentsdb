@@ -86,7 +86,7 @@ public class BaseNumericSummaryFillPolicy implements
         nulled = false;
         break;
       case MIN:
-        value.set(summary, Double.MIN_VALUE);
+        value.set(summary, -Double.MAX_VALUE);
         nulled = false;
         break;
       case MAX:
