@@ -15,7 +15,6 @@
 package net.opentsdb.servlet.resources;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -23,8 +22,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -54,7 +51,6 @@ import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
-import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
@@ -117,11 +113,13 @@ public class ExpressionRpc {
 
     @Override
     public void run() {
-      asyncRun(trace, query_span, setup_span, async, context);
+      AsyncRunner.asyncRun(trace, query_span, setup_span, async, context, ExpressionRpc.class);
     }
   }
   
-  private Response handleQuery(final ServletConfig servlet_config, final HttpServletRequest request) throws InterruptedException, ExecutionException {
+  private Response handleQuery(final ServletConfig servlet_config, 
+                               final HttpServletRequest request) 
+                                   throws InterruptedException, ExecutionException {
     final Object stream = request.getAttribute("DATA");
     if (stream != null) {
       return Response.ok()
@@ -306,79 +304,6 @@ public class ExpressionRpc {
     tsdb.getQueryThreadPool().submit(runTsdQuery, null, TSDTask.QUERY);
     
     return null;
-  }
-  
-  private void asyncRun(final Trace trace, final Span query_span, final Span setup_span,
-      final AsyncContext async, SemanticQueryContext context) {
-    class AsyncTimeout implements AsyncListener {
-
-      @Override
-      public void onComplete(final AsyncEvent event) throws IOException {
-        // no-op
-      }
-
-      @Override
-      public void onTimeout(final AsyncEvent event) throws IOException {
-        LOG.error("The query has timed out");
-        GenericExceptionMapper.serialize(
-            new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504), event.getAsyncContext().getResponse());
-        event.getAsyncContext().complete();
-      }
-
-      @Override
-      public void onError(final AsyncEvent event) throws IOException {
-        LOG.error("WTF? An error for the AsyncTimeout?: " + event);
-      }
-
-      @Override
-      public void onStartAsync(final AsyncEvent event) throws IOException {
-        // no-op
-      }
-
-    }
-
-    async.addListener(new AsyncTimeout());
-    async.start(new Runnable() {
-      public void run() {
-        if (setup_span != null) {
-          setup_span.setTag("Status", "OK")
-                    .setTag("finalThread", Thread.currentThread().getName())
-                    .finish();
-        }
-        
-        Span execute_span = null;
-        if (query_span != null) {
-          execute_span = trace.newSpanWithThread("startExecution")
-              .withTag("startThread", Thread.currentThread().getName())
-              .asChildOf(query_span)
-              .start();
-        }
-        
-        try {
-          context.initialize(query_span).join();
-          context.fetchNext(query_span);
-        } catch (Throwable t) {
-          LOG.error("Unexpected exception triggering query.", t);
-          if (execute_span != null) {
-            execute_span.setErrorTags(t)
-                        .finish();
-          }
-          //GenericExceptionMapper.serialize(t, response);
-          async.complete();
-          if (query_span != null) {
-            query_span.setErrorTags(t)
-                       .finish();
-          }
-          throw new QueryExecutionException("Unexpected expection", 500, t);
-        }
-        
-        if (execute_span != null) {
-          execute_span.setSuccessTags()
-                      .finish();
-        }
-      }
-    });
   }
   
 }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013-2018 The OpenTSDB Authors.
+// Copyright (C) 2013-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 package net.opentsdb.servlet.resources;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,8 +26,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -68,7 +65,6 @@ import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
-import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
@@ -134,7 +130,7 @@ final public class QueryRpc {
 
     @Override
     public void run() {
-      asyncRun(trace, query_span, setup_span, async, context);
+      AsyncRunner.asyncRun(trace, query_span, setup_span, async, context, QueryRpc.class);
     }
   }
 
@@ -383,78 +379,6 @@ final public class QueryRpc {
     return null;
   }
 
-  private void asyncRun(final Trace trace, final Span query_span, final Span setup_span,
-      final AsyncContext async, final QueryContext ctx) {
-    class AsyncTimeout implements AsyncListener {
-
-      @Override
-      public void onComplete(final AsyncEvent event) throws IOException {
-        // no-op
-      }
-
-      @Override
-      public void onTimeout(final AsyncEvent event) throws IOException {
-        LOG.error("The query has timed out");
-                
-        GenericExceptionMapper.serialize(
-            new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504), event.getAsyncContext().getResponse());
-        event.getAsyncContext().complete();
-      }
-
-      @Override
-      public void onError(final AsyncEvent event) throws IOException {
-        LOG.error("WTF? An error for the AsyncTimeout?: " + event);
-      }
-
-      @Override
-      public void onStartAsync(final AsyncEvent event) throws IOException {
-        // no-op
-      }
-
-    }
-
-    async.addListener(new AsyncTimeout());
-    async.start(new Runnable() {
-      public void run() {
-        Span execute_span = null;
-        try {
-          ctx.initialize(query_span).join();
-          if (setup_span != null) {
-            setup_span.setSuccessTags()
-                      .finish();
-          }
-          
-          if (query_span != null) {
-            execute_span = trace.newSpanWithThread("startExecution")
-                .withTag("startThread", Thread.currentThread().getName())
-                .asChildOf(query_span)
-                .start();
-          }
-          ctx.fetchNext(query_span);
-        } catch (Throwable t) {
-          LOG.error("Unexpected exception adding callbacks to deferred.", t);
-          //GenericExceptionMapper.serialize(t, response);
-          if (execute_span != null) {
-            execute_span.setErrorTags(t)
-                        .finish();
-          }
-          async.complete();
-          if (query_span != null) {
-            query_span.setErrorTags(t)
-                       .finish();
-          }
-          throw new QueryExecutionException("Unexpected expection", 500, t);
-        }
-        
-        if (execute_span != null) {
-          execute_span.setSuccessTags()
-                      .finish();
-        }
-      }
-    });
-  }
-  
 //  /**
 //   * Implements the /api/query endpoint to fetch data from OpenTSDB.
 //   * @param tsdb The TSDB to use for fetching data

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018 The OpenTSDB Authors.
+// Copyright (C) 2018-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,11 +22,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -49,15 +46,12 @@ import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesOptions;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
-import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
-import net.opentsdb.servlet.resources.QueryRpc.RunTSDQuery;
 import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
@@ -101,7 +95,7 @@ public class RawQueryRpc {
 
     @Override
     public void run() {
-      asyncRun(query_span, async, query, context);
+      AsyncRunner.asyncRun(null, null, query_span, async, context, RawQueryRpc.class);
     }
   }
   
@@ -272,69 +266,6 @@ public class RawQueryRpc {
     tsdb.getQueryThreadPool().submit(runTsdQuery, context, TSDTask.QUERY);
     
     return null;
-  }
-
-  private void asyncRun(final Span query_span, final AsyncContext async, final SemanticQuery query,
-      SemanticQueryContext context) {
-    class AsyncTimeout implements AsyncListener {
-
-      @Override
-      public void onComplete(final AsyncEvent event) throws IOException {
-        // no-op
-      }
-
-      @Override
-      public void onTimeout(final AsyncEvent event) throws IOException {
-        LOG.error("The query has timed out");
-        GenericExceptionMapper.serialize(
-            new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504), event.getAsyncContext().getResponse());
-        event.getAsyncContext().complete();
-      }
-
-      @Override
-      public void onError(final AsyncEvent event) throws IOException {
-        LOG.error("WTF? An error for the AsyncTimeout?: " + event);
-      }
-
-      @Override
-      public void onStartAsync(final AsyncEvent event) throws IOException {
-        // no-op
-      }
-
-    }
-
-    async.addListener(new AsyncTimeout());
-    async.start(new Runnable() {
-      public void run() {
-        try {
-          context.initialize(query_span).join();
-          
-          if (query.getMode() == QueryMode.VALIDATE) {
-            async.getResponse().setContentType("application/json");
-            // TODO - here it would be better to write the query plan.
-            async.getResponse().getWriter().write("{\"status\":\"OK\"}");
-            ((HttpServletResponse) async.getResponse()).setStatus(200);
-            async.complete();
-            if (query_span != null) {
-              query_span.setSuccessTags().finish();
-            }
-            return;
-          }
-          context.fetchNext(query_span);
-        } catch (Throwable t) {
-          LOG.error("Unexpected exception triggering query.", t);
-          GenericExceptionMapper.serialize(t, async.getResponse());
-    
-          async.complete();
-          if (query_span != null) {
-            query_span.setErrorTags(t)
-                       .finish();
-          }
-          throw new QueryExecutionException("Unexpected expection", 500, t);
-        }
-      }
-    });
   }
   
 }
