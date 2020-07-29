@@ -317,6 +317,7 @@ final public class QueryRpc {
         .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
         .put("traceId", trace != null ? trace.traceId() : "")
         .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
+        .put("remote", request.getRemoteAddr())
         .put("query", ts_query)
         .build()));
     
