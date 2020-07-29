@@ -85,14 +85,14 @@ public class TestPBufNumericDatum {
     // smallest double
     datum = NumericDatum.newBuilder()
         .setIsInteger(false)
-        .setValue(Double.doubleToRawLongBits(Double.MIN_VALUE))
+        .setValue(Double.doubleToRawLongBits(-Double.MAX_VALUE))
         .build();
     baos = new ByteArrayOutputStream();
     datum.writeTo(baos);
     pbn = new PBufNumericDatum(
         NumericDatum.parseFrom(baos.toByteArray()));
     assertFalse(pbn.isInteger());
-    assertEquals(Double.MIN_VALUE, pbn.doubleValue(), 0.001);
+    assertEquals(-Double.MAX_VALUE, pbn.doubleValue(), 0.001);
     
     // largest double
     datum = NumericDatum.newBuilder()

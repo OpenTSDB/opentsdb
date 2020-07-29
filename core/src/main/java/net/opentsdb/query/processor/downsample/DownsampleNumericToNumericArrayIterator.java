@@ -109,7 +109,7 @@ public class DownsampleNumericToNumericArrayIterator
 
   /** The partial aggregation defaults for double values */
   private static final double[] partial_doubles =
-      {0.0, 0.0, Double.MAX_VALUE, Double.MIN_VALUE, 0.0, -1.0};
+      {0.0, 0.0, Double.MAX_VALUE, -Double.MAX_VALUE, 0.0, -1.0};
 
   /** The partial aggregation defaults for long values */
   private static final long[] partial_longs = {0, 0, Long.MAX_VALUE, Long.MIN_VALUE, 0, -1};

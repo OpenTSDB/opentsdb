@@ -139,8 +139,8 @@ public class TestBaseNumericSummaryFillPolicy {
     assertEquals(2, value.summariesAvailable().size());
     assertTrue(value.summariesAvailable().contains(0));
     assertTrue(value.summariesAvailable().contains(2));
-    assertEquals(Double.MIN_VALUE, value.value(0).doubleValue(), 0.001);
-    assertEquals(Double.MIN_VALUE, value.value(2).doubleValue(), 0.001);
+    assertEquals(-Double.MAX_VALUE, value.value(0).doubleValue(), 0.001);
+    assertEquals(-Double.MAX_VALUE, value.value(2).doubleValue(), 0.001);
   }
 
 }
