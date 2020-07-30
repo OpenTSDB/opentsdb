@@ -1219,6 +1219,11 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     }
 
     @Override
+    public boolean readCacheable() {
+      return false;
+    }
+    
+    @Override
     public Map<String, String> getOverrides() {
       // TODO Auto-generated method stub
       return null;

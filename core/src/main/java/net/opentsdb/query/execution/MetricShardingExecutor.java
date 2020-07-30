@@ -366,6 +366,11 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
+    public boolean readCacheable() {
+      return false;
+    }
+    
+    @Override
     public Builder toBuilder() {
       return new Builder()
           .setParallelExecutors(parallel_executors)

@@ -293,6 +293,11 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
+    public boolean readCacheable() {
+      return false;
+    }
+    
+    @Override
     public Builder toBuilder() {
       return null;
     }

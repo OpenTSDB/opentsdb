@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,6 +60,9 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
    * combine them into one so this would be true, vs. a group by node
    * will group each result from downstream and pass it up. */
   boolean joins();
+  
+  /** @return Whether or not the data from this node is cachable. */
+  boolean readCacheable();
   
   /** @return An optional map of query parameter overrides. May be null. */
   Map<String, String> getOverrides();

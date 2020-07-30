@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2017-2019  The OpenTSDB Authors.
+//Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 //This program is free software: you can redistribute it and/or modify it
 //under the terms of the GNU Lesser General Public License as published by
@@ -284,6 +284,11 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   @Override
   public boolean joins() {
     return false;
+  }
+  
+  @Override
+  public boolean readCacheable() {
+    return true;
   }
   
   @Override
