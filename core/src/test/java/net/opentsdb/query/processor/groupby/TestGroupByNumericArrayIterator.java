@@ -47,8 +47,10 @@ import net.opentsdb.pools.MockObjectPool;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.processor.ProcessorFactory;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
 import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJobPool;
 import net.opentsdb.stats.StatsCollector;
@@ -535,6 +537,8 @@ public class TestGroupByNumericArrayIterator {
             .setRunAll(true)
             .setStart("1514764800")
             .setEnd("1514765040")
+            .setFill(true)
+            .setProcessAsArrays(true)
             .addInterpolatorConfig(numeric_config)
             .setRunAll(false)
             .build();
@@ -548,7 +552,9 @@ public class TestGroupByNumericArrayIterator {
             .build();
 
     when(context.query()).thenReturn(q);
-    Downsample ds = new Downsample(mock(QueryNodeFactory.class), context, dsConfig);
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.initialize(TSDB, null);
+    Downsample ds = new Downsample(factory, context, dsConfig);
     ds.initialize(null);
     Downsample.DownsampleResult dsResult = ds.new DownsampleResult(mock(QueryResult.class));
 
@@ -680,7 +686,9 @@ public class TestGroupByNumericArrayIterator {
             .build();
 
     when(context.query()).thenReturn(q);
-    Downsample ds = new Downsample(mock(QueryNodeFactory.class), context, dsConfig);
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.initialize(TSDB, null);
+    Downsample ds = new Downsample(factory, context, dsConfig);
     ds.initialize(null);
     QueryResult ds_of_ds_result = mock(QueryResult.class);
     when(ds_of_ds_result.timeSpecification()).thenReturn(time_spec);

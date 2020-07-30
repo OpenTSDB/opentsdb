@@ -235,6 +235,24 @@ public class TestDownsampleFactory {
         .put("a", array_source)
         .build());
     assertTrue(iterator.hasNext());
+
+    // TODO - more mocking needed.
+//    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+//        .setAggregator("sum")
+//        .setId("foo")
+//        .setInterval("1m")
+//        .setStart("1514764800")
+//        .setEnd("1514765040")
+//        .setProcessAsArrays(true)
+//        .setFill(true)
+//        .addInterpolatorConfig(numeric_config)
+//        .build();
+//    when(node.config()).thenReturn(config);
+//    iterator = factory.newTypedIterator(
+//        NumericType.TYPE, node, dr, ImmutableMap.<String, TimeSeries>builder()
+//        .put("a", array_source)
+//        .build());
+//    assertTrue(iterator instanceof DownsampleNumericToNumericArrayIterator);
     
     try {
       factory.newTypedIterator(null, node, dr, ImmutableMap.<String, TimeSeries>builder()
