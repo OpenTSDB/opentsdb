@@ -203,6 +203,11 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
     return false;
   }
   
+  @Override
+  public boolean readCacheable() {
+    return true;
+  }
+  
   /**
    * Generates a String version of the rate option instance in a format that 
    * can be utilized in a query.

@@ -94,6 +94,12 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   }
   
   @Override
+  public boolean readCacheable() {
+    // Most nodes can be cached.
+    return true;
+  }
+  
+  @Override
   public String getString(final Configuration config, final String key) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null");
