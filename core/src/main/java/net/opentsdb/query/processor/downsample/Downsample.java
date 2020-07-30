@@ -297,24 +297,6 @@ public class Downsample extends AbstractQueryNode {
         if (type == null) {
           throw new IllegalArgumentException("Type cannot be null.");
         }
-
-        if (!config.getProcessAsArrays() && !source.types().contains(type)) {
-          return Optional.empty();
-        }
-
-        if (config.getProcessAsArrays() && type == NumericArrayType.TYPE) {
-          final TypedTimeSeriesIterator<TimeSeriesDataType> iterator;
-          if (source.types().contains(NumericType.TYPE)) {
-            iterator =
-                new DownsampleNumericToNumericArrayIterator(
-                    Downsample.this, DownsampleResult.this, source);
-          } else {
-            iterator =
-                new DownsampleNumericArrayIterator(Downsample.this, DownsampleResult.this, source);
-          }
-
-          return Optional.of(iterator);
-        }
         
         final TypedTimeSeriesIterator iterator = 
             ((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
@@ -335,20 +317,11 @@ public class Downsample extends AbstractQueryNode {
             Lists.newArrayListWithCapacity(types.size());
         
         for (final TypeToken<? extends TimeSeriesDataType> type : source.types()) {
-          if (config.getProcessAsArrays() && type == NumericType.TYPE) {
-            final TypedTimeSeriesIterator<TimeSeriesDataType> iterator =
-                new DownsampleNumericToNumericArrayIterator(
-                    Downsample.this, 
-                    DownsampleResult.this,
-                    source);
-            iterators.add(iterator);
-          } else {
-            iterators.add(((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
-                type, 
-                Downsample.this, 
-                DownsampleResult.this,
-                Lists.newArrayList(source)));
-          }
+          iterators.add(((ProcessorFactory) Downsample.this.factory()).newTypedIterator(
+              type, 
+              Downsample.this, 
+              DownsampleResult.this,
+              Lists.newArrayList(source)));
         }
         return iterators;
       }
@@ -356,7 +329,8 @@ public class Downsample extends AbstractQueryNode {
       @Override
       public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
         // TODO - join with the factories supported.
-        if (config.getProcessAsArrays() && 
+        if (config.getFill() && 
+            config.getProcessAsArrays() && 
             (source.types().contains(NumericType.TYPE)
               || source.types().contains(NumericArrayType.TYPE))) {
           return Lists.newArrayList(NumericArrayType.TYPE);

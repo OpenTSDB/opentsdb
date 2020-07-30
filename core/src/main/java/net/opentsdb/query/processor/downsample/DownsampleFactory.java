@@ -40,6 +40,7 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
+import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.query.processor.downsample.DownsampleConfig.Builder;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
@@ -298,6 +299,45 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
     }
     throw new IllegalStateException("The host is miss configured and was "
         + "unable to find a default auto downsample interval.");
+  }
+  
+  @Override
+  public <T extends TimeSeriesDataType>  TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<T> type,
+      final Downsample node,
+      final QueryResult result,
+      final Collection<TimeSeries> sources) {
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null.");
+    }
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (sources == null || sources.isEmpty()) {
+      throw new IllegalArgumentException("Sources cannot be null or empty.");
+    }
+    
+    final TimeSeries series = sources.iterator().next();
+    if (series == null) {
+      return null;
+    }
+    
+    if (series.types().contains(type)) {
+      return super.newTypedIterator(type, node, result, sources);
+    }
+    
+    if (series.types().contains(NumericType.TYPE) && type == NumericArrayType.TYPE) {
+      if (((DownsampleConfig) node.config()).getProcessAsArrays() && 
+          ((DownsampleConfig) node.config()).getFill()) {
+        return new DownsampleNumericToNumericArrayIterator(
+           node, result, sources.iterator().next());
+      } else {
+        throw new IllegalArgumentException("Coding bug: The caller asked for " 
+            + type + " but the source only has: " + series.types());
+      }
+    }
+    
+    return super.newTypedIterator(type, node, result, sources);
   }
   
   /** A callback for the auto downsample config. */

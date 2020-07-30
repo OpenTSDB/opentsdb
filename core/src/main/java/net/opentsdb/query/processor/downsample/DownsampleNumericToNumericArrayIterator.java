@@ -236,6 +236,7 @@ public class DownsampleNumericToNumericArrayIterator
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public TimeSeriesValue<NumericArrayType> nextPool(Aggregator aggregator) {
+    LOG.info("********** Next pool? From where?", new RuntimeException());
     has_next = false;
     if (value == null) {
       return null;
@@ -613,6 +614,7 @@ public class DownsampleNumericToNumericArrayIterator
     Arrays.fill(nans, Double.NaN);
     agg.accumulate(nans);
     nextPool(agg);
+    LOG.info("AGGED:*************** " + Arrays.toString(agg.doubleArray()) + "  START: " + agg.offset() + "  END: " + agg.end());
     return this;
   }
   
