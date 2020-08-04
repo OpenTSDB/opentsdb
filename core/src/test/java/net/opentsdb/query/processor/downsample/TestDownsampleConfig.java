@@ -518,6 +518,25 @@ public class TestDownsampleConfig {
     assertNull(config.interval());
     assertEquals(0, config.dpsInInterval());
   }
+
+  @Test
+  public void implicitRunAll0All() throws Exception {
+    DownsampleConfig config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("0all")
+        .setStart("1514843302")
+        .setEnd("1514846902")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+    assertTrue(config.getRunAll());
+    assertEquals(1514843302, config.startTime().epoch());
+    assertEquals(1514846902, config.endTime().epoch());
+    assertEquals(1, config.intervals());
+    assertNull(config.interval());
+    assertEquals(0, config.dpsInInterval());
+  }
   
   @Test
   public void testSnapStartAndEndTime() {
