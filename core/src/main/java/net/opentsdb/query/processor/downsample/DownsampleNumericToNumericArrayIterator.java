@@ -236,7 +236,6 @@ public class DownsampleNumericToNumericArrayIterator
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public TimeSeriesValue<NumericArrayType> nextPool(Aggregator aggregator) {
-    LOG.info("********** Next pool? From where?", new RuntimeException());
     has_next = false;
     if (value == null) {
       return null;
