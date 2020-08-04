@@ -186,6 +186,9 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
   /** A list of durations for each scanner set reflecting the interval between
    * rows. */
   protected List<Duration> durations;
+  
+  /** TEMP fudge to close a scanner.... */
+  protected int close_attempts;
       
   /**
    * Resets the cached scanners object.
@@ -462,6 +465,11 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
 
   @Override
   public void run(final Timeout timeout) {
+    if (close_attempts++ > 6000) {
+      LOG.warn("Whoops, bug returning scanners to the pool after " 
+          + close_attempts + ". Resetting scanners done.");
+      scanners_done = scanners.get(scanner_index).length;
+    }
     close();
   }
   

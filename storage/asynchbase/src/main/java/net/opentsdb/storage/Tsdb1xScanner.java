@@ -1104,6 +1104,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       if (owner != null) {
         owner.exception((ex instanceof DeferredGroupException ? 
             Exceptions.getCause((DeferredGroupException) ex) : ex));
+        owner.scannerDone();
       }
       if (scanner != null) {
         scanner.close();
