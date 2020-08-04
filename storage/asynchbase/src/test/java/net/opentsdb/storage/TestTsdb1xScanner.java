@@ -196,7 +196,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, never()).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -254,7 +254,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, never()).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -326,7 +326,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -1345,7 +1345,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).close();
     verify(results, times(1)).decode(
         any(ArrayList.class), any(RollupInterval.class));
-    verify(owner, times(1)).scannerDone();
+    verify(owner, times(2)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
     verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);

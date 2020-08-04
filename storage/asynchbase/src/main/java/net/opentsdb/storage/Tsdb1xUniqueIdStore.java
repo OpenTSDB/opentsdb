@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -49,6 +48,7 @@ import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.stats.Span;
 import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.RandomUniqueId;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdAssignmentAuthorizer;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
@@ -357,7 +357,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
                 .finish();
             }
             throw new StorageException("UID resolution failed for ID " 
-                + ids.get(i), results.get(i).getException());
+                + UniqueId.uidToString(ids.get(i)), results.get(i).getException());
           } else if (results.get(i).getCells() == null ||
                      results.get(i).getCells().isEmpty()) {
             names.add(null);

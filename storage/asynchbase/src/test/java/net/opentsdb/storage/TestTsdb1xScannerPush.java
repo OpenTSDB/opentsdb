@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -299,7 +299,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -355,7 +355,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -423,7 +423,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
-    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
     assertEquals(0, scanner.skips.size());
@@ -1469,7 +1469,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
-    verify(owner, times(1)).scannerDone();
+    verify(owner, times(2)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
     verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);
