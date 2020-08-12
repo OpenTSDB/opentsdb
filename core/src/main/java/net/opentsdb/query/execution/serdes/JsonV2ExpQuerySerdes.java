@@ -454,6 +454,10 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
     final TimeStamp next_ts = result.timeSpecification().start().getCopy();
     
     while (next_ts.compare(Op.LT, context.query().startTime())) {
+      if (result.timeSpecification().interval() == null) {
+        // it's a run-all
+        break;
+      }
       index++;
       next_ts.add(result.timeSpecification().interval());
     }
@@ -484,7 +488,11 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
       }
     
       index++;
-      next_ts.add(result.timeSpecification().interval());
+      if (result.timeSpecification().interval() != null) {
+        next_ts.add(result.timeSpecification().interval());
+      } else {
+        next_ts.update(result.timeSpecification().end());
+      }
       json.writeEndArray();
       if (next_ts.compare(Op.GTE, context.query().endTime())) {
         return iterators.size();
