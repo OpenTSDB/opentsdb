@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
@@ -156,6 +157,7 @@ public class TestByteToStringIdConverter {
         return Const.TS_BYTE_ID;
       }
     });
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     TimeSeries ts1 = mock(TimeSeries.class);
     TimeSeries ts2 = mock(TimeSeries.class);
@@ -183,6 +185,7 @@ public class TestByteToStringIdConverter {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
+        System.out.println("***** HERE");
         from_upstream[0] = (QueryResult) invocation.getArguments()[0];
         return null;
       }
@@ -197,7 +200,9 @@ public class TestByteToStringIdConverter {
     verify(upstream, never()).onNext(result);
     verify(upstream, never()).onError(any(Throwable.class));
     
-    assertEquals(2, from_upstream[0].timeSeries().size());
+    assertEquals(2, from_upstream[0]
+        .timeSeries()
+        .size());
     assertEquals(Const.TS_STRING_ID, from_upstream[0].idType());
     Iterator<TimeSeries> iterator = from_upstream[0].timeSeries().iterator();
     TimeSeries series = iterator.next();
@@ -263,8 +268,8 @@ public class TestByteToStringIdConverter {
   public void onNextPTSEmptyTimeSeries() throws Exception {
     config = (ByteToStringIdConverterConfig)
         ByteToStringIdConverterConfig.newBuilder()
-          .addDataSource("m1", factory_a)
-          .addDataSource("m2", factory_b)
+          .addDataSourceFactory("m1", factory_a)
+          .addDataSourceFactory("m2", factory_b)
           .setId("cvtr")
           .build();
     
@@ -286,8 +291,8 @@ public class TestByteToStringIdConverter {
   public void onNextPTSNotListed() throws Exception {
     config = (ByteToStringIdConverterConfig)
         ByteToStringIdConverterConfig.newBuilder()
-          .addDataSource("m1", factory_a)
-          .addDataSource("m2", factory_b)
+          .addDataSourceFactory("m1", factory_a)
+          .addDataSourceFactory("m2", factory_b)
           .setId("cvtr")
           .build();
     
@@ -311,8 +316,8 @@ public class TestByteToStringIdConverter {
   public void onNextPTS() throws Exception {
     config = (ByteToStringIdConverterConfig)
         ByteToStringIdConverterConfig.newBuilder()
-          .addDataSource("m1", factory_a)
-          .addDataSource("m2", factory_b)
+          .addDataSourceFactory("m1", factory_a)
+          .addDataSourceFactory("m2", factory_b)
           .setId("cvtr")
           .build();
     

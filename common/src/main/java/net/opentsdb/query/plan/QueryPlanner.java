@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 package net.opentsdb.query.plan;
 
 import java.util.Collection;
-import java.util.List;
-import java.util.Set;
 
 import com.google.common.graph.MutableGraph;
 import com.stumbleupon.async.Deferred;
@@ -118,27 +116,11 @@ public interface QueryPlanner {
   public Collection<QueryNodeConfig> terminalSourceNodes(final QueryNodeConfig config);
   
   /**
-   * Finds the set of data source IDs from the current node in the format
-   * config_id:datasource_id.
-   * @param node The non-null node to start from.
-   * @return A non-null list of source IDs.
-   */
-  public List<String> getDataSourceIds(final QueryNodeConfig node);
-  
-  /**
-   * Finds the name of metrics from the given node.
-   * TODO - won't work in the future if we have other filter types.
-   * @param node The non-null node to start from.
-   * @return A non-null set of metric names.
-   */
-  public Set<String> getMetrics(final QueryNodeConfig node);
-  
-  /**
    * A recursive look for the metric matching the given data source Id.
    * @param node The start node for the recursive search.
    * @param data_source_id The non-null data source to match.
    * @return The matched metric name in the format <metric>
    */
-  public String getMetricForDataSource(final QueryNodeConfig node, 
+  public String getMetricForDataSource(final QueryNodeConfig node,
                                        final String data_source_id);
 }

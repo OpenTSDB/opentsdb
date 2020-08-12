@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,6 @@ import java.io.InputStream;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
-import java.util.Iterator;
 
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
@@ -61,6 +60,7 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -176,7 +176,7 @@ public class TestPBufSerdes {
     when(config.getId()).thenReturn("ds");
     when(node.config()).thenReturn(config);
     when(result.source()).thenReturn(node);
-    when(result.dataSource()).thenReturn("UT");
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("UT", "UT"));
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts, ts2));
     when(result.timeSpecification()).thenReturn(spec);
@@ -239,7 +239,7 @@ public class TestPBufSerdes {
     when(config.getId()).thenReturn("ds");
     when(node.config()).thenReturn(config);
     when(result.source()).thenReturn(node);
-    when(result.dataSource()).thenReturn("UT");
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("UT", "UT"));
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     
@@ -273,7 +273,7 @@ public class TestPBufSerdes {
   @Test
   public void serdesErrors() throws Exception {
     QueryResult result = mock(QueryResult.class);
-    when(result.dataSource()).thenReturn("UT");
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("UT", "UT"));
     when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     

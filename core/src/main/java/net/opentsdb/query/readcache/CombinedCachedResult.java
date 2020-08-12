@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.DateTime;
@@ -67,7 +68,7 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
   protected final QueryNode<?> node;
   
   /** The data source name. */
-  protected final String data_source;
+  protected final QueryResultId data_source;
   
   /** Whether or not the query is aligned on hour boundaries. */
   protected final boolean aligned;
@@ -106,7 +107,7 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
   public CombinedCachedResult(final QueryPipelineContext context,
                               final QueryResult[] results,
                               final QueryNode<?> node,
-                              final String data_source,
+                              final QueryResultId data_source,
                               final List<QuerySink> sinks, 
                               final String result_interval) {
     this.context = context;
@@ -225,7 +226,7 @@ public class CombinedCachedResult implements QueryResult, TimeSpecification {
   }
 
   @Override
-  public String dataSource() {
+  public QueryResultId dataSource() {
     return data_source;
   }
 

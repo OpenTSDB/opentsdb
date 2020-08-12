@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 
 /**
  * Simply converts byte encoded IDs to their strings using the 
@@ -120,7 +121,8 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
     }
     
     Deferred.groupInOrder(deferreds)
-      .addCallbacks(new ResolveCB(), new ErrorCB());
+      .addCallback(new ResolveCB())
+      .addErrback(new ErrorCB());
   }
 
   @Override
@@ -161,7 +163,7 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
     
     public ConvertedResult(final QueryResult result, 
                            final List<TimeSeriesStringId> ids) {
-      super(result);
+      super(ByteToStringIdConverter.this, result);
       wrapped_series = Lists.newArrayListWithExpectedSize(result.timeSeries().size());
       int index = 0;
       // Invariate: the number of ids must match the time series AND the
@@ -184,6 +186,11 @@ public class ByteToStringIdConverter extends AbstractQueryNode {
     @Override
     public QueryNode source() {
       return ByteToStringIdConverter.this;
+    }
+    
+    @Override
+    public QueryResultId dataSource() {
+      return result.dataSource();
     }
     
   }

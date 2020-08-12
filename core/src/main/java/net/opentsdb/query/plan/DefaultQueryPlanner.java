@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Set;
 
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.DefaultQueryResultId;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +50,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
@@ -57,6 +60,7 @@ import net.opentsdb.query.processor.summarizer.SummarizerConfig;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Deferreds;
+import net.opentsdb.utils.Pair;
 
 /**
  * A query planner that handles push-down operations to data sources.
@@ -107,7 +111,14 @@ public class DefaultQueryPlanner implements QueryPlanner {
   protected QueryNodeConfig context_node;
   
   /** The set of QueryResult objects we should see. */
-  protected Set<String> serialization_sources;
+  protected List<QueryResultId> serialization_sources;
+  
+  /** Flag set when one of the config graph modification methods are called from
+   * a config setup method. */
+  protected boolean modified_during_setup;
+  
+  /** The set of satisfied filters. */
+  protected Set<String> satisfied_filters;
   
   /**
    * Default ctor.
@@ -153,208 +164,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * Does the hard work.
    */
   public Deferred<Void> plan(final Span span) {
-    final Map<String, QueryNodeConfig> config_map = 
-        Maps.newHashMapWithExpectedSize(
-            context.query().getExecutionGraph().size());
-    context_node = context_sink_config;
-    config_graph.addNode(context_node);
-    config_map.put("QueryContext", context_node);
-    
-    // the first step is to add the vertices to the graph and we'll stash
-    // the nodes in a map by node ID so we can link them later.
-    for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
-      if (config_map.putIfAbsent(node.getId(), node) != null) {
-        throw new QueryExecutionException("The node id \"" 
-            + node.getId() + "\" appeared more than once in the "
-            + "graph. It must be unique.", 400);
-      }
-      config_graph.addNode(node);
-    }
-    
-    // now link em with the edges.
-    for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
-      if (node instanceof TimeSeriesDataSourceConfig) {
-        source_nodes.add(node);
-      }
-
-      List<String> sources = node.getSources();
-      if (sources != null) {
-        for (final String source : sources) {
-          final QueryNodeConfig src = config_map.get(source);
-          if (src == null) {
-            throw new QueryExecutionException("No source node with ID " 
-                + source + " found for config " + node.getId(), 400);
-          }
-          config_graph.putEdge(node, src);
-          if (Graphs.hasCycle(config_graph)) {
-            throw new IllegalArgumentException("Cycle found linking node " 
-                + node.getId() + " to " + config_map.get(source).getId());
-          }
-        }
-      }
-    }
-    
-    final Set<String> satisfied_filters = Sets.newHashSet();
-    // next we walk and let the factories update the graph as needed.
-    // Note the clone to avoid concurrent modification of the graph.
-    Set<Integer> already_setup = Sets.newHashSet();
-    boolean modified = true;
-    while (modified) {
-      if (source_nodes.isEmpty()) {
-        break;
-      }
-      final List<QueryNodeConfig> srcs = Lists.newArrayList(source_nodes);
-      for (final QueryNodeConfig node : srcs) {
-        modified = recursiveSetup(node, already_setup, satisfied_filters);
-        if (modified) {
-          break;
-        }
-      }
-    }
-    
-    class ConfigInitCB implements Callback<Deferred<Void>, Void> {
-
-      @Override
-      public Deferred<Void> call(final Void ignored) throws Exception {
-        // before doing any more work, make sure the the filters have been
-        // satisfied.
-        for (final String key : sink_filter.keySet()) {
-          if (!satisfied_filters.contains(key)) {
-            // it may have been added in a setup step so check for the node in the
-            // graph.
-            boolean found = false;
-            if (!found) {
-              throw new QueryExecutionException("Unsatisfied sink filter: " 
-                  + key + printConfigGraph(), 400);
-            }
-          }
-        }
-        
-        // next, push down by walking up from the data sources.
-        final List<QueryNodeConfig> copy = Lists.newArrayList(source_nodes);
-        for (final QueryNodeConfig node : copy) {
-          final QueryNodeFactory factory = getFactory(node);
-          // TODO - cleanup the source factories. ugg!!!
-          if (factory == null || !(factory instanceof TimeSeriesDataSourceFactory)) {
-            throw new QueryExecutionException("No node factory found for "
-                + "configuration " + node + "  Factory=" + factory, 400);
-          }
-          
-          final List<QueryNodeConfig> push_downs = Lists.newArrayList();
-          for (final QueryNodeConfig n : config_graph.predecessors(node)) {
-            pushDown(
-                node, 
-                node, 
-                (TimeSeriesDataSourceFactory) factory, 
-                n, 
-                push_downs);
-          }
-          
-          if (!push_downs.isEmpty()) {
-            // now dump the push downs into this node.
-            TimeSeriesDataSourceConfig tsDataSourceconfig = 
-                (TimeSeriesDataSourceConfig) node;
-            TimeSeriesDataSourceConfig new_config =
-                (TimeSeriesDataSourceConfig) 
-                ((BaseTimeSeriesDataSourceConfig.Builder) 
-                    tsDataSourceconfig.toBuilder())
-                .setPushDownNodes(push_downs)
-                .setId(push_downs.get(push_downs.size() - 1).getId())
-                .build();
-            replace(node, new_config);
-          }
-        }
-        
-        // TODO clean out nodes that won't contribute to serialization.
-        // compute source IDs.
-        serialization_sources = computeSerializationSources(context_node);
-        
-        // now go and build the node graph
-        graph = GraphBuilder.directed()
-            .allowsSelfLoops(false)
-            .build();
-        graph.addNode(context_sink);
-        nodes_map.put(context_sink_config.getId(), context_sink);
-        
-        Traverser<QueryNodeConfig> traverser = Traverser.forGraph(config_graph);
-        for (final QueryNodeConfig node : traverser.breadthFirst(context_node)) {
-          if (config_graph.predecessors(node).isEmpty()) {
-            buildNodeGraph(context, node, nodes_map);
-          }
-        }
-        
-        if (LOG.isTraceEnabled()) {
-          LOG.trace(printConfigGraph());          
-        }
-        
-        if (context.query().isTraceEnabled()) {
-          context.queryContext().logTrace(printConfigGraph());
-        }
-        
-        // depth first initiation of the executors since we have to init
-        // the ones without any downstream dependencies first.
-        Set<QueryNode> initialized = Sets.newHashSet();
-        return recursiveInit(context_sink, initialized, span)
-            .addCallbackDeferring(new Callback<Deferred<Void>, Void>() {
-
-              @Override
-              public Deferred<Void> call(Void arg) throws Exception {
-                if (data_sources.isEmpty()) {
-                  LOG.error("No data sources in the final graph for: " 
-                      + context.query() + " " + printConfigGraph());
-                  return Deferred.<Void>fromError(new RuntimeException(
-                      "No data sources in the final graph for: " 
-                          + context.query() + " " + printConfigGraph()));
-                }
-                return null;
-              }
-              
-            });
-      }
-      
-    }
-    
-    // one more iteration to make sure we capture all the source nodes
-    // from the graph setup.
-    source_nodes.clear();
-    for (final QueryNodeConfig node : config_graph.nodes()) {
-      if (node instanceof TimeSeriesDataSourceConfig) {
-        source_nodes.add(node);
-      }
-    }
-    
-    final List<Deferred<Void>> deferreds = 
-        Lists.newArrayListWithExpectedSize(source_nodes.size());
-    ByteToStringIdConverterConfig.Builder converter_builder = null;
-    boolean push_mode = context.tsdb().getConfig().hasProperty("tsd.storage.enable_push") &&
-        context.tsdb().getConfig().getBoolean("tsd.storage.enable_push");
-    for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
-      // see if we need to insert a byte Id converter upstream.
-      if (push_mode) {
-        TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(c));
-        if (factory.idType() != Const.TS_STRING_ID) {
-          if (converter_builder == null) {
-            converter_builder = ByteToStringIdConverterConfig.newBuilder();
-          }
-          converter_builder.addDataSource(c.getId(), factory);
-        }
-      } else {
-        needByteIdConverter(c);
-      }
-      
-      if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
-        deferreds.add(((TimeSeriesDataSourceConfig) c)
-            .getFilter().initialize(span));
-      }
-    }
-    
-    if (push_mode && converter_builder != null) {
-      final QueryNodeConfig converter = converter_builder
-          .setId("IDConverter")
-          .build();
-      replace(context_sink_config, converter);
-      addEdge(context_sink_config, converter);
-    }
+    buildInitialConfigGraph();
+    setupConfigGraph();
+    final List<Deferred<Void>> deferreds = checkForConvertersAndInitFilters();
     
     return Deferred.group(deferreds)
         .addCallback(Deferreds.VOID_GROUP_CB)
@@ -374,23 +186,16 @@ public class DefaultQueryPlanner implements QueryPlanner {
       final QueryNodeConfig node, 
       final Set<Integer> already_setup, 
       final Set<String> satisfied_filters) {
-    if (!already_setup.contains(node.hashCode()) && 
-        node != context_sink_config) {
-      // TODO - ugg!! There must be a better way to determine if the graph
-      // has been modified.
-      final MutableGraph<QueryNodeConfig> clone = Graphs.copyOf(config_graph);
-      
-      final Set<QueryNodeConfig> incoming = config_graph.predecessors(node);
-      if (incoming.isEmpty()) {
-        if (sink_filter.isEmpty()) {
-          config_graph.putEdge(context_node, node);
-          if (Graphs.hasCycle(config_graph)) {
-            throw new IllegalArgumentException("Cycle found linking node " 
-                + context_node.getId() + " to " + node.getId());
-          }
-        } else {
-          roots.add(node);
+    if (!already_setup.contains(node.hashCode())) {
+      for (final QueryNodeConfig downstream : 
+          Sets.newHashSet(config_graph.successors(node))) {
+        if (recursiveSetup(downstream, already_setup, satisfied_filters)) {
+          return true;
         }
+      }
+      
+      if (node == context_sink_config) {
+        return false;
       }
       
       if (sink_filter.containsKey(node.getId())) {
@@ -423,18 +228,24 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
       factory.setupGraph(context, node, this);
       already_setup.add(node.hashCode());
-      if (!config_graph.equals(clone)) {
+      if (modified_during_setup) {
         return true;
       }
+    } else {
+      // skip the node that's already been setup.
+      return false;
     }
     
-    // all done, move up.
-    for (final QueryNodeConfig upstream : 
-        Sets.newHashSet(config_graph.predecessors(node))) {
-      if (recursiveSetup(upstream, already_setup, satisfied_filters)) {
-        return true;
-      }
+    // Default code path that simply brings forward the sources and replaces the
+    // node ID if no sources were set during the setup phase.
+    if (node.resultIds().isEmpty()) {
+      QueryNodeConfig.Builder builder = node.toBuilder()
+          .setResultIds(compileResultIds(node))
+          .setSources(node.getSources());
+      this.replace(node, builder.build());
+      return true;
     }
+    
     return false;
   }
   
@@ -481,7 +292,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         .addCallback(Deferreds.VOID_GROUP_CB)
         .addCallbackDeferring(new InitCB());
   }
-  
+
   /**
    * Recursive method extract 
    * @param parent The parent of this node.
@@ -509,10 +320,18 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // we can push this one down so add to the list and yank the edge.
     push_downs.add(node);
     config_graph.removeEdge(node, parent);
-    if (serialization_sources != null && 
-        serialization_sources.contains(node.getId())) {
-      serialization_sources.remove(node.getId());
-      serialization_sources.add(parent.getId());
+    if (serialization_sources != null) {
+      for (final QueryResultId id : (List<QueryResultId>) node.resultIds()) {
+        if (serialization_sources.contains(id)) {
+          serialization_sources.remove(id);
+          for (final QueryResultId parent_id : (List<QueryResultId>) parent.resultIds()) {
+            if (parent_id.dataSource().equals(id.dataSource()) &&
+                !serialization_sources.contains(parent_id)) {
+              serialization_sources.add(parent_id);
+            }
+          }
+        }
+      }
     }
     
     Set<QueryNodeConfig> incoming = config_graph.predecessors(node);
@@ -610,10 +429,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
   }
   
   /** @return The non-null node graph. */
+  @Override
   public MutableGraph<QueryNode> graph() {
     return graph;
   }
   
+  @Override
   public MutableGraph<QueryNodeConfig> configGraph() {
     return config_graph;
   }
@@ -629,7 +450,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
   }
 
   /** @return The non-null list of result IDs to watch for. */
-  public Set<String> serializationSources() {
+  public List<QueryResultId> serializationSources() {
     return serialization_sources;
   }
   
@@ -657,71 +478,10 @@ public class DefaultQueryPlanner implements QueryPlanner {
   }
   
   /**
-   * Recursive function that calculates the IDs that we should see 
-   * emitted through the pipeline as QueryResult objects.
-   * TODO - this assumes one result per data source.
-   * @param node The non-null node to work from.
-   * @return A set of unique results we should see.
-   */
-  private Set<String> computeSerializationSources(final QueryNodeConfig node) {
-    if (node instanceof TimeSeriesDataSourceConfig) {
-      return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getDataSourceId());
-    } else if (node.joins()) {
-      if (node instanceof MergerConfig) {
-        return Sets.newHashSet(((MergerConfig) node).getDataSource());
-      }
-      return Sets.newHashSet(node.getId());
-    }
-    
-    final Set<String> ids = Sets.newHashSetWithExpectedSize(1);
-    for (final QueryNodeConfig downstream : config_graph.successors(node)) {
-      final Set<String> downstream_ids = computeSerializationSources(downstream);
-      if (node == context_node) {
-        // prepend
-        if (downstream instanceof TimeSeriesDataSourceConfig) {
-          ids.add(downstream.getId() + ":" 
-              + ((TimeSeriesDataSourceConfig) downstream).getDataSourceId());
-        } else if (downstream.joins()) {
-          if (node instanceof MergerConfig) {
-            ids.add(((MergerConfig) node).getDataSource());
-          } else if (downstream instanceof ExpressionConfig || 
-                     downstream instanceof ExpressionParseNode) {
-            final Set<String> ds_ids = getMetrics(downstream);
-            for (final String id : ds_ids) {
-              ids.add(downstream.getId() + ":" + id.substring(id.indexOf(":") + 1));
-            }
-          } else {
-            ids.addAll(downstream_ids);
-          }
-        } else if (downstream instanceof SummarizerConfig &&
-            ((SummarizerConfig) downstream).passThrough()) {
-          for (final QueryNodeConfig successor : config_graph.successors(downstream)) {
-            final Set<String> summarizer_sources = computeSerializationSources(successor);
-            List<String> srcs = getDataSourceIds(successor);
-            for (final String id : summarizer_sources) {
-              ids.add(srcs.get(0));
-              ids.add(downstream.getId() + ":" + id);
-            }
-          }
-        } else {
-          for (final String id : downstream_ids) {
-            ids.add(downstream.getId() + ":" + id);
-          }
-        }
-      } else if (node instanceof MergerConfig) {
-        ids.add(((MergerConfig) node).getDataSource());
-      } else {
-        ids.addAll(downstream_ids);
-      }
-    }
-    return ids;
-  }
-  
-  /**
    * TODO - look at this to find a better way than having a generic
    * config.
    */
-  class ContextNodeConfig implements QueryNodeConfig {
+  public class ContextNodeConfig implements QueryNodeConfig {
 
     @Override
     public String getId() {
@@ -816,6 +576,22 @@ public class DefaultQueryPlanner implements QueryPlanner {
     public int compareTo(Object o) {
       return 0;
     }
+  
+    @Override
+    public List<Pair<String, String>> resultIds() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public boolean markedCacheable() {
+      return false;
+    }
+    
+    @Override
+    public void markCacheable(final boolean cacheable) {
+      // no-op
+    }
+    
   }
 
   /**
@@ -825,6 +601,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
    */
   public void replace(final QueryNodeConfig old_config,
                       final QueryNodeConfig new_config) {
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Replacing node " + old_config.getId() 
+        + " (" + System.identityHashCode(old_config) + ") with " 
+          + new_config.getId() + " (" + System.identityHashCode(new_config) + ")");
+    }
+    modified_during_setup = true;
     final List<QueryNodeConfig> upstream = Lists.newArrayList();
     for (final QueryNodeConfig n : config_graph.predecessors(old_config)) {
       upstream.add(n);
@@ -873,6 +655,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
   @Override
   public boolean addEdge(final QueryNodeConfig from, 
                         final QueryNodeConfig to) {
+    modified_during_setup = true;
     final boolean added = config_graph.putEdge(from, to);
     if (Graphs.hasCycle(config_graph)) {
       throw new IllegalArgumentException("Cycle found linking node " 
@@ -907,6 +690,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
           source_nodes.remove(to);
         }
       }
+      modified_during_setup = true;
       return true;
     }
     return false;
@@ -918,6 +702,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
       if (config instanceof TimeSeriesDataSourceConfig) {
         source_nodes.remove(config);
       }
+      modified_during_setup = true;
       return true;
     }
     return false;
@@ -970,88 +755,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
     return sources;
   }
   
-  // Returns stuff like <nodeID>:<dataSourceNodeID>
-  @Override
-  public List<String> getDataSourceIds(final QueryNodeConfig node) {
-    if (node instanceof MergerConfig) {
-      if (!node.getId().equals(((MergerConfig) node).getDataSource())) {
-        return Lists.newArrayList(node.getId() + ":" 
-            + ((MergerConfig) node).getDataSource());
-      }
-      return Lists.newArrayList(((MergerConfig) node).getDataSource() + ":" 
-          + ((MergerConfig) node).getDataSource());
-    } else if (node.joins()) {
-      return Lists.newArrayList(node.getId() + ":" + node.getId());
-    } else if (node instanceof TimeSeriesDataSourceConfig) {
-      return Lists.newArrayList(node.getId() + ":" 
-          + ((TimeSeriesDataSourceConfig) node).getDataSourceId());
-    }
-    
-    List<String> sources = null;
-    final Set<QueryNodeConfig> successors = config_graph.successors(node);
-    if (successors != null) {
-      sources = Lists.newArrayList();
-      for (final QueryNodeConfig successor : successors) {
-        sources.addAll(getDataSourceIds(successor));
-      }
-      
-      List<String> new_sources = Lists.newArrayListWithExpectedSize(sources.size());
-      for (final String source : sources) {
-        new_sources.add(node.getId() + ":" 
-            + source.substring(source.indexOf(":") + 1));
-      }
-      return new_sources;
-    }
-    throw new IllegalStateException("Made it to the root of a config graph "
-        + "without a source: " + node.getId());
-  }
-  
-  // Returns <nodeId>:<metric/as>
-  @Override
-  public Set<String> getMetrics(final QueryNodeConfig node) {
-    if (node instanceof TimeSeriesDataSourceConfig) {
-      return Sets.newHashSet(node.getId() + ":" + 
-          ((TimeSeriesDataSourceConfig) node).getMetric().getMetric());
-    } else if (node.joins()) {
-      if (node instanceof MergerConfig) {
-        Set<String> mg = Sets.newHashSet();
-        for (final QueryNodeConfig ds : config_graph.successors(node)) {
-          Set<String> m = getMetrics(ds);
-          for (final String src : m) {
-            mg.add(node.getId() + ":" + src.substring(src.indexOf(":") + 1));
-          }
-        }
-        return mg;
-      } else if (node instanceof ExpressionConfig) {
-        return Sets.newHashSet(node.getId() + ":" + 
-            (((ExpressionConfig) node).getAs() == null ? node.getId() : 
-              ((ExpressionConfig) node).getAs()));
-      } else if (node instanceof ExpressionParseNode) {
-        return Sets.newHashSet(node.getId() + ":" + 
-            (((ExpressionParseNode) node).getAs() == null ? node.getId() :
-              ((ExpressionParseNode) node).getAs()));
-      }
-      
-      // fallback for now
-      return Sets.newHashSet(node.getId() + ":" + node.getId());
-    }
-    
-    Set<String> metrics = Sets.newHashSet();
-    final Set<QueryNodeConfig> successors = config_graph.successors(node);
-    for (final QueryNodeConfig successor : successors) {
-      for(final String metric : getMetrics(successor)) {
-        metrics.add(node.getId() + ":" + metric.substring(metric.indexOf(':') + 1));
-      }
-    }
-    return metrics;
-  }
-  
   @Override
   public String getMetricForDataSource(final QueryNodeConfig node, 
                                        final String data_source_id) {
     if (node instanceof TimeSeriesDataSourceConfig &&
-        (node.getId().equals(data_source_id) ||
-         ((TimeSeriesDataSourceConfig) node).getDataSourceId().equals(data_source_id))) {
+        (node.getId().equals(data_source_id) /*||
+         ((TimeSeriesDataSourceConfig) node).getDataSourceId().equals(data_source_id)*/)) {
       return ((TimeSeriesDataSourceConfig) node).getMetric().getMetric();
     } else if (node.joins()) {
       if (node instanceof MergerConfig) {
@@ -1059,7 +768,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
           return null;
         }
         
-        // depth first as we're gauranteed, at least for now, to have something
+        // depth first as we're guaranteed, at least for now, to have something
         // like merger <- ha <- src1
         //                 ^--- src2
         // where each src has the same metric.
@@ -1095,6 +804,297 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
     
     return null;
+  }
+  
+  protected void buildInitialConfigGraph() {
+    final Map<String, QueryNodeConfig> config_map = 
+        Maps.newHashMapWithExpectedSize(
+            context.query().getExecutionGraph().size());
+    context_node = context_sink_config;
+    config_graph.addNode(context_node);
+    config_map.put("QueryContext", context_node);
+    
+    // the first step is to add the vertices to the graph and we'll stash
+    // the nodes in a map by node ID so we can link them later.
+    for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
+      if (config_map.putIfAbsent(node.getId(), node) != null) {
+        throw new QueryExecutionException("The node id \"" 
+            + node.getId() + "\" appeared more than once in the "
+            + "graph. It must be unique.", 400);
+      }
+      config_graph.addNode(node);
+    }
+    
+    // now link em with the edges.
+    for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
+      if (node instanceof TimeSeriesDataSourceConfig) {
+        source_nodes.add(node);
+      }
+
+      List<String> sources = node.getSources();
+      if (sources != null) {
+        for (final String source : sources) {
+          final QueryNodeConfig src = config_map.get(source);
+          if (src == null) {
+            throw new QueryExecutionException("No source node with ID " 
+                + source + " found for config " + node.getId(), 400);
+          }
+          config_graph.putEdge(node, src);
+          if (Graphs.hasCycle(config_graph)) {
+            throw new IllegalArgumentException("Cycle found linking node " 
+                + node.getId() + " to " + config_map.get(source).getId());
+          }
+        }
+      }
+    }
+    
+    // ugg... loop again and setup the links to the context config so we can do
+    // a proper depth first setup recursion.
+    for (final QueryNodeConfig node : config_graph.nodes()) {
+      if (node == context_node) {
+        continue;
+      }
+      
+      if (sink_filter.containsKey(node.getId())) {
+        config_graph.putEdge(context_node, node);
+        if (Graphs.hasCycle(config_graph)) {
+          throw new IllegalArgumentException("Cycle found linking node " 
+              + context_node.getId() + " to " + node.getId());
+        }
+        continue;
+      }
+      
+      if (config_graph.predecessors(node).isEmpty() && sink_filter.isEmpty()) {
+        config_graph.putEdge(context_node, node);
+        if (Graphs.hasCycle(config_graph)) {
+          throw new IllegalArgumentException("Cycle found linking node " 
+              + context_node.getId() + " to " + node.getId());
+        }
+      }
+    }
+  }
+  
+  protected void setupConfigGraph() {
+    satisfied_filters = Sets.newHashSet();
+    // next we walk and let the factories update the graph as needed.
+    // Note the clone to avoid concurrent modification of the graph.
+    Set<Integer> already_setup = Sets.newHashSet();
+    //boolean modified = true;
+    modified_during_setup = true;
+    while (modified_during_setup) {
+      if (source_nodes.isEmpty()) {
+        break;
+      }
+      modified_during_setup = false;
+      recursiveSetup(context_node, already_setup, satisfied_filters);
+    }
+    
+    // one more iteration to make sure we capture all the source nodes
+    // from the graph setup.
+    source_nodes.clear();
+    for (final QueryNodeConfig node : config_graph.nodes()) {
+      if (node instanceof TimeSeriesDataSourceConfig) {
+        source_nodes.add(node);
+      }
+    }
+  }
+  
+  protected List<Deferred<Void>> checkForConvertersAndInitFilters() {
+    final List<Deferred<Void>> deferreds = 
+        Lists.newArrayListWithExpectedSize(source_nodes.size());
+    ByteToStringIdConverterConfig.Builder converter_builder = null;
+    boolean push_mode = context.tsdb().getConfig().hasProperty("tsd.storage.enable_push") &&
+        context.tsdb().getConfig().getBoolean("tsd.storage.enable_push");
+    List<QueryResultId> ids = null;
+    for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
+      // see if we need to insert a byte Id converter upstream.
+      if (push_mode) {
+        // TODO - If both are byte IDs and the same, we set this as a predecessor
+        // of the merger so we need to make sure it's taking the merger result IDs
+        // and not the sources.
+        TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(c));
+        if (factory.idType() != Const.TS_STRING_ID) {
+          if (converter_builder == null) {
+            converter_builder = ByteToStringIdConverterConfig.newBuilder();
+          }
+          converter_builder.addDataSourceFactory(c.getId(), factory);
+          
+          if (ids == null) {
+            ids = Lists.newArrayList();
+          }
+          ids.addAll(c.resultIds());
+        }
+      } else {
+        needByteIdConverter(c);
+      }
+      
+      if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
+        deferreds.add(((TimeSeriesDataSourceConfig) c)
+            .getFilter().initialize(null /* TODO */));
+      }
+    }
+    
+    if (push_mode && converter_builder != null) {
+      final QueryNodeConfig converter = converter_builder
+          .setResultIds(ids)
+          .setId("IDConverter")
+          .build();
+      replace(context_sink_config, converter);
+      addEdge(context_sink_config, converter);
+    }
+    return deferreds;
+  }
+  
+  protected void verifySinkFilters() {
+    for (final String key : sink_filter.keySet()) {
+      if (!satisfied_filters.contains(key)) {
+        // it may have been added in a setup step so check for the node in the
+        // graph.
+        boolean found = false;
+        if (!found) {
+          throw new QueryExecutionException("Unsatisfied sink filter: " 
+              + key + printConfigGraph(), 400);
+        }
+      }
+    }
+  }
+  
+  protected void setupPushDowns() {
+    // next, push down by walking up from the data sources.
+    final List<QueryNodeConfig> copy = Lists.newArrayList(source_nodes);
+    for (final QueryNodeConfig node : copy) {
+      final QueryNodeFactory factory = getFactory(node);
+      // TODO - cleanup the source factories. ugg!!!
+      if (factory == null || !(factory instanceof TimeSeriesDataSourceFactory)) {
+        throw new QueryExecutionException("No node factory found for "
+            + "configuration " + node + "  Factory=" + factory, 400);
+      }
+      
+      final List<QueryNodeConfig> push_downs = Lists.newArrayList();
+      for (final QueryNodeConfig n : config_graph.predecessors(node)) {
+        pushDown(
+            node, 
+            node, 
+            (TimeSeriesDataSourceFactory) factory, 
+            n, 
+            push_downs);
+      }
+      
+      if (!push_downs.isEmpty()) {
+        // now dump the push downs into this node.
+        final TimeSeriesDataSourceConfig tsDataSourceconfig = 
+            (TimeSeriesDataSourceConfig) node;
+        final TimeSeriesDataSourceConfig new_config =
+            (TimeSeriesDataSourceConfig) 
+            ((BaseTimeSeriesDataSourceConfig.Builder) 
+                tsDataSourceconfig.toBuilder())
+            .setPushDownNodes(push_downs)
+            .setResultIds(push_downs.get(push_downs.size() - 1).resultIds())
+            .build();
+        replace(node, new_config);
+      }
+    }
+  }
+  
+  protected void computeSerializationSources() {
+    serialization_sources = Lists.newArrayList();
+    for (final QueryNodeConfig node : config_graph.successors(context_node)) {
+      for (final QueryResultId source : (List<QueryResultId>) node.resultIds()) {
+        if (serialization_sources.contains(source)) {
+          continue;
+        }
+        serialization_sources.add(source);
+      }
+    }
+    
+    // cleanout nodes that don't contribute to serialization. This can save
+    // some fetch time if we get a data source that isn't serialized or used
+    // in some computation!
+    final Set<QueryNodeConfig> nodes = Sets.newHashSet(config_graph.nodes());
+    for (final QueryNodeConfig config : nodes) {
+      if (!linksToContext(config)) {
+        removeNode(config);
+      }
+    }
+  }
+  
+  protected Deferred<Void> buildAndInitNodes() {
+    graph = GraphBuilder.directed()
+        .allowsSelfLoops(false)
+        .build();
+    graph.addNode(context_sink);
+    nodes_map.put(context_sink_config.getId(), context_sink);
+    
+    Traverser<QueryNodeConfig> traverser = Traverser.forGraph(config_graph);
+    for (final QueryNodeConfig node : traverser.breadthFirst(context_node)) {
+      if (config_graph.predecessors(node).isEmpty()) {
+        buildNodeGraph(context, node, nodes_map);
+      }
+    }
+    
+    if (LOG.isTraceEnabled()) {
+      LOG.trace(printConfigGraph());          
+    }
+    
+    if (context.query().isTraceEnabled()) {
+      context.queryContext().logTrace(printConfigGraph());
+    }
+    
+    // depth first initiation of the executors since we have to init
+    // the ones without any downstream dependencies first.
+    Set<QueryNode> initialized = Sets.newHashSet();
+    return recursiveInit(context_sink, initialized, null /* TODO */)
+        .addCallbackDeferring(new Callback<Deferred<Void>, Void>() {
+
+          @Override
+          public Deferred<Void> call(Void arg) throws Exception {
+            if (data_sources.isEmpty()) {
+              LOG.error("No data sources in the final graph for: " 
+                  + context.query() + " " + printConfigGraph());
+              return Deferred.<Void>fromError(new RuntimeException(
+                  "No data sources in the final graph for: " 
+                      + context.query() + " " + printConfigGraph()));
+            }
+            return null;
+          }
+          
+        });
+  }
+  
+  /**
+   * Method to iterate over the immediate successors of the given node config to
+   * compile a combined list of result IDs.
+   * @param config A non-null config in the graph.
+   * @return A non-null, potentially empty, list of result IDs.
+   */
+  public List<QueryResultId> compileResultIds(final QueryNodeConfig config) {
+    final List<QueryResultId> ids = Lists.newArrayList();
+    for (final QueryNodeConfig downstream : config_graph.successors(config)) {
+      for (final QueryResultId source : 
+          (List<QueryResultId>) downstream.resultIds()) {
+        ids.add(new DefaultQueryResultId(config.getId(), source.dataSource()));
+      }
+    }
+    return ids;
+  }
+  
+  class ConfigInitCB implements Callback<Deferred<Void>, Void> {
+
+    @Override
+    public Deferred<Void> call(final Void ignored) throws Exception {
+      // before doing any more work, make sure the the filters have been
+      // satisfied.
+      verifySinkFilters();
+      setupPushDowns();
+      
+      // TODO clean out nodes that won't contribute to serialization.
+      // compute source IDs.
+      computeSerializationSources();
+      
+      // now go and build the node graph
+      return buildAndInitNodes();
+    }
+    
   }
   
   /**
@@ -1176,17 +1176,48 @@ public class DefaultQueryPlanner implements QueryPlanner {
   }
   
   /**
+   * Recursive method to find out if a node contributes to an operation that will
+   * be serialized.
+   * @param config A non-null config to work on.
+   * @return True if the node does link to the query context config through the
+   * graph, false if it doesn't.
+   */
+  private boolean linksToContext(final QueryNodeConfig config) {
+    if (config == context_sink_config) {
+      return true;
+    }
+    
+    final Set<QueryNodeConfig> predecessors = config_graph.predecessors(config);
+    if (predecessors.isEmpty()) {
+      return false;
+    }
+    
+    for (final QueryNodeConfig predecessor : predecessors) {
+      if (linksToContext(predecessor)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
    * Helper for UTs and debugging to print the graph.
    */
   public String printConfigGraph() {
     final StringBuilder buffer = new StringBuilder();
     buffer.append(" -------------------------\n");
     for (final QueryNodeConfig node : config_graph.nodes()) {
-      buffer.append("[V] " + node.getId() + " {" + node.getClass().getSimpleName() + "} (" + System.identityHashCode(node) + ")\n");
+      buffer.append("[V] " + node.getId() + " {" 
+          + node.getClass().getSimpleName() + "} (" 
+          + System.identityHashCode(node) + ")\n");
     }
     buffer.append("\n");
     for (final EndpointPair<QueryNodeConfig> pair : config_graph.edges()) {
-      buffer.append("[E] " + pair.nodeU().getId() + " (" + System.identityHashCode(pair.nodeU()) + ") => " + pair.nodeV().getId() + " (" + System.identityHashCode(pair.nodeV()) + ")\n");
+      buffer.append("[E] " + pair.nodeU().getId() 
+          + " (" + System.identityHashCode(pair.nodeU()) + ") => " 
+          + pair.nodeV().getId() + " (" 
+          + System.identityHashCode(pair.nodeV()) + ")\n");
     }
     buffer.append(" -------------------------\n");
     return buffer.toString();
@@ -1195,17 +1226,22 @@ public class DefaultQueryPlanner implements QueryPlanner {
   /**
    * Helper for UTs and debugging to print the graph.
    */
-  public void printNodeGraph() {
-    System.out.println(" ------------------------- ");
+  public String printNodeGraph() {
+    final StringBuilder buffer = new StringBuilder();
+    buffer.append(" -------------------------\n");
     for (final QueryNode node : graph.nodes()) {
-      System.out.println("[V] " + node.config().getId() + " (" 
-          + node.getClass().getSimpleName() + ")");
+      buffer.append("[V] " + node.config().getId() 
+          + " {" + node.getClass().getSimpleName() + "} (" 
+          + System.identityHashCode(node) + ")\n");
     }
-    System.out.println();
+    buffer.append("\n");
     for (final EndpointPair<QueryNode> pair : graph.edges()) {
-      System.out.println("[E] " + pair.nodeU().config().getId() 
-          + " => " + pair.nodeV().config().getId());
+      buffer.append("[E] " + pair.nodeU().config().getId() 
+          + " (" + System.identityHashCode(pair.nodeU()) + ") => " 
+          + pair.nodeV().config().getId() + " (" 
+          + System.identityHashCode(pair.nodeV()) + ")\n");
     }
-    System.out.println(" ------------------------- ");
+    buffer.append(" -------------------------\n");
+    return buffer.toString();
   }
 }

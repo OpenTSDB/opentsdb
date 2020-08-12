@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.utils.Comparators.MapComparator;
 
@@ -87,6 +88,12 @@ public abstract class BaseQueryNodeConfigWithInterpolators<B extends BaseQueryNo
       interpolator_configs.get(type);
   }
 
+  protected void toBuilder(final Builder builder) {
+    builder.setInterpolatorConfigs(
+        Lists.newArrayList(interpolator_configs.values()));
+    super.toBuilder(builder);
+  }
+  
   public static abstract class Builder<B extends Builder<B, C>, C extends BaseQueryNodeConfigWithInterpolators> extends BaseQueryNodeConfig.Builder<B, C> {
     @JsonProperty
     protected List<QueryInterpolatorConfig> interpolatorConfigs;
@@ -121,7 +128,6 @@ public abstract class BaseQueryNodeConfigWithInterpolators<B extends BaseQueryNo
     
   }
 
-
   @Override
   public boolean equals(final Object o) {
     if (this == o)
@@ -139,12 +145,10 @@ public abstract class BaseQueryNodeConfigWithInterpolators<B extends BaseQueryNo
 
   }
 
-
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {

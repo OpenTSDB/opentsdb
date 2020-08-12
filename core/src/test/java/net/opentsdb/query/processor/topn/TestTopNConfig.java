@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,12 +18,12 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.query.processor.slidingwindow.SlidingWindowConfig;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.utils.JSON;
 
 public class TestTopNConfig {
@@ -151,6 +151,26 @@ public class TestTopNConfig {
     assertTrue(!config.equals(config3));
     assertNotEquals(config.hashCode(), config3.hashCode());
 
+  }
+  
+  @Test
+  public void toBuilder() throws Exception {
+    TopNConfig original = (TopNConfig) TopNConfig.newBuilder()
+        .setTop(true)
+        .setCount(10)
+        .setInfectiousNan(true)
+        .setId("Toppy")
+        .addResultId(new DefaultQueryResultId("Toppy", "m1"))
+        .build();
+    
+    TopNConfig config = original.toBuilder().build();
+    
+    assertTrue(config.getTop());
+    assertEquals(10, config.getCount());
+    assertTrue(config.getInfectiousNan());
+    assertEquals("Toppy", config.getId());
+    assertEquals(1, config.resultIds().size());
+    assertEquals(new DefaultQueryResultId("Toppy", "m1"), config.resultIds().get(0));
   }
   
 }

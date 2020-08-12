@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2019  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ public abstract class AbstractQueryPipelineContext implements
   
   /** A list of query results expected per type so we can call close on
    * sinks when we've passed them through. */
-  protected final Map<String, AtomicInteger> countdowns;
+  protected final Map<QueryResultId, AtomicInteger> countdowns;
   
   /** The upstream query context this pipeline context belongs to. */
   protected final QueryContext context;
@@ -460,6 +460,7 @@ public abstract class AbstractQueryPipelineContext implements
   public void onComplete(final PartialTimeSeries series) {
     // TODO - need to track multiple sinks eventually.
     try {
+      // TODO - query result ID.
       final String set_id = series.set().node().config().getId() + ":" 
           + series.set().dataSource();
       
@@ -573,7 +574,7 @@ public abstract class AbstractQueryPipelineContext implements
           }
         }
         
-        for (final String source : plan.serializationSources()) {
+        for (final QueryResultId source : plan.serializationSources()) {
           countdowns.put(source, new AtomicInteger(sinks.size()));
         }
         
@@ -633,16 +634,15 @@ public abstract class AbstractQueryPipelineContext implements
       return result.source();
     }
     
+    @Override
+    public QueryResultId dataSource() {
+      return result.dataSource();
+    }
+    
     public void closeWrapperOnly() {
       AtomicInteger cntr = countdowns.get(result.dataSource());
-      if (cntr == null) {
-        cntr = countdowns.get(result.source().config().getId() + ":" 
-            + result.dataSource());
-      }
-
        if (cntr == null ) {
         LOG.error("Unexpected result source, no counter for: " 
-            + result.source().config().getId() + ":" 
             + result.dataSource() + " of type " + result.getClass() 
             + ". Want sources: " + countdowns);
       } else {
@@ -655,12 +655,11 @@ public abstract class AbstractQueryPipelineContext implements
     public void close() {
       AtomicInteger cntr = countdowns.get(result.dataSource());
       if (cntr == null) {
-        cntr = countdowns.get(result.source().config().getId() + ":" + result.dataSource());
+        cntr = countdowns.get(result.dataSource());
       }
       
       if (cntr == null ) {
         LOG.error("Unexpected result source, no counter for: " 
-            + result.source().config().getId() + ":" 
             + result.dataSource() + ". WANT: " + countdowns.keySet());
       } else {
         cntr.decrementAndGet();
@@ -690,7 +689,6 @@ public abstract class AbstractQueryPipelineContext implements
       super(result);
       this.result = result;
     }
-
 
     @Override
     public Summary resultSummary() {

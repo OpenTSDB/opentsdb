@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ public class BadQueryResult implements QueryResult {
   private final Throwable exception;
   private final String error;
   private final QueryNode node;
-  private final String data_source;
+  private final QueryResultId data_source;
   
   private BadQueryResult(final Builder builder) {
     exception = builder.exception;
@@ -76,7 +76,7 @@ public class BadQueryResult implements QueryResult {
   }
 
   @Override
-  public String dataSource() {
+  public QueryResultId dataSource() {
     return data_source;
   }
 
@@ -113,7 +113,7 @@ public class BadQueryResult implements QueryResult {
     private Throwable exception;
     private String error;
     private QueryNode node;
-    private String data_source;
+    private QueryResultId data_source;
     
     public Builder setException(final Throwable exception) {
       this.exception = exception;
@@ -130,7 +130,7 @@ public class BadQueryResult implements QueryResult {
       return this;
     }
     
-    public Builder setDataSource(final String data_source) {
+    public Builder setDataSource(final QueryResultId data_source) {
       this.data_source = data_source;
       return this;
     }
@@ -140,7 +140,9 @@ public class BadQueryResult implements QueryResult {
         throw new IllegalArgumentException("Must have an error string or "
             + "an exception.");
       }
-      if (Strings.isNullOrEmpty(data_source)) {
+      if (data_source == null || 
+          Strings.isNullOrEmpty(data_source.nodeID()) || 
+          Strings.isNullOrEmpty(data_source.dataSource())) {
         throw new IllegalArgumentException("Data source cannot be null or empty.");
       }
       if (node == null) {

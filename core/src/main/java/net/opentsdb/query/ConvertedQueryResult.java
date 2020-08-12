@@ -69,7 +69,7 @@ public class ConvertedQueryResult extends BaseWrappedQueryResult
   protected ConvertedQueryResult(final QueryResult result, 
                                  final QueryNode node,
                                  final Span span) {
-    super(result);
+    super(node, result);
     this.node = node;
     sink = null;
     this.span = span;
@@ -186,6 +186,11 @@ public class ConvertedQueryResult extends BaseWrappedQueryResult
     return result.source();
   }
 
+  @Override
+  public QueryResultId dataSource() {
+    return result.dataSource();
+  }
+  
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return Const.TS_STRING_ID;

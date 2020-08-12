@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -215,8 +215,6 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         builder.setDataSources(Lists.newArrayList(default_sources));
       }
     }
-    
-    builder.setDataSourceId(config.getDataSourceId());
 
     final String new_id = "ha_" + config.getId();
     if (context.query().isTraceEnabled()) {

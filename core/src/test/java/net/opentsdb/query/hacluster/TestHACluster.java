@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2019  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //This program is free software: you can redistribute it and/or modify it
 //under the terms of the GNU Lesser General Public License as published by
@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.DefaultQueryResultId;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -82,7 +84,6 @@ public class TestHACluster {
         .setSecondaryTimeout("5s")
         .setMergeAggregator("max")
         .setDataSources(Lists.newArrayList("s1", "s2"))
-        .setDataSourceId("m1")
         .setId("m1");
     (builder).setMetric(MetricLiteralFilter.newBuilder().setMetric("sys.if.in").build());
     this.config = (HAClusterConfig) builder.build();
@@ -161,7 +162,7 @@ public class TestHACluster {
     QueryResult r1 = mock(QueryResult.class);
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
-    when(r1.dataSource()).thenReturn("m1");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
@@ -177,7 +178,7 @@ public class TestHACluster {
     QueryResult r2 = mock(QueryResult.class);
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
-    when(r2.dataSource()).thenReturn("m1");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
@@ -188,10 +189,10 @@ public class TestHACluster {
     verify(upstream, times(2)).onNext(any(QueryResult.class));
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(0).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(0).dataSource());
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(1).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(1).dataSource());
     verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
         eq(5000L), eq(TimeUnit.MILLISECONDS));
     verify(tsdb.query_timer.timeout, times(1)).cancel();
@@ -209,7 +210,7 @@ public class TestHACluster {
     QueryResult r2 = mock(QueryResult.class);
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
-    when(r2.dataSource()).thenReturn("m1");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
@@ -226,7 +227,7 @@ public class TestHACluster {
     QueryResult r1 = mock(QueryResult.class);
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
-    when(r1.dataSource()).thenReturn("m1");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
@@ -237,10 +238,10 @@ public class TestHACluster {
     verify(upstream, times(2)).onNext(any(QueryResult.class));
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(0).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(0).dataSource());
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(1).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(1).dataSource());
     verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
         eq(10000L), eq(TimeUnit.MILLISECONDS));
     verify(tsdb.query_timer.timeout, times(1)).cancel();
@@ -255,7 +256,7 @@ public class TestHACluster {
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
-    when(r1.dataSource()).thenReturn("m1");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(r1.source()).thenReturn(n1);
     
     TimeSeriesDataSource n2 = mock(TimeSeriesDataSource.class);
@@ -290,10 +291,10 @@ public class TestHACluster {
     verify(upstream, times(2)).onNext(any(QueryResult.class));
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(0).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(0).dataSource());
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(1).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(1).dataSource());
     verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
         eq(5000L), eq(TimeUnit.MILLISECONDS));
     verify(tsdb.query_timer.timeout, times(1)).cancel();
@@ -314,7 +315,7 @@ public class TestHACluster {
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
     when(r2.source()).thenReturn(n2);
-    when(r2.dataSource()).thenReturn("m1");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     when(context.downstreamSources(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(n1, n2));
@@ -342,10 +343,10 @@ public class TestHACluster {
     verify(upstream, times(2)).onNext(any(QueryResult.class));
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(0).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(0).dataSource());
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(1).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(1).dataSource());
     verify(tsdb.query_timer, times(1)).newTimeout(any(TimerTask.class), 
         eq(10000L), eq(TimeUnit.MILLISECONDS));
     verify(tsdb.query_timer.timeout, times(1)).cancel();
@@ -360,7 +361,7 @@ public class TestHACluster {
     when(r1.error()).thenReturn("Whoops");
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
-    when(r1.dataSource()).thenReturn("m1");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
@@ -375,7 +376,7 @@ public class TestHACluster {
     QueryResult r2 = mock(QueryResult.class);
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
-    when(r2.dataSource()).thenReturn("m1");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
@@ -386,10 +387,10 @@ public class TestHACluster {
     verify(upstream, times(2)).onNext(any(QueryResult.class));
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(0).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(0).dataSource());
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(1).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(1).dataSource());
     verify(tsdb.query_timer, never()).newTimeout(any(TimerTask.class), 
         eq(5000L), eq(TimeUnit.MILLISECONDS));
   }
@@ -407,7 +408,7 @@ public class TestHACluster {
     when(r2.error()).thenReturn("Whoops");
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
-    when(r2.dataSource()).thenReturn("m1");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
@@ -423,7 +424,7 @@ public class TestHACluster {
     QueryResult r1 = mock(QueryResult.class);
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
-    when(r1.dataSource()).thenReturn("m1");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
@@ -434,10 +435,10 @@ public class TestHACluster {
     verify(upstream, times(2)).onNext(any(QueryResult.class));
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(0).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(0).dataSource());
     assertTrue(results.get(0).source().config().getId().equals("s1")
         || results.get(0).source().config().getId().equals("s2"));
-    assertEquals("m1", results.get(1).dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), results.get(1).dataSource());
     verify(tsdb.query_timer, never()).newTimeout(any(TimerTask.class), 
         eq(10000L), eq(TimeUnit.MILLISECONDS));
   }

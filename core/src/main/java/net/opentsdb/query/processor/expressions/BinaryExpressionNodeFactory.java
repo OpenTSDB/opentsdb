@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -33,11 +33,8 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
@@ -175,16 +172,6 @@ public class BinaryExpressionNodeFactory extends BaseQueryNodeFactory<Expression
     n = node.get("as");
     if (n != null && !n.isNull()) {
       builder.setAs(n.asText());
-    }
-    
-    n = node.get("leftId");
-    if (n != null && !n.isNull()) {
-      builder.setLeftId(n.asText());
-    }
-    
-    n = node.get("rightId");
-    if (n != null && !n.isNull()) {
-      builder.setRightId(n.asText());
     }
     
     n = node.get("id");

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2019  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
@@ -33,7 +32,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -186,877 +184,877 @@ public class TestReadCacheQueryPipelineContext {
     assertEquals(1, ctx.sinks.size());
     assertSame(SINK, ctx.sinks.get(0));
   }
-  
-  @Test
-  public void initializeNoDownsample() throws Exception {
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1h", ctx.string_interval);
-    assertEquals(0, ctx.min_interval);
-    assertEquals(3600, ctx.interval_in_seconds);
-    assertEquals(6, ctx.slices.length);
-    int ts = 1514764800;
-    for (int i = 0; i < 6; i++) {
-      assertEquals(ts, ctx.slices[i]);
-      ts += ctx.interval_in_seconds;
-    }
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(2147483647), "1h", ctx.slices, ctx.expirations);
-    assertEquals(0, ctx.sinks.size());
-  }
-  
-  @Test
-  public void initializeNoDownsampleOffsetQueryTimes() throws Exception {
-    setQuery(1514768087, 1514789687, null, false);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1h", ctx.string_interval);
-    assertEquals(0, ctx.min_interval);
-    assertEquals(3600, ctx.interval_in_seconds);
-    assertEquals(7, ctx.slices.length);
-    int ts = 1514764800;
-    for (int i = 0; i < 7; i++) {
-      assertEquals(ts, ctx.slices[i]);
-      ts += ctx.interval_in_seconds;
-    }
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(2147483647), "1h", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeSingleDownsample1m() throws Exception {
-    setQuery(1514764800, 1514786400, "1m", false);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1h", ctx.string_interval);
-    assertEquals(60, ctx.min_interval);
-    assertEquals(3600, ctx.interval_in_seconds);
-    assertEquals(6, ctx.slices.length);
-    int ts = 1514764800;
-    for (int i = 0; i < 6; i++) {
-      assertEquals(ts, ctx.slices[i]);
-      ts += ctx.interval_in_seconds;
-    }
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeSingleDownsample1h() throws Exception {
-    setQuery(1514764800, 1514786400, "1h", false);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1d", ctx.string_interval);
-    assertEquals(3600, ctx.min_interval);
-    assertEquals(86400, ctx.interval_in_seconds);
-    assertEquals(1, ctx.slices.length);
-    assertEquals(1514764800, ctx.slices[0]);
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(3600), "1d", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeSingleDownsampleRunAllSmall() throws Exception {
-    setQuery(1514764800, 1514786400, "1m", true);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertTrue(ctx.skip_cache);
-    verify(keygen_plugin, never()).generate(
-        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeSingleDownsampleRunAllBig() throws Exception {
-    setQuery(1514764800, 1514876087, "1m", true);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertTrue(ctx.skip_cache);
-    verify(keygen_plugin, never()).generate(
-        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeSingleDownsampleAutoSmall() throws Exception {
-    setQuery(1514764800, 1514786400, "auto", false);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1h", ctx.string_interval);
-    assertEquals(60, ctx.min_interval);
-    assertEquals(3600, ctx.interval_in_seconds);
-    assertEquals(6, ctx.slices.length);
-    int ts = 1514764800;
-    for (int i = 0; i < 6; i++) {
-      assertEquals(ts, ctx.slices[i]);
-      ts += ctx.interval_in_seconds;
-    }
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeSingleDownsampleAutoBig() throws Exception {
-    setQuery(1514764800, 1515048887, "auto", false);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1d", ctx.string_interval);
-    assertEquals(3600, ctx.min_interval);
-    assertEquals(86400, ctx.interval_in_seconds);
-    assertEquals(4, ctx.slices.length);
-    int ts = 1514764800;
-    for (int i = 0; i < 4; i++) {
-      assertEquals(ts, ctx.slices[i]);
-      ts += ctx.interval_in_seconds;
-    }
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(3600), "1d", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeMultipleDownsamples() throws Exception {
-    SemanticQuery.Builder builder = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(1514764800))
-        .setEnd(Integer.toString(1515048887))
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build());
-      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
-          .setAggregator("sum")
-          .setInterval("1m")
-          .addInterpolatorConfig(NUMERIC_CONFIG)
-          .setRunAll(false)
-          .addSource("m1")
-          .setId("downsample")
-          .build());
-      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
-          .setAggregator("avg")
-          .setInterval("1h")
-          .addInterpolatorConfig(NUMERIC_CONFIG)
-          .setRunAll(false)
-          .addSource("m1")
-          .setId("ds2")
-          .build());
-    query = builder.build();
-    when(context.query()).thenReturn(query);
-    
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1d", ctx.string_interval);
-    assertEquals(60, ctx.min_interval);
-    assertEquals(86400, ctx.interval_in_seconds);
-    assertEquals(4, ctx.slices.length);
-    int ts = 1514764800;
-    for (int i = 0; i < 4; i++) {
-      assertEquals(ts, ctx.slices[i]);
-      ts += ctx.interval_in_seconds;
-    }
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(60), "1d", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeMultipleDownsamplesWithRunall() throws Exception {
-    SemanticQuery.Builder builder = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(1514764800))
-        .setEnd(Integer.toString(1515048887))
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build());
-      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
-          .setAggregator("sum")
-          .setInterval("1m")
-          .addInterpolatorConfig(NUMERIC_CONFIG)
-          .setRunAll(false)
-          .addSource("m1")
-          .setId("downsample")
-          .build());
-      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
-          .setAggregator("avg")
-          .setInterval("0all")
-          .addInterpolatorConfig(NUMERIC_CONFIG)
-          .setRunAll(true)
-          .addSource("m1")
-          .setId("ds2")
-          .build());
-    query = builder.build();
-    when(context.query()).thenReturn(query);
-    
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertTrue(ctx.skip_cache);
-    verify(keygen_plugin, never()).generate(
-        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
-  }
-  
-  @Test
-  public void initializeSinkFromConfig() throws Exception {
-    SemanticQuery.Builder builder = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart("1514764800")
-        .setEnd("1514786400")
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setId("m1")
-            .build());
-      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
-          .setAggregator("sum")
-          .setInterval("1m")
-          .addInterpolatorConfig(NUMERIC_CONFIG)
-          .setRunAll(false)
-          .addSource("m1")
-          .setId("downsample")
-          .build());
-    query = builder.build();
-    when(context.query()).thenReturn(query);
-    when(context.sinkConfigs()).thenReturn(Lists.newArrayList(SINK_CONFIG));
-    
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    
-    assertSame(cache_plugin, ctx.cache);
-    assertSame(keygen_plugin, ctx.key_gen);
-    assertFalse(ctx.skip_cache);
-    assertEquals("1h", ctx.string_interval);
-    assertEquals(3600, ctx.interval_in_seconds);
-    assertEquals(6, ctx.slices.length);
-    int ts = 1514764800;
-    for (int i = 0; i < 6; i++) {
-      assertEquals(ts, ctx.slices[i]);
-      ts += ctx.interval_in_seconds;
-    }
-    verify(keygen_plugin, times(1)).generate(
-        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
-    assertEquals(1, ctx.sinks.size());
-    assertSame(SINK, ctx.sinks.get(0));
-  }
-  
-  @Test
-  public void fetchNext() throws Exception {
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList());
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(6, ctx.cache_latch.get());
-    verify(cache_plugin, times(1)).fetch(ctx, ctx.keys, ctx, null);
-  }
-  
-  @Test
-  public void onCacheError() throws Exception {
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(SINK));
-    ctx.initialize(null).join();
-    ctx.onCacheError(-1, new UnitTestException());
-    ctx.onCacheError(-1, new UnitTestException());
-    verify(SINK, never()).onError(any(UnitTestException.class));
-    // TODO - test full query run.
-  }
-  
-  @Test
-  public void onCacheResultsGoodOld() throws Exception {
-    mockDateTime(1514851200000L);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    
-    assertEquals(1514851200000L, ctx.current_time);
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(3, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(1, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(0, ctx.cache_latch.get());
-    
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-  }
-  
-  @Test
-  public void onCacheResultsGoodOneTipNotLast() throws Exception {
-    setQuery(1514765700, 1514787300, "5m", false);
-    mockDateTime(1514787360000L);
-    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink)));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(7, ctx.results.length);
-    
-    assertEquals(1514787360000L, ctx.current_time);
-    assertEquals(7, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514787300));
-    assertEquals(3, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
-    assertEquals(1, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(0, ctx.cache_latch.get()); 
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
-    ctx.results[6].onNext(mockResult("m1", "m1"));
-    ctx.results[6].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    assertFalse(TSDB.runnables.isEmpty()); // cached!
-  }
-  
-  @Test
-  public void onCacheResultsGoodOneTipLast() throws Exception {
-    setQuery(1514765700, 1514787300, "5m", false);
-    mockDateTime(1514787360000L);
-    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink)));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(7, ctx.results.length);
-    
-    assertEquals(1514787360000L, ctx.current_time);
-    assertEquals(7, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(3, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(1, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514787300));
-    assertEquals(0, ctx.cache_latch.get());
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
-    ctx.results[6].onNext(mockResult("m1", "m1"));
-    ctx.results[6].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    assertFalse(TSDB.runnables.isEmpty()); // cached!
-  }
-  
-  @Test
-  public void onCacheResultsGoodOneTipLastReadOnly() throws Exception {
-    setQuery(1514765700, 1514787300, "5m", false, CacheMode.READONLY);
-    mockDateTime(1514787360000L);
-    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink)));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(7, ctx.results.length);
-    
-    assertEquals(1514787360000L, ctx.current_time);
-    assertEquals(7, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(3, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(1, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514787300));
-    assertEquals(0, ctx.cache_latch.get());
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
-    ctx.results[6].onNext(mockResult("m1", "m1"));
-    ctx.results[6].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty()); // cached!
-  }
-  
-  @Test
-  public void onCacheResultsGoodTwoTipsNotLast() throws Exception {
-    setQuery(1514765700, 1514787300, "5m", false);
-    mockDateTime(1514786520000L);
-    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink)));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(7, ctx.results.length);
-    
-    assertEquals(1514786520000L, ctx.current_time);
-    assertEquals(7, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
-    assertEquals(3, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
-    assertEquals(1, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(0, ctx.cache_latch.get()); 
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
-    
-    // one result in
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
-    ctx.results[6].onNext(mockResult("m1", "m1"));
-    ctx.results[6].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get()); // #5 is left
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    // last result came in
-    ctx.results[5].onNext(mockResult("m1", "m1"));
-    ctx.results[5].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    assertFalse(TSDB.runnables.isEmpty()); // cached!
-  }
-  
-  @Test
-  public void onCacheResultsGoodTwoTipsLast() throws Exception {
-    setQuery(1514765700, 1514787300, "5m", false);
-    mockDateTime(1514786520000L);
-    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink)));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(7, ctx.results.length);
-    
-    assertEquals(1514786520000L, ctx.current_time);
-    assertEquals(7, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());    
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(3, ctx.cache_latch.get()); 
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
-    assertEquals(1, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
-    assertEquals(0, ctx.cache_latch.get());
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
-    
-    // one result in
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
-    ctx.results[6].onNext(mockResult("m1", "m1"));
-    ctx.results[6].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get()); // #5 is left
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    // last result came in
-    ctx.results[5].onNext(mockResult("m1", "m1"));
-    ctx.results[5].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    assertFalse(TSDB.runnables.isEmpty()); // cached!
-  }
-  
-  @Test
-  public void onCacheResultsGoodTwoTipsLastResultInBetween() throws Exception {
-    setQuery(1514765700, 1514787300, "5m", false);
-    mockDateTime(1514786520000L);
-    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink)));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(7, ctx.results.length);
-    
-    assertEquals(1514786520000L, ctx.current_time);
-    assertEquals(7, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());    
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(3, ctx.cache_latch.get()); 
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
-    assertEquals(1, ctx.cache_latch.get());
-    
-    // result in between
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
-    ctx.results[5].onNext(mockResult("m1", "m1"));
-    ctx.results[5].onComplete();
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
-    assertEquals(0, ctx.cache_latch.get());
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    // one result in
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
-    ctx.results[6].onNext(mockResult("m1", "m1"));
-    ctx.results[6].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    assertFalse(TSDB.runnables.isEmpty()); // cached!
-  }
-  
-  @Test
-  public void onCacheResultsGoodTwoTipsExceptionFromSubQuery() throws Exception {
-    setQuery(1514765700, 1514787300, "5m", false);
-    mockDateTime(1514786520000L);
-    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink)));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    assertEquals(7, ctx.results.length);
-    
-    assertEquals(1514786520000L, ctx.current_time);
-    assertEquals(7, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());    
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(3, ctx.cache_latch.get()); 
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
-    assertEquals(1, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
-    assertEquals(0, ctx.cache_latch.get());
-    System.out.println(" 000000000000000000000000000000000");
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
-    
-    // one result in
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
-    ctx.results[6].onError(new UnitTestException());
-    
-    verify(sink, times(1)).onError(any(UnitTestException.class));
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    
-    // last result came in
-    ctx.results[5].onNext(mockResult("m1", "m1"));
-    ctx.results[5].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    verify(sink, times(1)).onError(any(UnitTestException.class));
-    assertTrue(TSDB.runnables.isEmpty());
-  }
-  
-  @Test
-  public void onCacheResultsGoodButOneFailed() throws Exception {
-    mockDateTime(1514851200000L);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    
-    assertEquals(1514851200000L, ctx.current_time);
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    // whoops!
-    ctx.onCacheError(-1, new UnitTestException());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(4, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    // TODO - fix it up
-    //verify(sink, times(1)).onNext(any(QueryResult.class));
-    verify(sink, never()).onError(any(UnitTestException.class));
-    assertTrue(TSDB.runnables.isEmpty());
-  }
-  
-  @Test
-  public void onCacheResultsBelowThresholdThenRecovers() throws Exception {
-    mockDateTime(1514851200000L);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    
-    assertEquals(1514851200000L, ctx.current_time);
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildCacheMiss(ctx, 4));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
-    assertEquals(3, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
-    assertEquals(2, ctx.cache_latch.get());
-    assertNull(ctx.results[4].sub_context);
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(1, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    // now we run 4
-    assertTrue(((MockQueryContext) ctx.results[4].sub_context).initialized);
-    assertTrue(((MockQueryContext) ctx.results[4].sub_context).fetched);
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(0, ctx.cache_latch.get());
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    assertNull(ctx.full_query_context);
-    
-    ctx.results[4].onNext(mockResult("m1", "m1"));
-    ctx.results[4].onComplete();
-    
-    assertEquals(0, ctx.cache_latch.get());
-    // TODO - fix me
-    //verify(sink, times(1)).onNext(any(QueryResult.class));
-  }
-  
-  @Test
-  public void onCacheResultsBelowThresholdAtEnd() throws Exception {
-    mockDateTime(1514851200000L);
-    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
-        Lists.newArrayList(sink));
-    ctx.initialize(null).join();
-    ctx.fetchNext(null);
-    
-    assertEquals(1514851200000L, ctx.current_time);
-    assertEquals(6, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildCacheMiss(ctx, 4));
-    assertEquals(5, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
-    assertEquals(4, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildCacheMiss(ctx, 1));
-    assertEquals(3, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildCacheMiss(ctx, 5));
-    assertEquals(2, ctx.cache_latch.get());
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
-    assertEquals(1, ctx.cache_latch.get());
-    verify(sink, never()).onNext(any(QueryResult.class));
-    
-    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
-    assertEquals(0, ctx.cache_latch.get());
-    
-    verify(sink, never()).onNext(any(QueryResult.class));
-    assertTrue(TSDB.runnables.isEmpty());
-    assertTrue(((MockQueryContext) ctx.full_query_context).initialized);
-    assertTrue(((MockQueryContext) ctx.full_query_context).fetched);
-    
-    ((MockQueryContext) ctx.full_query_context).sink.onNext(mockResult("m1", "m1"));
-    verify(sink, times(1)).onNext(any(QueryResult.class));
-    
-    // cleaned up
-    assertNull(ctx.results[4].map);
-  }
-  
+  // TODO - we'll redo the cache in a little bit.
+//  @Test
+//  public void initializeNoDownsample() throws Exception {
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1h", ctx.string_interval);
+//    assertEquals(0, ctx.min_interval);
+//    assertEquals(3600, ctx.interval_in_seconds);
+//    assertEquals(6, ctx.slices.length);
+//    int ts = 1514764800;
+//    for (int i = 0; i < 6; i++) {
+//      assertEquals(ts, ctx.slices[i]);
+//      ts += ctx.interval_in_seconds;
+//    }
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(2147483647), "1h", ctx.slices, ctx.expirations);
+//    assertEquals(0, ctx.sinks.size());
+//  }
+//  
+//  @Test
+//  public void initializeNoDownsampleOffsetQueryTimes() throws Exception {
+//    setQuery(1514768087, 1514789687, null, false);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1h", ctx.string_interval);
+//    assertEquals(0, ctx.min_interval);
+//    assertEquals(3600, ctx.interval_in_seconds);
+//    assertEquals(7, ctx.slices.length);
+//    int ts = 1514764800;
+//    for (int i = 0; i < 7; i++) {
+//      assertEquals(ts, ctx.slices[i]);
+//      ts += ctx.interval_in_seconds;
+//    }
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(2147483647), "1h", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeSingleDownsample1m() throws Exception {
+//    setQuery(1514764800, 1514786400, "1m", false);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1h", ctx.string_interval);
+//    assertEquals(60, ctx.min_interval);
+//    assertEquals(3600, ctx.interval_in_seconds);
+//    assertEquals(6, ctx.slices.length);
+//    int ts = 1514764800;
+//    for (int i = 0; i < 6; i++) {
+//      assertEquals(ts, ctx.slices[i]);
+//      ts += ctx.interval_in_seconds;
+//    }
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeSingleDownsample1h() throws Exception {
+//    setQuery(1514764800, 1514786400, "1h", false);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1d", ctx.string_interval);
+//    assertEquals(3600, ctx.min_interval);
+//    assertEquals(86400, ctx.interval_in_seconds);
+//    assertEquals(1, ctx.slices.length);
+//    assertEquals(1514764800, ctx.slices[0]);
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(3600), "1d", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeSingleDownsampleRunAllSmall() throws Exception {
+//    setQuery(1514764800, 1514786400, "1m", true);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertTrue(ctx.skip_cache);
+//    verify(keygen_plugin, never()).generate(
+//        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeSingleDownsampleRunAllBig() throws Exception {
+//    setQuery(1514764800, 1514876087, "1m", true);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertTrue(ctx.skip_cache);
+//    verify(keygen_plugin, never()).generate(
+//        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeSingleDownsampleAutoSmall() throws Exception {
+//    setQuery(1514764800, 1514786400, "auto", false);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1h", ctx.string_interval);
+//    assertEquals(60, ctx.min_interval);
+//    assertEquals(3600, ctx.interval_in_seconds);
+//    assertEquals(6, ctx.slices.length);
+//    int ts = 1514764800;
+//    for (int i = 0; i < 6; i++) {
+//      assertEquals(ts, ctx.slices[i]);
+//      ts += ctx.interval_in_seconds;
+//    }
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeSingleDownsampleAutoBig() throws Exception {
+//    setQuery(1514764800, 1515048887, "auto", false);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1d", ctx.string_interval);
+//    assertEquals(3600, ctx.min_interval);
+//    assertEquals(86400, ctx.interval_in_seconds);
+//    assertEquals(4, ctx.slices.length);
+//    int ts = 1514764800;
+//    for (int i = 0; i < 4; i++) {
+//      assertEquals(ts, ctx.slices[i]);
+//      ts += ctx.interval_in_seconds;
+//    }
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(3600), "1d", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeMultipleDownsamples() throws Exception {
+//    SemanticQuery.Builder builder = SemanticQuery.newBuilder()
+//        .setMode(QueryMode.SINGLE)
+//        .setStart(Integer.toString(1514764800))
+//        .setEnd(Integer.toString(1515048887))
+//        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.user")
+//                .build())
+//            .setId("m1")
+//            .build());
+//      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
+//          .setAggregator("sum")
+//          .setInterval("1m")
+//          .addInterpolatorConfig(NUMERIC_CONFIG)
+//          .setRunAll(false)
+//          .addSource("m1")
+//          .setId("downsample")
+//          .build());
+//      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
+//          .setAggregator("avg")
+//          .setInterval("1h")
+//          .addInterpolatorConfig(NUMERIC_CONFIG)
+//          .setRunAll(false)
+//          .addSource("m1")
+//          .setId("ds2")
+//          .build());
+//    query = builder.build();
+//    when(context.query()).thenReturn(query);
+//    
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1d", ctx.string_interval);
+//    assertEquals(60, ctx.min_interval);
+//    assertEquals(86400, ctx.interval_in_seconds);
+//    assertEquals(4, ctx.slices.length);
+//    int ts = 1514764800;
+//    for (int i = 0; i < 4; i++) {
+//      assertEquals(ts, ctx.slices[i]);
+//      ts += ctx.interval_in_seconds;
+//    }
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(60), "1d", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeMultipleDownsamplesWithRunall() throws Exception {
+//    SemanticQuery.Builder builder = SemanticQuery.newBuilder()
+//        .setMode(QueryMode.SINGLE)
+//        .setStart(Integer.toString(1514764800))
+//        .setEnd(Integer.toString(1515048887))
+//        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.user")
+//                .build())
+//            .setId("m1")
+//            .build());
+//      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
+//          .setAggregator("sum")
+//          .setInterval("1m")
+//          .addInterpolatorConfig(NUMERIC_CONFIG)
+//          .setRunAll(false)
+//          .addSource("m1")
+//          .setId("downsample")
+//          .build());
+//      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
+//          .setAggregator("avg")
+//          .setInterval("0all")
+//          .addInterpolatorConfig(NUMERIC_CONFIG)
+//          .setRunAll(true)
+//          .addSource("m1")
+//          .setId("ds2")
+//          .build());
+//    query = builder.build();
+//    when(context.query()).thenReturn(query);
+//    
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertTrue(ctx.skip_cache);
+//    verify(keygen_plugin, never()).generate(
+//        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
+//  }
+//  
+//  @Test
+//  public void initializeSinkFromConfig() throws Exception {
+//    SemanticQuery.Builder builder = SemanticQuery.newBuilder()
+//        .setMode(QueryMode.SINGLE)
+//        .setStart("1514764800")
+//        .setEnd("1514786400")
+//        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.user")
+//                .build())
+//            .setId("m1")
+//            .build());
+//      builder.addExecutionGraphNode(DownsampleConfig.newBuilder()
+//          .setAggregator("sum")
+//          .setInterval("1m")
+//          .addInterpolatorConfig(NUMERIC_CONFIG)
+//          .setRunAll(false)
+//          .addSource("m1")
+//          .setId("downsample")
+//          .build());
+//    query = builder.build();
+//    when(context.query()).thenReturn(query);
+//    when(context.sinkConfigs()).thenReturn(Lists.newArrayList(SINK_CONFIG));
+//    
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    
+//    assertSame(cache_plugin, ctx.cache);
+//    assertSame(keygen_plugin, ctx.key_gen);
+//    assertFalse(ctx.skip_cache);
+//    assertEquals("1h", ctx.string_interval);
+//    assertEquals(3600, ctx.interval_in_seconds);
+//    assertEquals(6, ctx.slices.length);
+//    int ts = 1514764800;
+//    for (int i = 0; i < 6; i++) {
+//      assertEquals(ts, ctx.slices[i]);
+//      ts += ctx.interval_in_seconds;
+//    }
+//    verify(keygen_plugin, times(1)).generate(
+//        ctx.hash(60), "1h", ctx.slices, ctx.expirations);
+//    assertEquals(1, ctx.sinks.size());
+//    assertSame(SINK, ctx.sinks.get(0));
+//  }
+//  
+//  @Test
+//  public void fetchNext() throws Exception {
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList());
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(6, ctx.cache_latch.get());
+//    verify(cache_plugin, times(1)).fetch(ctx, ctx.keys, ctx, null);
+//  }
+//  
+//  @Test
+//  public void onCacheError() throws Exception {
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(SINK));
+//    ctx.initialize(null).join();
+//    ctx.onCacheError(-1, new UnitTestException());
+//    ctx.onCacheError(-1, new UnitTestException());
+//    verify(SINK, never()).onError(any(UnitTestException.class));
+//    // TODO - test full query run.
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodOld() throws Exception {
+//    mockDateTime(1514851200000L);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    
+//    assertEquals(1514851200000L, ctx.current_time);
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(3, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(1, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(0, ctx.cache_latch.get());
+//    
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodOneTipNotLast() throws Exception {
+//    setQuery(1514765700, 1514787300, "5m", false);
+//    mockDateTime(1514787360000L);
+//    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink)));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(7, ctx.results.length);
+//    
+//    assertEquals(1514787360000L, ctx.current_time);
+//    assertEquals(7, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514787300));
+//    assertEquals(3, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
+//    assertEquals(1, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(0, ctx.cache_latch.get()); 
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
+//    ctx.results[6].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[6].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    assertFalse(TSDB.runnables.isEmpty()); // cached!
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodOneTipLast() throws Exception {
+//    setQuery(1514765700, 1514787300, "5m", false);
+//    mockDateTime(1514787360000L);
+//    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink)));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(7, ctx.results.length);
+//    
+//    assertEquals(1514787360000L, ctx.current_time);
+//    assertEquals(7, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(3, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(1, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514787300));
+//    assertEquals(0, ctx.cache_latch.get());
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
+//    ctx.results[6].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[6].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    assertFalse(TSDB.runnables.isEmpty()); // cached!
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodOneTipLastReadOnly() throws Exception {
+//    setQuery(1514765700, 1514787300, "5m", false, CacheMode.READONLY);
+//    mockDateTime(1514787360000L);
+//    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink)));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(7, ctx.results.length);
+//    
+//    assertEquals(1514787360000L, ctx.current_time);
+//    assertEquals(7, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(3, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(1, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514787300));
+//    assertEquals(0, ctx.cache_latch.get());
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
+//    ctx.results[6].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[6].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty()); // cached!
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodTwoTipsNotLast() throws Exception {
+//    setQuery(1514765700, 1514787300, "5m", false);
+//    mockDateTime(1514786520000L);
+//    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink)));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(7, ctx.results.length);
+//    
+//    assertEquals(1514786520000L, ctx.current_time);
+//    assertEquals(7, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
+//    assertEquals(3, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
+//    assertEquals(1, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(0, ctx.cache_latch.get()); 
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
+//    
+//    // one result in
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
+//    ctx.results[6].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[6].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get()); // #5 is left
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    // last result came in
+//    ctx.results[5].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[5].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    assertFalse(TSDB.runnables.isEmpty()); // cached!
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodTwoTipsLast() throws Exception {
+//    setQuery(1514765700, 1514787300, "5m", false);
+//    mockDateTime(1514786520000L);
+//    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink)));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(7, ctx.results.length);
+//    
+//    assertEquals(1514786520000L, ctx.current_time);
+//    assertEquals(7, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());    
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(3, ctx.cache_latch.get()); 
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
+//    assertEquals(1, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
+//    assertEquals(0, ctx.cache_latch.get());
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
+//    
+//    // one result in
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
+//    ctx.results[6].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[6].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get()); // #5 is left
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    // last result came in
+//    ctx.results[5].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[5].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    assertFalse(TSDB.runnables.isEmpty()); // cached!
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodTwoTipsLastResultInBetween() throws Exception {
+//    setQuery(1514765700, 1514787300, "5m", false);
+//    mockDateTime(1514786520000L);
+//    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink)));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(7, ctx.results.length);
+//    
+//    assertEquals(1514786520000L, ctx.current_time);
+//    assertEquals(7, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());    
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(3, ctx.cache_latch.get()); 
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
+//    assertEquals(1, ctx.cache_latch.get());
+//    
+//    // result in between
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
+//    ctx.results[5].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[5].onComplete();
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
+//    assertEquals(0, ctx.cache_latch.get());
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    // one result in
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
+//    ctx.results[6].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[6].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    assertFalse(TSDB.runnables.isEmpty()); // cached!
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodTwoTipsExceptionFromSubQuery() throws Exception {
+//    setQuery(1514765700, 1514787300, "5m", false);
+//    mockDateTime(1514786520000L);
+//    ReadCacheQueryPipelineContext ctx = spy(new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink)));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    assertEquals(7, ctx.results.length);
+//    
+//    assertEquals(1514786520000L, ctx.current_time);
+//    assertEquals(7, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());    
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(3, ctx.cache_latch.get()); 
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5)); // tip so we fire another
+//    assertEquals(1, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 6, 1514786460));
+//    assertEquals(0, ctx.cache_latch.get());
+//    System.out.println(" 000000000000000000000000000000000");
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[5].sub_context).fetched);
+//    
+//    // one result in
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[6].sub_context).fetched);
+//    ctx.results[6].onError(new UnitTestException());
+//    
+//    verify(sink, times(1)).onError(any(UnitTestException.class));
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    
+//    // last result came in
+//    ctx.results[5].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[5].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    verify(sink, times(1)).onError(any(UnitTestException.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//  }
+//  
+//  @Test
+//  public void onCacheResultsGoodButOneFailed() throws Exception {
+//    mockDateTime(1514851200000L);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    
+//    assertEquals(1514851200000L, ctx.current_time);
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 4));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    // whoops!
+//    ctx.onCacheError(-1, new UnitTestException());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(4, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    // TODO - fix it up
+//    //verify(sink, times(1)).onNext(any(QueryResult.class));
+//    verify(sink, never()).onError(any(UnitTestException.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//  }
+//  
+//  @Test
+//  public void onCacheResultsBelowThresholdThenRecovers() throws Exception {
+//    mockDateTime(1514851200000L);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    
+//    assertEquals(1514851200000L, ctx.current_time);
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildCacheMiss(ctx, 4));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 1));
+//    assertEquals(3, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 5));
+//    assertEquals(2, ctx.cache_latch.get());
+//    assertNull(ctx.results[4].sub_context);
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(1, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    // now we run 4
+//    assertTrue(((MockQueryContext) ctx.results[4].sub_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.results[4].sub_context).fetched);
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(0, ctx.cache_latch.get());
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    assertNull(ctx.full_query_context);
+//    
+//    ctx.results[4].onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    ctx.results[4].onComplete();
+//    
+//    assertEquals(0, ctx.cache_latch.get());
+//    // TODO - fix me
+//    //verify(sink, times(1)).onNext(any(QueryResult.class));
+//  }
+//  
+//  @Test
+//  public void onCacheResultsBelowThresholdAtEnd() throws Exception {
+//    mockDateTime(1514851200000L);
+//    ReadCacheQueryPipelineContext ctx = new ReadCacheQueryPipelineContext(context,
+//        Lists.newArrayList(sink));
+//    ctx.initialize(null).join();
+//    ctx.fetchNext(null);
+//    
+//    assertEquals(1514851200000L, ctx.current_time);
+//    assertEquals(6, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildCacheMiss(ctx, 4));
+//    assertEquals(5, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 0));
+//    assertEquals(4, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildCacheMiss(ctx, 1));
+//    assertEquals(3, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildCacheMiss(ctx, 5));
+//    assertEquals(2, ctx.cache_latch.get());
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 3));
+//    assertEquals(1, ctx.cache_latch.get());
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    
+//    ctx.onCacheResult(buildFakeFullResult(ctx, 2));
+//    assertEquals(0, ctx.cache_latch.get());
+//    
+//    verify(sink, never()).onNext(any(QueryResult.class));
+//    assertTrue(TSDB.runnables.isEmpty());
+//    assertTrue(((MockQueryContext) ctx.full_query_context).initialized);
+//    assertTrue(((MockQueryContext) ctx.full_query_context).fetched);
+//    
+//    ((MockQueryContext) ctx.full_query_context).sink.onNext(mockResult(new DefaultQueryResultId("m1", "m1")));
+//    verify(sink, times(1)).onNext(any(QueryResult.class));
+//    
+//    // cleaned up
+//    assertNull(ctx.results[4].map);
+//  }
+//  
   ReadCacheQueryResultSet buildFakeFullResult(final ReadCacheQueryPipelineContext ctx,
                                         final int idx) {
     ReadCacheQueryResultSet result = mock(ReadCacheQueryResultSet.class);
     when(result.key()).thenReturn(ctx.keys[idx]);
-    Map<String, ReadCacheQueryResult> results = Maps.newHashMap();
+    Map<QueryResultId, ReadCacheQueryResult> results = Maps.newHashMap();
     ReadCacheQueryResult cqr = mock(ReadCacheQueryResult.class);
-    results.put("m1:m1", cqr);
+    results.put(new DefaultQueryResultId("m1", "m1"), cqr);
     QueryNode node = mock(QueryNode.class);
     QueryNodeConfig config = mock(QueryNodeConfig.class);
     when(config.getId()).thenReturn("m1");
     when(node.config()).thenReturn(config);
-    when(cqr.dataSource()).thenReturn("m1");
+    when(cqr.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(cqr.source()).thenReturn(node);
     when(result.results()).thenReturn(results);
     when(result.lastValueTimestamp()).thenReturn(new SecondTimeStamp(
@@ -1069,8 +1067,8 @@ public class TestReadCacheQueryPipelineContext {
                                        final int timestamp) {
     ReadCacheQueryResultSet result = mock(ReadCacheQueryResultSet.class);
     when(result.key()).thenReturn(ctx.keys[idx]);
-    Map<String, ReadCacheQueryResult> results = Maps.newHashMap();
-    results.put("m1:m1", mock(ReadCacheQueryResult.class));
+    Map<QueryResultId, ReadCacheQueryResult> results = Maps.newHashMap();
+    results.put(new DefaultQueryResultId("m1", "m1"), mock(ReadCacheQueryResult.class));
     when(result.results()).thenReturn(results);
     when(result.lastValueTimestamp()).thenReturn(new SecondTimeStamp(timestamp));
     return result;
@@ -1120,13 +1118,13 @@ public class TestReadCacheQueryPipelineContext {
     when(context.query()).thenReturn(query);
   }
   
-  QueryResult mockResult(final String node_id, final String source) {
+  QueryResult mockResult(final QueryResultId source) {
     QueryResult result = mock(QueryResult.class);
     when(result.dataSource()).thenReturn(source);
     QueryNode node = mock(QueryNode.class);
     QueryNodeConfig config = mock(QueryNodeConfig.class);
     when(node.config()).thenReturn(config);
-    when(config.getId()).thenReturn(node_id);
+    when(config.getId()).thenReturn(source.nodeID());
     when(result.source()).thenReturn(node);
     return result;
   }

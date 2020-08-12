@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,9 +34,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
 /**
  * A result from the {@link GroupBy} node for a segment. The grouping is 
@@ -68,7 +66,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
    * @throws IllegalArgumentException if the node or result was null.
    */
   public GroupByResult(final GroupBy node, final QueryResult next) {
-    super(next);
+    super(node, next);
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -205,11 +203,6 @@ public class GroupByResult extends BaseWrappedQueryResult {
   @Override
   public List<TimeSeries> timeSeries() {
     return results;
-  }
-  
-  @Override
-  public QueryNode source() {
-    return node;
   }
 
   /** @return The downstream result. */

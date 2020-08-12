@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2019  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,9 +41,6 @@ public interface QueryResult {
    */
   public TimeSpecification timeSpecification();
   
-  // TODO - I may need to reorg the time series by data source. That way
-  // we can link to the schema.
-  
   /**
    * The collection of time series results, potentially in order (e.g. if TopN
    * is used). May be empty but will not be null.
@@ -80,12 +77,12 @@ public interface QueryResult {
    */
   public QueryNode source();
   
-  /** @return The name of the data source that these results came from.
+  /** @return The identifier of the data source that these results came from.
    * E.g. can be a metric source (QuerySourceConfig) or it could be a 
    * node that generates a new result set such as an expression. If 
    * data is just passing through (e.g. a downsample node) this should
    * be the source metric or node. */
-  public String dataSource();
+  public QueryResultId dataSource();
   
   /**
    * The type of time series ID used to describe the time series in this

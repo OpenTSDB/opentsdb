@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
@@ -132,7 +133,7 @@ public class TestMerger {
     QueryNode n1 = mock(QueryNode.class);
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
-    when(r1.dataSource()).thenReturn("m1");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     QueryResult r2 = mock(QueryResult.class);
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
@@ -140,7 +141,7 @@ public class TestMerger {
     QueryNode n2 = mock(QueryNode.class);
     when(n2.config()).thenReturn(c2);
     when(r2.source()).thenReturn(n2);
-    when(r2.dataSource()).thenReturn("m2");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m2", "m2"));
     
     when(context.downstreamSourcesIds(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList("m1", "m2"));

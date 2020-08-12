@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -24,7 +25,7 @@ import com.google.common.hash.HashCode;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryResultId;
 
 /**
  * A node populated during parsing of a metric expression.
@@ -129,8 +130,8 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
   private final ExpressionConfig expression_config;
   
   /** Node IDs for linking results. */
-  private String left_id;
-  private String right_id;
+  private QueryResultId left_id;
+  private QueryResultId right_id;
   
   /**
    * Protected ctor.
@@ -200,12 +201,14 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
   }
   
   /** @return The left result source ID, may be null. */
-  public String getLeftId() {
+  @JsonIgnore
+  public QueryResultId getLeftId() {
     return left_id;
   }
   
   /** @return The right result source ID, may be null. */
-  public String getRightId() {
+  @JsonIgnore
+  public QueryResultId getRightId() {
     return right_id;
   }
   
@@ -285,7 +288,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
 
   @Override
   public Builder toBuilder() {
-    return new Builder()
+    Builder builder = new Builder()
         .setExpressionConfig(expression_config)
         .setExpressionOp(op)
         .setLeft(left)
@@ -296,9 +299,9 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
         .setNot(not)
         .setAs(as)
         .setLeftId(left_id)
-        .setRightId(right_id)
-        .setSources(Lists.newArrayList(sources))
-        .setId(id);
+        .setRightId(right_id);
+    super.toBuilder(builder);
+    return builder;
   }
 
   public static Builder newBuilder() {
@@ -325,9 +328,9 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
     @JsonProperty
     protected String as;
     @JsonProperty
-    protected String leftId;
+    protected QueryResultId leftId;
     @JsonProperty
-    protected String rightId;
+    protected QueryResultId rightId;
     
     Builder() {
       setType(BinaryExpressionNodeFactory.TYPE);
@@ -400,12 +403,12 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
       return id;
     }
     
-    public Builder setLeftId(final String left_id) {
+    public Builder setLeftId(final QueryResultId left_id) {
       this.leftId = left_id;
       return this;
     }
     
-    public Builder setRightId(final String right_id) {
+    public Builder setRightId(final QueryResultId right_id) {
       this.rightId = right_id;
       return this;
     }

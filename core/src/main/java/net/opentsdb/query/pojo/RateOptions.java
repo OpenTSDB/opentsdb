@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.utils.DateTime;
 
@@ -99,6 +100,8 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
   
   protected final Map<String, String> overrides;
   
+  protected List<QueryResultId> result_ids; 
+  
   /** Used for Jackson non-default serdes. */
   protected RateOptions() {
     type = null;
@@ -120,6 +123,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
     reset_value = builder.resetValue;
     interval = builder.interval;
     overrides = builder.overrides;
+    result_ids = builder.data_sources;
     
     final long interval_part = DateTime.getDurationInterval(interval);
     units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
@@ -182,14 +186,16 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
   public Builder toBuilder() {
     return new Builder()
         .setInterval(interval)
-        .setSources(sources)
         .setType(type)
         .setInterval(interval)
         .setDropResets(drop_resets)
         .setCounter(counter)
         .setCounterMax(counter_max)
-        .setOverrides(overrides)
         .setResetValue(reset_value)
+        .setSources(sources != null ? Lists.newArrayList(sources) : null)
+        .setResultIds(result_ids != null ? Lists.newArrayList(result_ids) : null)
+        .setOverrides(overrides != null ? Maps.newHashMap(overrides) : null)
+        .setType(type)
         .setId(id);
   }
 
@@ -382,28 +388,24 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
         .result();
   }
   
+  @Override
+  public List<QueryResultId> resultIds() {
+    return result_ids == null ? Collections.emptyList() : result_ids;
+  }
+  
+  @Override
+  public boolean markedCacheable() {
+    return false;
+  }
+  
+  @Override
+  public void markCacheable(final boolean cacheable) {
+    // no-op
+  }
+  
   /** @return A new builder to construct a RateOptions from. */
   public static Builder newBuilder() {
     return new Builder();
-  }
-  
-  /**
-   * Clones an options into a new builder.
-   * @param options A non-null options to pull values from
-   * @return A new builder populated with values from the given options.
-   * @throws IllegalArgumentException if the options was null.
-   * @since 3.0
-   */
-  public static Builder newBuilder(final RateOptions options) {
-    if (options == null) {
-      throw new IllegalArgumentException("RateOptions cannot be null.");
-    }
-    return new Builder()
-        .setCounter(options.counter)
-        .setCounterMax(options.counter_max)
-        .setResetValue(options.reset_value)
-        .setDropResets(options.drop_resets)
-        .setInterval(options.interval);
   }
   
   /**
@@ -430,6 +432,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
     private String interval = DEFAULT_INTERVAL;
     @JsonProperty
     protected Map<String, String> overrides;
+    protected List<QueryResultId> data_sources;
     
     Builder() {
       setType(RateFactory.TYPE);
@@ -509,6 +512,20 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
       return this;
     }
 
+    public Builder setResultIds(final List<QueryResultId> data_sources) {
+      this.data_sources = data_sources;
+      return self();
+    }
+    
+    public Builder addResultId(final QueryResultId source) {
+      if (data_sources == null) {
+        data_sources = Lists.newArrayList(source);
+      } else {
+        data_sources.add(source);
+      }
+      return self();
+    }
+    
     public RateOptions build() {
       return new RateOptions(this);
     }

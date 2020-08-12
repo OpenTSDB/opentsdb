@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2019  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -438,6 +438,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         .setEnd(end)
         .setIntervals(intervals)
         .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
+        .setResultIds(result_ids != null ? Lists.newArrayList(result_ids) : null)
         .setId(id);
   }
 
@@ -458,6 +459,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
         .setOriginalInterval(config.original_interval)
         .setInterpolatorConfigs(Lists.newArrayList(config.interpolator_configs.values()))
         .setSources(Lists.newArrayList(config.getSources()))
+        .setResultIds(config.result_ids != null ? Lists.newArrayList(config.result_ids) : null)
         .setId(config.id);
   }
 

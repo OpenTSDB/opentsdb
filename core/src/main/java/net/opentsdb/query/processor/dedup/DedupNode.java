@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -94,7 +95,7 @@ public class DedupNode extends AbstractQueryNode {
     private List<TimeSeries> results = new ArrayList<>();
 
     public DedupResult(final QueryResult next) {
-      super(next);
+      super(DedupNode.this, next);
     }
     
     @Override
@@ -105,6 +106,11 @@ public class DedupNode extends AbstractQueryNode {
     @Override
     public QueryNode source() {
       return DedupNode.this;
+    }
+    
+    @Override
+    public QueryResultId dataSource() {
+      return result.dataSource();
     }
     
   }

@@ -27,6 +27,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.stats.Span;
 
 /**
@@ -136,6 +137,22 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
     return null;
   }
 
+  @Override
+  public List<QueryResultId> resultIds() {
+    // TODO - do we need to populate this?
+    return Collections.emptyList();
+  }
+  
+  @Override
+  public boolean markedCacheable() {
+    return false;
+  }
+  
+  @Override
+  public void markCacheable(final boolean cacheable) {
+    // no-op
+  }
+  
   @Override
   public QueryPipelineContext pipelineContext() {
     return original_node.pipelineContext();

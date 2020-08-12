@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.readcache.CachedQueryNode;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
@@ -390,7 +391,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     EmptyResult(final QueryResult result, 
                 final QueryNode node, 
                 final String missing_src) {
-      super(result);
+      super(node, result);
       this.node = new CachedQueryNode(missing_src, node);
       this.missing_src = missing_src;
     }
@@ -406,7 +407,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     }
 
     @Override
-    public String dataSource() {
+    public QueryResultId dataSource() {
       return result.dataSource();
     }
 

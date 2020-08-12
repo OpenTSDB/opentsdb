@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -94,7 +95,7 @@ public class TestTimeShift {
     shift.initialize(null).join();
     assertSame(config, shift.config());
     
-    when(result.dataSource()).thenReturn("m1-previous-P1D");
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     shift.onNext(result);
     verify(upstream, times(1)).onNext(any(TimeShiftResult.class));
   }
@@ -105,7 +106,7 @@ public class TestTimeShift {
     shift.initialize(null).join();
     assertSame(config, shift.config());
     
-    when(result.dataSource()).thenReturn("m1");
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     shift.onNext(result);
     verify(upstream, times(1)).onNext(any(TimeShiftResult.class));
   }

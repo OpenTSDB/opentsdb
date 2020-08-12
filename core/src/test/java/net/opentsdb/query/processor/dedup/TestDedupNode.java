@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,11 +34,10 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.processor.dedup.DedupConfig;
-import net.opentsdb.query.processor.dedup.DedupNode;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -96,6 +94,7 @@ public class TestDedupNode {
     when(queryResult.timeSeries()).thenReturn(new ArrayList<TimeSeries>() {{
         add(series);
     }});
+    when(queryResult.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
 
     DedupNode dedupNode = new DedupNode(null, pipelineContext, 
         (DedupConfig) DedupConfig.newBuilder()

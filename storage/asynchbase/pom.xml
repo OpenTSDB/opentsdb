@@ -77,6 +77,16 @@
       <dependency>
         <groupId>org.hbase</groupId>
         <artifactId>asynchbase</artifactId>
+        <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>netty</artifactId>
+                    <groupId>org.jboss.netty</groupId>
+                </exclusion>
+            </exclusions>
       </dependency>
       
       <dependency>

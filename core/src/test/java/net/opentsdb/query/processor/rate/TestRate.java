@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -93,6 +94,7 @@ public class TestRate {
   public void onNext() throws Exception {
     Rate ds = new Rate(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
+    when(results.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     ds.initialize(null);
     

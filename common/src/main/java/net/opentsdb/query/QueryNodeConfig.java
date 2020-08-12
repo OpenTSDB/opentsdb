@@ -120,6 +120,17 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
    * @return
    */
   B toBuilder();
+  
+  /** @return The non-null data sources for this query node. Populated during
+   * node config initialization to denote the ID of data that will flow through
+   * the node for this configuration. Different than {@link #getSources()}. */
+  List<QueryResultId> resultIds();
+  
+  /** @return Whether or not this node in the graph is cacheable or not. May not
+   * match {@link #readCacheable()} */
+  boolean markedCacheable();
+  
+  void markCacheable(final boolean cacheable);
 
   /**
    * The interface for a QueryNodeConfig builder implementation.
@@ -165,6 +176,19 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
      */
     B addOverride(final String key, final String value);
 
+    /**
+     * @param result_id The list of result IDs. May be null to clear out the
+     * list and return an empty collection.
+     * @return The builder.
+     */
+    B setResultIds(final List<QueryResultId> result_id);
+    
+    /**
+     * @param result_id A non-null result ID for this node config. 
+     * @return The builder.
+     */
+    B addResultId(final QueryResultId result_id);
+    
     /** @return The non-null config instance. */
     C build();
 

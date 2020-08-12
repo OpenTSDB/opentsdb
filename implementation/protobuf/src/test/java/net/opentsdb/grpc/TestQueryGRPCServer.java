@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -250,7 +251,7 @@ public class TestQueryGRPCServer {
     verify(observer, never()).onError(any(UnitTestException.class));
     
     net.opentsdb.query.QueryResult result = mock(net.opentsdb.query.QueryResult.class);
-    when(result.dataSource()).thenReturn("UT");
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("UT", "UT"));
     verify(ctx, times(1)).fetchNext(null);
     verify(observer, never()).onNext(any(QueryResultPB.QueryResult.class));
     verify(observer, never()).onCompleted();

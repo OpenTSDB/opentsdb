@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,9 +38,9 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
-import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.query.processor.downsample.DownsampleConfig.Builder;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
@@ -230,13 +230,19 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
                          final QueryPlanner plan) {
     // For downsampling we need to set the config start and end times
     // to the query start and end times. The config will then align them.
-
+    if (config.startTime() != null) {
+      // we've been here
+      return;
+    }
+    
     Builder builder = DownsampleConfig.newBuilder();
     DownsampleConfig.cloneBuilder(config, builder);
     DownsampleConfig newConfig = builder
         .setStart(context.query().getStart())
         .setEnd(context.query().getEnd())
-        .setId(config.getId()).build();
+        .setId(config.getId())
+        .setResultIds(((DefaultQueryPlanner) plan).compileResultIds(config))
+        .build();
 
     // and we need to find our sources if we have a rollup as well as set the 
     // padding.
@@ -247,16 +253,19 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
         LOG.debug("Hmmm, wasn't a data source config? " + source);
         continue;
       }
-      TimeSeriesDataSourceConfig.Builder new_source = (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
-      new_source.setSummaryInterval((config).getInterval());
-      if (config.getAggregator().equalsIgnoreCase("avg")) {
-        new_source.addSummaryAggregation("sum");
-        new_source.addSummaryAggregation("count");
-      } else {
-        new_source.addSummaryAggregation(config.getAggregator());
-      }
-      
-      plan.replace(source, new_source.build());
+      if (((TimeSeriesDataSourceConfig) source).getSummaryAggregations() == null ||
+          ((TimeSeriesDataSourceConfig) source).getSummaryAggregations().isEmpty()) {
+        final TimeSeriesDataSourceConfig.Builder new_source = 
+            (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
+        new_source.setSummaryInterval((config).getInterval());
+        if (config.getAggregator().equalsIgnoreCase("avg")) {
+          new_source.addSummaryAggregation("sum");
+          new_source.addSummaryAggregation("count");
+        } else {
+          new_source.addSummaryAggregation(config.getAggregator());
+        }
+        plan.replace(source, new_source.build());
+      }      
     }
     
     plan.replace(config, newConfig);

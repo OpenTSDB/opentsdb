@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2019  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -19,11 +19,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.graph.Graphs;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
@@ -92,7 +95,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     final List<ExpressionParseNode> configs = parser.parse();
     
     final Map<String, QueryNodeConfig> node_map = Maps.newHashMap();
-    for (final QueryNodeConfig node: plan.configGraph().nodes()) {
+    for (final QueryNodeConfig node: plan.configGraph().successors(config)) {
       node_map.put(node.getId(), node);
     }
     
@@ -101,19 +104,22 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     int variables = 0;
     for (final ExpressionParseNode parse_node : configs) {
       ExpressionParseNode.Builder builder = parse_node.toBuilder()
+          .addResultId(new DefaultQueryResultId(parse_node.getId(), parse_node.getId()))
           .setSources(Lists.newArrayList());
       if (parse_node.getLeftType() == OperandType.SUB_EXP) {
-        builder.addSource((String) parse_node.getLeft());
+        builder.addSource((String) parse_node.getLeft())
+        .setLeftId(new DefaultQueryResultId((String) parse_node.getLeft(), (String) parse_node.getLeft()));
       }
       if (parse_node.getRightType() == OperandType.SUB_EXP) {
-        builder.addSource((String) parse_node.getRight());
+        builder.addSource((String) parse_node.getRight())
+          .setRightId(new DefaultQueryResultId((String) parse_node.getRight(), (String) parse_node.getRight()));
       }
       
       // we may need to fix up variable names. Do so by searching 
       // recursively.
       if (parse_node.getLeftType() == OperandType.VARIABLE) {
         variables++;
-        String ds = validate(builder, true, plan, config, 0);
+        String ds = validate(builder, true, plan, config, 0, node_map);
         if (ds == null) {
           throw new RuntimeException("Failed to find a data source for the "
               + "left operand: " + parse_node.getLeft() + " for expression node:\n" 
@@ -124,7 +130,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
       // TODO - this double walk is silly and ugly, fix me!
       if (parse_node.getRightType() == OperandType.VARIABLE) {
         variables++;
-        String ds = validate(builder, false, plan, config, 0);
+        String ds = validate(builder, false, plan, config, 0, node_map);
         if (ds == null) {
           throw new RuntimeException("Failed to find a data source for the "
               + "right operand: " + parse_node.getRight() + " for expression node:\n" 
@@ -149,30 +155,26 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     }
     
     // remove the old config and get the in and outgoing edges.
-    final List<QueryNodeConfig> upstream = Lists.newArrayList();
-    for (final QueryNodeConfig n : plan.configGraph().predecessors(c)) {
-      upstream.add(n);
-    }
+    final Set<QueryNodeConfig> upstream = 
+        Sets.newHashSet(plan.configGraph().predecessors(c));
     for (final QueryNodeConfig n : upstream) {
-      plan.configGraph().removeEdge(n, c);
+      plan.removeEdge(n, c);
     }
     
-    final List<QueryNodeConfig> downstream = Lists.newArrayList();
-    for (final QueryNodeConfig n : plan.configGraph().successors(c)) {
-      downstream.add(n);
-    }
+    final Set<QueryNodeConfig> downstream = 
+        Sets.newHashSet(plan.configGraph().successors(c));
     for (final QueryNodeConfig n : downstream) {
-      plan.configGraph().removeEdge(c, n);
+      plan.removeEdge(c, n);
     }
     
     // now yank ourselves out and link.
-    plan.configGraph().removeNode(c);
+    plan.removeNode(c);
     for (final QueryNodeConfig node : new_nodes) {
       List<String> sources = node.getSources();
       for (final String source : sources) {
         final String src = source.contains(":") ? 
             source.substring(0, source.indexOf(":")) : source;
-        plan.configGraph().putEdge(node, node_map.get(src));
+        plan.addEdge(node, node_map.get(src));
         if (Graphs.hasCycle(plan.configGraph())) {
           throw new IllegalStateException("Cylcle found when generating "
               + "sub expression graph for " + node.getId() + " => " 
@@ -182,7 +184,7 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
     }
     
     for (final QueryNodeConfig up : upstream) {
-      plan.configGraph().putEdge(up, new_nodes.get(new_nodes.size() - 1));
+      plan.addEdge(up, new_nodes.get(new_nodes.size() - 1));
       if (Graphs.hasCycle(plan.configGraph())) {
         throw new IllegalStateException("Cylcle found when generating "
             + "sub expression graph for " + up.getId() + " => " 
@@ -196,58 +198,27 @@ public class ExpressionFactory extends BaseQueryNodeFactory<ExpressionConfig,
                          final boolean left, 
                          final QueryPlanner plan,
                          final QueryNodeConfig downstream, 
-                         final int depth) {
+                         final int depth,
+                         final Map<String, QueryNodeConfig> node_map) {
     final String key = left ? (String) builder.left() : (String) builder.right();
-    
-    for (final QueryNodeConfig config : plan.configGraph().successors(downstream)) {
-      final List<String> sources = plan.getDataSourceIds(config);
-      for (final String source : sources) {
-        final String[] parts = source.split(":");
-        final String metric;
-        if (key.equals(parts[0])) {
-          metric = plan.getMetricForDataSource(config, parts[0]);
-        } else if (key.equals(parts[1])) {
-          metric = plan.getMetricForDataSource(config, parts[1]);
-        } else {
-          continue;
+    for (final QueryNodeConfig node : node_map.values()) {
+      for (final QueryResultId src : (List<QueryResultId>) node.resultIds()) {
+        final String metric = plan.getMetricForDataSource(node, src.dataSource());
+        if (key.equals(metric) || key.equals(src.dataSource())) {
+            // matched!
+            if (left) {
+              builder.setLeft(metric)
+                     .setLeftId(src)
+                     .addSource(node.getId());
+            } else {
+              builder.setRight(metric)
+                     .setRightId(src)
+                     .addSource(node.getId());
+            }
+            return src.dataSource();
         }
-        
-        // matched!
-        if (left) {
-          builder.setLeft(metric)
-                 .setLeftId(source)
-                 .addSource(config.getId());
-        } else {
-          builder.setRight(metric)
-                 .setRightId(source)
-                 .addSource(config.getId());
-        }
-        return source;
       }
       
-      // if we didn't find anything, reverse lookup.
-      final Set<String> metrics = plan.getMetrics(config);
-      for (final String metric : metrics) {
-        final String mid = metric.substring(0, metric.indexOf(':'));
-        final String m = metric.substring(metric.indexOf(':') + 1);
-        if (key.equals(m)) {
-          for (final String source : sources) {
-            final String ds = source.substring(0, source.indexOf(':'));
-            if (ds.equals(mid)) {
-              if (left) {
-                builder.setLeft(metric.substring(metric.indexOf(':') + 1))
-                       .setLeftId(source)
-                       .addSource(config.getId());
-              } else {
-                builder.setRight(metric.substring(metric.indexOf(':') + 1))
-                       .setRightId(source)
-                       .addSource(config.getId());
-              }
-              return ds;
-            }
-          }
-        }
-      }
     }
     
     return null;

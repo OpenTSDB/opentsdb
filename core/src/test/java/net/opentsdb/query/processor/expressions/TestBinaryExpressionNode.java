@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
@@ -104,8 +105,10 @@ public class TestBinaryExpressionNode {
     
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
+        .setLeftId(new DefaultQueryResultId("a", "a"))
         .setLeftType(OperandType.VARIABLE)
         .setRight("b")
+        .setRightId(new DefaultQueryResultId("b", "b"))
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -125,8 +128,10 @@ public class TestBinaryExpressionNode {
     // sub-exp
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
+        .setLeftId(new DefaultQueryResultId("a", "a"))
         .setLeftType(OperandType.VARIABLE)
         .setRight("SubExp#1")
+        .setRightId(new DefaultQueryResultId("SubExp#1", "b"))
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -137,12 +142,13 @@ public class TestBinaryExpressionNode {
     assertSame(expression_config, node.expression_config);
     assertNotNull(node.result);
     assertNotNull(node.joiner());
-    assertEquals("a", node.left_source);
-    assertEquals("SubExp#1", node.right_source);
+    assertEquals(new DefaultQueryResultId("a", "a"), node.left_source);
+    assertEquals(new DefaultQueryResultId("SubExp#1", "b"), node.right_source);
     
     // one needed
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
+        .setLeftId(new DefaultQueryResultId("a", "a"))
         .setLeftType(OperandType.VARIABLE)
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
@@ -155,7 +161,7 @@ public class TestBinaryExpressionNode {
     assertSame(expression_config, node.expression_config);
     assertNotNull(node.result);
     assertNotNull(node.joiner());
-    assertEquals("a", node.left_source);
+    assertEquals(new DefaultQueryResultId("a", "a"), node.left_source);
     assertNull(node.right_source);
     
     try {
@@ -208,14 +214,14 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("b");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("b", "b"));
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("b");
     QueryNode n2 = mock(QueryNode.class);
@@ -237,6 +243,7 @@ public class TestBinaryExpressionNode {
   public void onNextStringSingle() throws Exception {
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
+        .setLeftId(new DefaultQueryResultId("a", "a"))
         .setLeftType(OperandType.VARIABLE)
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
@@ -250,7 +257,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
@@ -270,14 +277,14 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
     QueryNode n1 = mock(QueryNode.class);
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("b");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("b", "b"));
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("b");
     QueryNode n2 = mock(QueryNode.class);
@@ -363,9 +370,10 @@ public class TestBinaryExpressionNode {
   public void onNextByteDoubleOneSubExp() throws Exception {
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
+        .setLeftId(new DefaultQueryResultId("a", "a"))
         .setLeftType(OperandType.VARIABLE)
         .setRight("sub")
-        .setRightId("sub:m1")
+        .setRightId(new DefaultQueryResultId("sub", "m1"))
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -382,14 +390,14 @@ public class TestBinaryExpressionNode {
     when(c2.getId()).thenReturn("sub");
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("m1");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("sub", "m1"));
     when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -471,10 +479,10 @@ public class TestBinaryExpressionNode {
   public void onNextByteDoubleTwoSubExp() throws Exception {
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("sub1")
-        .setLeftId("sub1:m1")
+        .setLeftId(new DefaultQueryResultId("sub1", "m1"))
         .setLeftType(OperandType.SUB_EXP)
         .setRight("sub2")
-        .setRightId("sub2:m1")
+        .setRightId(new DefaultQueryResultId("sub2", "m1"))
         .setRightType(OperandType.SUB_EXP)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -496,10 +504,10 @@ public class TestBinaryExpressionNode {
     when(c2.getId()).thenReturn("sub2");
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("m1");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("sub1", "m1"));
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("m1");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("sub2", "m1"));
     when(r2.source()).thenReturn(n2);
     when(r1.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -566,6 +574,7 @@ public class TestBinaryExpressionNode {
         .setLeft("42")
         .setLeftType(OperandType.LITERAL_NUMERIC)
         .setRight("b")
+        .setRightId(new DefaultQueryResultId("b", "b"))
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)
@@ -577,7 +586,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("b");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("b", "b"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
@@ -652,6 +661,7 @@ public class TestBinaryExpressionNode {
   public void onNextByteSingleRight() throws Exception {
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
+        .setLeftId(new DefaultQueryResultId("a", "a"))
         .setLeftType(OperandType.VARIABLE)
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
@@ -665,7 +675,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
@@ -740,8 +750,10 @@ public class TestBinaryExpressionNode {
   public void onNextByteSameOperand() throws Exception {
     expression_config = ExpressionParseNode.newBuilder()
             .setLeft("a")
+            .setLeftId(new DefaultQueryResultId("a", "a"))
             .setLeftType(OperandType.VARIABLE)
             .setRight("a")
+            .setRightId(new DefaultQueryResultId("a", "a"))
             .setRightType(OperandType.VARIABLE)
             .setExpressionOp(ExpressionOp.ADD)
             .setExpressionConfig(config)
@@ -753,7 +765,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
 
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
@@ -831,14 +843,14 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("b");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("b", "b"));
     QueryNode n2 = mock(QueryNode.class);
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("b");
@@ -911,14 +923,14 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("b");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("b", "b"));
     QueryNode n2 = mock(QueryNode.class);
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("a");
@@ -1001,14 +1013,14 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");
     when(n1.config()).thenReturn(c1);
     when(r1.source()).thenReturn(n1);
     QueryResult r2 = mock(QueryResult.class);
-    when(r2.dataSource()).thenReturn("b");
+    when(r2.dataSource()).thenReturn(new DefaultQueryResultId("b", "b"));
     QueryNode n2 = mock(QueryNode.class);
     QueryNodeConfig c2 = mock(QueryNodeConfig.class);
     when(c2.getId()).thenReturn("a");
@@ -1091,7 +1103,7 @@ public class TestBinaryExpressionNode {
     node.initialize(null);
     
     QueryResult r1 = mock(QueryResult.class);
-    when(r1.dataSource()).thenReturn("a");
+    when(r1.dataSource()).thenReturn(new DefaultQueryResultId("a", "a"));
     QueryNode n1 = mock(QueryNode.class);
     QueryNodeConfig c1 = mock(QueryNodeConfig.class);
     when(c1.getId()).thenReturn("a");

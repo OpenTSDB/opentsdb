@@ -37,9 +37,11 @@ import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.rollup.RollupConfig;
@@ -52,7 +54,7 @@ private static final int BASE_TIME = 1546300800;
   private TimeSeriesQuery query;
   private List<QuerySink> sinks;
   private QueryNode<?> node;
-  private String data_source;
+  private QueryResultId data_source;
   
   @Before
   public void before() throws Exception {
@@ -60,7 +62,7 @@ private static final int BASE_TIME = 1546300800;
     query = mock(TimeSeriesQuery.class);
     sinks = Lists.newArrayList(mock(QuerySink.class));
     node = mock(QueryNode.class);
-    data_source = "m1";
+    data_source = new DefaultQueryResultId("m1", "m1");
     when(context.query()).thenReturn(query);
     when(query.startTime()).thenReturn(new SecondTimeStamp(BASE_TIME));
     when(query.endTime()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 4)));

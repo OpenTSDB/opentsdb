@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,11 +51,11 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
@@ -165,6 +165,7 @@ public class TestGroupBy {
     PowerMockito.whenNew(GroupByResult.class).withAnyArguments()
       .thenReturn(gb_results);
     final QueryResult results = mock(QueryResult.class);
+    when(results.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(results.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {

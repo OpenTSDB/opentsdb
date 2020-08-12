@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
@@ -148,7 +149,7 @@ public class TestExpressionParseNode {
     ExpressionParseNode node = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
-        .setLeftId("m1")
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight("42")
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.MOD)
@@ -159,7 +160,6 @@ public class TestExpressionParseNode {
         .build();
     
     final String json = JSON.serializeToString(node);
-    System.out.println(json);
     assertTrue(json.contains("\"left\":\"a\""));
     assertTrue(json.contains("\"right\":\"42\""));
     assertTrue(json.contains("\"negate\":false"));
@@ -169,8 +169,6 @@ public class TestExpressionParseNode {
     assertTrue(json.contains("\"operator\":\"MOD\""));
     assertTrue(json.contains("\"expressionConfig\":{"));
     assertTrue(json.contains("\"expression\":\"a + 42\""));
-    assertTrue(json.contains("\"leftId\":\"m1\""));
-    assertFalse(json.contains("\"rightId\":"));
     assertTrue(json.contains("\"as\":\"foo\""));
     
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
@@ -180,7 +178,6 @@ public class TestExpressionParseNode {
     
     assertEquals("a", node.getLeft());
     assertEquals(OperandType.VARIABLE, node.getLeftType());
-    assertEquals("m1", node.getLeftId());
     assertEquals(42, ((NumericLiteral) node.getRight()).longValue());
     assertEquals(OperandType.LITERAL_NUMERIC, node.getRightType());
     assertNull(node.getRightId());

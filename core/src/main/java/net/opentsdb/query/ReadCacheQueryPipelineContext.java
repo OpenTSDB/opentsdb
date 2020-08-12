@@ -47,6 +47,7 @@ import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.TimeSeriesQuery.CacheMode;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
@@ -68,6 +69,7 @@ import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 
 public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext 
     implements ReadCacheCallback {
@@ -337,17 +339,24 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
             }
           }
         }
-        
-        final Set<String> serdes_sources = computeSerializationSources();
-        for (final String source : serdes_sources) {
-          if (serdes_filter != null && !serdes_filter.isEmpty()) {
-            if (serdes_filter.contains(source)) {
-              countdowns.put(source, new AtomicInteger(sinks.size()));  
-            }
-          } else {
-            countdowns.put(source, new AtomicInteger(sinks.size()));
-          }
+// TODO --------------------------*(*        
+        CacheQueryPlanner planner = new CacheQueryPlanner(
+            ReadCacheQueryPipelineContext.this, (QueryNode) ReadCacheQueryPipelineContext.this);
+        // tODO - 
+        planner.plan(null);
+        for (QueryResultId id : planner.serializationSources()) {
+          countdowns.put(id, new AtomicInteger(sinks.size()));
         }
+        //final Set<String> serdes_sources = computeSerializationSources();
+//        for (final String source : serdes_sources) {
+//          if (serdes_filter != null && !serdes_filter.isEmpty()) {
+//            if (serdes_filter.contains(source)) {
+//              countdowns.put(source, new AtomicInteger(sinks.size()));  
+//            }
+//          } else {
+//            countdowns.put(source, new AtomicInteger(sinks.size()));
+//          }
+//        }
         
         if (context.query().isTraceEnabled()) {
           context.logTrace("Cache timestamps=" + Arrays.toString(slices));
@@ -515,7 +524,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
             if (result.results() != null && !result.results().isEmpty()) {
               results[i].map = Maps.newHashMapWithExpectedSize(
                   result.results().size());
-              for (final Entry<String, ReadCacheQueryResult> entry : 
+              for (final Entry<QueryResultId, ReadCacheQueryResult> entry : 
                   result.results().entrySet()) {
                 results[i].map.put(entry.getKey(), entry.getValue());
               }
@@ -683,13 +692,13 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     // all sub queries in, ready to go.
     try {
       // sort and merge
-      Map<String, QueryResult[]> sorted = Maps.newHashMap();
+      Map<QueryResultId, QueryResult[]> sorted = Maps.newHashMap();
       for (int i = 0; i < results.length; i++) {
         if (results[i] == null || results[i].map == null) {
           continue;
         }
         
-        for (final Entry<String, QueryResult> entry : results[i].map.entrySet()) {
+        for (final Entry<QueryResultId, QueryResult> entry : results[i].map.entrySet()) {
           QueryResult[] qrs = sorted.get(entry.getKey());
           if (qrs == null) {
             qrs = new QueryResult[results.length + (tip_query ? 1 : 0)];
@@ -699,14 +708,14 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         }
       }
       
-      for (final Entry<String, QueryResult[]> results : sorted.entrySet()) {
+      for (final Entry<QueryResultId, QueryResult[]> results : sorted.entrySet()) {
         if (results.getValue() == null) {
           continue;
         }
         // TODO - implement
         // TODO - send in thread pool
         QueryNode first_node = null;
-        String data_source = null;
+        QueryResultId data_source = null;
         for (int i = 0; i < results.getValue().length; i++) {
           if (results.getValue()[i] == null) {
             continue;
@@ -715,6 +724,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           if (results.getValue()[i].source() != null) {
             first_node = results.getValue()[i].source();
             data_source = results.getValue()[i].dataSource();
+            // TODO ^^^^^^^^^^^^^
             break;
           }
         }
@@ -840,7 +850,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     final int idx;
     byte[] key;
     QueryContext sub_context;
-    volatile Map<String, QueryResult> map = Maps.newConcurrentMap();
+    volatile Map<QueryResultId, QueryResult> map = Maps.newConcurrentMap();
     AtomicBoolean complete = new AtomicBoolean();
     
     ResultOrSubQuery(final int idx) {
@@ -871,7 +881,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
       
       // don't cache summaries so we avoid reading them out.
       if (!(next.source() instanceof Summarizer)) {
-        final String id = next.source().config().getId() + ":" + next.dataSource();
+        final QueryResultId id = next.dataSource();
         if (map == null) {
           synchronized (this) {
             if (map == null) {
@@ -1175,290 +1185,323 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
     return false;
   }
   
-  /**
-   * TODO - look at this to find a better way than having a generic
-   * config.
-   */
-  class ContextNodeConfig implements QueryNodeConfig {
-
-    @Override
-    public String getId() {
-      return "QueryContext";
-    }
-    
-    @Override
-    public String getType() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public List<String> getSources() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
-    @Override
-    public HashCode buildHashCode() {
-      // TODO Auto-generated method stub
-      return Const.HASH_FUNCTION().newHasher()
-          .putInt(System.identityHashCode(this)) // TEMP!
-          .hash();
-    }
-
-    @Override
-    public boolean pushDown() {
-      // TODO Auto-generated method stub
-      return false;
-    }
-
-    @Override
-    public boolean joins() {
-      // TODO Auto-generated method stub
-      return false;
-    }
-
-    @Override
-    public boolean readCacheable() {
-      return false;
-    }
-    
-    @Override
-    public Map<String, String> getOverrides() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public String getString(Configuration config, String key) {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public int getInt(Configuration config, String key) {
-      // TODO Auto-generated method stub
-      return 0;
-    }
-
-    @Override
-    public long getLong(Configuration config, String key) {
-      // TODO Auto-generated method stub
-      return 0;
-    }
-
-    @Override
-    public boolean getBoolean(Configuration config, String key) {
-      // TODO Auto-generated method stub
-      return false;
-    }
-
-    @Override
-    public double getDouble(Configuration config, String key) {
-      // TODO Auto-generated method stub
-      return 0;
-    }
-
-    @Override
-    public boolean hasKey(String key) {
-      // TODO Auto-generated method stub
-      return false;
-    }
-
-    @Override
-    public Builder toBuilder() {
-      return null;
-    }
-
-    @Override
-    public int compareTo(Object o) {
-      return 0;
-    }
-  }
-
-  Set<String> computeSerializationSources() {
-    MutableGraph<QueryNodeConfig> config_graph = GraphBuilder.directed()
-        .allowsSelfLoops(false)
-        .build();
-    
-    Map<String, QueryNodeConfig> configs = Maps.newHashMap();
-    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
-      config_graph.addNode(config);
-      configs.put(config.getId(), config);
-    }
-    if (summarizer_node_map != null) {
-      for (final QueryNode summarizer : summarizer_node_map.values()) {
-        configs.put(summarizer.config().getId(), summarizer.config());
-        for (final Object source : summarizer.config().getSources()) {
-          config_graph.putEdge(summarizer.config(), configs.get((String) source));
-        }
-      }
-    }
-    
-    // next pass
-    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
-      for (final Object source : config.getSources()) {
-        config_graph.putEdge(config, configs.get((String) source));
-      }
-    }
-    
-    // find roots
-    final Set<QueryNodeConfig> roots = Sets.newHashSet();
-    for (final QueryNodeConfig config : config_graph.nodes()) {
-      if (config_graph.predecessors(config).isEmpty()) {
-        roots.add(config);
-      }
-    }
-    
-    Set<String> serdes_sources = Sets.newHashSet();
-    for (final QueryNodeConfig root : roots) {
-      for (final String src : computeSerializationSources(config_graph, root)) {
-        if (src.contains(":")) {
-          serdes_sources.add(root.getId() + ":" + src.substring(src.indexOf(":") + 1));
-        } else {
-          serdes_sources.add(root.getId() + ":" + src);
-        }
-      }
-    }
-    
-    return serdes_sources;
-  }
-  
-  private Set<String> computeSerializationSources(
-      final MutableGraph<QueryNodeConfig> config_graph, 
-      final QueryNodeConfig node) {
-    if (node instanceof TimeSeriesDataSourceConfig) {
-      return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getDataSourceId());
-    } else if (node.joins()) {
-      if (node instanceof MergerConfig) {
-        return Sets.newHashSet(((MergerConfig) node).getDataSource());
-      }
-      return Sets.newHashSet(node.getId());
-    }
-    
-    final Set<String> ids = Sets.newHashSetWithExpectedSize(1);
-    for (final QueryNodeConfig downstream : config_graph.successors(node)) {
-      final Set<String> downstream_ids = computeSerializationSources(config_graph, downstream);
-      if (config_graph.predecessors(node).isEmpty()) {
-        // prepend
-        if (downstream instanceof TimeSeriesDataSourceConfig) {
-          ids.add(downstream.getId() + ":" 
-              + ((TimeSeriesDataSourceConfig) downstream).getDataSourceId());
-        } else if (downstream.joins()) {
-            if (node instanceof MergerConfig) {
-              ids.add(((MergerConfig) node).getDataSource());
-            } else if (downstream instanceof ExpressionConfig || 
-                       downstream instanceof ExpressionParseNode) {
-              final Set<String> ds_ids = getMetrics(config_graph, downstream);
-              for (final String id : ds_ids) {
-                ids.add(downstream.getId() + ":" + id.substring(id.indexOf(":") + 1));
-              }
-            } else {
-              ids.addAll(downstream_ids);
-            }
-          } else if (node instanceof SummarizerConfig &&
-            ((SummarizerConfig) node).passThrough()) {
-          for (final QueryNodeConfig successor : config_graph.successors(node)) {
-            final Set<String> summarizer_sources = 
-                computeSerializationSources(config_graph, successor);
-            List<String> srcs = getDataSourceIds(config_graph, successor);
-            for (final String id : summarizer_sources) {
-              ids.add(srcs.get(0));
-              ids.add(downstream.getId() + ":" + id);
-            }
-          }
-        } else {
-          ids.addAll(downstream_ids);
-        }
-      } else if (node instanceof MergerConfig) {
-        ids.add(((MergerConfig) node).getDataSource());
-      } else {
-        ids.addAll(downstream_ids);
-      }
-    }
-    return ids;
-  }
-  
-  //Returns stuff like <nodeID>:<dataSourceNodeID>
-  public List<String> getDataSourceIds(final MutableGraph<QueryNodeConfig> config_graph, final QueryNodeConfig node) {
-    if (node instanceof MergerConfig) {
-      if (!node.getId().equals(((MergerConfig) node).getDataSource())) {
-        return Lists.newArrayList(node.getId() + ":" 
-            + ((MergerConfig) node).getDataSource());
-      }
-      return Lists.newArrayList(((MergerConfig) node).getDataSource() + ":" 
-          + ((MergerConfig) node).getDataSource());
-    } else if (node.joins()) {
-      return Lists.newArrayList(node.getId() + ":" + node.getId());
-    } else if (node instanceof TimeSeriesDataSourceConfig) {
-      return Lists.newArrayList(node.getId() + ":" 
-          + ((TimeSeriesDataSourceConfig) node).getDataSourceId());
-    }
-    
-    List<String> sources = null;
-    final Set<QueryNodeConfig> successors = config_graph.successors(node);
-    if (successors != null) {
-      sources = Lists.newArrayList();
-      for (final QueryNodeConfig successor : successors) {
-        sources.addAll(getDataSourceIds(config_graph, successor));
-      }
-      
-      List<String> new_sources = Lists.newArrayListWithExpectedSize(sources.size());
-      for (final String source : sources) {
-        new_sources.add(node.getId() + ":" 
-            + source.substring(source.indexOf(":") + 1));
-      }
-      return new_sources;
-    }
-    throw new IllegalStateException("Made it to the root of a config graph "
-        + "without a source: " + node.getId());
-  }
-  
-  //Returns <nodeId>:<metric/as>
-  public Set<String> getMetrics(final MutableGraph<QueryNodeConfig> config_graph, 
-                                final QueryNodeConfig node) {
-    if (node instanceof TimeSeriesDataSourceConfig) {
-      return Sets.newHashSet(node.getId() + ":" + 
-          ((TimeSeriesDataSourceConfig) node).getMetric().getMetric());
-    } else if (node.joins()) {
-      if (node instanceof MergerConfig) {
-        Set<String> mg = Sets.newHashSet();
-        for (final QueryNodeConfig ds : config_graph.successors(node)) {
-          Set<String> m = getMetrics(config_graph, ds);
-          for (final String src : m) {
-            mg.add(node.getId() + ":" + src.substring(src.indexOf(":") + 1));
-          }
-        }
-        return mg;
-      } else if (node instanceof ExpressionConfig) {
-        return Sets.newHashSet(node.getId() + ":" + 
-            (((ExpressionConfig) node).getAs() == null ? node.getId() : 
-              ((ExpressionConfig) node).getAs()));
-      } else if (node instanceof ExpressionParseNode) {
-        return Sets.newHashSet(node.getId() + ":" + 
-            (((ExpressionParseNode) node).getAs() == null ? node.getId() :
-              ((ExpressionParseNode) node).getAs()));
-      }
-      
-      // fallback for now
-      return Sets.newHashSet(node.getId() + ":" + node.getId());
-    }
-   
-    Set<String> metrics = Sets.newHashSet();
-    final Set<QueryNodeConfig> successors = config_graph.successors(node);
-    for (final QueryNodeConfig successor : successors) {
-      for(final String metric : getMetrics(config_graph, successor)) {
-        metrics.add(node.getId() + ":" + metric.substring(metric.indexOf(':') + 1));
-      }
-    }
-    return metrics;
-  }
-  
+//  /**
+//   * TODO - look at this to find a better way than having a generic
+//   * config.
+//   */
+//  class ContextNodeConfig implements QueryNodeConfig {
+//
+//    @Override
+//    public String getId() {
+//      return "QueryContext";
+//    }
+//    
+//    @Override
+//    public String getType() {
+//      // TODO Auto-generated method stub
+//      return null;
+//    }
+//
+//    @Override
+//    public List<String> getSources() {
+//      // TODO Auto-generated method stub
+//      return null;
+//    }
+//    
+//    @Override
+//    public HashCode buildHashCode() {
+//      // TODO Auto-generated method stub
+//      return Const.HASH_FUNCTION().newHasher()
+//          .putInt(System.identityHashCode(this)) // TEMP!
+//          .hash();
+//    }
+//
+//    @Override
+//    public boolean pushDown() {
+//      // TODO Auto-generated method stub
+//      return false;
+//    }
+//
+//    @Override
+//    public boolean joins() {
+//      // TODO Auto-generated method stub
+//      return false;
+//    }
+//
+//    @Override
+//    public boolean readCacheable() {
+//      return false;
+//    }
+//    
+//    @Override
+//    public Map<String, String> getOverrides() {
+//      // TODO Auto-generated method stub
+//      return null;
+//    }
+//
+//    @Override
+//    public String getString(Configuration config, String key) {
+//      // TODO Auto-generated method stub
+//      return null;
+//    }
+//
+//    @Override
+//    public int getInt(Configuration config, String key) {
+//      // TODO Auto-generated method stub
+//      return 0;
+//    }
+//
+//    @Override
+//    public long getLong(Configuration config, String key) {
+//      // TODO Auto-generated method stub
+//      return 0;
+//    }
+//
+//    @Override
+//    public boolean getBoolean(Configuration config, String key) {
+//      // TODO Auto-generated method stub
+//      return false;
+//    }
+//
+//    @Override
+//    public double getDouble(Configuration config, String key) {
+//      // TODO Auto-generated method stub
+//      return 0;
+//    }
+//
+//    @Override
+//    public boolean hasKey(String key) {
+//      // TODO Auto-generated method stub
+//      return false;
+//    }
+//
+//    @Override
+//    public Builder toBuilder() {
+//      return null;
+//    }
+//
+//    @Override
+//    public int compareTo(Object o) {
+//      return 0;
+//    }
+//  
+//    @Override
+//    public List resultIDs() {
+//      return Collections.emptyList();
+//    }
+//    
+//    @Override
+//    public boolean markedCacheable() {
+//      return false;
+//    }
+//    
+//    @Override
+//    public void markCacheable(final boolean cacheable) {
+//      // no-op
+//    }
+//  
+//  }
+//
+//  Set<String> computeSerializationSources() {
+//    MutableGraph<QueryNodeConfig> config_graph = GraphBuilder.directed()
+//        .allowsSelfLoops(false)
+//        .build();
+//    
+//    Map<String, QueryNodeConfig> configs = Maps.newHashMap();
+//    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+//      config_graph.addNode(config);
+//      configs.put(config.getId(), config);
+//    }
+//    if (summarizer_node_map != null) {
+//      for (final QueryNode summarizer : summarizer_node_map.values()) {
+//        configs.put(summarizer.config().getId(), summarizer.config());
+//        for (final Object source : summarizer.config().getSources()) {
+//          config_graph.putEdge(summarizer.config(), configs.get((String) source));
+//        }
+//      }
+//    }
+//    
+//    // next pass
+//    for (final QueryNodeConfig config : context.query().getExecutionGraph()) {
+//      for (final Object source : config.getSources()) {
+//        config_graph.putEdge(config, configs.get((String) source));
+//      }
+//    }
+//    
+//    // find roots
+//    final Set<QueryNodeConfig> roots = Sets.newHashSet();
+//    for (final QueryNodeConfig config : config_graph.nodes()) {
+//      if (config_graph.predecessors(config).isEmpty()) {
+//        roots.add(config);
+//      }
+//    }
+//    
+//    Set<String> serdes_sources = Sets.newHashSet();
+//    for (final QueryNodeConfig root : roots) {
+//      for (final String src : computeSerializationSources(config_graph, root)) {
+//        if (src.contains(":")) {
+//          serdes_sources.add(root.getId() + ":" + src.substring(src.indexOf(":") + 1));
+//        } else {
+//          serdes_sources.add(root.getId() + ":" + src);
+//        }
+//      }
+//    }
+//    
+//    return serdes_sources;
+//  }
+//  
+//  private Set<String> computeSerializationSources(
+//      final MutableGraph<QueryNodeConfig> config_graph, 
+//      final QueryNodeConfig node) {
+//    if (node instanceof TimeSeriesDataSourceConfig) {
+//      //return Sets.newHashSet(((TimeSeriesDataSourceConfig) node).getDataSourceId());
+//    } else if (node.joins()) {
+//      if (node instanceof MergerConfig) {
+//        return Sets.newHashSet(((MergerConfig) node).getDataSource());
+//      }
+//      return Sets.newHashSet(node.getId());
+//    }
+//    
+//    final Set<String> ids = Sets.newHashSetWithExpectedSize(1);
+//    for (final QueryNodeConfig downstream : config_graph.successors(node)) {
+//      final Set<String> downstream_ids = computeSerializationSources(config_graph, downstream);
+//      if (config_graph.predecessors(node).isEmpty()) {
+//        // prepend
+//        if (downstream instanceof TimeSeriesDataSourceConfig) {
+////          ids.add(downstream.getId() + ":" 
+////              + ((TimeSeriesDataSourceConfig) downstream).getDataSourceId());
+//        } else if (downstream.joins()) {
+//            if (node instanceof MergerConfig) {
+//              ids.add(((MergerConfig) node).getDataSource());
+//            } else if (downstream instanceof ExpressionConfig || 
+//                       downstream instanceof ExpressionParseNode) {
+//              final Set<String> ds_ids = getMetrics(config_graph, downstream);
+//              for (final String id : ds_ids) {
+//                ids.add(downstream.getId() + ":" + id.substring(id.indexOf(":") + 1));
+//              }
+//            } else {
+//              ids.addAll(downstream_ids);
+//            }
+//          } else if (node instanceof SummarizerConfig &&
+//            ((SummarizerConfig) node).passThrough()) {
+//          for (final QueryNodeConfig successor : config_graph.successors(node)) {
+//            final Set<String> summarizer_sources = 
+//                computeSerializationSources(config_graph, successor);
+//            List<String> srcs = getDataSourceIds(config_graph, successor);
+//            for (final String id : summarizer_sources) {
+//              ids.add(srcs.get(0));
+//              ids.add(downstream.getId() + ":" + id);
+//            }
+//          }
+//        } else {
+//          ids.addAll(downstream_ids);
+//        }
+//      } else if (node instanceof MergerConfig) {
+//        ids.add(((MergerConfig) node).getDataSource());
+//      } else {
+//        ids.addAll(downstream_ids);
+//      }
+//    }
+//    return ids;
+//  }
+//  
+//  //Returns stuff like <nodeID>:<dataSourceNodeID>
+//  public List<String> getDataSourceIds(final MutableGraph<QueryNodeConfig> config_graph, final QueryNodeConfig node) {
+//    if (node instanceof MergerConfig) {
+//      if (!node.getId().equals(((MergerConfig) node).getDataSource())) {
+//        return Lists.newArrayList(node.getId() + ":" 
+//            + ((MergerConfig) node).getDataSource());
+//      }
+//      return Lists.newArrayList(((MergerConfig) node).getDataSource() + ":" 
+//          + ((MergerConfig) node).getDataSource());
+//    } else if (node.joins()) {
+//      return Lists.newArrayList(node.getId() + ":" + node.getId());
+//    } else if (node instanceof TimeSeriesDataSourceConfig) {
+////      return Lists.newArrayList(node.getId() + ":" 
+////          + ((TimeSeriesDataSourceConfig) node).getDataSourceId());
+//    }
+//    
+//    List<String> sources = null;
+//    final Set<QueryNodeConfig> successors = config_graph.successors(node);
+//    if (successors != null) {
+//      sources = Lists.newArrayList();
+//      for (final QueryNodeConfig successor : successors) {
+//        sources.addAll(getDataSourceIds(config_graph, successor));
+//      }
+//      
+//      List<String> new_sources = Lists.newArrayListWithExpectedSize(sources.size());
+//      for (final String source : sources) {
+//        new_sources.add(node.getId() + ":" 
+//            + source.substring(source.indexOf(":") + 1));
+//      }
+//      return new_sources;
+//    }
+//    throw new IllegalStateException("Made it to the root of a config graph "
+//        + "without a source: " + node.getId());
+//  }
+//  
+//  //Returns <nodeId>:<metric/as>
+//  public Set<String> getMetrics(final MutableGraph<QueryNodeConfig> config_graph, 
+//                                final QueryNodeConfig node) {
+//    if (node instanceof TimeSeriesDataSourceConfig) {
+//      return Sets.newHashSet(node.getId() + ":" + 
+//          ((TimeSeriesDataSourceConfig) node).getMetric().getMetric());
+//    } else if (node.joins()) {
+//      if (node instanceof MergerConfig) {
+//        Set<String> mg = Sets.newHashSet();
+//        for (final QueryNodeConfig ds : config_graph.successors(node)) {
+//          Set<String> m = getMetrics(config_graph, ds);
+//          for (final String src : m) {
+//            mg.add(node.getId() + ":" + src.substring(src.indexOf(":") + 1));
+//          }
+//        }
+//        return mg;
+//      } else if (node instanceof ExpressionConfig) {
+//        return Sets.newHashSet(node.getId() + ":" + 
+//            (((ExpressionConfig) node).getAs() == null ? node.getId() : 
+//              ((ExpressionConfig) node).getAs()));
+//      } else if (node instanceof ExpressionParseNode) {
+//        return Sets.newHashSet(node.getId() + ":" + 
+//            (((ExpressionParseNode) node).getAs() == null ? node.getId() :
+//              ((ExpressionParseNode) node).getAs()));
+//      }
+//      
+//      // fallback for now
+//      return Sets.newHashSet(node.getId() + ":" + node.getId());
+//    }
+//   
+//    Set<String> metrics = Sets.newHashSet();
+//    final Set<QueryNodeConfig> successors = config_graph.successors(node);
+//    for (final QueryNodeConfig successor : successors) {
+//      for(final String metric : getMetrics(config_graph, successor)) {
+//        metrics.add(node.getId() + ":" + metric.substring(metric.indexOf(':') + 1));
+//      }
+//    }
+//    return metrics;
+//  }
+//  
   protected long hash(final int ds_interval) {
     return Const.HASH_FUNCTION().newHasher()
         .putLong(original_query_hash)
         .putInt(ds_interval)
         .hash()
         .asLong();
+  }
+
+  class CacheQueryPlanner extends DefaultQueryPlanner {
+
+    public CacheQueryPlanner(QueryPipelineContext context, QueryNode context_sink) {
+      super(context, context_sink);
+      // TODO Auto-generated constructor stub
+    }
+    
+    @Override
+    public Deferred<Void> plan(final Span span) {
+      buildInitialConfigGraph();
+      setupConfigGraph();
+      verifySinkFilters();
+      computeSerializationSources();
+      return Deferred.fromResult(null);
+    }
   }
 }

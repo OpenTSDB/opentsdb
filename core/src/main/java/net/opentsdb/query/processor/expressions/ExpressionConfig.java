@@ -175,8 +175,8 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
   @Override
   public Builder toBuilder() {
     Builder cloneBuilder = new Builder();
-    cloneBuilder(this,cloneBuilder);
-
+    cloneBuilder(this, cloneBuilder);
+    super.toBuilder(cloneBuilder);
     return cloneBuilder;
   }
 
@@ -381,7 +381,7 @@ public class ExpressionConfig extends BaseQueryNodeConfigWithInterpolators<Expre
            .setExpression(expressionConfig.getExpression())
            .setJoinConfig(join.toBuilder().build())
            .setInfectiousNan(expressionConfig.getInfectiousNan());
-
+    
   }
 
   public static Builder newBuilder(){

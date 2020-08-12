@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,8 @@ import java.util.Map;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = ByteToStringIdConverterConfig.Builder.class)
-public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStringIdConverterConfig.Builder, ByteToStringIdConverterConfig> {
+public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<
+    ByteToStringIdConverterConfig.Builder, ByteToStringIdConverterConfig> {
   
   /** The map of data sources to factories. */
   private Map<String, TimeSeriesDataSourceFactory> data_sources;
@@ -62,8 +63,7 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStr
     return data_sources.get(source);
   }
 
-
-  public Map<String, TimeSeriesDataSourceFactory> getDataSources() {
+  public Map<String, TimeSeriesDataSourceFactory> getDataSourceFactories() {
     return data_sources;
   }
 
@@ -79,7 +79,10 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStr
 
   @Override
   public Builder toBuilder() {
-    return null;
+    final Builder builder = newBuilder()
+        .setDataSourcesFactories(getDataSourceFactories());
+    super.toBuilder(builder);
+    return builder;
   }
 
   @Override
@@ -103,7 +106,7 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStr
     final ByteToStringIdConverterConfig byteconfig = (ByteToStringIdConverterConfig) o;
 
 
-    return Objects.equal(data_sources.keySet(), byteconfig.getDataSources().keySet());
+    return Objects.equal(data_sources.keySet(), byteconfig.getDataSourceFactories().keySet());
   }
 
   @Override
@@ -148,14 +151,14 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<ByteToStr
       setType(ByteToStringIdConverterFactory.TYPE);
     }
     
-    public Builder setDataSources(
+    public Builder setDataSourcesFactories(
         final Map<String, TimeSeriesDataSourceFactory> data_sources) {
       this.data_sources = data_sources;
       return this;
     }
     
-    public Builder addDataSource(final String source, 
-                                 final TimeSeriesDataSourceFactory factory) {
+    public Builder addDataSourceFactory(final String source, 
+                                        final TimeSeriesDataSourceFactory factory) {
       if (data_sources == null) {
         data_sources = Maps.newHashMap();
       }

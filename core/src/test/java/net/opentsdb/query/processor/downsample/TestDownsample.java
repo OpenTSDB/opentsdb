@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
@@ -56,6 +57,7 @@ public class TestDownsample {
   private DownsampleConfig config;
   private QueryNode upstream;
   private SemanticQuery query;
+  private QueryResult result;
   
   @Before
   public void before() throws Exception {
@@ -64,6 +66,8 @@ public class TestDownsample {
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
+    result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -133,7 +137,7 @@ public class TestDownsample {
   public void onNext() throws Exception {
     Downsample ds = new Downsample(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
-    
+    when(results.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     ds.initialize(null);
     
     ds.onNext(results);
@@ -163,7 +167,6 @@ public class TestDownsample {
 
   @Test
   public void downsampleResultResolution() throws Exception {
-    QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
@@ -249,7 +252,6 @@ public class TestDownsample {
   
   @Test
   public void downsampleResultUpdateTimestamp() throws Exception {
-    QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);
@@ -280,7 +282,6 @@ public class TestDownsample {
   
   @Test
   public void downsampleResultNextTimestamp() throws Exception {
-    QueryResult result = mock(QueryResult.class);
     when(result.timeSeries()).thenReturn(Collections.emptyList());
     Downsample ds = new Downsample(factory, context, config);
     ds.initialize(null);

@@ -67,11 +67,6 @@ public class SummarizerPassThroughResult extends BaseWrappedQueryResult {
   }
   
   @Override
-  public QueryNode source() {
-    return results.source();
-  }
-  
-  @Override
   public void close() {
     results.close();
     node.onNext(new SummarizerSummarizedResult());
@@ -183,12 +178,7 @@ public class SummarizerPassThroughResult extends BaseWrappedQueryResult {
   public class SummarizerSummarizedResult extends BaseWrappedQueryResult {
     
     SummarizerSummarizedResult() {
-      super(results);
-    }
-
-    @Override
-    public QueryNode source() {
-      return node;
+      super(node, results);
     }
     
     @Override

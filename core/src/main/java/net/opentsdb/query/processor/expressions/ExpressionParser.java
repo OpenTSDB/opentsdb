@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import net.opentsdb.query.QueryNodeConfig;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.DefaultErrorStrategy;
@@ -375,23 +374,18 @@ public class ExpressionParser extends DefaultErrorStrategy
     } else if (obj instanceof ExpressionParseNode.Builder) {
       if (is_left) {
         builder.setLeft(((ExpressionParseNode.Builder) obj).id())
-               .setLeftType(OperandType.SUB_EXP)
-               .setLeftId(((ExpressionParseNode.Builder) obj).id());
+               .setLeftType(OperandType.SUB_EXP);
       } else {
         builder.setRight(((ExpressionParseNode.Builder) obj).id())
-               .setRightType(OperandType.SUB_EXP)
-               .setRightId(((ExpressionParseNode.Builder) obj).id());
+               .setRightType(OperandType.SUB_EXP);
       }
     } else if (obj instanceof String) {
-      // handle the funky "escape keywords" case. e.g. "sys.'if'.out"
       if (is_left) {
         builder.setLeft((String) obj)
-               .setLeftType(OperandType.VARIABLE)
-               .setLeftId((String) obj);
+               .setLeftType(OperandType.VARIABLE);
       } else {
         builder.setRight((String) obj)
-               .setRightType(OperandType.VARIABLE)
-               .setRightId((String) obj);
+               .setRightType(OperandType.VARIABLE);
       }
     } else {
       throw new RuntimeException("NEED TO HANDLE: " + obj.getClass());

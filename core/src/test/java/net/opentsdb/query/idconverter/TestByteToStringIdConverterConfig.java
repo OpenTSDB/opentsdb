@@ -38,8 +38,8 @@ public class TestByteToStringIdConverterConfig {
     TimeSeriesDataSourceFactory m2 = mock(TimeSeriesDataSourceFactory.class);
     ByteToStringIdConverterConfig config = 
         (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
-        .addDataSource("m1", m1)
-        .addDataSource("m2", m2)
+        .addDataSourceFactory("m1", m1)
+        .addDataSourceFactory("m2", m2)
         .setId("cvtr")
         .build();
     
@@ -79,8 +79,8 @@ public class TestByteToStringIdConverterConfig {
     TimeSeriesDataSourceFactory m2 = mock(TimeSeriesDataSourceFactory.class);
     ByteToStringIdConverterConfig config =
             (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
-                    .addDataSource("m1", m1)
-                    .addDataSource("m2", m2)
+                    .addDataSourceFactory("m1", m1)
+                    .addDataSourceFactory("m2", m2)
                     .setId("cvtr")
                     .build();
 
@@ -88,8 +88,8 @@ public class TestByteToStringIdConverterConfig {
     TimeSeriesDataSourceFactory m4 = mock(TimeSeriesDataSourceFactory.class);
     ByteToStringIdConverterConfig config2 =
             (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
-                    .addDataSource("m2", m3)
-                    .addDataSource("m1", m4)
+                    .addDataSourceFactory("m2", m3)
+                    .addDataSourceFactory("m1", m4)
                     .setId("cvtr")
                     .build();
 
@@ -97,8 +97,8 @@ public class TestByteToStringIdConverterConfig {
     TimeSeriesDataSourceFactory m6 = mock(TimeSeriesDataSourceFactory.class);
     ByteToStringIdConverterConfig config3 =
             (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
-                    .addDataSource("m1", m5)
-                    .addDataSource("m2", m6)
+                    .addDataSourceFactory("m1", m5)
+                    .addDataSourceFactory("m2", m6)
                     .setId("other")
                     .build();
 
@@ -110,8 +110,8 @@ public class TestByteToStringIdConverterConfig {
 
     config3 =
             (ByteToStringIdConverterConfig) ByteToStringIdConverterConfig.newBuilder()
-                    .addDataSource("m2", m5)
-                    .addDataSource("m3", m6)
+                    .addDataSourceFactory("m2", m5)
+                    .addDataSourceFactory("m3", m6)
                     .setId("cvtr")
                     .build();
 

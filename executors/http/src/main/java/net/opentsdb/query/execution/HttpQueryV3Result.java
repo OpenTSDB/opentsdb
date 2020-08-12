@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package net.opentsdb.query.execution;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
@@ -55,8 +54,10 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.readcache.CachedQueryNode;
 import net.opentsdb.rollup.RollupConfig;
@@ -79,8 +80,8 @@ public class HttpQueryV3Result implements QueryResult {
   /** The node that owns us. */
   private final QueryNode node;
   
-  /** The name of this data source. */
-  private String data_source;
+  /** The ID of this result. */
+  private final QueryResultId id;
   
   /** The time spec parsed out. */
   private TimeSpecification time_spec;
@@ -127,11 +128,18 @@ public class HttpQueryV3Result implements QueryResult {
     this.node = new CachedQueryNode(node.config().getId(), node);
     TimeSeriesDataSourceConfig cfg = (TimeSeriesDataSourceConfig) node.config();
     if (exception == null && root != null) {
-      // TEMP - old versions didn't handle IDs correctly so we override the result.
-      data_source = !Strings.isNullOrEmpty(cfg.getDataSourceId()) ?
-          cfg.getDataSourceId() : cfg.getId();
+      JsonNode n = root.get("source");
+      if (n == null || n.isNull()) {
+        throw new IllegalStateException("No source from the JSON response.");
+      }
+      String[] src = n.asText().split(":");
+      if (src == null || src.length < 2) {
+        throw new IllegalStateException("Failed to parse the source: " + n.asText());
+      }
       
-      JsonNode n = root.get("timeSpecification");
+      id = new DefaultQueryResultId(src[0], src[1]);
+      
+      n = root.get("timeSpecification");
       if (n != null && !n.isNull()) {
         time_spec = new TimeSpec(n);
       }
@@ -159,8 +167,15 @@ public class HttpQueryV3Result implements QueryResult {
       }
     } else {
       series = Collections.emptyList();
-      data_source = !Strings.isNullOrEmpty(cfg.getDataSourceId()) ?
-          cfg.getDataSourceId() : cfg.getId();
+      // TODO - Important! If we have a lot of results expected and some are
+      // not serializing to a result, we need to handle those.
+      if (node.config().resultIds().isEmpty()) {
+        LOG.warn("Empty result from downstream. Using the node's ID as the "
+            + "result ID: " + cfg.getId());
+        id = new DefaultQueryResultId(cfg.getId(), cfg.getId());
+      } else {
+        id = (QueryResultId) node.config().resultIds().get(0);
+      }
     }
     
   }
@@ -197,8 +212,8 @@ public class HttpQueryV3Result implements QueryResult {
   }
 
   @Override
-  public String dataSource() {
-    return data_source;
+  public QueryResultId dataSource() {
+    return id;
   }
 
   @Override

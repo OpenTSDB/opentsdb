@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ import java.util.Collection;
 import java.util.Map;
 
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 
 /**
  * A serdes plugin for serializing and deserializing read cache data.
@@ -55,7 +55,7 @@ public interface ReadCacheSerdes {
    * @return The deserialized cache result map, may be empty, keyed on the
    * result ID.
    */
-  public Map<String, ReadCacheQueryResult> deserialize(
+  public Map<QueryResultId, ReadCacheQueryResult> deserialize(
       final QueryNode node, 
       final byte[] data);
 

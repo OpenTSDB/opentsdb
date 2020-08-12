@@ -51,7 +51,7 @@ public class SummarizerNonPassThroughResult extends BaseWrappedQueryResult {
    * @param results The non-null results to source from.
    */
   SummarizerNonPassThroughResult(final Summarizer node, final QueryResult results) {
-    super(results);
+    super(node, results);
     this.node = node;
     series = Lists.newArrayList();
     for (final TimeSeries ts : results.timeSeries()) {
@@ -68,11 +68,6 @@ public class SummarizerNonPassThroughResult extends BaseWrappedQueryResult {
   @Override
   public List<TimeSeries> timeSeries() {
     return series;
-  }
-  
-  @Override
-  public QueryNode source() {
-    return node;
   }
   
   /**

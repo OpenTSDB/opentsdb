@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.rollup.RollupConfig;
 
 /**
@@ -37,14 +38,14 @@ import net.opentsdb.rollup.RollupConfig;
  */
 public class EgadsPredictionResult implements QueryResult, TimeSpecification {
   private final QueryNode node;
-  private final String data_source;
+  private final QueryResultId data_source;
   private final TimeStamp start;
   private final TimeStamp end;
   private final List<TimeSeries> series;
   private final TypeToken<? extends TimeSeriesId> id_type;
 
   public EgadsPredictionResult(final QueryNode node, 
-                               final String data_source,
+                               final QueryResultId data_source,
                                final TimeStamp start, 
                                final TimeStamp end, 
                                final List<TimeSeries> series,
@@ -89,7 +90,7 @@ public class EgadsPredictionResult implements QueryResult, TimeSpecification {
   }
 
   @Override
-  public String dataSource() {
+  public QueryResultId dataSource() {
     return data_source;
   }
 

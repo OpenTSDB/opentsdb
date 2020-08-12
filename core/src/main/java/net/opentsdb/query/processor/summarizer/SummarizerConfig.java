@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -150,10 +150,10 @@ public class SummarizerConfig extends BaseQueryNodeConfig<SummarizerConfig.Build
 
   @Override
   public Builder toBuilder() {
-    return newBuilder()
-        .setSummaries(Lists.newArrayList(summaries))
-        .setInfectiousNan(infectious_nan)
-        .setId(id);
+    final Builder builder = newBuilder()
+        .setSummaries(Lists.newArrayList(summaries));
+    super.toBuilder(builder);
+    return builder;
   }
 
   public static Builder newBuilder() {
