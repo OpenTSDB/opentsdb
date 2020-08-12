@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.exceptions.QueryUpstreamException;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
@@ -140,6 +141,7 @@ public class TestSummarizer {
   public void onNext() throws Exception {
     Summarizer ds = new Summarizer(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
+    when(results.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     ds.initialize(null);
     

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,10 +32,10 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.utils.Bytes.ByteMap;
@@ -74,8 +74,8 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   /** Whether or not we need two sources or if we're operating on a 
    * source and a literal. */
   protected final Pair<QueryResult, QueryResult> results;
-  protected String left_source;
-  protected String right_source;
+  protected QueryResultId left_source;
+  protected QueryResultId right_source;
   protected final int expected;
   protected final AtomicBoolean all_in;
   
@@ -109,7 +109,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     if (expression_config.getLeftType() == OperandType.SUB_EXP || 
         expression_config.getLeftType() == OperandType.VARIABLE) {
       if (expression_config.getLeftId() == null) {
-        left_source = (String) expression_config.getLeft();
+        throw new IllegalStateException("[" + expression_config.getId() + "] Left ID cannot be null.");
       } else {
         left_source = expression_config.getLeftId();
       }
@@ -117,12 +117,12 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     if (expression_config.getRightType() == OperandType.SUB_EXP || 
          expression_config.getRightType() == OperandType.VARIABLE) {
       if (expression_config.getRightId() == null) {
-        right_source = (String) expression_config.getRight();
+        throw new IllegalStateException("[" + expression_config.getId() + "] Right ID cannot be null.");
       } else {
         right_source = expression_config.getRightId();
       }
     }
-    if (!Strings.isNullOrEmpty(left_source) && !Strings.isNullOrEmpty(right_source)) {
+    if (left_source != null && right_source != null) {
       expected = 2;
     } else {
       expected = 1;
@@ -143,16 +143,14 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   
   @Override
   public void onNext(final QueryResult next) {
-    final String id = next.source().config().getId() + ":" + next.dataSource();
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Result: " + id + " (" + next.getClass() + ") " 
+      LOG.trace("Result: " + next.dataSource() + " (" + next.getClass() + ") " 
         + " Want<" + left_source + ", " + right_source +">");
     }
     
-    if (left_source != null && (left_source.equals(next.dataSource()) ||
-        left_source.equalsIgnoreCase(id))) {
+    if (left_source != null && left_source.equals(next.dataSource())) {
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Matched left [" + left_source + "] with: " + id);
+        LOG.trace("Matched left [" + left_source + "] with: " + next.dataSource());
       }
       if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
@@ -166,12 +164,10 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
           results.setValue(next);
         }
       }
-      LOG.trace("[" + config.getId() + "] Matched left source: " + id);
-    } else if (right_source != null && 
-        (right_source.equals(next.dataSource()) || 
-            right_source.equals(id))) {
+      LOG.trace("[" + config.getId() + "] Matched left source: " + next.dataSource());
+    } else if (right_source != null && right_source.equals(next.dataSource())) {
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Matched right [" + right_source + "] with: " + id);
+        LOG.trace("Matched right [" + right_source + "] with: " + next.dataSource());
       }
       if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
         sendUpstream(new FailedQueryResult(next));
@@ -180,9 +176,9 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       synchronized (this) {
         results.setValue(next);
       }
-      LOG.trace("[" + config.getId() + "] Matched right source: " + id);
+      LOG.trace("[" + config.getId() + "] Matched right source: " + next.dataSource());
     } else {
-      LOG.debug("Unmatched result: " + id);
+      LOG.debug("Unmatched result: " + next.dataSource());
       return;
     }
     
@@ -241,12 +237,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
       }
       
       if (next.timeSeries() == null || next.timeSeries().isEmpty()) {
-        onNext(new BaseWrappedQueryResult(next) {
-          
-          @Override
-          public QueryNode source() {
-            return BinaryExpressionNode.this;
-          }
+        onNext(new BaseWrappedQueryResult(BinaryExpressionNode.this, next) {
           
           @Override
           public TypeToken<? extends TimeSeriesId> idType() {
@@ -344,14 +335,9 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   class FailedQueryResult extends BaseWrappedQueryResult {
 
     public FailedQueryResult(final QueryResult result) {
-      super(result);
+      super(BinaryExpressionNode.this, result);
     }
 
-    @Override
-    public QueryNode source() {
-      return BinaryExpressionNode.this;
-    }
-    
   }
   
   ExpressionConfig expressionConfig() {

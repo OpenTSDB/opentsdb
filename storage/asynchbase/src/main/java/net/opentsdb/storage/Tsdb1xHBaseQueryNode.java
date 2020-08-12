@@ -205,6 +205,8 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
           .dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     }
     push = parent.dynamicBoolean(Tsdb1xHBaseDataStore.ENABLE_PUSH_KEY);
+    
+    LOG.info("******NODE CTOR: " + ((TimeSeriesDataSourceConfig) config()).resultIds().get(0) + " of type " + ((TimeSeriesDataSourceConfig) config()).getClass());
   }
 
   @Override

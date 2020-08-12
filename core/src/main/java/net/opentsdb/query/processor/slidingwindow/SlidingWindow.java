@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -94,7 +93,7 @@ public class SlidingWindow extends AbstractQueryNode {
     private List<TimeSeries> series;
     
     SlidingWindowResult(final QueryResult next) {
-      super(next);
+      super(SlidingWindow.this, next);
       series = Lists.newArrayListWithExpectedSize(next.timeSeries().size());
       for (final TimeSeries ts : next.timeSeries()) {
         series.add(new SlidingWindowTimeSeries(ts));
@@ -104,11 +103,6 @@ public class SlidingWindow extends AbstractQueryNode {
     @Override
     public List<TimeSeries> timeSeries() {
       return series;
-    }
-    
-    @Override
-    public QueryNode source() {
-      return SlidingWindow.this;
     }
     
     /**

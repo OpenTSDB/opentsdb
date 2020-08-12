@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ import org.junit.Test;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
@@ -82,8 +82,10 @@ public class TestBinaryExpressionNodeFactory {
     ExpressionParseNode expression_config = 
         (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
+        .setLeftId(new DefaultQueryResultId("a", "a"))
         .setLeftType(OperandType.VARIABLE)
         .setRight("b")
+        .setRightId(new DefaultQueryResultId("b", "b"))
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
         .setExpressionConfig(config)

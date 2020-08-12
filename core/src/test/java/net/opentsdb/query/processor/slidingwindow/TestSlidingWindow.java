@@ -1,6 +1,6 @@
 
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.exceptions.QueryUpstreamException;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -93,7 +94,7 @@ public class TestSlidingWindow {
   @Test
   public void onNext() throws Exception {
     final QueryResult results = mock(QueryResult.class);
-    
+    when(results.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     SlidingWindow sl = new SlidingWindow(factory, context, config);
     sl.initialize(null);
     

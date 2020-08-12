@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import java.time.ZoneId;
 import java.util.Iterator;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,7 +41,6 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -67,7 +67,7 @@ public class TestHttpQueryV3Result {
                 .setMetric("system.cpu.user")
                 .build())
             .setFilterId(null)
-            .setDataSourceId("otherMetric")
+            //.setDataSourceId("otherMetric")
             .setId("m1")
             .build();
 
@@ -101,7 +101,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("otherMetric", result.dataSource());
+    assertEquals(new DefaultQueryResultId("m0", "m0"), result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();
@@ -181,7 +181,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("otherMetric", result.dataSource());
+    assertEquals(new DefaultQueryResultId("groupby", "m1"), result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();
@@ -250,7 +250,7 @@ public class TestHttpQueryV3Result {
     assertNull(result.timeSpecification());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("otherMetric", result.dataSource());
+    assertEquals(new DefaultQueryResultId("summarizer", "m1"), result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     RollupConfig rollup_config = result.rollupConfig();
@@ -338,7 +338,7 @@ public class TestHttpQueryV3Result {
     assertNull(result.timeSpecification());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("otherMetric", result.dataSource());
+    assertEquals(new DefaultQueryResultId("summarizer", "m1"), result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     rollup_config = result.rollupConfig();
@@ -358,7 +358,7 @@ public class TestHttpQueryV3Result {
     assertTrue(result.timeSeries().isEmpty());
     assertEquals("Boo!", result.error());
     assertTrue(result.exception() instanceof RuntimeException);
-    assertEquals("m1", result.dataSource());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), result.dataSource());
   }
   
   @Test
@@ -385,7 +385,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("otherMetric", result.dataSource());
+    assertEquals(new DefaultQueryResultId("groupby", "m1"), result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();
@@ -466,7 +466,7 @@ public class TestHttpQueryV3Result {
     assertEquals(2, result.timeSeries().size());
     assertNull(result.error());
     assertNull(result.exception());
-    assertEquals("otherMetric", result.dataSource());
+    assertEquals(new DefaultQueryResultId("groupby", "m1"), result.dataSource());
     assertEquals(Const.TS_STRING_ID, result.idType());
     
     Iterator<TimeSeries> ts_iterator = result.timeSeries().iterator();

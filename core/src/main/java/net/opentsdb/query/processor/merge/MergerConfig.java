@@ -27,6 +27,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
+import net.opentsdb.query.DefaultQueryResultId;
 
 import java.util.List;
 
@@ -54,6 +55,8 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     data_source = builder.dataSource;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
+    result_ids = Lists.newArrayList(
+        new DefaultQueryResultId(data_source, data_source));
   }
   
   public String getDataSource() {
@@ -73,12 +76,12 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
 
   @Override
   public Builder toBuilder() {
-    return new Builder()
+    final Builder builder = new Builder()
         .setDataSource(data_source)
         .setAggregator(aggregator)
-        .setInfectiousNan(infectious_nan)
-        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
-        .setId(id);
+        .setInfectiousNan(infectious_nan);
+    super.toBuilder(builder);
+    return builder;
   }
 
   @Override

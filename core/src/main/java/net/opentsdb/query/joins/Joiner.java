@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.TreeMap;
 
@@ -62,6 +65,8 @@ import net.opentsdb.utils.Bytes.ByteMap;
  * @since 3.0
  */
 public class Joiner {
+  private static final Logger LOG = LoggerFactory.getLogger(Joiner.class);
+  
   /** A non-null config to pull join information from. */
   protected final JoinConfig config;
   
@@ -121,6 +126,11 @@ public class Joiner {
     }
     if (right_key == null || right_key.length < 1) {
       throw new IllegalArgumentException("Right key cannot be null.");
+    }
+    
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Joiner Left: " + new String(left_key, Const.UTF8_CHARSET) 
+          + "  Right: " + new String(right_key, Const.UTF8_CHARSET));
     }
     
     if (results.getKey().idType() == Const.TS_BYTE_ID && 
@@ -680,7 +690,9 @@ public class Joiner {
         
         if (!config.joins.isEmpty() && 
             matched_tags < config.joins.size()) {
-            // TODO - log the ejection
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+          }
           return;
         }
         
@@ -697,19 +709,25 @@ public class Joiner {
         for (final Entry<String, String> pair : config.joins.entrySet()) {
           final String value = id.tags().get(is_left ? pair.getKey() : pair.getValue());
           if (Strings.isNullOrEmpty(value)) {
-            // TODO - log the ejection
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+            }
             matched = false;
             break;
           }
           buf.append(value);
         }
         if (!matched) {
-          // TODO - log the ejection
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+          }
           return;
         }
         if (config.getExplicitTags() && 
             id.tags().size() != config.getJoins().size()) {
-          // TODO - log the ejection
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+          }
           return;
         }
       }

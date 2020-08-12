@@ -191,7 +191,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
           }
           
           json.writeStartObject();
-          json.writeStringField("id", result.dataSource());
+          json.writeStringField("id", result.dataSource().dataSource());
           json.writeArrayFieldStart("dps");
           
           final List<TypedTimeSeriesIterator<?>> iterators = Lists.newArrayList();

@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.Pair;
@@ -146,8 +147,8 @@ public class ExpressionResult implements QueryResult {
   }
 
   @Override
-  public String dataSource() {
-    return node.config().getId();
+  public QueryResultId dataSource() {
+    return node.config().resultIds().get(0);
   }
   
   @Override

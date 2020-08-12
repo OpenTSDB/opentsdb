@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.summarizer.SummarizerNonPassThroughResult.SummarizerTimeSeries;
 
@@ -59,6 +60,7 @@ public class TestSummarizerResult {
     node = mock(Summarizer.class);
     
     when(results.timeSeries()).thenReturn(Lists.newArrayList(SERIES));
+    when(results.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     config = (SummarizerConfig) 
         SummarizerConfig.newBuilder()

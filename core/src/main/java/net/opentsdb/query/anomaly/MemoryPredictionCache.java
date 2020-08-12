@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.readcache.ReadCacheQueryResult;
 import net.opentsdb.query.readcache.ReadCacheSerdes;
 import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
@@ -92,9 +93,9 @@ public class MemoryPredictionCache extends BaseTSDBPlugin implements PredictionC
     if (value== null || value.expired()) {
       return Deferred.fromResult(null);
     } else {
-      Map<String, ReadCacheQueryResult> map = serdes.deserialize(context, value.value);
+      Map<QueryResultId, ReadCacheQueryResult> map = serdes.deserialize(context, value.value);
       ReadCacheQueryResult result = null;
-      for (final Entry<String, ReadCacheQueryResult> entry : map.entrySet()) {
+      for (final Entry<QueryResultId, ReadCacheQueryResult> entry : map.entrySet()) {
         if (entry.getValue() != null) {
           result = entry.getValue();
           break;

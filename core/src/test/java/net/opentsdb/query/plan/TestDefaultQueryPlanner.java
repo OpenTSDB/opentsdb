@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -38,6 +39,7 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -233,9 +235,10 @@ public class TestDefaultQueryPlanner {
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
     assertEquals(2, planner.graph().nodes().size());
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
-    
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -301,23 +304,10 @@ public class TestDefaultQueryPlanner {
         planner.nodes_map.get("ds")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m1", source.dataSource());
     
-//    DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
-//        new DepthFirstIterator<QueryNode, DefaultEdge>(planner.graph());
-//    QueryNode node = iterator.next();
-//    assertSame(SINK, node);
-//    
-//    node = iterator.next();
-//    assertTrue(node instanceof GroupBy);
-//    
-//    node = iterator.next();
-//    assertTrue(node instanceof Downsample);
-//    assertEquals(1514764800, ((DownsampleConfig) node.config()).startTime().epoch());
-//    assertEquals(1514768400, ((DownsampleConfig) node.config()).endTime().epoch());
-//    
-//    node = iterator.next();
-//    assertSame(STORE_NODES.get(0), node);
-//    
     // no filter
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -377,11 +367,13 @@ public class TestDefaultQueryPlanner {
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
     assertEquals(3, planner.graph().nodes().size());
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
-    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("ds")));
-    
+    assertNull(planner.nodes_map.get("ds"));
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m1", source.dataSource());
     
-    QueryNode node = planner.nodes_map.get("ds");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -439,11 +431,13 @@ public class TestDefaultQueryPlanner {
     // validate
     assertSame(STORE_NODES.get(0), planner.sources().get(0));
     assertEquals(2, planner.graph().nodes().size());
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("downsample")));
-    
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("downsample", source.nodeID());
+    assertEquals("m1", source.dataSource());
     
-    QueryNode node = planner.nodes_map.get("downsample");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config = (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
     assertEquals(1, source_config.getPushDownNodes().size());
@@ -508,7 +502,6 @@ public class TestDefaultQueryPlanner {
         .build();
     
     when(STORE_FACTORY.supportsPushdown(any(Class.class))).thenReturn(true);
-    
     when(context.query()).thenReturn(query);
     
     DefaultQueryPlanner planner = 
@@ -520,12 +513,17 @@ public class TestDefaultQueryPlanner {
     assertEquals(3, planner.graph().nodes().size());
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertNull(planner.nodeForId("ds"));
-    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("sum"), 
-        planner.nodes_map.get("gb")));
+        planner.nodes_map.get("m1")));
     
     assertEquals(2, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("sum", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
   @Test
@@ -584,12 +582,15 @@ public class TestDefaultQueryPlanner {
     assertEquals(3, planner.graph().nodes().size());
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertNull(planner.nodeForId("ds"));
-    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("sum"), 
-        planner.nodes_map.get("gb")));
+        planner.nodes_map.get("m1")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("sum", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
   @Test
@@ -644,12 +645,18 @@ public class TestDefaultQueryPlanner {
     assertEquals(5, planner.graph().nodes().size());
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("gb"), 
         planner.nodes_map.get("ds")));
-    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("ds"), 
         planner.nodes_map.get("m1")));
     
     assertEquals(2, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("sum", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
   @Test
@@ -709,6 +716,9 @@ public class TestDefaultQueryPlanner {
         planner.nodes_map.get("m1")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("sum", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
   @Test
@@ -762,6 +772,12 @@ public class TestDefaultQueryPlanner {
     planner = new DefaultQueryPlanner(context, SINK);
     planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("m2", source.nodeID());
+    assertEquals("m2", source.dataSource());
   }
   
   @Test
@@ -818,6 +834,12 @@ public class TestDefaultQueryPlanner {
     assertEquals(5, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m2", source.dataSource());
     
     QueryNode node = planner.nodes_map.get("downsample");
     assertTrue(node instanceof Downsample);
@@ -877,8 +899,11 @@ public class TestDefaultQueryPlanner {
     assertEquals(2, planner.graph().nodes().size());
 
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("downsample", source.nodeID());
+    assertEquals("m1", source.dataSource());
     
-    QueryNode node = planner.nodes_map.get("downsample");
+    QueryNode node = planner.nodes_map.get("m1");
     assertSame(STORE_NODES.get(0), node);
     DefaultTimeSeriesDataSourceConfig source_config =
         (DefaultTimeSeriesDataSourceConfig) STORE_NODES.get(0).config();
@@ -886,7 +911,7 @@ public class TestDefaultQueryPlanner {
     assertTrue(source_config.getPushDownNodes().get(0) instanceof DownsampleConfig);
     assertEquals("downsample", source_config.getPushDownNodes().get(0).getId());
     
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodeForId("downsample")));
+    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodeForId("m1")));
   }
 // TODO - restore the multiple metrics through one node functionality. For now, 
 // pushdowns have to go through their own branch.
@@ -1218,6 +1243,12 @@ public class TestDefaultQueryPlanner {
     assertEquals(7, planner.graph().nodes().size());
 
     assertEquals(2, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("gb1", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("gb2", source.nodeID());
+    assertEquals("m2", source.dataSource());
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -1294,7 +1325,19 @@ public class TestDefaultQueryPlanner {
         planner.nodes_map.get("downsample")));
 
     assertEquals(4, planner.serializationSources().size());
-   
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("m2", source.nodeID());
+    assertEquals("m2", source.dataSource());
+    source = planner.serializationSources().get(2);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(3);
+    assertEquals("gb", source.nodeID());
+    assertEquals("m2", source.dataSource());
+    
     // no filter
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -1309,7 +1352,7 @@ public class TestDefaultQueryPlanner {
   }
   
   @Test
-  public void twoMetricsExpression() throws Exception {
+  public void twoMetricsExpressionUsingMetrics() throws Exception {
     List<QueryNodeConfig> graph = Lists.newArrayList(
         DefaultTimeSeriesDataSourceConfig.newBuilder()
             .setMetric(MetricLiteralFilter.newBuilder()
@@ -1372,6 +1415,90 @@ public class TestDefaultQueryPlanner {
     assertEquals(6, planner.graph().nodes().size());
 
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("expression", source.nodeID());
+    assertEquals("expression", source.dataSource());
+    
+    // no filter
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    when(context.query()).thenReturn(query);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(1, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void twoMetricsExpressionUsingIDs() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("downsample")
+            .addSource("m1")
+            .addSource("m2")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("groupby")
+            .addSource("downsample")
+            .build(),
+       ExpressionConfig.newBuilder()
+            .setExpression("m1 + m2")
+            .setAs("sys.tot")
+            .setJoinConfig((JoinConfig) JoinConfig.newBuilder()
+                .setJoinType(JoinType.NATURAL)
+                .build())
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("expression")
+            .addSource("groupby")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("expression")))
+        .build();
+    
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertEquals(2, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+    assertEquals(6, planner.graph().nodes().size());
+
+    assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("expression", source.nodeID());
+    assertEquals("expression", source.dataSource());
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -1450,6 +1577,15 @@ public class TestDefaultQueryPlanner {
     assertEquals(6, planner.graph().nodes().size());
 
     assertEquals(3, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("m2", source.nodeID());
+    assertEquals("m2", source.dataSource());
+    source = planner.serializationSources().get(2);
+    assertEquals("expression", source.nodeID());
+    assertEquals("expression", source.dataSource());
     
     // no filter
     query = SemanticQuery.newBuilder()
@@ -1542,6 +1678,9 @@ public class TestDefaultQueryPlanner {
     assertEquals(8, planner.graph().nodes().size());
 
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("expression", source.nodeID());
+    assertEquals("expression", source.dataSource());
     
     QueryNode node = planner.nodes_map.get("expression");
     Set<QueryNode> nodes = planner.graph().successors(node);
@@ -1561,6 +1700,9 @@ public class TestDefaultQueryPlanner {
     planner = new DefaultQueryPlanner(context, SINK);
     planner.plan(null).join();
     assertEquals(1, planner.serializationSources().size());
+    source = planner.serializationSources().get(0);
+    assertEquals("expression", source.nodeID());
+    assertEquals("expression", source.dataSource());
   }
   
   @Test
@@ -1640,6 +1782,9 @@ public class TestDefaultQueryPlanner {
     assertEquals(9, planner.graph().nodes().size());
 
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("expression", source.nodeID());
+    assertEquals("expression", source.dataSource());
     
     QueryNode node = planner.nodes_map.get("expression");
     Set<QueryNode> nodes = planner.graph().successors(node);
@@ -1723,70 +1868,76 @@ public class TestDefaultQueryPlanner {
         planner.nodeForId("m2")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
-  @Test
-  public void idConvertTwoByteSourcesPush() throws Exception {
-    mockPush();
-    List<QueryNodeConfig> graph = Lists.newArrayList(
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setFilterId("f1")
-            .setSourceId("s1")
-            .setId("m1")
-            .build(),
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.sys")
-                .build())
-            .setFilterId("f1")
-            .setSourceId("s2")
-            .setId("m2")
-            .build(),
-        MergerConfig.newBuilder()
-            .setAggregator("sum")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
-            .addSource("m1")
-            .addSource("m2")
-            .setDataSource("m1")
-            .setId("Merger")
-            .build());
-    
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart("1514764800")
-        .setEnd("1514768400")
-        .setExecutionGraph(graph)
-        .build();
-    
-    when(context.query()).thenReturn(query);
-
-    DefaultQueryPlanner planner = 
-        new DefaultQueryPlanner(context, SINK);
-    planner.plan(null).join();
-    
-    // validate
-    assertEquals(2, planner.sources().size());
-    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
-    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(5, planner.graph().nodes().size());
-    assertEquals(4, planner.graph().edges().size());
-    assertTrue(planner.graph().hasEdgeConnecting(
-        SINK, planner.nodeForId("IDConverter")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("IDConverter"), 
-        planner.nodeForId("Merger")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger"),
-        planner.nodeForId("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger"),
-        planner.nodeForId("m2")));
-    
-    assertEquals(1, planner.serializationSources().size());
-  }
+//  @Test
+//  public void idConvertTwoByteSourcesPush() throws Exception {
+//    mockPush();
+//    List<QueryNodeConfig> graph = Lists.newArrayList(
+//        DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.user")
+//                .build())
+//            .setFilterId("f1")
+//            .setSourceId("s1")
+//            .setId("m1")
+//            .build(),
+//        DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.sys")
+//                .build())
+//            .setFilterId("f1")
+//            .setSourceId("s2")
+//            .setId("m2")
+//            .build(),
+//        MergerConfig.newBuilder()
+//            .setAggregator("sum")
+//            .addInterpolatorConfig(NUMERIC_CONFIG)
+//            .addSource("m1")
+//            .addSource("m2")
+//            .setDataSource("m1")
+//            .setId("Merger")
+//            .build());
+//    
+//    SemanticQuery query = SemanticQuery.newBuilder()
+//        .setMode(QueryMode.SINGLE)
+//        .setStart("1514764800")
+//        .setEnd("1514768400")
+//        .setExecutionGraph(graph)
+//        .build();
+//    
+//    when(context.query()).thenReturn(query);
+//
+//    DefaultQueryPlanner planner = 
+//        new DefaultQueryPlanner(context, SINK);
+//    planner.plan(null).join();
+//    
+//    // validate
+//    assertEquals(2, planner.sources().size());
+//    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+//    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+//    assertEquals(5, planner.graph().nodes().size());
+//    assertEquals(4, planner.graph().edges().size());
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        SINK, planner.nodeForId("IDConverter")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("IDConverter"), 
+//        planner.nodeForId("Merger")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger"),
+//        planner.nodeForId("m1")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger"),
+//        planner.nodeForId("m2")));
+//    
+//    assertEquals(1, planner.serializationSources().size());
+//    QueryResultId source = planner.serializationSources().get(0);
+//    assertEquals("m1", source.nodeID());
+//    assertEquals("m1", source.dataSource());
+//  }
   
   @Test
   public void idConvertOneByteSources() throws Exception {
@@ -1845,71 +1996,77 @@ public class TestDefaultQueryPlanner {
         planner.nodeForId("m2")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
-  @Test
-  public void idConvertOneByteSourcesPush() throws Exception {
-    mockPush();
-    
-    List<QueryNodeConfig> graph = Lists.newArrayList(
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setFilterId("f1")
-            .setSourceId("s1")
-            .setId("m1")
-            .build(),
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.sys")
-                .build())
-            .setFilterId("f1")
-            .setSourceId("s1")
-            .setId("m2")
-            .build(),
-        MergerConfig.newBuilder()
-            .setAggregator("sum")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
-            .addSource("m1")
-            .addSource("m2")
-            .setDataSource("m1")
-            .setId("Merger")
-            .build());
-    
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart("1514764800")
-        .setEnd("1514768400")
-        .setExecutionGraph(graph)
-        .build();
-    
-    when(context.query()).thenReturn(query);
-   
-
-    DefaultQueryPlanner planner = 
-        new DefaultQueryPlanner(context, SINK);
-    planner.plan(null).join();
-    
-    // validate
-    assertEquals(2, planner.sources().size());
-    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
-    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(5, planner.graph().nodes().size());
-    assertEquals(4, planner.graph().edges().size());
-    assertTrue(planner.graph().hasEdgeConnecting(
-        SINK, planner.nodeForId("IDConverter")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("IDConverter"), planner.nodeForId("Merger")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger"), 
-        planner.nodeForId("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger"), 
-        planner.nodeForId("m2")));
-    
-    assertEquals(1, planner.serializationSources().size());
-  }
+//  @Test
+//  public void idConvertOneByteSourcesPush() throws Exception {
+//    mockPush();
+//    
+//    List<QueryNodeConfig> graph = Lists.newArrayList(
+//        DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.user")
+//                .build())
+//            .setFilterId("f1")
+//            .setSourceId("s1")
+//            .setId("m1")
+//            .build(),
+//        DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.sys")
+//                .build())
+//            .setFilterId("f1")
+//            .setSourceId("s1")
+//            .setId("m2")
+//            .build(),
+//        MergerConfig.newBuilder()
+//            .setAggregator("sum")
+//            .addInterpolatorConfig(NUMERIC_CONFIG)
+//            .addSource("m1")
+//            .addSource("m2")
+//            .setDataSource("m1")
+//            .setId("Merger")
+//            .build());
+//    
+//    SemanticQuery query = SemanticQuery.newBuilder()
+//        .setMode(QueryMode.SINGLE)
+//        .setStart("1514764800")
+//        .setEnd("1514768400")
+//        .setExecutionGraph(graph)
+//        .build();
+//    
+//    when(context.query()).thenReturn(query);
+//   
+//
+//    DefaultQueryPlanner planner = 
+//        new DefaultQueryPlanner(context, SINK);
+//    planner.plan(null).join();
+//    
+//    // validate
+//    assertEquals(2, planner.sources().size());
+//    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+//    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+//    assertEquals(5, planner.graph().nodes().size());
+//    assertEquals(4, planner.graph().edges().size());
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        SINK, planner.nodeForId("IDConverter")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("IDConverter"), planner.nodeForId("Merger")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger"), 
+//        planner.nodeForId("m1")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger"), 
+//        planner.nodeForId("m2")));
+//    
+//    assertEquals(1, planner.serializationSources().size());
+//    QueryResultId source = planner.serializationSources().get(0);
+//    assertEquals("m1", source.nodeID());
+//    assertEquals("m1", source.dataSource());
+//  }
   
   @Test
   public void idConvertOneByteOneStringSources() throws Exception {
@@ -1970,6 +2127,9 @@ public class TestDefaultQueryPlanner {
         planner.nodeForId("m2")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
   @Test
@@ -2032,6 +2192,9 @@ public class TestDefaultQueryPlanner {
         planner.nodeForId("m2")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m1", source.nodeID());
+    assertEquals("m1", source.dataSource());
   }
   
   @Test
@@ -2118,91 +2281,97 @@ public class TestDefaultQueryPlanner {
         planner.nodeForId("Merger1")));
     
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("m3", source.nodeID());
+    assertEquals("m3", source.dataSource());
   }
   
-  @Test
-  public void idConvertMultiLevelMergePush() throws Exception {
-    mockPush();
-    List<QueryNodeConfig> graph = Lists.newArrayList(
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.user")
-                .build())
-            .setFilterId("f1")
-            .setSourceId("s1")
-            .setId("m1")
-            .build(),
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.sys")
-                .build())
-            .setFilterId("f1")
-            .setSourceId("s2")
-            .setId("m2")
-            .build(),
-            DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.cpu.sys")
-                .build())
-            .setFilterId("f1")
-            .setId("m3")
-            .build(),
-        MergerConfig.newBuilder()
-            .setAggregator("sum")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
-            .addSource("m1")
-            .addSource("m2")
-            .setDataSource("m1")
-            .setId("Merger1")
-            .build(),
-        MergerConfig.newBuilder()
-            .setAggregator("sum")
-            .addInterpolatorConfig(NUMERIC_CONFIG)
-            .addSource("Merger1")
-            .addSource("m3")
-            .setDataSource("m1")
-            .setId("Merger2")
-            .build());
-    
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart("1514764800")
-        .setEnd("1514768400")
-        .setExecutionGraph(graph)
-        .build();
-    
-    when(context.query()).thenReturn(query);
-
-    DefaultQueryPlanner planner = 
-        new DefaultQueryPlanner(context, SINK);
-    planner.plan(null).join();
-    
-    // validate
-    assertEquals(3, planner.sources().size());
-    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
-    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
-    assertEquals(7, planner.graph().nodes().size());
-    assertEquals(6, planner.graph().edges().size());
-    assertTrue(planner.graph().hasEdgeConnecting(
-        SINK, planner.nodeForId("IDConverter")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("IDConverter"), 
-        planner.nodeForId("Merger2")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger2"),
-        planner.nodeForId("m3")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger2"),
-        planner.nodeForId("Merger1")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger1"),
-        planner.nodeForId("m1")));
-    assertTrue(planner.graph().hasEdgeConnecting(
-        planner.nodeForId("Merger1"),
-        planner.nodeForId("m2")));
-    
-    assertEquals(1, planner.serializationSources().size());
-  }
+//  @Test
+//  public void idConvertMultiLevelMergePush() throws Exception {
+//    mockPush();
+//    List<QueryNodeConfig> graph = Lists.newArrayList(
+//        DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.user")
+//                .build())
+//            .setFilterId("f1")
+//            .setSourceId("s1")
+//            .setId("m1")
+//            .build(),
+//        DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.sys")
+//                .build())
+//            .setFilterId("f1")
+//            .setSourceId("s2")
+//            .setId("m2")
+//            .build(),
+//            DefaultTimeSeriesDataSourceConfig.newBuilder()
+//            .setMetric(MetricLiteralFilter.newBuilder()
+//                .setMetric("sys.cpu.sys")
+//                .build())
+//            .setFilterId("f1")
+//            .setId("m3")
+//            .build(),
+//        MergerConfig.newBuilder()
+//            .setAggregator("sum")
+//            .addInterpolatorConfig(NUMERIC_CONFIG)
+//            .addSource("m1")
+//            .addSource("m2")
+//            .setDataSource("m1")
+//            .setId("Merger1")
+//            .build(),
+//        MergerConfig.newBuilder()
+//            .setAggregator("sum")
+//            .addInterpolatorConfig(NUMERIC_CONFIG)
+//            .addSource("Merger1")
+//            .addSource("m3")
+//            .setDataSource("m1")
+//            .setId("Merger2")
+//            .build());
+//    
+//    SemanticQuery query = SemanticQuery.newBuilder()
+//        .setMode(QueryMode.SINGLE)
+//        .setStart("1514764800")
+//        .setEnd("1514768400")
+//        .setExecutionGraph(graph)
+//        .build();
+//    
+//    when(context.query()).thenReturn(query);
+//
+//    DefaultQueryPlanner planner = 
+//        new DefaultQueryPlanner(context, SINK);
+//    planner.plan(null).join();
+//    
+//    // validate
+//    assertEquals(3, planner.sources().size());
+//    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+//    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+//    assertEquals(7, planner.graph().nodes().size());
+//    assertEquals(6, planner.graph().edges().size());
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        SINK, planner.nodeForId("IDConverter")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("IDConverter"), 
+//        planner.nodeForId("Merger2")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger2"),
+//        planner.nodeForId("m3")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger2"),
+//        planner.nodeForId("Merger1")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger1"),
+//        planner.nodeForId("m1")));
+//    assertTrue(planner.graph().hasEdgeConnecting(
+//        planner.nodeForId("Merger1"),
+//        planner.nodeForId("m2")));
+//    
+//    assertEquals(1, planner.serializationSources().size());
+//    QueryResultId source = planner.serializationSources().get(0);
+//    assertEquals("m1", source.nodeID());
+//    assertEquals("m1", source.dataSource());
+//  }
   
   @Test
   public void cycleFound() throws Exception {
@@ -2569,13 +2738,16 @@ public class TestDefaultQueryPlanner {
     assertTrue(planner.sources().contains(STORE_NODES.get(1)));
     assertEquals(6, planner.graph().nodes().size());
     assertEquals(1, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("e3", source.nodeID());
+    assertEquals("e3", source.dataSource());
     
     QueryNode node = planner.nodeForId("e3");
     ExpressionParseNode exconfig = (ExpressionParseNode) node.config();
     assertEquals("e1", exconfig.getLeft());
-    assertEquals("e1:e1", exconfig.getLeftId());
+    assertEquals(new DefaultQueryResultId("e1", "e1"), exconfig.getLeftId());
     assertEquals("e2", exconfig.getRight());
-    assertEquals("e2:e2", exconfig.getRightId());
+    assertEquals(new DefaultQueryResultId("e2", "e2"), exconfig.getRightId());
   }
   
   @Test
@@ -2718,6 +2890,34 @@ public class TestDefaultQueryPlanner {
     assertEquals(31, planner.graph().nodes().size());
 
     assertEquals(9, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("q3_m2-smooth", source.nodeID());
+    assertEquals("q3_m2", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("q2_m2-smooth", source.nodeID());
+    assertEquals("q2_m2", source.dataSource());
+    source = planner.serializationSources().get(2);
+    assertEquals("q3_e1", source.nodeID());
+    assertEquals("q3_e1", source.dataSource());
+    source = planner.serializationSources().get(3);
+    assertEquals("q2_m1-smooth", source.nodeID());
+    assertEquals("q2_m1", source.dataSource());
+    source = planner.serializationSources().get(4);
+    assertEquals("q1_m1-smooth", source.nodeID());
+    assertEquals("q1_m1", source.dataSource());
+    source = planner.serializationSources().get(5);
+    assertEquals("q1_m2-smooth", source.nodeID());
+    assertEquals("q1_m2", source.dataSource());
+    source = planner.serializationSources().get(6);
+    assertEquals("q3_m1-smooth", source.nodeID());
+    assertEquals("q3_m1", source.dataSource());
+    source = planner.serializationSources().get(7);
+    assertEquals("q1_e1", source.nodeID());
+    assertEquals("q1_e1", source.dataSource());
+    source = planner.serializationSources().get(8);
+    assertEquals("q2_e1", source.nodeID());
+    assertEquals("q2_e1", source.dataSource());
+    
     assertTrue(planner.graph().hasEdgeConnecting(SINK, 
         planner.nodeForId("q1_e1")));
     assertTrue(planner.graph().hasEdgeConnecting(SINK, 
@@ -2736,6 +2936,291 @@ public class TestDefaultQueryPlanner {
         planner.nodeForId("q2_m2-smooth")));
     assertTrue(planner.graph().hasEdgeConnecting(SINK, 
         planner.nodeForId("q3_m2-smooth")));
+  }
+  
+  @Test
+  public void twoGraphsSummaryNoFilter() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds1")
+            .addSource("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds2")
+            .addSource("m2")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb1")
+            .addSource("ds1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb2")
+            .addSource("ds2")
+            .build(),
+        SummarizerConfig.newBuilder()
+            .addSummary("sum")
+            .addSource("gb1")
+            .addSource("gb2")
+            .setId("summarizer")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        //.addSerdesConfig(serdesConfigs(Lists.newArrayList("gb1", "gb2")))
+        .build();
+    
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertEquals(2, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+    assertEquals(8, planner.graph().nodes().size());
+
+    assertEquals(2, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("summarizer", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("summarizer", source.nodeID());
+    assertEquals("m2", source.dataSource());
+    
+    // no filter
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    when(context.query()).thenReturn(query);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(2, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void twoGraphsSummaryFilter() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds1")
+            .addSource("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds2")
+            .addSource("m2")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb1")
+            .addSource("ds1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb2")
+            .addSource("ds2")
+            .build(),
+        SummarizerConfig.newBuilder()
+            .addSummary("sum")
+            .addSource("gb1")
+            .addSource("gb2")
+            .setId("summarizer")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("summarizer")))
+        .build();
+    
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertEquals(2, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+    assertEquals(8, planner.graph().nodes().size());
+
+    assertEquals(2, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("summarizer", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("summarizer", source.nodeID());
+    assertEquals("m2", source.dataSource());
+    
+    // no filter
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    when(context.query()).thenReturn(query);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(2, planner.serializationSources().size());
+  }
+  
+  @Test
+  public void twoGraphsSummaryPassThroughFilter() throws Exception {
+    List<QueryNodeConfig> graph = Lists.newArrayList(
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.user")
+                .build())
+            .setFilterId("f1")
+            .setId("m1")
+            .build(),
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                .setMetric("sys.cpu.sys")
+                .build())
+            .setFilterId("f1")
+            .setId("m2")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds1")
+            .addSource("m1")
+            .build(),
+        DownsampleConfig.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("ds2")
+            .addSource("m2")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb1")
+            .addSource("ds1")
+            .build(),
+        GroupByConfig.newBuilder()
+            .setAggregator("sum")
+            .addTagKey("host")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setId("gb2")
+            .addSource("ds2")
+            .build(),
+        SummarizerConfig.newBuilder()
+            .addSummary("sum")
+            .addSource("gb1")
+            .addSource("gb2")
+            .setId("summarizer")
+            .build());
+    
+    SemanticQuery query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .addSerdesConfig(serdesConfigs(Lists.newArrayList("summarizer", "gb1", "gb2")))
+        .build();
+    
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner = 
+        new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    
+    // validate
+    assertEquals(2, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertTrue(planner.sources().contains(STORE_NODES.get(1)));
+    assertEquals(8, planner.graph().nodes().size());
+
+    assertEquals(4, planner.serializationSources().size());
+    QueryResultId source = planner.serializationSources().get(0);
+    assertEquals("gb1", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(1);
+    assertEquals("gb2", source.nodeID());
+    assertEquals("m2", source.dataSource());
+    source = planner.serializationSources().get(2);
+    assertEquals("summarizer", source.nodeID());
+    assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(3);
+    assertEquals("summarizer", source.nodeID());
+    assertEquals("m2", source.dataSource());
+    
+    // no filter
+    query = SemanticQuery.newBuilder()
+        .setMode(QueryMode.SINGLE)
+        .setStart("1514764800")
+        .setEnd("1514768400")
+        .setExecutionGraph(graph)
+        .build();
+    when(context.query()).thenReturn(query);
+    planner = new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(2, planner.serializationSources().size());
   }
   
   private SerdesOptions serdesConfigs(final List<String> filter) {

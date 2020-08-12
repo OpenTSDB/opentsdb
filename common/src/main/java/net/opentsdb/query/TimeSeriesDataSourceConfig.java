@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,10 +32,6 @@ public interface TimeSeriesDataSourceConfig<
     extends QueryNodeConfig<B, C> {
 
   public static final String DEFAULT = "TimeSeriesDataSource";
-  
-  /** @return The ID of the node as set by the user and populates the 
-   * {@link QueryResult#dataSource()} field. May be the same as the ID. */
-  public String getDataSourceId();
   
   /** @return The source ID. May be null in which case we use the default. */
   public String getSourceId();
@@ -103,8 +99,6 @@ public interface TimeSeriesDataSourceConfig<
    */
   interface Builder<B extends Builder<B, C>, 
       C extends TimeSeriesDataSourceConfig> extends QueryNodeConfig.Builder<B, C> {
-    
-    B setDataSourceId(final String data_source_id);
     
     B setSourceId(final String source_id);
     

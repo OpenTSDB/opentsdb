@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.readcache.QueryReadCache;
 import net.opentsdb.query.readcache.ReadCacheCallback;
 import net.opentsdb.query.readcache.ReadCacheQueryResult;
@@ -325,7 +326,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
   
     class CQR implements ReadCacheQueryResultSet {
       final byte[] key;
-      final Map<String, ReadCacheQueryResult> results;
+      final Map<QueryResultId, ReadCacheQueryResult> results;
       final int idx;
       
       CQR(final int idx, final byte[] raw) {
@@ -349,7 +350,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
       }
       
       @Override
-      public Map<String, ReadCacheQueryResult> results() {
+      public Map<QueryResultId, ReadCacheQueryResult> results() {
         return results;
       }
 

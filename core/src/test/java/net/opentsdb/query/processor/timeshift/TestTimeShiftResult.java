@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,8 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.timeshift.TimeShiftResult.TimeShiftTimeSeries;
 import net.opentsdb.utils.DateTime;
@@ -58,12 +60,17 @@ public class TestTimeShiftResult {
     when(FACTORY.newTypedIterator(eq(NumericType.TYPE), eq(NODE), 
         any(QueryResult.class), any(Collection.class)))
         .thenReturn(mock(TimeShiftNumericIterator.class));
+    QueryNodeConfig config = mock(QueryNodeConfig.class);
+    when(config.getId()).thenReturn("m1");
+    when(NODE.config()).thenReturn(config);
   }
   
   @Before
   public void before() throws Exception {
     result = mock(QueryResult.class);
+    when(result.source()).thenReturn(NODE);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(SERIES));
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
   }
   
   @Test

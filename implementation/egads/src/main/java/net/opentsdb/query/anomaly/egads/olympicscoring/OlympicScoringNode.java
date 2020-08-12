@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
 import net.opentsdb.query.SemanticQuery;
@@ -107,7 +108,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
   protected final long prediction_interval;
   protected final int threshold_dps;
   protected String ds_interval;
-  protected volatile String data_source;
+  protected volatile QueryResultId data_source;
   
   public OlympicScoringNode(final QueryNodeFactory factory,
                             final QueryPipelineContext context,

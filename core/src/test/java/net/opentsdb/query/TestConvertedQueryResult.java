@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,6 +54,9 @@ public class TestConvertedQueryResult {
   @Test
   public void convertNode() throws Exception {
     QueryNode node = mock(QueryNode.class);
+    QueryNodeConfig config = mock(QueryNodeConfig.class);
+    when(config.getId()).thenReturn("id");
+    when(node.config()).thenReturn(config);
     
     try {
       ConvertedQueryResult.convert(null, node, null);
@@ -96,6 +99,7 @@ public class TestConvertedQueryResult {
     when(((TimeSeriesByteId) sources.get(0).id()).decode(false, null))
       .thenReturn(Deferred.fromError(new UnitTestException()));
     node = mock(QueryNode.class);
+    when(node.config()).thenReturn(config);
     ConvertedQueryResult.convert(result, node, null);
     verify(node, times(1)).onError(any(Throwable.class));
     
@@ -104,6 +108,7 @@ public class TestConvertedQueryResult {
     when(((TimeSeriesByteId) sources.get(0).id()).decode(false, null))
       .thenThrow(new UnitTestException());
     node = mock(QueryNode.class);
+    when(node.config()).thenReturn(config);
     ConvertedQueryResult.convert(result, node, null);
     verify(node, times(1)).onError(any(Throwable.class));
     
@@ -246,6 +251,7 @@ public class TestConvertedQueryResult {
     sources.add(ts2);
     
     result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(result.timeSeries()).thenReturn(sources);
     when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -279,6 +285,7 @@ public class TestConvertedQueryResult {
     sources.add(ts2);
     
     result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(result.timeSeries()).thenReturn(sources);
     when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override

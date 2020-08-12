@@ -48,7 +48,7 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
    * @param next The non-null results to pull from.
    */
   public TopNResult(final TopN node, final QueryResult next) {
-    super(next);
+    super(node, next);
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
@@ -113,11 +113,6 @@ public class TopNResult extends BaseWrappedQueryResult implements Runnable {
   @Override
   public List<TimeSeries> timeSeries() {
     return results;
-  }
-  
-  @Override
-  public QueryNode source() {
-    return node;
   }
   
   class SortOnDouble implements Comparable<SortOnDouble> {

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,6 @@ import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.WeightedMovingAverageFactory;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -151,7 +150,7 @@ public class MovingAverage extends AbstractQueryNode {
     private List<TimeSeries> series;
     
     MovingAverageResult(final QueryResult next) {
-      super(next);
+      super(MovingAverage.this, next);
       series = Lists.newArrayListWithExpectedSize(next.timeSeries().size());
       for (final TimeSeries ts : next.timeSeries()) {
         series.add(new MovingAverageTimeSeries(ts));
@@ -161,11 +160,6 @@ public class MovingAverage extends AbstractQueryNode {
     @Override
     public List<TimeSeries> timeSeries() {
       return series;
-    }
-    
-    @Override
-    public QueryNode source() {
-      return MovingAverage.this;
     }
     
     /**

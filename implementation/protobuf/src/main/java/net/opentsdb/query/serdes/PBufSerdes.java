@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,8 +38,6 @@ import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.serdes.SerdesOptions;
-import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
 
 /**
@@ -225,7 +223,8 @@ public class PBufSerdes implements TimeSeriesSerdes {
   public QueryResultPB.QueryResult serializeResult(final QueryResult result) {
     final QueryResultPB.QueryResult.Builder result_builder = 
         QueryResultPB.QueryResult.newBuilder()
-          .setDataSource(result.dataSource())
+          .setDataSource(
+              result.dataSource().nodeID() + ":" + result.dataSource().dataSource())
           .setNodeId(result.source().config().getId());
     if (result.timeSpecification() != null) {
       result_builder.setTimeSpecification(TimeSpecification.newBuilder()

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018 The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
-import java.time.Duration;
 import java.util.Collections;
 
 import org.junit.Before;
@@ -51,14 +50,13 @@ import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -67,7 +65,6 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestJsonV3QuerySerdes {
@@ -94,6 +91,7 @@ public class TestJsonV3QuerySerdes {
 
     context = mock(QueryContext.class);
     result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("s1", "s1"));
     store = mock(TimeSeriesDataSourceFactory.class);
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(
@@ -193,7 +191,7 @@ public class TestJsonV3QuerySerdes {
     serdes.serializeComplete(null);
     output.close();
     final String json = new String(output.toByteArray(), Const.UTF8_CHARSET);
-    assertEquals(json, "{\"results\":[{\"source\":\"s1:null\",\"data\":[]}],\"log\":[]}");
+    assertEquals(json, "{\"results\":[{\"source\":\"s1:s1\",\"data\":[]}],\"log\":[]}");
   }
 
   @Test

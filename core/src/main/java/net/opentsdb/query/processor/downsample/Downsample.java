@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ public class Downsample extends AbstractQueryNode {
      * @param results The non-null results set.
      */
     public DownsampleResult(final QueryResult results) {
-      super(results);
+      super(Downsample.this, results);
       latch = new CountDownLatch(Downsample.this.upstream.size());
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
       for (final TimeSeries series : results.timeSeries()) {
@@ -197,12 +197,7 @@ public class Downsample extends AbstractQueryNode {
     public List<TimeSeries> timeSeries() {
       return downsamplers;
     }
-    
-    @Override
-    public QueryNode source() {
-      return Downsample.this;
-    }
-    
+
     @Override
     public ChronoUnit resolution() {
       return resolution;

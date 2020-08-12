@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
@@ -129,6 +130,7 @@ public class TestGroupByResult {
     when(result.sequenceId()).thenReturn(42l);
     when(result.timeSpecification()).thenReturn(time_spec);
     when(result.idType()).thenReturn((TypeToken) Const.TS_STRING_ID);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
   }
   
   @Test

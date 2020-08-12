@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,6 +57,12 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   /** The cached hash code. */
   protected volatile HashCode cached_hash;
   
+  /** Whether or not the node is cacheable in the config graph. */
+  protected boolean cacheable;
+  
+  /** The data sources from this node. */
+  protected List<QueryResultId> result_ids;
+  
   /**
    * Protected ctor.
    * @param builder A non-null builder.
@@ -71,6 +77,7 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
     sources = builder.sources == null ? Collections.emptyList() : 
       builder.sources;
     overrides = builder.overrides;
+    result_ids = builder.result_ids;
   }
   
   @Override
@@ -244,6 +251,35 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
     return hc.hash();
   }
   
+  @Override
+  public List<QueryResultId> resultIds() {
+    return result_ids == null ? Collections.emptyList() : result_ids;
+  }
+  
+  @Override
+  public boolean markedCacheable() {
+    return cacheable;
+  }
+  
+  @Override
+  public void markCacheable(final boolean cacheable) {
+    this.cacheable = cacheable;
+  }
+  
+  /**
+   * A method to set the common fields to the given builder so we avoid a little
+   * boilerplate.
+   * @param builder A non-null builder to set the fieldso n.
+   */
+  protected void toBuilder(final Builder builder) {
+    builder
+      .setSources(sources != null ? Lists.newArrayList(sources) : null)
+      .setResultIds(result_ids != null ? Lists.newArrayList(result_ids) : null)
+      .setOverrides(overrides != null ? Maps.newHashMap(overrides) : null)
+      .setType(type)
+      .setId(id);
+  }
+  
   /** Base builder for QueryNodeConfig. */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public abstract static class Builder<B extends Builder<B, C>, C extends BaseQueryNodeConfig>
@@ -257,6 +293,7 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
     protected List<String> sources;
     @JsonProperty
     protected Map<String, String> overrides;
+    protected List<QueryResultId> result_ids;
 
     /**
      * @param id An ID for this builder.
@@ -320,5 +357,21 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
       return self();
     }
 
+    @Override
+    public B setResultIds(final List<QueryResultId> data_sources) {
+      this.result_ids = data_sources;
+      return self();
+    }
+    
+    @Override
+    public B addResultId(final QueryResultId source) {
+      if (result_ids == null) {
+        result_ids = Lists.newArrayList(source);
+      } else {
+        result_ids.add(source);
+      }
+      return self();
+    }
+    
   }
 }

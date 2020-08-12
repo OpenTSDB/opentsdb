@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
 /**
@@ -62,7 +61,7 @@ public class TimeShiftResult extends BaseWrappedQueryResult {
                          final QueryResult result,
                          final boolean is_previous,
                          final TemporalAmount amount) {
-    super(result);
+    super(node, result);
     this.node = node;
     this.is_previous = is_previous;
     this.amount = amount;
@@ -85,11 +84,6 @@ public class TimeShiftResult extends BaseWrappedQueryResult {
     }
   }
 
-  @Override
-  public QueryNode source() {
-    return node;
-  }
-  
   @Override
   public List<TimeSeries> timeSeries() {
     return time_series;

@@ -16,6 +16,7 @@ package net.opentsdb.query;
 
 import java.time.temporal.TemporalAmount;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -78,11 +79,6 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
     return config.getType();
   }
 
-  @Override
-  public String getDataSourceId() {
-    return config.getDataSourceId();
-  }
-  
   @Override
   public List<String> getSources() {
     return config.getSources();
@@ -300,5 +296,20 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   @Override
   public int compareTo(Object o) {
     throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public List<QueryResultId> resultIds() {
+    return config.resultIds();
+  }
+  
+  @Override
+  public boolean markedCacheable() {
+    return config.markedCacheable();
+  }
+  
+  @Override
+  public void markCacheable(final boolean cacheable) {
+    config.markCacheable(cacheable);
   }
 }

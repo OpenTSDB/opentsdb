@@ -186,8 +186,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           throws Exception {
         try {
           json.writeStartObject();
-          json.writeStringField("source", result.source().config().getId()
-              + ":" + result.dataSource());
+          json.writeStringField("source", result.dataSource().toString());
           final TimeStamp spec_start;
           final TimeStamp spec_end;
 

@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.base.Objects;
 import com.google.common.hash.HashCode;
@@ -55,9 +56,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     BaseTimeSeriesDataSourceConfig.Builder<B, C>, C extends 
         BaseQueryNodeConfig & TimeSeriesDataSourceConfig> extends 
           BaseQueryNodeConfig<B, C> implements TimeSeriesDataSourceConfig<B, C> {
-
-  /** The data source id. */
-  private final String data_source_id;
   
   /** The source provider ID. */
   private final String source_id;
@@ -119,8 +117,12 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
    */
   protected BaseTimeSeriesDataSourceConfig(final Builder builder) {
     super(builder);
-    data_source_id = Strings.isNullOrEmpty(builder.dataSourceId) ? 
-        builder.id : builder.dataSourceId;
+    if (result_ids == null) {
+      result_ids = Lists.newArrayList();
+    }
+    if (result_ids.isEmpty()) {
+      result_ids.add(new DefaultQueryResultId(id, id));
+    }
     source_id = builder.sourceId;
     types = builder.types;
     namespace = builder.namespace;
@@ -160,11 +162,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     }
   }
 
-  @Override
-  public String getDataSourceId() {
-    return data_source_id;
-  }
-  
   @Override
   public String getSourceId() {
     return source_id;
@@ -375,7 +372,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
         .setFetchLast(config.getFetchLast())
         .setFrom(config.getFrom())
         .setSize(config.getSize())
-        .setDataSourceId(config.getDataSourceId())
         .setRollupIntervals(
             config.getRollupIntervals() == null || config.getRollupIntervals().isEmpty()
                 ? null
@@ -393,7 +389,12 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
                 : Lists.newArrayList(config.getPushDownNodes()))
         .setTimeShiftInterval(config.getTimeShiftInterval())
         .setTimeShifts(config.timeShifts())
-        // TODO - overrides if we keep em.
+        .setSources(config.getSources() != null ? 
+            Lists.newArrayList(config.getSources()) : null)
+        .setResultIds(config.resultIds() != null ? 
+            Lists.newArrayList(config.resultIds()) : null)
+        .setOverrides(config.getOverrides() != null ? 
+            Maps.newHashMap(config.getOverrides()) : null)
         .setType(config.getType())
         .setId(config.getId());
     if (!config.getSources().isEmpty()) {
@@ -409,11 +410,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     JsonNode n = node.get("sourceId");
     if (n != null && !n.isNull()) {
       builder.setSourceId(n.asText());
-    }
-    
-    n = node.get("dataSourceId");
-    if (n != null && !n.isNull()) {
-      builder.setDataSourceId(n.asText());
     }
 
     n = node.get("namespace");
@@ -571,8 +567,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       implements TimeSeriesDataSourceConfig.Builder<B, C> {
 
     @JsonProperty
-    protected String dataSourceId;
-    @JsonProperty
     protected String sourceId;
     @JsonProperty
     protected List<String> types;
@@ -615,11 +609,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       return sourceId;
     }
 
-    public B setDataSourceId(final String data_source_id) {
-      dataSourceId = data_source_id;
-      return self();
-    }
-    
     @Override
     public B setSourceId(final String source_id) {
       sourceId = source_id;
@@ -659,7 +648,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       return self();
     }
 
-    public Builder setMetric(final MetricFilter metric) {
+    public B setMetric(final MetricFilter metric) {
       this.metric = metric;
       return self();
     }

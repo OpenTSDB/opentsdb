@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -50,6 +51,7 @@ import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
@@ -145,6 +147,7 @@ public class TestDownsampleFactory {
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(60000));
     source.add(30000, 42);
     final QueryResult result = mock(Downsample.DownsampleResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     final DefaultRollupConfig rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
@@ -347,7 +350,7 @@ public class TestDownsampleFactory {
         .setExecutionGraph(graph)
         .build();
     
-    QueryPlanner planner = mock(QueryPlanner.class);
+    QueryPlanner planner = mock(DefaultQueryPlanner.class);
     when(planner.terminalSourceNodes(any(QueryNodeConfig.class)))
       .thenReturn(Lists.newArrayList(source));
     TimeSeriesDataSourceFactory source_factory = 
@@ -460,7 +463,7 @@ public class TestDownsampleFactory {
         .setExecutionGraph(graph)
         .build();
     
-    QueryPlanner planner = mock(QueryPlanner.class);
+    QueryPlanner planner = mock(DefaultQueryPlanner.class);
     when(planner.terminalSourceNodes(any(QueryNodeConfig.class)))
       .thenReturn(Lists.newArrayList(source));
     TimeSeriesDataSourceFactory source_factory = 
@@ -574,7 +577,7 @@ public class TestDownsampleFactory {
         .setExecutionGraph(graph)
         .build();
     
-    QueryPlanner planner = mock(QueryPlanner.class);
+    QueryPlanner planner = mock(DefaultQueryPlanner.class);
     when(planner.terminalSourceNodes(any(QueryNodeConfig.class)))
       .thenReturn(Lists.newArrayList(source));
     TimeSeriesDataSourceFactory source_factory = 

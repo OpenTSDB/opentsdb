@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -58,6 +59,7 @@ public class TestTopNResult {
   public void before() throws Exception {
     node = mock(TopN.class);
     result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     
     config = (TopNConfig) TopNConfig.newBuilder()
         .setAggregator("sum")

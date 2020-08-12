@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -120,14 +122,14 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators<GroupByC
 
   @Override
   public Builder toBuilder() {
-    return new Builder()
+    Builder builder = new Builder()
         .setTagKeys(Sets.newHashSet(tag_keys))
         .setAggregator(aggregator)
         .setInfectiousNan(infectious_nan)
         .setMergeIds(merge_ids)
-        .setFullMerge(full_merge)
-        .setInterpolatorConfigs(Lists.newArrayList(interpolator_configs.values()))
-        .setId(id);
+        .setFullMerge(full_merge);
+    super.toBuilder(builder);
+    return builder;
   }
 
   @Override
@@ -184,14 +186,10 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators<GroupByC
             .putBoolean(full_merge)
             .hash();
 
-
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(4);
-
     hashes.add(super.buildHashCode());
-
     hashes.add(hc);
-
 
     if (tag_keys != null) {
       final List<String> keys = Lists.newArrayList(tag_keys);

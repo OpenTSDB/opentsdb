@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupConfig;
 
@@ -156,8 +157,9 @@ public class Tsdb1xQueryResult implements QueryResult {
   }
 
   @Override
-  public String dataSource() {
-    return ((TimeSeriesDataSourceConfig) node.config()).getDataSourceId();
+  public QueryResultId dataSource() {
+    // TODO - there should only be one, ever!
+    return (QueryResultId) ((TimeSeriesDataSourceConfig) node.config()).resultIds().get(0);
   }
   
   @Override

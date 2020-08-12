@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,15 +33,49 @@ import net.opentsdb.rollup.RollupConfig;
  */
 public abstract class BaseWrappedQueryResult implements QueryResult {
 
+  /** The query node this came from, if set. */
+  protected final QueryNode source;
+  
   /** The result. */
   protected final QueryResult result;
+  
+  /** The ID of this result. If null we pass-through the result's ID. */
+  protected QueryResultId id;
   
   /**
    * Default ctor.
    * @param result A non-null result to work from.
    */
   public BaseWrappedQueryResult(final QueryResult result) {
+    source = null;
     this.result = result;
+  }
+
+  /**
+   * Ctor that allows for a different query node source that is used to override
+   * the node ID of the result ID. The result data source is carried through.
+   * @param source The non-null query source.
+   * @param result The non-null result.
+   */
+  public BaseWrappedQueryResult(final QueryNode source, final QueryResult result) {
+    this.source = source;
+    this.result = result;
+    if (result.dataSource() == null) {
+      throw new IllegalArgumentException("The result cannot have a null "
+          + "data source.");
+    }
+    id = new DefaultQueryResultId(source.config().getId(), 
+        result.dataSource().dataSource());
+  }
+  
+  @Override
+  public QueryNode source() {
+    return source == null ? result.source() : source;
+  }
+  
+  @Override
+  public QueryResultId dataSource() {
+    return id == null ? result.dataSource() : id;
   }
   
   @Override
@@ -69,11 +103,6 @@ public abstract class BaseWrappedQueryResult implements QueryResult {
     return result.sequenceId();
   }
   
-  @Override
-  public String dataSource() {
-    return result.dataSource();
-  }
-
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return result.idType();

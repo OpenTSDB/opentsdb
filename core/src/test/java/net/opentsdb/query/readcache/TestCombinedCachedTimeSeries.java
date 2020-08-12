@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,9 +45,11 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.TimeSeriesQuery;
 
@@ -59,7 +61,7 @@ private static final int BASE_TIME = 1546300800;
   private List<QuerySink> sinks;
   private TimeSeriesId id;
   private QueryNode<?> node;
-  private String data_source;
+  private QueryResultId data_source;
   
   @Before
   public void before() throws Exception {
@@ -70,7 +72,7 @@ private static final int BASE_TIME = 1546300800;
     query = mock(TimeSeriesQuery.class);
     sinks = Lists.newArrayList(mock(QuerySink.class));
     node = mock(QueryNode.class);
-    data_source = "m1";
+    data_source = new DefaultQueryResultId("m1", "m1");
     when(context.query()).thenReturn(query);
     when(query.startTime()).thenReturn(new SecondTimeStamp(BASE_TIME));
     when(query.endTime()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 4)));

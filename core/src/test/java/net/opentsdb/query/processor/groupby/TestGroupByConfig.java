@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
@@ -191,6 +192,7 @@ public class TestGroupByConfig {
         .addTagKey("dc")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .addResultId(new DefaultQueryResultId("m1", "m1"))
         .setId("GBy")
         .build();
     
@@ -200,6 +202,8 @@ public class TestGroupByConfig {
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
     assertSame(numeric_config, config.interpolatorConfigs().get(NumericType.TYPE));
+    assertEquals(1, config.resultIds().size());
+    assertEquals(new DefaultQueryResultId("m1", "m1"), config.resultIds().get(0));
   }
 
 }

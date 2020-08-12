@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
+import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
@@ -62,6 +63,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery.LogLevel;
@@ -157,28 +159,44 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     
     key = configKey("rollups.config");
     if (!tsdb.getConfig().hasProperty(key)) {
-      tsdb.getConfig().register(key, null, false, 
-          "The path to a JSON file containing the rollup configuration.");
+      tsdb.getConfig().register(
+          ConfigurationEntrySchema.newBuilder()
+          .setKey(key)
+          .setType(DefaultRollupConfig.class)
+          .setDescription("The JSON or YAML config with a mapping of "
+              + "aggregations to numeric IDs and intervals to tables and spans.")
+          .isNullable()
+          .setSource(getClass().getName())
+          .build());
     }
     
     key = configKey("rollups.enable");
     final boolean rollups_enabled = tsdb.getConfig().getBoolean(key);
     if (rollups_enabled) {
       key = configKey("rollups.config");
-      String value = tsdb.getConfig().getString(key);
-      if (Strings.isNullOrEmpty(value)) { 
+      if (!tsdb.getConfig().hasProperty(key)) {
         throw new ConfigurationException("Null value for config key: " + key);
       }
       
-      if (value.endsWith(".json")) {
-        try {
-          value = Files.toString(new File(value), Const.UTF8_CHARSET);
-        } catch (IOException e) {
-          throw new IllegalArgumentException("Failed to open conf file: " 
-              + value, e);
+      RollupConfig conf = tsdb.getConfig().getTyped(key, DefaultRollupConfig.class);
+      if (conf != null) {
+        rollup_config = conf;
+      } else {
+        String value = tsdb.getConfig().getString(key);
+        if (Strings.isNullOrEmpty(value)) { 
+          throw new ConfigurationException("Null value for config key: " + key);
         }
+        
+        if (value.endsWith(".json")) {
+          try {
+            value = Files.toString(new File(value), Const.UTF8_CHARSET);
+          } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to open conf file: " 
+                + value, e);
+          }
+        }
+        rollup_config = JSON.parseToObject(value, DefaultRollupConfig.class);
       }
-      rollup_config = JSON.parseToObject(value, DefaultRollupConfig.class);
     } else {
       rollup_config = null;
     }
@@ -1007,8 +1025,8 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
 
     @Override
-    public String dataSource() {
-      return config.getId();
+    public QueryResultId dataSource() {
+      return (QueryResultId) config.resultIds().get(0);
     }
     
     @Override

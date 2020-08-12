@@ -48,6 +48,7 @@ import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -1629,6 +1630,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Downsample ds = new Downsample(null, pipeline_context, config);
     ds.initialize(null);
     final QueryResult result = mock(Downsample.DownsampleResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("ds", "m1"));
     return ds.new DownsampleResult(result);
   }
 

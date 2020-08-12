@@ -81,6 +81,7 @@ import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -564,7 +565,9 @@ public class TestGroupByNumericArrayIterator {
     factory.initialize(TSDB, null);
     Downsample ds = new Downsample(factory, context, dsConfig);
     ds.initialize(null);
-    Downsample.DownsampleResult dsResult = ds.new DownsampleResult(mock(QueryResult.class));
+    QueryResult r = mock(QueryResult.class);
+    when(r.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
+    Downsample.DownsampleResult dsResult = ds.new DownsampleResult(r);
 
     ts1 =
         new NumericMillisecondShard(
@@ -699,6 +702,7 @@ public class TestGroupByNumericArrayIterator {
     Downsample ds = new Downsample(factory, context, dsConfig);
     ds.initialize(null);
     QueryResult ds_of_ds_result = mock(QueryResult.class);
+    when(ds_of_ds_result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(ds_of_ds_result.timeSpecification()).thenReturn(time_spec);
     Downsample.DownsampleResult dsResult = ds.new DownsampleResult(ds_of_ds_result);
     when(result.downstreamResult()).thenReturn(dsResult);

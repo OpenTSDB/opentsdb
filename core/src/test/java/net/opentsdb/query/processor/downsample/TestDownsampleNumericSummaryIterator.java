@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -3477,6 +3478,7 @@ public class TestDownsampleNumericSummaryIterator {
     Downsample ds = new Downsample(null, pipeline_context, config);
     ds.initialize(null);
     final QueryResult result = mock(Downsample.DownsampleResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(result.rollupConfig()).thenReturn(rollup_config);
     this.result = ds.new DownsampleResult(result);
   }

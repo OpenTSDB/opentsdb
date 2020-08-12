@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,8 +31,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.anomaly.AnomalyPredictionState;
-import net.opentsdb.query.anomaly.PredictionCache;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.execution.cache.RedisClusterQueryCache;
 import net.opentsdb.query.readcache.ReadCacheQueryResult;
 import net.opentsdb.query.readcache.ReadCacheSerdes;
@@ -177,10 +176,10 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
     }
     
     try {
-      final Map<String, ReadCacheQueryResult> results = 
+      final Map<QueryResultId, ReadCacheQueryResult> results = 
           serdes.deserialize(context, raw);
       ReadCacheQueryResult result = null;
-      for (final Entry<String, ReadCacheQueryResult> entry : results.entrySet()) {
+      for (final Entry<QueryResultId, ReadCacheQueryResult> entry : results.entrySet()) {
         if (entry.getValue() != null) {
           result = entry.getValue();
           break;

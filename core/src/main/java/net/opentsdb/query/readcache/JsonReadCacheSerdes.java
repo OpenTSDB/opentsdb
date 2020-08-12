@@ -65,9 +65,11 @@ import net.opentsdb.data.types.status.StatusIterator;
 import net.opentsdb.data.types.status.StatusType;
 import net.opentsdb.data.types.status.StatusValue;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.summarizer.Summarizer;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
@@ -126,8 +128,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         }
         // TODO make sure ids are strings.
         json.writeStartObject();
-        json.writeStringField("source", result.source().config().getId() 
-            + ":" + result.dataSource());
+        json.writeStringField("source", result.dataSource().toString());
         // TODO - array of data sources
         // serdes time spec if present
         if (result.timeSpecification() != null) {
@@ -199,20 +200,20 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
   }
 
   @Override
-  public Map<String, ReadCacheQueryResult> deserialize(
+  public Map<QueryResultId, ReadCacheQueryResult> deserialize(
       final QueryNode node, 
       final byte[] data) {
     if (node.pipelineContext().query().isTraceEnabled()) {
       node.pipelineContext().queryContext().logTrace("Parsing cached segment: " 
           + new String(data, Const.UTF8_CHARSET));
     }
-    Map<String, ReadCacheQueryResult> map = Maps.newHashMap();
+    Map<QueryResultId, ReadCacheQueryResult> map = Maps.newHashMap();
     try {
       JsonNode results = JSON.getMapper().readTree(data);
       results = results.get("results");
       for (final JsonNode result : results) {
         ReadCacheQueryResult r = new JsonCachedResult(node, result, ROLLUP_CONFIG);
-        map.put(r.source().config().getId() + ":" + r.dataSource(), r);
+        map.put(r.dataSource(), r);
       }
     } catch (IOException e) {
       throw new RuntimeException("Failed to parse data", e);
@@ -803,7 +804,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
     private final QueryNode node;
     
     /** The name of this data source. */
-    private String data_source;
+    private QueryResultId data_source;
     
     /** The time spec parsed out. */
     private TimeSpecification time_spec;
@@ -846,9 +847,10 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
                      final Exception exception) {
       try {
         String temp = root.get("source").asText();
-        data_source = temp.substring(temp.indexOf(":") + 1);
-        this.node = new CachedQueryNode(temp.substring(0, temp.indexOf(":")), 
-            node);
+        data_source = new DefaultQueryResultId(
+            temp.substring(0, temp.indexOf(":")), 
+            temp.substring(temp.indexOf(":") + 1));
+        this.node = new CachedQueryNode(data_source.nodeID(), node);
         
         this.exception = exception;
         this.rollup_config = rollup_config;
@@ -928,7 +930,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
     }
 
     @Override
-    public String dataSource() {
+    public QueryResultId dataSource() {
       return data_source;
     }
 
@@ -1663,8 +1665,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
     void serialize(final JsonGenerator json, final int start, final int end) 
         throws IOException {
       json.writeStartObject();
-      json.writeStringField("source", result.source().config().getId() + ":" 
-          + result.dataSource());
+      json.writeStringField("source", result.dataSource().toString());
       
       TimeStamp last_value = new SecondTimeStamp(0);
       if (result.timeSpecification() != null) {

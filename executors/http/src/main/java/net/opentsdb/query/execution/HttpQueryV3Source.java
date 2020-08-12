@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -139,8 +139,8 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
             .setPushDownNodes(null)
             .setSourceId(null) // TODO - we may want to make this configurable
             // TODO - flip flop shouldn't be required.
-            .setDataSourceId(config.getDataSourceId())
-            .setId(config.getDataSourceId())
+//            .setDataSourceId(config.getDataSourceId())
+//            .setId(config.getDataSourceId())
             .setType("TimeSeriesDataSource");
         
         builder.addExecutionGraphNode(source_builder.build());
@@ -164,25 +164,17 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           (Builder) config.toBuilder()
           .setPushDownNodes(null)
           .setSourceId(null) // TODO - we may want to make this configurable
-          // TODO - flip flop shouldn't be required.
-          .setDataSourceId(config.getId())
-          .setId(config.getDataSourceId())
           .setType("TimeSeriesDataSource");
       
       builder.addExecutionGraphNode(source_builder.build());
       for (QueryNodeConfig c : config.getPushDownNodes()) {
-        if (c.getSources() != null && c.getSources().contains(config.getId())) {
-          // TODO copy properly eventually.
-          if (c instanceof DownsampleConfig) {
-            DownsampleConfig downsampleConfig = (DownsampleConfig) c;
-            DownsampleConfig.Builder newBuilder = DownsampleConfig.newBuilder();
-            DownsampleConfig.cloneBuilder(downsampleConfig, newBuilder);
-            c = newBuilder.setStart(context.query().getStart())
-                .setEnd(context.query().getEnd())
-                .setId(c.getId()).build();
-          }
-          c.getSources().remove(config.getId());
-          c.getSources().add(config.getDataSourceId());
+        if (c instanceof DownsampleConfig) {
+          DownsampleConfig downsampleConfig = (DownsampleConfig) c;
+          DownsampleConfig.Builder newBuilder = DownsampleConfig.newBuilder();
+          DownsampleConfig.cloneBuilder(downsampleConfig, newBuilder);
+          c = newBuilder.setStart(context.query().getStart())
+              .setEnd(context.query().getEnd())
+              .setId(c.getId()).build();
         }
         builder.addExecutionGraphNode(c);
       }
@@ -288,7 +280,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   sendUpstream(BadQueryResult.newBuilder()
                       .setNode(HttpQueryV3Source.this)
                       .setException(e)
-                      .setDataSource(config.getId())
+                      .setDataSource(config.resultIds().get(0))
                       .build());
                   return;
                 } else if (previous_ex != null && 
@@ -302,7 +294,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   sendUpstream(BadQueryResult.newBuilder()
                       .setNode(HttpQueryV3Source.this)
                       .setException(e)
-                      .setDataSource(config.getId())
+                      .setDataSource(config.resultIds().get(0))
                       .build());
                   return;
                 }
@@ -339,7 +331,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                     sendUpstream(BadQueryResult.newBuilder()
                         .setNode(HttpQueryV3Source.this)
                         .setException(rqee)
-                        .setDataSource(config.getId())
+                        //.setDataSource(config.getId())
                         .build());
                     return;
                   }
@@ -352,7 +344,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 .setException(new QueryExecutionException("Unexpected exception: " 
                     + EntityUtils.toString(response.getEntity()), 
                     response.getStatusLine().getStatusCode()))
-                .setDataSource(config.getId())
+                //.setDataSource(config.getId())
                 .build());
             return;
           }
@@ -370,7 +362,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 .setNode(HttpQueryV3Source.this)
                 .setException(new QueryExecutionException(
                     "No JSON results from: " + json, 500))
-                .setDataSource(config.getId())
+                //.setDataSource(config.getId())
                 .build());
           } else {
             if (LOG.isDebugEnabled()) {
@@ -442,7 +434,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               sendUpstream(BadQueryResult.newBuilder()
                   .setNode(HttpQueryV3Source.this)
                   .setException(t)
-                  .setDataSource(config.getId())
+                  //.setDataSource(config.getId())
                   .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
@@ -463,7 +455,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               sendUpstream(BadQueryResult.newBuilder()
                   .setNode(HttpQueryV3Source.this)
                   .setException(ex)
-                  .setDataSource(config.getId())
+                  .setDataSource(config.resultIds().get(0))
                   .build());
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
@@ -507,14 +499,14 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           sendUpstream(BadQueryResult.newBuilder()
               .setNode(HttpQueryV3Source.this)
               .setException(e)
-              .setDataSource(config.getId())
+              .setDataSource(config.resultIds().get(0))
               .build());
         } catch (Throwable t) {
           LOG.error("Unexpected exception processing query", t);
           sendUpstream(BadQueryResult.newBuilder()
               .setNode(HttpQueryV3Source.this)
               .setException(t)
-              .setDataSource(config.getId())
+              .setDataSource(config.resultIds().get(0))
               .build());
         }
       }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.summarizer;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,10 +33,12 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
@@ -106,10 +109,16 @@ public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Su
     }
     
     if (pass_through) {
-      SummarizerConfig new_config = config.toBuilder()
-          .setPassThrough(true)
-          .build();
-      plan.replace(config, new_config);
+      SummarizerConfig.Builder new_config = config.toBuilder()
+          .setPassThrough(true);
+      for (final QueryNodeConfig node : plan.configGraph().successors(config)) {
+        for (final QueryResultId pair : (List<QueryResultId>) node.resultIds()) {
+          new_config.addResultId(pair);
+          new_config.addResultId(
+              new DefaultQueryResultId(config.getId(), pair.dataSource()));
+        }
+      }
+      plan.replace(config, new_config.build());
       
     }
   }

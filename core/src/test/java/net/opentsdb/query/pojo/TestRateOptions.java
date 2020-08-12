@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.utils.JSON;
 
 public class TestRateOptions {
@@ -77,13 +78,15 @@ public class TestRateOptions {
         .setCounter(true)
         .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
+        .addResultId(new DefaultQueryResultId("rate", "m1"))
         .build();
-    final RateOptions clone = RateOptions.newBuilder(options).build();
+    final RateOptions clone = options.toBuilder().build();
     assertTrue(clone.isCounter());
     assertFalse(clone.getDropResets());
     assertEquals("60s", clone.getInterval());
     assertEquals(0, clone.getResetValue());
     assertEquals(Integer.MAX_VALUE, clone.getCounterMax());
+    assertEquals(new DefaultQueryResultId("rate", "m1"), clone.resultIds().get(0));
   }
   
   @Test

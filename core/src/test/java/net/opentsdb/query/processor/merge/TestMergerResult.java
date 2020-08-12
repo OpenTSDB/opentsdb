@@ -34,6 +34,7 @@ import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
@@ -137,7 +138,8 @@ public class TestMergerResult {
     
     merger.add(result_a);
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals("MyMetric", merger.dataSource());
+    assertEquals(new DefaultQueryResultId("MyMetric", "MyMetric"), 
+        merger.dataSource());
   }
   
   @Test

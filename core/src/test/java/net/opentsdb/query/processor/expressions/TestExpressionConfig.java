@@ -30,6 +30,7 @@ import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
@@ -155,7 +156,6 @@ public class TestExpressionConfig {
 
   @Test
   public void toBuilder() throws Exception {
-
     NumericInterpolatorConfig numeric_config =
             (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
                     .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -175,6 +175,7 @@ public class TestExpressionConfig {
                     .setAs("some.metric.name")
                     .addInterpolatorConfig(numeric_config)
                     .setSources(new ArrayList<String>(){{add("source1");}})
+                    .addResultId(new DefaultQueryResultId("e1", "e1"))
                     .setId("e1")
                     .build();
     assertEquals("e1", config.getId());
@@ -184,6 +185,7 @@ public class TestExpressionConfig {
     assertEquals("host", config.getJoin().getJoins().get("host"));
     assertSame(numeric_config, config.interpolatorConfig(NumericType.TYPE));
     assertSame(numeric_config, config.getVariableInterpolators().get("a").get(0));
+    assertEquals(new DefaultQueryResultId("e1", "e1"), config.resultIds().get(0));
 
     final ExpressionConfig fromBuilder = config.toBuilder().build();
 
@@ -204,7 +206,7 @@ public class TestExpressionConfig {
     assertFalse(fromBuilder.getVariableInterpolators() == config.getVariableInterpolators());
     assertSame(numeric_config, fromBuilder.getVariableInterpolators().get("a").get(0));
 
-
+    assertEquals(new DefaultQueryResultId("e1", "e1"), fromBuilder.resultIds().get(0));
   }
 
   @Test

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -98,7 +98,7 @@ public class Rate extends AbstractQueryNode<RateConfig> {
      * @param results The non-null results set.
      */
     private RateResult(final QueryResult results) {
-      super(results);
+      super(Rate.this, results);
       latch = new CountDownLatch(Rate.this.upstream.size());
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
       for (final TimeSeries series : results.timeSeries()) {
@@ -111,11 +111,6 @@ public class Rate extends AbstractQueryNode<RateConfig> {
       return downsamplers;
     }
 
-    @Override
-    public QueryNode source() {
-      return Rate.this;
-    }
-    
     /**
      * The super simple wrapper around the time series source that generates 
      * iterators using the factory.

@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2019  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -49,6 +50,7 @@ import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Pair;
 
 public class TestSummarizerFactory {
 
@@ -141,7 +143,8 @@ public class TestSummarizerFactory {
     QueryNode node = planner.nodeForId("summary");
     assertFalse(((SummarizerConfig) node.config()).passThrough());
     assertEquals(1, planner.serializationSources().size());
-    assertTrue(planner.serializationSources().contains("summary:m1"));
+    assertTrue(planner.serializationSources().contains(
+        new DefaultQueryResultId("summary", "m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("summary")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("summary"),
@@ -172,13 +175,15 @@ public class TestSummarizerFactory {
     
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
-    
+    System.out.println(planner.serializationSources());
     assertEquals(3, planner.graph().nodes().size());
     QueryNode node = planner.nodeForId("summary");
     assertTrue(((SummarizerConfig) node.config()).passThrough());
     assertEquals(2, planner.serializationSources().size());
-    assertTrue(planner.serializationSources().contains("summary:m1"));
-    assertTrue(planner.serializationSources().contains("m1:m1"));
+    assertTrue(planner.serializationSources().contains(
+        new DefaultQueryResultId("summary", "m1")));
+    assertTrue(planner.serializationSources().contains(
+        new DefaultQueryResultId("m1", "m1")));
     assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("summary")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("summary"),

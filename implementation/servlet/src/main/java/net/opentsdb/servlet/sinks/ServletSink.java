@@ -158,7 +158,7 @@ public class ServletSink implements QuerySink, SerdesCallback {
               ImmutableMap.<String, Object>builder()
               // TODO - possible upstream headers
               .put("queryId", Bytes.byteArrayToString(context.query().buildHashCode().asBytes()))
-              .put("node", next.source().config().getId() + ":" + next.dataSource())
+              //.put("node", next.dataSource())
               .build()));
     }
     if (context.query().isTraceEnabled()) {

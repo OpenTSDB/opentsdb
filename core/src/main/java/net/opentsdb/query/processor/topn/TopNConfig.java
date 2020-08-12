@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -98,7 +98,13 @@ public class TopNConfig extends BaseQueryNodeConfig<TopNConfig.Builder, TopNConf
 
   @Override
   public Builder toBuilder() {
-    return null;
+    final Builder builder = newBuilder()
+        .setAggregator(aggregator)
+        .setCount(count)
+        .setTop(top)
+        .setInfectiousNan(infectious_nan);
+    super.toBuilder(builder);
+    return builder;
   }
 
   @Override

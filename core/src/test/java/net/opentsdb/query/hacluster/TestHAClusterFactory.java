@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -993,7 +993,7 @@ public class TestHAClusterFactory {
     QueryNode ctx_node = mock(QueryNode.class);
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
-System.out.println(planner.printConfigGraph());
+    
     assertEquals(7, planner.graph().nodes().size());
     assertFalse(planner.configGraph().nodes().contains(query.getExecutionGraph().get(0)));
     QueryNode node = planner.nodeForId("ha_m1_s2");
