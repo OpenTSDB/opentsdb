@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,7 +69,6 @@ public class Expression extends Validatable implements Comparable<Expression> {
   /** Set of unique variables used by this expression. */
   private Set<String> variables;
   
-  
   /**
    * Default ctor 
    * @param builder The builder to pull values from
@@ -77,6 +76,11 @@ public class Expression extends Validatable implements Comparable<Expression> {
   protected Expression(final Builder builder) {
     id = builder.id;
     expr = builder.expr;
+    // Fudge for the old version of TSD. If a user just provided a metric/ID then
+    // we'd treat it as if they were just asking for the metric. For V3 we fudge it.
+    if (expr != null && !expr.trim().matches(".*[+-\\/*\\|&>!=].*")) {
+      expr = expr + " + 0";
+    }
     join = builder.join;
     fill_policy = builder.fillPolicy;
     fill_policies = builder.fillPolicies;
