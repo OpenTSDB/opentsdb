@@ -584,8 +584,12 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
           LOG.debug("Received results from meta store, setting up "
               + "multi-gets.");
         }
-        resolveMeta(result, span);
-        return null;
+        if (result.timeSeries() != null && !result.timeSeries().isEmpty()) {
+          resolveMeta(result, span);
+          return null;
+        }
+        LOG.error("Unexpected result from meta saying we had data but 0 documents.");
+        // fall through.
       case NO_DATA:
         if (LOG.isDebugEnabled()) {
           LOG.debug("No data returned from meta store.");
@@ -898,6 +902,17 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
           }
           
           // TODO - what happens if we didn't resolve anything???
+          if (tsuids.isEmpty()) {
+            LOG.warn("No TSUIDs found after resolving metadata to UIDs.");
+            synchronized (this) {
+              initialized.compareAndSet(false, true);
+              sendUpstream(new Tsdb1xQueryResult(0, Tsdb1xHBaseQueryNode.this, 
+                  parent.schema()));
+              completeUpstream(0, 0);
+              return null;
+            }
+          }
+          
           synchronized (this) {
             if (initialized.compareAndSet(false, true)) {
               if (child != null) {
