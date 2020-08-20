@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.Configuration;
@@ -233,19 +232,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
         LongArrayPool.TYPE);
     double_pool = (ArrayObjectPool) tsdb.getRegistry().getObjectPool(
         DoubleArrayPool.TYPE);
-    
-    final GroupByJobPool job_pool_allocator = new GroupByJobPool();
-    // TODO - should we pre-pend the ID if not null or == TYPE?
-    class InitCB implements Callback<Object, Object> {
-      @Override
-      public Object call(final Object arg) throws Exception {
-        job_pool = tsdb.getRegistry().getObjectPool(job_pool_allocator.type);
-        LOG.info("Initialized Group By Job Pool " + job_pool);
-        return null;
-      }
-    }
-    
-    return job_pool_allocator.initialize(tsdb, null).addCallback(new InitCB());
+    return Deferred.fromResult(null);
   }
 
   @Override
@@ -390,6 +377,14 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
   }
 
   protected ObjectPool jobPool() {
+    if (job_pool == null) {
+      synchronized (this) {
+        if (job_pool == null) {
+          job_pool = (ObjectPool) 
+              tsdb.getRegistry().getObjectPool(GroupByJobPool.TYPE);
+        }
+      }
+    }
     return job_pool;
   }
   
@@ -413,13 +408,27 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     return double_pool;
   }
   
-  public class GroupByJobPool extends BaseObjectPoolAllocator {
-    public final String type = "GroupByJob";
+  public static class GroupByJobPool extends BaseObjectPoolAllocator {
+    public static final String TYPE = "GroupByJob";
     public final TypeToken<?> type_token = TypeToken.of(GroupByJob.class);
+    private TSDB tsdb;
+    private Predicate<GroupByJob> predicate;
     
     @Override
     public Object allocate() {
-      return new GroupByJob(predicate(), tsdb().getStatsCollector());
+      if (predicate == null) {
+        synchronized (this) {
+          if (predicate == null) {
+            final GroupByFactory factory = 
+                (GroupByFactory) tsdb.getRegistry().getQueryNodeFactory(GroupByFactory.TYPE);
+            if (factory == null) {
+              throw new IllegalStateException("No group by factory?!?");
+            }
+            predicate = factory.predicate();
+          }
+        }
+      }
+      return new GroupByJob(predicate, tsdb.getStatsCollector());
     }
 
     @Override
@@ -429,27 +438,28 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
 
     @Override
     public String type() {
-      return type;
+      return TYPE;
     }
 
     @Override
     public Deferred<Object> initialize(final TSDB tsdb, final String id) {
+      this.tsdb = tsdb;
       if (Strings.isNullOrEmpty(id)) {
-        this.id = type;
+        this.id = TYPE;
       } else {
         this.id = id;
       }
       
-      registerConfigs(tsdb.getConfig(), type);
+      registerConfigs(tsdb.getConfig(), TYPE);
       
       final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
           .setAllocator(this)
-          .setInitialCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, type)))
-          .setMaxCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, type)))
+          .setInitialCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
+          .setMaxCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
           .setId(this.id)
           .build();
       try {
-        createAndRegisterPool(tsdb, config, type);
+        createAndRegisterPool(tsdb, config, TYPE);
         return Deferred.fromResult(null);
       } catch (Exception e) {
         return Deferred.fromError(e);
