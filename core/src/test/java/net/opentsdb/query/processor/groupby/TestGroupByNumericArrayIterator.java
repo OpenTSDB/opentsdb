@@ -127,12 +127,20 @@ public class TestGroupByNumericArrayIterator {
     when(FACTORY.getQueue()).thenReturn(queue);
     when(FACTORY.predicate()).thenReturn(p);
     when(FACTORY.tsdb()).thenReturn(TSDB);
+    TSDB.getRegistry().registerFactory(FACTORY);
     
-    GroupByJobPool allocator = FACTORY.new GroupByJobPool();
+    GroupByJobPool allocator = new GroupByJobPool();
+    try {
+      allocator.initialize(TSDB, null).join();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
     JOB_POOL = new MockObjectPool(DefaultObjectPoolConfig.newBuilder()
         .setInitialCount(5)
         .setAllocator(allocator)
-        .setId(allocator.type)
+        .setId(allocator.TYPE)
         .build());
     when(FACTORY.jobPool()).thenReturn(JOB_POOL);
   }

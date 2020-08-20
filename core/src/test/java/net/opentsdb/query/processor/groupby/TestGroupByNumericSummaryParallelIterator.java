@@ -76,7 +76,7 @@ public class TestGroupByNumericSummaryParallelIterator {
   private static final long BASE_TIME = 1356998400L;
   
   @BeforeClass
-  public static void beforeClass() {
+  public static void beforeClass()  {
     TSDB = MockTSDBDefault.getMockTSDB();
     NUMERIC_CONFIG = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
@@ -92,12 +92,20 @@ public class TestGroupByNumericSummaryParallelIterator {
     when(FACTORY.getQueue()).thenReturn(queue);
     when(FACTORY.predicate()).thenReturn(p);
     when(FACTORY.tsdb()).thenReturn(TSDB);
+    TSDB.getRegistry().registerFactory(FACTORY);
     
-    GroupByJobPool allocator = FACTORY.new GroupByJobPool();
+    GroupByJobPool allocator = new GroupByJobPool();
+    try {
+      allocator.initialize(TSDB, null).join();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
     JOB_POOL = new MockObjectPool(DefaultObjectPoolConfig.newBuilder()
         .setInitialCount(5)
         .setAllocator(allocator)
-        .setId(allocator.type)
+        .setId(GroupByJobPool.TYPE)
         .build());
     when(FACTORY.jobPool()).thenReturn(JOB_POOL);
   }
