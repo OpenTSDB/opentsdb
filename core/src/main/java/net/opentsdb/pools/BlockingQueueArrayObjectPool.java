@@ -103,8 +103,10 @@ public class BlockingQueueArrayObjectPool implements ArrayObjectPool, TimerTask 
   @Override
   public PooledObject claim(final int length) {
     if (length > ((ArrayObjectPoolAllocator) config.allocator()).pooledLength()) {
-      tsdb.getStatsCollector().incrementCounter("objectpool.claim.largeArray", 
+      tsdb.getStatsCollector().incrementCounter("objectpool.claim.lengthTooBig.count", 
           "pool", config.id());
+      tsdb.getStatsCollector().setGauge("objectpool.claim.lengthTooBig.size", 
+          length, "pool", config.id());
       return new LocalPooled(((ArrayObjectPoolAllocator) 
           config.allocator()).allocate(length), false);
     }
