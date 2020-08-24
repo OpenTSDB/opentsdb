@@ -49,14 +49,14 @@ public class TestByteArrayPool {
     verify(TSDB.getRegistry(), atLeast(1)).registerObjectPool(
         any(DummyObjectPool.class));
     verify(TSDB.getRegistry(), never()).registerObjectPool(pool);
-    assertEquals(1024, ((byte[]) allocator.allocate()).length);
+    assertEquals(8192, ((byte[]) allocator.allocate()).length);
     
     when(TSDB.getRegistry().getPlugin(ArrayObjectPoolFactory.class, null))
       .thenReturn(factory);
     assertNull(allocator.initialize(TSDB, null).join());
     verify(TSDB.getRegistry(), times(1)).registerObjectPool(pool);
     assertEquals(ByteArrayPool.TYPE, allocator.id());
-    assertEquals(1024, ((byte[]) allocator.allocate()).length);
+    assertEquals(8192, ((byte[]) allocator.allocate()).length);
     
     allocator.id = "foo";
     allocator.registerConfigs(TSDB.config, ByteArrayPool.TYPE);

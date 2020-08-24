@@ -78,12 +78,11 @@ public class DoubleArrayPool extends BaseArrayObjectPoolAllocator {
   
   @Override
   protected void registerConfigs(final Configuration config, final String type) {
-    super.registerConfigs(config, type);
     if (!config.hasProperty(configKey(LENGTH_KEY, TYPE))) {
       config.register(configKey(LENGTH_KEY, TYPE), 4096, false, 
           "The length of each array to allocate");
     }
+    super.registerConfigs(config, type);
   }
-
   
 }
