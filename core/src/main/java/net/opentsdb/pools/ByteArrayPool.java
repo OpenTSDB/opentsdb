@@ -50,6 +50,7 @@ public class ByteArrayPool extends BaseArrayObjectPoolAllocator {
         .setAllocator(this)
         .setInitialCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
         .setMaxCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
+        .setArrayLength(tsdb.getConfig().getInt(configKey(LENGTH_KEY, TYPE)))
         .setId(this.id)
         .build();
     try {
@@ -77,10 +78,10 @@ public class ByteArrayPool extends BaseArrayObjectPoolAllocator {
   
   @Override
   protected void registerConfigs(final Configuration config, final String type) {
-    super.registerConfigs(config, type);
     if (!config.hasProperty(configKey(LENGTH_KEY, TYPE))) {
       config.register(configKey(LENGTH_KEY, TYPE), 8192, false, 
           "The length of each array to allocate");
     }
+    super.registerConfigs(config, type);
   }
 }
