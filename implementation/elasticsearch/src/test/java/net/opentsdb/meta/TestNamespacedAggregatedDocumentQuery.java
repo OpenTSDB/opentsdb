@@ -95,9 +95,9 @@ public class TestNamespacedAggregatedDocumentQuery {
     System.out.println(s);
     assertTrue(s.contains("\"from\":0"));
     assertTrue(s.contains("\"size\":5"));
-    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"term\":{\"tags_value\":1}},{\"bool\":"
-        + "{\"must\":{\"nested\":{\"filter\":{\"bool\":{\"must\":[{\"regexp\":"
-        + "{\"tags.value\":\".*cpu.*\"}},{\"term\":{\"tags.key.lowercase\":\"host\"}}]}},\"path\":\"tags\"}}}}]}}"));
+    assertTrue(s.contains("{\"from\":0,\"size\":5,\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":" +
+            "{\"filter\":{\"bool\":{\"must\":[{\"regexp\":{\"tags.value\":\".*cpu.*\"}},{\"term\":" +
+            "{\"tags.key.lowercase\":\"host\"}}]}},\"path\":\"tags\"}}}},{\"term\":{\"tags_value\":1}}]}}}"));
 
   }
 
@@ -127,83 +127,73 @@ public class TestNamespacedAggregatedDocumentQuery {
         .build();
 
     List<SearchSourceBuilder> source = sources.entrySet().iterator().next().getValue();
-    assertEquals(2, source.size());
+    assertEquals(1, source.size());
     String s = source.get(0).toString().replaceAll("\n", "")
         .replaceAll(" ", "");
+    System.out.println(s);
     assertTrue(s.contains("\"size\":0"));
-    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":"
-        + "{\"filter\":{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}},\"path\":\"tags\"}}}},"
-        + "{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\":"
-        + "[\"system.cpu.busy\"]}}}},\"path\":\"AM_nested\"}}]}},\"aggregations\":{\"tagk_agg\":"
-        + "{\"nested\":{\"path\":\"tags\"},\"aggregations\":{\"unique_tagks\":{\"filter\":"
-        + "{\"bool\":{\"must\":{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}}}}"
-        + ",\"aggregations\":{\"unique_tagks\":{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":"
-        + "{\"_term\":\"asc\"}}}}}}}}}"));
-
-    s = source.get(1).toString().replaceAll("\n", "")
-        .replaceAll(" ", "");
-    assertTrue(s.contains("\"size\":0"));
-    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":{\"filter\":"
-        + "{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}},\"path\":\"tags\"}}}},"
-        + "{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\":"
-        + "[\"system.cpu.idle\"]}}}},\"path\":\"AM_nested\"}}]}},\"aggregations\":{\"tagk_agg\":"
-        + "{\"nested\":{\"path\":\"tags\"},\"aggregations\":{\"unique_tagks\":{\"filter\":{\"bool\":"
-        + "{\"must\":{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}}}},\"aggregations\":"
-        + "{\"unique_tagks\":{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}}"));
-
+    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":{\"filter\":" +
+            "{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}},\"path\":\"tags\"}}}},{\"nested\":" +
+            "{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\":[\"system.cpu.busy\"]}}}}," +
+            "\"path\":\"AM_nested\"}},{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\"" +
+            ":[\"system.cpu.idle\"]}}}},\"path\":\"AM_nested\"}}]}},\"aggregations\":{\"tagk_agg\":{\"nested\":" +
+            "{\"path\":\"tags\"},\"aggregations\":{\"unique_tagks\":{\"filter\":{\"bool\":{\"must\":{\"bool\":" +
+            "{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}}}},\"aggregations\":{\"unique_tagks\":" +
+            "{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}}"));
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  public void testTagKeysAndValueANDNotSupported() {
+//  @Test(expected = IllegalArgumentException.class)
+//  public void testTagKeysAndValueANDNotSupported() {
+//
+//    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
+//        .addFilter(TagKeyRegexFilter.newBuilder().setFilter(".*").build())
+//        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.busy").build())
+//        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.idle").build())
+//        .build();
+//
+//    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
+//        .setNamespace("Yahoo")
+//        .setFilter(chainFil)
+//        .build();
+//
+//    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+//        .setMetaQuery(Lists.newArrayList(meta_query))
+//        .setFrom(0)
+//        .setTo(5)
+//        .setType(QueryType.TAG_KEYS_AND_VALUES)
+//        .setAggregationField("host")
+//        .build();
+//
+//    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
+//        .newBuilder(query)
+//        .build();
+//  }
 
-    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
-        .addFilter(TagKeyRegexFilter.newBuilder().setFilter(".*").build())
-        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.busy").build())
-        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.idle").build())
-        .build();
-
-    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
-        .setNamespace("Yahoo")
-        .setFilter(chainFil)
-        .build();
-
-    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
-        .setMetaQuery(Lists.newArrayList(meta_query))
-        .setFrom(0)
-        .setTo(5)
-        .setType(QueryType.TAG_KEYS_AND_VALUES)
-        .build();
-
-    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
-        .newBuilder(query)
-        .build();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testMetricsANDNotSupported() {
-
-    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
-        .addFilter(TagKeyRegexFilter.newBuilder().setFilter(".*").build())
-        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.busy").build())
-        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.idle").build())
-        .build();
-
-    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
-        .setNamespace("Yahoo")
-        .setFilter(chainFil)
-        .build();
-
-    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
-        .setMetaQuery(Lists.newArrayList(meta_query))
-        .setFrom(0)
-        .setTo(5)
-        .setType(QueryType.METRICS)
-        .build();
-
-    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
-        .newBuilder(query)
-        .build();
-  }
+//  @Test(expected = IllegalArgumentException.class)
+//  public void testMetricsANDNotSupported() {
+//
+//    QueryFilter chainFil = ChainFilter.newBuilder().setOp(ChainFilter.FilterOp.AND)
+//        .addFilter(TagKeyRegexFilter.newBuilder().setFilter(".*").build())
+//        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.busy").build())
+//        .addFilter(MetricLiteralFilter.newBuilder().setMetric("system.cpu.idle").build())
+//        .build();
+//
+//    MetaQuery meta_query = DefaultMetaQuery.newBuilder()
+//        .setNamespace("Yahoo")
+//        .setFilter(chainFil)
+//        .build();
+//
+//    BatchMetaQuery query = DefaultBatchMetaQuery.newBuilder()
+//        .setMetaQuery(Lists.newArrayList(meta_query))
+//        .setFrom(0)
+//        .setTo(5)
+//        .setType(QueryType.METRICS)
+//        .build();
+//
+//    Map<NamespacedKey, List<SearchSourceBuilder>> sources = NamespacedAggregatedDocumentQueryBuilder
+//        .newBuilder(query)
+//        .build();
+//  }
 //
 //  @Test
 //  public void testMetricRegexQuery() {
