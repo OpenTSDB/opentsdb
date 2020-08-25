@@ -265,6 +265,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           metric_only_filter.addFilter(sub_filter);
         }
       }
+    } else if (filter instanceof MetricFilter) {
+      metric_only_filter.addFilter(filter);
     }
     FilterBuilder pair_filter = getTagPairFilter(metric_only_filter.build(),
             false);
@@ -295,6 +297,8 @@ public class NamespacedAggregatedDocumentQueryBuilder {
             tags_filters.addFilter(sub_filter);
         }
       }
+    } else if (filter instanceof TagKeyFilter) {
+      tags_filters.addFilter(filter);
     }
 
     FilterBuilder pair_filter = getTagPairFilter(tags_filters.build(), true);
@@ -493,64 +497,33 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           }
 
           FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters);
-          if (! metric_filters.isEmpty()) {
-            for (FilterBuilder each_metric_filter : metric_filters) {
-              SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
-              search_source_builder.query(FilterBuilders.boolFilter()
-                  .must(time_filter)
-                  .must(tag_filters)
-                  .must(each_metric_filter)
-                  .buildAsBytes());
-              search_source_builders_list.add(search_source_builder);
-            }
-          } else {
-            SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
-            search_source_builder.query(FilterBuilders.boolFilter()
-                .must(time_filter)
-                .must(tag_filters)
-                .buildAsBytes());
-            search_source_builders_list.add(search_source_builder);
-          }
+          List<FilterBuilder> all_filters = new ArrayList<>();
+          all_filters.add(tag_filters);
+          all_filters.addAll(metric_filters);
+          all_filters.add(time_filter);
+
+          SearchSourceBuilder search_source_builder = buildESQuery(all_filters);
+          search_source_builders_list.add(search_source_builder);
+
         } else if (meta_query.filter() instanceof ExplicitTagsFilter) {
-          FilterBuilder filters = setFilter(meta_query.filter(), metric_filters);
+          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters);
           FilterBuilder explicit_filter = FilterBuilders.termFilter
               ("tags_value", NamespacedAggregatedDocumentSchema.countTagValueFilters(meta_query.filter(), 0));
-          if (! metric_filters.isEmpty()) {
-            for (FilterBuilder each_metric_filter : metric_filters) { // create a query for each MetricLiteral query
-              SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
-              search_source_builder.query(FilterBuilders.boolFilter()
-                  .must(explicit_filter)
-                  .must(filters)
-                  .must(each_metric_filter)
-                  .buildAsBytes());
-              search_source_builders_list.add(search_source_builder);
-            }
-          } else {
-            SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
-            search_source_builder.query(FilterBuilders.boolFilter()
-                .must(explicit_filter)
-                .must(filters)
-                .buildAsBytes());
-            search_source_builders_list.add(search_source_builder);
-          }
+
+          List<FilterBuilder> all_filters = new ArrayList<>();
+          all_filters.add(tag_filters);
+          all_filters.addAll(metric_filters);
+          all_filters.add(explicit_filter);
+
+          SearchSourceBuilder search_source_builder = buildESQuery(all_filters);
+          search_source_builders_list.add(search_source_builder);
         } else {
-          FilterBuilder filters = setFilter(meta_query.filter(), metric_filters);
-          if (! metric_filters.isEmpty()) {
-            for (FilterBuilder each_metric_filter : metric_filters) {
-              SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
-              search_source_builder.query(FilterBuilders.boolFilter()
-                  .must(filters)
-                  .must(each_metric_filter)
-                  .buildAsBytes());
-              search_source_builders_list.add(search_source_builder);
-            }
-          } else {
-            SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
-            search_source_builder.query(FilterBuilders.boolFilter()
-                .must(filters)
-                .buildAsBytes());
-            search_source_builders_list.add(search_source_builder);
-          }
+          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters);
+          List<FilterBuilder> all_filters = new ArrayList<>();
+          all_filters.add(tag_filters);
+          all_filters.addAll(metric_filters);
+          SearchSourceBuilder search_source_builder = buildESQuery(all_filters);
+          search_source_builders_list.add(search_source_builder);
         }
 
         int count = 0;
@@ -611,6 +584,24 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return search_source_builders;
   }
 
+  private SearchSourceBuilder buildESQuery(List<FilterBuilder> filters) {
+    if (filters.isEmpty()) {
+      throw new IllegalArgumentException("Filters cannot be empty");
+    }
+
+    BoolFilterBuilder bool_filter_builder = FilterBuilders.boolFilter();
+
+    if (! filters.isEmpty()) {
+      for (FilterBuilder each_filter : filters) {
+        if (each_filter != null) {
+          bool_filter_builder.must(each_filter);
+        }
+      }
+    }
+    SearchSourceBuilder search_source_builder = new SearchSourceBuilder();
+    search_source_builder.query(bool_filter_builder.buildAsBytes());
+    return search_source_builder;
+  }
 
   static String convertToLuceneRegex(final String value_str) throws
           RuntimeException {
