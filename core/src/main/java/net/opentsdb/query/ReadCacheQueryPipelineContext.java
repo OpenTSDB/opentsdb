@@ -124,6 +124,7 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
   @Override
   public Deferred<Void> initialize(final Span span) {
     registerConfigs(context.tsdb());
+    final TimeSeriesQuery original_query = context.query();
     
     cache = context.tsdb().getRegistry().getPlugin(QueryReadCache.class, 
         context.tsdb().getConfig().getString(CACHE_PLUGIN_KEY));
@@ -316,6 +317,9 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
           cache.delete(slices, keys);
           stats.incrementCounter(SEGMENTS_CLEAR, keys.length, NULL_TAGS);
           skip_cache = true;
+          // restore the original query so we don't have to worry about putting
+          // summaries back, etc.
+          ((BaseQueryContext) context).resetQuery((SemanticQuery) original_query);
           return null;
         }
         
@@ -339,24 +343,39 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
             }
           }
         }
-// TODO --------------------------*(*        
+        
         CacheQueryPlanner planner = new CacheQueryPlanner(
-            ReadCacheQueryPipelineContext.this, (QueryNode) ReadCacheQueryPipelineContext.this);
-        // tODO - 
+            ReadCacheQueryPipelineContext.this, 
+            (QueryNode) ReadCacheQueryPipelineContext.this);
+        
         planner.plan(null);
+        Map<String, List<QueryResultId>> result_ids = Maps.newHashMap(); 
         for (QueryResultId id : planner.serializationSources()) {
           countdowns.put(id, new AtomicInteger(sinks.size()));
+          List<QueryResultId> ids = result_ids.get(id.nodeID());
+          if (ids == null) {
+            ids = Lists.newArrayList();
+            result_ids.put(id.nodeID(), ids);
+          }
+          ids.add(id);
         }
-        //final Set<String> serdes_sources = computeSerializationSources();
-//        for (final String source : serdes_sources) {
-//          if (serdes_filter != null && !serdes_filter.isEmpty()) {
-//            if (serdes_filter.contains(source)) {
-//              countdowns.put(source, new AtomicInteger(sinks.size()));  
-//            }
-//          } else {
-//            countdowns.put(source, new AtomicInteger(sinks.size()));
-//          }
-//        }
+        
+        // Now we need to re-link the summarizer to the context node.
+        final Set<QueryNode> summarizers = Sets.newHashSet();
+        for (final Entry<String, QueryNode> entry : summarizer_node_map.entrySet()) {
+          summarizers.add(entry.getValue());
+        }
+        
+        for (final QueryNode node : summarizers) {
+          for (final String src: (List<String>) node.config().getSources()) {
+            final List<QueryResultId> ids = result_ids.get(src);
+            for (final QueryResultId id : ids) {
+              countdowns.put(
+                  new DefaultQueryResultId(node.config().getId(),  id.dataSource()), 
+                    new AtomicInteger(sinks.size()));
+            }
+          }
+        }
         
         if (context.query().isTraceEnabled()) {
           context.logTrace("Cache timestamps=" + Arrays.toString(slices));

@@ -56,7 +56,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
     result_ids = Lists.newArrayList(
-        new DefaultQueryResultId(data_source, data_source));
+        new DefaultQueryResultId(id, data_source));
   }
   
   public String getDataSource() {

@@ -138,7 +138,7 @@ public class TestMergerResult {
     
     merger.add(result_a);
     assertSame(time_spec, merger.timeSpecification());
-    assertEquals(new DefaultQueryResultId("MyMetric", "MyMetric"), 
+    assertEquals(new DefaultQueryResultId("Testing", "MyMetric"), 
         merger.dataSource());
   }
   
