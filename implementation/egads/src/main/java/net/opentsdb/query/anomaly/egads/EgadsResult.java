@@ -111,7 +111,8 @@ public class EgadsResult implements QueryResult {
 
   @Override
   public QueryResultId dataSource() {
-    return original_result.dataSource();
+    // TEMP
+    return (QueryResultId) node.config().resultIds().get(0);
   }
 
   @Override

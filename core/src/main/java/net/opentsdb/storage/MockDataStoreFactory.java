@@ -87,7 +87,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
 
   @Override
   public MockDataStore.LocalNode newNode(final QueryPipelineContext context,
-                           final TimeSeriesDataSourceConfig config) {
+                                         final TimeSeriesDataSourceConfig config) {
     return mds.new LocalNode(context, config);
   }
   

@@ -129,7 +129,8 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     this.id = id;
     
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Intantiating mock data store with ID: " + this.id + "@" + System.identityHashCode(this));
+      LOG.debug("Intantiating mock data store with ID: " + this.id 
+          + "@" + System.identityHashCode(this));
     }
     
     database = Maps.newHashMap();
@@ -340,26 +341,29 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
   private void generateMockData() {
     long start_timestamp = DateTime.currentTimeMillis() - 2 * ROW_WIDTH;
     start_timestamp = start_timestamp - start_timestamp % ROW_WIDTH;
-    if (tsdb.getConfig().hasProperty("MockDataStore.timestamp")) {
-      start_timestamp = tsdb.getConfig().getLong("MockDataStore.timestamp");
+    if (!tsdb.getConfig().hasProperty("MockDataStore.timestamp")) {
+      tsdb.getConfig().register("MockDataStore.timestamp", start_timestamp, 
+          false, "TODO");
     }
+    start_timestamp = tsdb.getConfig().getLong("MockDataStore.timestamp");
+    LOG.info("Mock store starting data at: " + start_timestamp);
     
-    long hours = HOURS;
-    if (tsdb.getConfig().hasProperty("MockDataStore.hours")) {
-      hours = tsdb.getConfig().getLong("MockDataStore.hours");
+    if (!tsdb.getConfig().hasProperty("MockDataStore.hours")) {
+      tsdb.getConfig().register("MockDataStore.hours", HOURS, false, "TODO");
     }
+    long hours = tsdb.getConfig().getLong("MockDataStore.hours");
     
-    long hosts = HOSTS;
-    if (tsdb.getConfig().hasProperty("MockDataStore.hosts")) {
-      hosts = tsdb.getConfig().getLong("MockDataStore.hosts");
+    if (!tsdb.getConfig().hasProperty("MockDataStore.hosts")) {
+      tsdb.getConfig().register("MockDataStore.hosts", HOSTS, false, "TODO");
     }
+    long hosts = tsdb.getConfig().getLong("MockDataStore.hosts");
     
-    long interval = INTERVAL;
-    if (tsdb.getConfig().hasProperty("MockDataStore.interval")) {
-      interval = tsdb.getConfig().getLong("MockDataStore.interval");
-      if (interval <= 0) {
-        throw new IllegalStateException("Interval can't be 0 or less.");
-      }
+    if (!tsdb.getConfig().hasProperty("MockDataStore.interval")) {
+      tsdb.getConfig().register("MockDataStore.interval", INTERVAL, false, "TODO");
+    }
+    long interval = tsdb.getConfig().getLong("MockDataStore.interval");
+    if (interval <= 0) {
+      throw new IllegalStateException("Interval can't be 0 or less.");
     }
     
     for (int t = 0; t < hours; t++) {

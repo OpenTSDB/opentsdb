@@ -155,6 +155,21 @@ public abstract class BaseAnomalyConfig
     return Hashing.combineOrdered(hashes);
   }
   
+  public void toBuilder(final Builder builder) {
+    builder.setMode(mode)
+           .setSerializeObserved(serialize_observed)
+           .setSerializeThresholds(serialize_thresholds)
+           .setSerializeDeltas(serialize_deltas)
+           .setSerializeAlerts(serialize_alerts)
+           .setUpperThresholdBad(upper_threshold_bad)
+           .setUpperThresholdWarn(upper_threshold_warn)
+           .setUpperIsScalar(upper_is_scalar)
+           .setLowerThresholdBad(lower_threshold_bad)
+           .setLowerThresholdWarn(lower_threshold_warn)
+           .setLowerIsScalar(lower_is_scalar);
+    super.toBuilder(builder);
+  }
+  
   public static abstract class Builder<B extends Builder<B, C>, 
                                        C extends BaseQueryNodeConfigWithInterpolators> 
       extends BaseQueryNodeConfigWithInterpolators.Builder<B, C> {

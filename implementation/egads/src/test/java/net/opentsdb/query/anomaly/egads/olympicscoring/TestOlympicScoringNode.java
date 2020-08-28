@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ import net.opentsdb.data.types.alert.AlertType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
@@ -173,7 +174,7 @@ public class TestOlympicScoringNode {
             .setId("ds")
             .build())
         .build();
-//    QueryNodeFactory factory;
+    
     OlympicScoringConfig config =
         OlympicScoringConfig.newBuilder()
     .setBaselinePeriod("1h")
@@ -189,6 +190,7 @@ public class TestOlympicScoringNode {
     .addInterpolatorConfig(INTERPOLATOR)
     .addSource("ds")
     .setId("egads")
+    .addResultId(new DefaultQueryResultId("os", "os"))
     .build();
     
     QueryPipelineContext ctx = mock(QueryPipelineContext.class);
