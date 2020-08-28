@@ -1869,7 +1869,7 @@ public class TestDefaultQueryPlanner {
     
     assertEquals(1, planner.serializationSources().size());
     QueryResultId source = planner.serializationSources().get(0);
-    assertEquals("m1", source.nodeID());
+    assertEquals("Merger", source.nodeID());
     assertEquals("m1", source.dataSource());
   }
   
@@ -1997,7 +1997,7 @@ public class TestDefaultQueryPlanner {
     
     assertEquals(1, planner.serializationSources().size());
     QueryResultId source = planner.serializationSources().get(0);
-    assertEquals("m1", source.nodeID());
+    assertEquals("Merger", source.nodeID());
     assertEquals("m1", source.dataSource());
   }
   
@@ -2128,7 +2128,7 @@ public class TestDefaultQueryPlanner {
     
     assertEquals(1, planner.serializationSources().size());
     QueryResultId source = planner.serializationSources().get(0);
-    assertEquals("m1", source.nodeID());
+    assertEquals("Merger", source.nodeID());
     assertEquals("m1", source.dataSource());
   }
   
@@ -2282,7 +2282,7 @@ public class TestDefaultQueryPlanner {
     
     assertEquals(1, planner.serializationSources().size());
     QueryResultId source = planner.serializationSources().get(0);
-    assertEquals("m3", source.nodeID());
+    assertEquals("Merger2", source.nodeID());
     assertEquals("m3", source.dataSource());
   }
   

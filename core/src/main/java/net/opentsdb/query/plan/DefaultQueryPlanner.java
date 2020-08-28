@@ -971,7 +971,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
       
       final List<QueryNodeConfig> push_downs = Lists.newArrayList();
-      for (final QueryNodeConfig n : config_graph.predecessors(node)) {
+      final Set<QueryNodeConfig> nodes = Sets.newHashSet(config_graph.predecessors(node));
+      for (final QueryNodeConfig n : nodes) {
         pushDown(
             node, 
             node, 
@@ -1013,6 +1014,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
     final Set<QueryNodeConfig> nodes = Sets.newHashSet(config_graph.nodes());
     for (final QueryNodeConfig config : nodes) {
       if (!linksToContext(config)) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Removing non-contributing node: " + config.getId());
+        }
         removeNode(config);
       }
     }
@@ -1210,7 +1214,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
     for (final QueryNodeConfig node : config_graph.nodes()) {
       buffer.append("[V] " + node.getId() + " {" 
           + node.getClass().getSimpleName() + "} (" 
-          + System.identityHashCode(node) + ")\n");
+          + System.identityHashCode(node) + ") "
+          + node.resultIds() + "\n");
     }
     buffer.append("\n");
     for (final EndpointPair<QueryNodeConfig> pair : config_graph.edges()) {
