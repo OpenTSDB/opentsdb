@@ -133,6 +133,7 @@ public class OlympicScoringBaseline {
       tsmm.train(baseline.data);
       tsmm.predict(prediction.data);
     } catch (Exception e) {
+      LOG.error("Failed to train and predict", e);
       throw new RuntimeException(e);
     }
     
@@ -183,9 +184,9 @@ public class OlympicScoringBaseline {
     final TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
     if (value.value() == null) {
+      LOG.warn("Null array from time series: " + iterator);
       return;
     }
-    
     final TimeStamp ts = result.timeSpecification().start().getCopy();
     if (value.value().isInteger()) {
       final long[] array = value.value().longArray();

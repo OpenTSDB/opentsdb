@@ -86,8 +86,15 @@ public class OlympicScoringConfig extends BaseAnomalyConfig {
 
   @Override
   public Builder toBuilder() {
-    // TODO Auto-generated method stub
-    return null;
+    final Builder builder = new Builder()
+        .setBaselineQuery(baseline_query)
+        .setBaselinePeriod(baseline_period)
+        .setBaselineNumPeriods(baseline_num_periods)
+        .setBaselineAggregator(baseline_aggregator)
+        .setExcludeMax(exclude_max)
+        .setExcludeMin(exclude_min);
+    super.toBuilder(builder);
+    return builder;
   }
 
   @Override

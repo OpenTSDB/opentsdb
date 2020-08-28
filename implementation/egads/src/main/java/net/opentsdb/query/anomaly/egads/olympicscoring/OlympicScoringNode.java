@@ -75,8 +75,14 @@ import net.opentsdb.utils.JSON;
  * onNext()) are in, then the current values are evaluated against the prediction
  * and results sent upstream.
  * 
+ * This class is pretty messy, particularly in the EVAL mode.
+ * When eval is enabled, it's possible to get a query time range for 2 hours but
+ * the prediction boundaries are set on a 1 hour bases. Thus we have multiple
+ * 'prediction_index' values, in this case we'd have 2 indices. 1 for the earlier
+ * hour and 1 for the latter. 
+ * 
  * TODO - Check for null or empty currents and baselines.
- * TODO - SEt proper state on baseline failures.
+ * TODO - Set proper state on baseline failures.
  * TODO - See that we stay open long enough to finish building
  * in predict mode, just return.
  *
@@ -89,10 +95,12 @@ public class OlympicScoringNode extends AbstractQueryNode {
   protected final OlympicScoringConfig config;
   protected final PredictionCache cache;
   protected final AtomicInteger latch;
+  protected final AtomicInteger prediction_attempts;
   protected final int jitter;
   protected final AtomicBoolean failed;
   protected final AtomicBoolean building_prediction;
   protected final AtomicBoolean cache_error;
+  protected final AtomicBoolean called_prediction_cache;
   protected final boolean cache_hits[];
   protected volatile BaselineQuery[][] baseline_queries;
   protected final TemporalAmount baseline_period;
@@ -100,15 +108,15 @@ public class OlympicScoringNode extends AbstractQueryNode {
   protected final long[] prediction_starts;
   protected volatile QueryResult[] predictions;
   protected volatile QueryResult current;
-  protected final TLongObjectMap<OlympicScoringBaseline> join = 
-      new TLongObjectHashMap<OlympicScoringBaseline>();
+  protected final TLongObjectMap<OlympicScoringBaseline[]> join = 
+      new TLongObjectHashMap<OlympicScoringBaseline[]>();
   protected final ChronoUnit model_units;
   protected final byte[][] cache_keys;
   protected final long prediction_intervals;
   protected final long prediction_interval;
   protected final int threshold_dps;
   protected String ds_interval;
-  protected volatile QueryResultId data_source;
+  protected final QueryResultId data_source;
   
   public OlympicScoringNode(final QueryNodeFactory factory,
                             final QueryPipelineContext context,
@@ -116,9 +124,11 @@ public class OlympicScoringNode extends AbstractQueryNode {
     super(factory, context);
     this.config = config;
     latch = new AtomicInteger(2);
+    prediction_attempts = new AtomicInteger();
     failed = new AtomicBoolean();
     cache_error = new AtomicBoolean();
     building_prediction = new AtomicBoolean();
+    called_prediction_cache = new AtomicBoolean();
     baseline_period = DateTime.parseDuration2(config.getBaselinePeriod());
     
     // TODO - find the proper ds in graph in order
@@ -205,6 +215,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
       if (num_predictions > 1) {
         latch.set(num_predictions + 1);
       }
+      prediction_attempts.set(num_predictions);
       cache_keys = new byte[num_predictions][];
       ts = start.epoch();
       int i = 0;
@@ -222,13 +233,14 @@ public class OlympicScoringNode extends AbstractQueryNode {
         context.queryContext().logTrace("EGADs Model duration: 1 " + model_units);
       }
       if (LOG.isTraceEnabled()) {
-        LOG.trace("EGADs evaluation jitter: " + jitter);
+        LOG.trace("EGADs evaluation jitter: " + jitter + "s");
         LOG.trace("EGADs Model duration: 1 " + model_units);
       }
       break;
     default:
       throw new IllegalStateException("Unhandled config mode: " + config.getMode());
     }
+    data_source = (QueryResultId) config.resultIds().get(0);
     context.tsdb().getStatsCollector().incrementCounter("amomaly.EGADS.query.count", 
         "model", OlympicScoringFactory.TYPE,
         "mode", config.getMode().toString());
@@ -270,17 +282,13 @@ public class OlympicScoringNode extends AbstractQueryNode {
 
   @Override
   public void onNext(final QueryResult next) {
-    if (data_source == null || !data_source.equals(next.dataSource())) {
-      synchronized (this) {
-        if (data_source == null || !data_source.equals(next.dataSource())) {
-          data_source = next.dataSource();
-        }
-      }
-    }
     current = next;
     countdown();
   }
   
+  /**
+   * Do the actual work of alignment, evaluation, etc.
+   */
   void run() {
     // Got baseline and current data, yay!
     TLongObjectMap<TimeSeries> map = new TLongObjectHashMap<TimeSeries>();
@@ -345,11 +353,15 @@ public class OlympicScoringNode extends AbstractQueryNode {
     sendUpstream(result);
   }
   
-  void evaluate(final TimeSeries cur, final TimeSeries prediction, final EgadsResult result) {
+  void evaluate(final TimeSeries cur, 
+                final TimeSeries prediction, 
+                final EgadsResult result) {
     evaluate(cur, new TimeSeries[] { prediction }, result);
   }
   
-  void evaluate(final TimeSeries cur, final TimeSeries[] preds, final EgadsResult result) {
+  void evaluate(final TimeSeries cur, 
+                final TimeSeries[] preds, 
+                final EgadsResult result) {
     if (cur != null) {
       final EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(
           config,
@@ -468,12 +480,12 @@ public class OlympicScoringNode extends AbstractQueryNode {
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace("EGADS Properties: " + properties.toString());
     }
-     // TODO - parallelize
+     // TODO - parallelize on each time series.
     final List<TimeSeries> computed = Lists.newArrayList();
-    TLongObjectIterator<OlympicScoringBaseline> it = join.iterator();
+    TLongObjectIterator<OlympicScoringBaseline[]> it = join.iterator();
     while (it.hasNext()) {
       it.advance();
-      TimeSeries ts = it.value().predict(properties, prediction_starts[prediction_idx]);
+      TimeSeries ts = it.value()[prediction_idx].predict(properties, prediction_starts[prediction_idx]);
       if (ts != null) {
         computed.add(ts);
       }
@@ -593,23 +605,19 @@ public class OlympicScoringNode extends AbstractQueryNode {
       updateState(State.RUNNING, prediction_idx, null);
       // TODO filter, for now assume one result
       
-      if (data_source == null) {
-        synchronized (OlympicScoringNode.this) {
-          if (data_source == null) {
-            data_source = next.dataSource();
-          }
-        }
-      }
-      
-      LOG.info("BASELINE [" + period_idx + "] got " + next.timeSeries().size() + " results!");
       for (final TimeSeries series : next.timeSeries()) {
         final long hash = series.id().buildHashCode();
-        OlympicScoringBaseline baseline = join.get(hash);
-        if (baseline == null) {
-          baseline = new OlympicScoringBaseline(OlympicScoringNode.this, series.id());
-          join.put(hash, baseline);
+        synchronized (join) {
+          OlympicScoringBaseline[] baselines = join.get(hash);
+          if (baselines == null) {
+            baselines = new OlympicScoringBaseline[predictions.length];
+            join.put(hash, baselines);
+          }
+          if (baselines[prediction_idx] == null) {
+            baselines[prediction_idx] = new OlympicScoringBaseline(OlympicScoringNode.this, series.id());
+          }
+          baselines[prediction_idx].append(series, next);
         }
-        baseline.append(series, next);
       }
       
       next.close();
@@ -686,7 +694,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
     if (baseline_queries == null) {
       synchronized (this) {
         if (baseline_queries == null) {
-          baseline_queries = new BaselineQuery[predictions.length][];          
+          baseline_queries = new BaselineQuery[predictions.length][];
         }
       }
     }
@@ -805,7 +813,6 @@ public class OlympicScoringNode extends AbstractQueryNode {
     
     context.tsdb().getQueryThreadPool().submit(new Runnable() {
       public void run() {
-        LOG.info("********** WRITING CACHE!!  Finally in the runnable.");
         class CacheErrorCB implements Callback<Object, Exception> {
           @Override
           public Object call(final Exception e) throws Exception {
@@ -884,9 +891,15 @@ public class OlympicScoringNode extends AbstractQueryNode {
               prediction_index,
               false);
         } else if (present.state == State.COMPLETE) {
-          // TODO - handle infinite loops here, we need to inc a volatile and
-          // fail if we hit too many retries.
           for (int i = 0; i < predictions.length; i++) {
+            if (prediction_attempts.decrementAndGet() < 0) {
+              handleError(new QueryExecutionException("Whoops, too many "
+                    + "prediction attempts made: " 
+                    + (predictions.length - prediction_attempts.get()), 423),
+                  prediction_index,
+                  false);
+              return false;
+            }
             cache.fetch(pipelineContext(), cache_keys[prediction_index], null)
               .addCallback(new CacheCB(i))
               .addErrback(new CacheErrCB(i));
@@ -917,10 +930,15 @@ public class OlympicScoringNode extends AbstractQueryNode {
     } else if (state.state == State.COMPLETE) {
       // TODO - handle infinite loops here, we need to inc a volatile and
       // fail if we hit too many retries.
-      for (int i = 0; i < predictions.length; i++) {
-        cache.fetch(pipelineContext(), cache_keys[prediction_index], null)
-          .addCallback(new CacheCB(i))
-          .addErrback(new CacheErrCB(i));
+      if (called_prediction_cache.compareAndSet(false, true)) {
+        for (int i = 0; i < predictions.length; i++) {
+          cache.fetch(pipelineContext(), cache_keys[prediction_index], null)
+            .addCallback(new CacheCB(i))
+            .addErrback(new CacheErrCB(i));
+        }
+      } else {
+        throw new IllegalStateException("Whoops? Tried calling prediction cache "
+            + "fetch more than once?");
       }
       
     } else if (state.state == State.RUNNING) {
