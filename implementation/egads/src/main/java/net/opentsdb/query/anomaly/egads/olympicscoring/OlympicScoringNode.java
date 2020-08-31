@@ -339,6 +339,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         final long hash = series.id().buildHashCode();
         TimeSeries cur = map.remove(hash);
         evaluate(cur, iterator.value(), result);
+        cur.close();
       }
     } else {
       final int series_limit = predictions[0].timeSeries().size();
@@ -347,6 +348,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         final long hash = series.id().buildHashCode();
         TimeSeries cur = map.remove(hash);
         evaluate(cur, series, result);
+        cur.close();
       }
     }
     map = null; // release to GC
@@ -831,6 +833,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
             }
             
             updateState(State.COMPLETE, prediction_index, null);
+            result.close();
             return null;
           }
         }

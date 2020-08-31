@@ -171,7 +171,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
               }
             }
           }
-
+          try {
+            series.close();
+          } catch (Exception e) {
+            LOG.error("Whoops", e);
+          }
         }
         // end of the data array
         json.writeEndArray();
