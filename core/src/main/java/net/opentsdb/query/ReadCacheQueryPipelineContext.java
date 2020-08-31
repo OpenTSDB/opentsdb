@@ -361,18 +361,20 @@ public class ReadCacheQueryPipelineContext extends AbstractQueryPipelineContext
         }
         
         // Now we need to re-link the summarizer to the context node.
-        final Set<QueryNode> summarizers = Sets.newHashSet();
-        for (final Entry<String, QueryNode> entry : summarizer_node_map.entrySet()) {
-          summarizers.add(entry.getValue());
-        }
-        
-        for (final QueryNode node : summarizers) {
-          for (final String src: (List<String>) node.config().getSources()) {
-            final List<QueryResultId> ids = result_ids.get(src);
-            for (final QueryResultId id : ids) {
-              countdowns.put(
-                  new DefaultQueryResultId(node.config().getId(),  id.dataSource()), 
-                    new AtomicInteger(sinks.size()));
+        if (summarizer_node_map != null) {
+          final Set<QueryNode> summarizers = Sets.newHashSet();
+          for (final Entry<String, QueryNode> entry : summarizer_node_map.entrySet()) {
+            summarizers.add(entry.getValue());
+          }
+          
+          for (final QueryNode node : summarizers) {
+            for (final String src: (List<String>) node.config().getSources()) {
+              final List<QueryResultId> ids = result_ids.get(src);
+              for (final QueryResultId id : ids) {
+                countdowns.put(
+                    new DefaultQueryResultId(node.config().getId(),  id.dataSource()), 
+                      new AtomicInteger(sinks.size()));
+              }
             }
           }
         }
