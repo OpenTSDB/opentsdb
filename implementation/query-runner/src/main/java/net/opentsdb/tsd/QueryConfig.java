@@ -88,6 +88,9 @@ public class QueryConfig implements TimerTask {
   /** A schedule timeout used to cancel runs. */
   protected Timeout timeout;
   
+  /** Whether or not to post the latest data points back as metrics. */
+  protected boolean post_latest_dps;
+  
   /** An optional result parser. */
   protected final ResultParser parser;
   
@@ -116,6 +119,7 @@ public class QueryConfig implements TimerTask {
     this.frequency = builder.frequency;
     this.query = builder.query;
     this.runner = builder.runner;
+    this.post_latest_dps = builder.post_latest_dp;
     rnd = new Random(DateTime.currentTimeMillis());
     cancel = new AtomicBoolean();
     outstanding = new AtomicBoolean();
@@ -184,6 +188,11 @@ public class QueryConfig implements TimerTask {
       temp = node.get("parser");
       if (temp != null && !temp.isNull()) {
         config.setParser(temp.asText());
+      }
+      
+      temp = node.get("postLatestDp");
+      if (temp != null && !temp.isNull()) {
+        config.setPostLatestDp(temp.asBoolean());
       }
       
       return config.build();
@@ -547,6 +556,7 @@ public class QueryConfig implements TimerTask {
     private String frequency;
     private String query;
     private String parser;
+    private boolean post_latest_dp;
     private TsdbQueryRunner runner;
     
     public Builder setId(final String id) {
@@ -571,6 +581,11 @@ public class QueryConfig implements TimerTask {
     
     public Builder setParser(final String parser) {
       this.parser = parser;
+      return this;
+    }
+    
+    public Builder setPostLatestDp(final boolean post_latest_dp) {
+      this.post_latest_dp = post_latest_dp;
       return this;
     }
     

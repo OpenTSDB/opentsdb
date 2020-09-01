@@ -45,6 +45,7 @@ public class V3ResultParser implements ResultParser {
   private static final String VALUES_COUNT = "query.parser.values";
   private static final String NANS_COUNT = "query.parser.nans";
   private static final String TIMESTAMP_LAG = "query.parser.value.lag";
+  private static final String LATEST_DP = "query.parser.value.latest";
   
   @Override
   public void parse(final String path, final QueryConfig config, final String[] tags) {
@@ -79,9 +80,14 @@ public class V3ResultParser implements ResultParser {
         if (temp == null || temp.isNull()) {
           continue;
         }
+        
+        long series_last_ts = -1;
+        double last_dp = Double.NaN;
         for (final JsonNode series : temp) {
           temp = series.get("NumericType");
           if (temp.isArray()) {
+            // TODO - handle ms in the future.
+            TimeStamp ts = new SecondTimeStamp(ts_start);
             // array
             int index = 0;
             for (final JsonNode value : temp) {
@@ -91,7 +97,13 @@ public class V3ResultParser implements ResultParser {
                 values++;
                 index++;
                 had_data = true;
+                if (config.post_latest_dps) {
+                  // TODO - ints vs floats
+                  series_last_ts = ts.epoch();
+                  last_dp = value.asDouble();
+                }
               }
+              ts.add(interval);
             }
             
             if (index == 0) {
@@ -99,12 +111,19 @@ public class V3ResultParser implements ResultParser {
               continue;
             }
             
-            TimeStamp ts = new SecondTimeStamp(ts_start);
-            for (int i = 0; i < index; i++) {
-              ts.add(interval);
-            }
             if (ts.epoch() > last_ts) {
               last_ts = ts.epoch();
+            }
+            
+            if (config.post_latest_dps && !Double.isNaN(last_dp)) {
+              final String[] series_tags = ResultParser.parseIdToLatestDpTags(series, tags);
+              // TODO - figure out a way to set the timestamp. 
+              TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
+                  LATEST_DP, last_dp, series_tags);
+              if (LOG.isTraceEnabled()) {
+                LOG.trace("Reporting last DP for " + config.id + " for " 
+                    + series_last_ts + " => " + last_dp);
+              }
             }
           } else {
             // just timestamp and numbers
@@ -121,6 +140,19 @@ public class V3ResultParser implements ResultParser {
               } else {
                 values++;
                 had_data = true;
+                if (config.post_latest_dps) {
+                  // TODO - ints vs floats
+                  series_last_ts = ts;
+                  last_dp = value.getValue().asDouble();
+                  final String[] series_tags = ResultParser.parseIdToLatestDpTags(series, tags);
+                  // TODO - figure out a way to set the timestamp. 
+                  TsdbQueryRunner.TSDB.getStatsCollector().setGauge(
+                      LATEST_DP, last_dp, series_tags);
+                  if (LOG.isTraceEnabled()) {
+                    LOG.trace("Reporting last DP for " + config.id + " for " 
+                        + series_last_ts + " => " + last_dp);
+                  }
+                }
               }
             }
           }
