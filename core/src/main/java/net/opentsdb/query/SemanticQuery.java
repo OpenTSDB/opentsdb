@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2019  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //This program is free software: you can redistribute it and/or modify it
 //under the terms of the GNU Lesser General Public License as published by
@@ -362,6 +362,10 @@ public class SemanticQuery implements TimeSeriesQuery {
     public Builder setExecutionGraph(final List<QueryNodeConfig> execution_graph) {
       this.execution_graph = execution_graph;
       return this;
+    }
+    
+    public List<QueryNodeConfig> executionGraph() {
+      return execution_graph;
     }
     
     public Builder addExecutionGraphNode(final QueryNodeConfig node) {
