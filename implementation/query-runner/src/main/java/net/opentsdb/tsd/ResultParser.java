@@ -14,6 +14,14 @@
 // limitations under the License.
 package net.opentsdb.tsd;
 
+import java.util.Iterator;
+import java.util.Map.Entry;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesStringId;
+
 /**
  * An interface for parsing results from the query runner and emitting additional
  * metrics like the number of series and values.
@@ -30,4 +38,54 @@ public interface ResultParser {
    */
   public void parse(final String path, final QueryConfig config, final String[] tags);
   
+  public static String[] parseIdToLatestDpTags(final JsonNode node, 
+                                               final String[] tags) {
+    final BaseTimeSeriesStringId.Builder builder =
+        BaseTimeSeriesStringId.newBuilder();
+    JsonNode temp = node.get("metric");
+    if (temp != null && !temp.isNull()) {
+      builder.setMetric(temp.asText());
+    }
+    temp = node.get("tags");
+    if (temp != null && !temp.isNull()) {
+      final Iterator<Entry<String, JsonNode>> iterator = temp.fields();
+      while (iterator.hasNext()) {
+        final Entry<String, JsonNode> entry = iterator.next();
+        String tag = entry.getValue().asText();
+        builder.addTags(entry.getKey(), tag);
+      }
+    }
+
+    temp = node.get("hits");
+    if (temp != null && !temp.isNull()) {
+      builder.setHits(temp.asLong());
+    }
+
+    temp = node.get("aggregateTags");
+    if (temp != null && !temp.isNull()) {
+      for (final JsonNode tag : temp) {
+        builder.addAggregatedTag(tag.asText());
+      }
+    }
+    final TimeSeriesStringId id = builder.build();
+    int length = id.tags() != null ? id.tags().size() : 0;
+    length += 2; // metric = X
+    length += tags.length * 2; 
+    final String[] new_tags = new String[length];
+    int i = 0;
+    for (; i < tags.length; i++) {
+      new_tags[i] = tags[i];
+    }
+    new_tags[i++] = "metricName";
+    new_tags[i++] = id.metric();
+    for (final Entry<String, String> entry : id.tags().entrySet()) {
+      new_tags[i++] = entry.getKey();
+      new_tags[i++] = entry.getValue();
+    }
+    
+    // TODO - agg tags maybe just as a sorted comma separated list
+    // TODO - disjoint tags
+    
+    return new_tags;
+  }
 }
