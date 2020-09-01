@@ -207,6 +207,17 @@ public class DefaultQueryPlanner implements QueryPlanner {
         satisfied_filters.add(node.getId());
       }
       
+      final QueryNodeFactory factory = getFactory(node);
+      if (factory == null) {
+        throw new QueryExecutionException("No data source factory found for: " 
+            + node, 400);
+      }
+      factory.setupGraph(context, node, this);
+      already_setup.add(node.hashCode());
+      if (modified_during_setup) {
+        return true;
+      }
+    } else {
       // TODO - TEMP!! Special summary pass through code
       if (node instanceof SummarizerConfig && 
           ((SummarizerConfig) node).passThrough() &&
@@ -221,17 +232,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
         }
       }
       
-      final QueryNodeFactory factory = getFactory(node);
-      if (factory == null) {
-        throw new QueryExecutionException("No data source factory found for: " 
-            + node, 400);
-      }
-      factory.setupGraph(context, node, this);
-      already_setup.add(node.hashCode());
-      if (modified_during_setup) {
-        return true;
-      }
-    } else {
+      
       // skip the node that's already been setup.
       return false;
     }
