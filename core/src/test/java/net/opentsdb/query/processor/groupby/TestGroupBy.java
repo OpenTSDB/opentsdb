@@ -45,6 +45,8 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
@@ -102,6 +104,9 @@ public class TestGroupBy {
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(upstream));
+    TSDB tsdb = mock(TSDB.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    when(tsdb.getConfig()).thenReturn(mock(Configuration.class));
   }
   
   @Test

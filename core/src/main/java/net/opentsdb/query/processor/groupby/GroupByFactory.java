@@ -75,6 +75,8 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
 
   public static final String GROUPBY_THREAD_COUNT_KEY = "groupby.thread.count";
   public static final int DEFAULT_GROUPBY_THREAD_COUNT = 8;
+  
+  public static final String GROUPBY_USE_REFS = "groupby.timeseries.references";
 
   protected ObjectPool job_pool;
   protected ArrayObjectPool long_pool;
@@ -96,6 +98,9 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     
     protected long start;
     protected List<TimeSeries> tsList;
+    protected int[] tsIndices;
+    protected int length;
+    protected QueryResult result;
     protected Accumulator accumulator;
     protected int totalTsCount;
     protected int startIndex;
@@ -126,6 +131,28 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
       this.doneSignal = doneSignal;
     }
     
+    public void reset(
+        final int[] tsIndices,
+        final int length,
+        final QueryResult result,
+        final Accumulator accumulator,
+        final int totalTsCount,
+        final int startIndex,
+        final int endIndex,
+        final NumericArrayAggregator aggregator,
+        final CountDownLatch doneSignal) {
+      start = DateTime.nanoTime();
+      this.tsIndices = tsIndices;
+      this.length = length;
+      this.result = result;
+      this.accumulator = accumulator;
+      this.totalTsCount = totalTsCount;
+      this.startIndex = startIndex;
+      this.endIndex = endIndex;
+      this.aggregator = aggregator;
+      this.doneSignal = doneSignal;
+    }
+    
     @Override
     public void run() {
       try {
@@ -139,8 +166,20 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
               "groupby.queue.small.wait.time", DateTime.nanoTime() - start, 
               ChronoUnit.NANOS);
         }
-        for (int i = startIndex; i < endIndex; i++) {
-          accumulator.accumulate(tsList.get(i), aggregator);
+        
+        if (tsIndices != null && length != 0) {
+          for (int i = startIndex; i < endIndex; i++) {
+            if (i >= length) {
+              break;
+            }
+            final TimeSeries series = result.timeSeries().get(i);
+            accumulator.accumulate(series, aggregator);
+            series.close();
+          }
+        } else {
+          for (int i = startIndex; i < endIndex; i++) {
+            accumulator.accumulate(tsList.get(i), aggregator);
+          }
         }
       } catch (Throwable t) {
         LOG.error("Failed to accumulate data", t);
@@ -192,6 +231,12 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
           DEFAULT_GROUPBY_TIMESERIES_PER_JOB,
           true,
           "maximum number of timeseries per group by job");
+      
+      configuration.register(GROUPBY_USE_REFS,
+          false,
+          true,
+          "Whether or not to use references into the time series list to reduce "
+          + "the number of objects outstanding. Testing this setting.");
     }
     
     // look up the configuration object every time for hot deployment
@@ -261,6 +306,25 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                          final GroupByConfig config,
                          final QueryPlanner plan) {
     // TODO Auto-generated method stub
+  }
+
+  protected <T extends TimeSeriesDataType> TypedTimeSeriesIterator newTypedIterator(
+      final TypeToken<T> type,
+      final GroupBy node,
+      final QueryResult result,
+      final int[] sources,
+      final int sources_length) {
+    if (type == NumericArrayType.TYPE) {
+      return new GroupByNumericArrayIterator(
+          node, 
+          result, 
+          sources, 
+          sources_length,
+          configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY), 
+          configuration.getInt(GROUPBY_TIMESERIES_PER_JOB_KEY), 
+          threadCount);
+    }
+    throw new UnsupportedOperationException();
   }
   
   /**
