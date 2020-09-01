@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -57,6 +58,12 @@ public class GroupByTimeSeries implements TimeSeries {
   
   /** The list of sources for this series. */
   protected List<TimeSeries> sources;
+  
+  /** Moving to this wherein we maintain an index for the proper time series so
+   * that we don't have to allocate and hold a time series in memory for a long
+   * time. This will let us pool downstream time series as well. */
+  protected int sources_idx;
+  protected int[] source_refs;
   
   /** Whether or not the types have been unioned yet with the factories supported. */
   protected boolean types_unioned = false;
@@ -120,6 +127,30 @@ public class GroupByTimeSeries implements TimeSeries {
     types.addAll(source.types());
   }
   
+  /**
+   * Takes the source and add's a reference to it from the result list.
+   * @param source the non-null time series.
+   * @param idx The index into the original result's time series list.
+   */
+  void addSource(final TimeSeries source, final int idx) {
+    if (source == null) {
+      throw new IllegalArgumentException("Source cannot be null.");
+    }
+    // TODO - pool
+    if (source_refs == null) {
+      source_refs = new int[16];
+    } else if (sources_idx + 1 >= source_refs.length) {
+      source_refs = Arrays.copyOf(source_refs, source_refs.length * 2);
+    }
+    if (((GroupByConfig) node.config()).getMergeIds() || 
+        ((GroupByConfig) node.config()).getFullMerge()) {
+      merging_id.addSeries(source.id());
+    }
+    
+    source_refs[sources_idx++] = idx;
+    types.addAll(source.types());
+  }
+  
   @Override
   public TimeSeriesId id() {
     if (id == null) {
@@ -138,8 +169,14 @@ public class GroupByTimeSeries implements TimeSeries {
     if (!types.contains(type)) {
       return Optional.empty();
     }
-    final TypedTimeSeriesIterator iterator = 
-        ((ProcessorFactory) node.factory()).newTypedIterator(type, node, result, sources);
+    final TypedTimeSeriesIterator iterator;
+    if (sources != null) {
+       iterator = ((ProcessorFactory) node.factory())
+           .newTypedIterator(type, node, result, sources);
+    } else {
+      iterator = ((GroupByFactory) node.factory())
+          .newTypedIterator(type, node, result, source_refs, sources_idx);
+    }
     if (iterator == null) {
       return Optional.empty();  
     }
@@ -153,7 +190,13 @@ public class GroupByTimeSeries implements TimeSeries {
     final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithCapacity(types.size());
     for (final TypeToken<? extends TimeSeriesDataType> type : types) {
-      iterators.add(((ProcessorFactory) node.factory()).newTypedIterator(type, node, result, sources));
+      if (sources != null) {
+        iterators.add(((ProcessorFactory) node.factory())
+            .newTypedIterator(type, node, result, sources));
+      } else {
+        iterators.add(((GroupByFactory) node.factory())
+            .newTypedIterator(type, node, result, source_refs, sources_idx));
+      }
     }
     return iterators;
   }
@@ -176,13 +219,20 @@ public class GroupByTimeSeries implements TimeSeries {
 
   @Override
   public void close() {
-    for (final TimeSeries ts : sources) {
-      ts.close();
+    if (sources != null) {
+      for (final TimeSeries ts : sources) {
+        ts.close();
+      }
     }
   }
   
   @VisibleForTesting
   List<TimeSeries> sources() {
     return sources;
+  }
+  
+  @VisibleForTesting
+  int[] sourceRefs() {
+    return source_refs;
   }
 }

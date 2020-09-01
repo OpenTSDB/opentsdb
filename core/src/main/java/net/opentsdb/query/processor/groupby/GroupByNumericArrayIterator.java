@@ -234,6 +234,109 @@ public class GroupByNumericArrayIterator
       throw new IllegalArgumentException(throwable);
     }
   }
+  
+  public GroupByNumericArrayIterator(
+      final QueryNode node, 
+      final QueryResult result, 
+      final int[] sources, 
+      final int sources_length,
+      final int queueThreshold, 
+      final int timeSeriesPerJob, 
+      final int threadCount) {
+    if (node == null) {
+      throw new IllegalArgumentException("Query node cannot be null.");
+    }
+    if (sources == null) {
+      throw new IllegalArgumentException("Sources cannot be null.");
+    }
+    if (sources == null || sources_length == 0) {
+      throw new IllegalArgumentException("Sources cannot be empty.");
+    }
+    if (Strings.isNullOrEmpty(((GroupByConfig) node.config()).getAggregator())) {
+      throw new IllegalArgumentException("Aggregator cannot be null or empty.");
+    }
+    
+    try {
+      TSDB tsdb = node.pipelineContext().tsdb();
+      this.groupByFactory = (GroupByFactory) ((GroupBy) node).factory();
+      this.blockingQueue = groupByFactory.getQueue();
+      this.timeSeriesPerJob = timeSeriesPerJob;
+      this.result = (GroupByResult) result;
+      final NumericArrayAggregatorFactory factory = tsdb.getRegistry()
+              .getPlugin(
+                  NumericArrayAggregatorFactory.class,
+                  ((GroupByConfig) node.config()).getAggregator());
+      if (factory == null) {
+        throw new IllegalArgumentException(
+            "No aggregator factory found of type: "
+                + ((GroupByConfig) node.config()).getAggregator());
+      }
+
+      int size;
+      DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
+      if (null == downsampleConfig) {
+        TemporalAmount temporalAmount = this.result.downstreamResult().timeSpecification().interval();
+        TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
+        int intervals = 0;
+        while (ts.compare(Op.LT, node.pipelineContext().query().endTime())) {
+          intervals++;
+          ts.add(temporalAmount);
+        }
+        size = intervals;
+      } else {
+        size = downsampleConfig.intervals();
+      }
+      
+      ArrayAggregatorConfig agg_config = ((GroupBy) node).aggregatorConfig();
+      if (agg_config == null) {
+        agg_config = DefaultArrayAggregatorConfig.newBuilder()
+            .setArraySize(size)
+            .setInfectiousNaN(((GroupByConfig) node.config()).getInfectiousNan())
+            .build();
+      }
+      
+      aggregator = (NumericArrayAggregator) factory.newAggregator(agg_config);
+      if (aggregator == null) {
+        throw new IllegalArgumentException(
+            "No aggregator found of type: " + ((GroupByConfig) node.config()).getAggregator());
+      }
+
+      // TODO: Need to check if it makes sense to make this threshold configurable
+      final int aggrCount = Math.min(sources_length, threadCount);
+      NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[aggrCount];
+      PooledObject[] pooled_arrays = new PooledObject[aggrCount];
+      for (int i = 0; i < valuesCombiner.length; i++) {
+        valuesCombiner[i] = createAggregator(node, factory, size, agg_config, pooled_arrays, i);
+      }
+
+      this.statsCollector = tsdb.getStatsCollector();
+
+      if (this.result.isSourceProcessInParallel()) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Accumulate in parallel, source size {}", sources_length);
+        }
+        accumulateInParallel(sources, sources_length, valuesCombiner, pooled_arrays);
+      } else {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Accumulate in sequence, source size {}", sources_length);
+        }
+        for (int i = 0; i < sources_length; i++) {
+          accumulate(((GroupByResult) result).downstreamResult().timeSeries().get(i), null);
+        }
+        
+        if (pooled_arrays != null) {
+          for (int x = 0; x < pooled_arrays.length; x++) {
+            if (pooled_arrays[x] != null) {
+              pooled_arrays[x].release();
+            }
+          }
+        }
+      }
+    } catch (Throwable throwable) {
+      LOG.error("Error constructing the GroupByNumericArrayIterator", throwable);
+      throw new IllegalArgumentException(throwable);
+    }
+  }
 
   /**
    * Instantiate an aggregator with pooled arrays if possible.
@@ -349,6 +452,85 @@ public class GroupByNumericArrayIterator
       jobs[jobIndex] = groupByFactory.jobPool().claim();
       final GroupByJob job = (GroupByJob) jobs[jobIndex].object();
       job.reset(tsList, this, totalTsCount, startIndex, endIndex, combiner, doneSignal);
+      blockingQueue.put(job);
+      has_next = true;
+    }
+
+    if (blockingQueue instanceof BigSmallLinkedBlockingQueue) {
+      // TODO - maybe not record on every submission, instead track in the queue itself.
+      statsCollector.setGauge("groupby.queue.big.job", 
+          ((BigSmallLinkedBlockingQueue) blockingQueue).bigQSize());
+      statsCollector.setGauge("groupby.queue.small.job", 
+          ((BigSmallLinkedBlockingQueue) blockingQueue).smallQSize());
+    }
+    statsCollector.setGauge("groupby.timeseries.count", totalTsCount);
+
+    try {
+      doneSignal.await();
+    } catch (InterruptedException e) {
+      LOG.error("GroupBy interrupted", e);
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          "Parallel downsample time for {} timeseries is {} ms",
+          tsCount,
+          System.currentTimeMillis() - start);
+    }
+    
+    // release the jobs.
+    for (int i = 0; i < jobs.length; i++) {
+      jobs[i].release();
+    }
+
+    for (int i = 0; i < combiners.length; i++) {
+      aggregator.combine(combiners[i]);
+      try {
+        combiners[i].close();
+      } catch (IOException e) {
+        LOG.error("Failed to close combiner, shouldn't happen", e);
+      }
+    }
+    
+    if (pooled_arrays != null) {
+      for (int x = 0; x < pooled_arrays.length; x++) {
+        if (pooled_arrays[x] != null) {
+          pooled_arrays[x].release();
+        }
+      }
+    }
+    if (aggregator.end() <= aggregator.offset()) {
+      has_next = false;
+    }
+  }
+  
+  private void accumulateInParallel(
+      final int[] tsList, 
+      final int length,
+      final NumericArrayAggregator[] combiners, 
+      final PooledObject[] pooled_arrays) {
+    final int tsCount = length;
+    final int jobCount = (int) Math.ceil((double) tsCount / timeSeriesPerJob);
+
+    final long start = System.currentTimeMillis();
+    final int totalTsCount = this.result.getTsCountInQuery();
+
+    final PooledObject[] jobs = new PooledObject[jobCount];
+    final CountDownLatch doneSignal = new CountDownLatch(jobCount);
+    for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
+      NumericArrayAggregator combiner = combiners[jobIndex % combiners.length];
+      final int startIndex = jobIndex * timeSeriesPerJob; // inclusive
+      final int endIndex; // exclusive
+      if (jobIndex == jobCount - 1) {
+        // last job
+        endIndex = tsCount;
+      } else {
+        endIndex = startIndex + timeSeriesPerJob;
+      }
+
+      jobs[jobIndex] = groupByFactory.jobPool().claim();
+      final GroupByJob job = (GroupByJob) jobs[jobIndex].object();
+      job.reset(tsList, length, ((GroupByResult) result).downstreamResult(), this, totalTsCount, startIndex, endIndex, combiner, doneSignal);
       blockingQueue.put(job);
       has_next = true;
     }

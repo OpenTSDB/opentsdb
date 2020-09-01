@@ -33,6 +33,7 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryResult;
 
@@ -74,6 +75,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
       throw new IllegalArgumentException("Query results cannot be null.");
     }
     
+    boolean use_refs = node.pipelineContext().tsdb().getConfig()
+        .getBoolean(GroupByFactory.GROUPBY_USE_REFS);
     this.sourceProcessInParallel = next.processInParallel();
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
@@ -81,7 +84,8 @@ public class GroupByResult extends BaseWrappedQueryResult {
     if (next.idType().equals(Const.TS_STRING_ID)) {
       List<TimeSeries> timeSeries = next.timeSeries();
       tsCountInQuery = timeSeries.size();
-      for (final TimeSeries series : timeSeries) {
+      for (int i = 0; i < timeSeries.size(); i++) {
+        final TimeSeries series = timeSeries.get(i);
         final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
         final StringBuilder buf = new StringBuilder()
             .append(id.metric());
@@ -127,13 +131,21 @@ public class GroupByResult extends BaseWrappedQueryResult {
           }
           groups.put(hash, group);
         }
-        group.addSource(series);
+        if (use_refs && series.types().contains(NumericArrayType.TYPE)) {
+          // TODO - possible error here if one series has a NumericType and 
+          // others have the array type.
+          group.addSource(series, i);
+        } else {
+          group.addSource(series);
+        }
+        series.close();
       }
     } else if (next.idType().equals(Const.TS_BYTE_ID)) {
       final List<byte[]> keys = ((GroupByConfig) node.config()).getEncodedTagKeys();
       List<TimeSeries> timeSeries = next.timeSeries();
       tsCountInQuery = timeSeries.size();
-      for (final TimeSeries series : timeSeries) {
+      for (int i = 0; i < timeSeries.size(); i++) {
+        final TimeSeries series = timeSeries.get(i);
         final TimeSeriesByteId id = (TimeSeriesByteId) series.id();
         // TODO - bench me, may be a better way
         final ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -186,8 +198,14 @@ public class GroupByResult extends BaseWrappedQueryResult {
             }
             groups.put(hash, group);
           }
-          group.addSource(series);
-          
+          if (use_refs && series.types().contains(NumericArrayType.TYPE)) {
+            // TODO - possible error here if one series has a NumericType and 
+            // others have the array type.
+            group.addSource(series, i);
+          } else {
+            group.addSource(series);
+          }
+          series.close();
         } catch (IOException e) {
           throw new RuntimeException("Failed to build the group-by hash", e);
         }

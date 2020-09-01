@@ -28,6 +28,9 @@ import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -42,6 +45,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -85,6 +89,11 @@ public class TestGroupByResult {
         .setId("Testing")
         .build();
     node = mock(GroupBy.class);
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(node.pipelineContext()).thenReturn(context);
+    TSDB tsdb = mock(TSDB.class);
+    when(context.tsdb()).thenReturn(tsdb);
+    when(tsdb.getConfig()).thenReturn(mock(Configuration.class));
     result = mock(QueryResult.class);
     time_spec = mock(TimeSpecification.class);
     
@@ -149,8 +158,8 @@ public class TestGroupByResult {
     assertEquals(1, id.aggregatedTags().size());
     assertTrue(id.aggregatedTags().contains("host"));
     assertEquals(2, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
-    assertTrue(ts.sources.contains(ts2));
+    assertTrue(ts.sources().contains(ts1));
+    assertTrue(ts.sources().contains(ts2));
     
     ts = getSeries(gbr, 9058951729670804382L);
     id = (TimeSeriesStringId) ts.id();
@@ -160,8 +169,8 @@ public class TestGroupByResult {
     assertEquals(1, id.aggregatedTags().size());
     assertTrue(id.aggregatedTags().contains("host"));
     assertEquals(2, ts.sources().size());
-    assertTrue(ts.sources.contains(ts3));
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts3));
+    assertTrue(ts.sources().contains(ts4));
   }
 
   @Test
@@ -182,19 +191,19 @@ public class TestGroupByResult {
     // xx hash is deterministic
     GroupByTimeSeries ts = getSeries(gbr, 8854926265991506377L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
+    assertTrue(ts.sources().contains(ts1));
     
     ts = getSeries(gbr, 2209259780447305455L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts3));
+    assertTrue(ts.sources().contains(ts3));
     
     ts = getSeries(gbr, -665964879746510592L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts2));
+    assertTrue(ts.sources().contains(ts2));
     
     ts = getSeries(gbr, -9040751192873861559L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts4));
   }
   
   @Test
@@ -231,10 +240,10 @@ public class TestGroupByResult {
     // xx hash is deterministic
     GroupByTimeSeries ts = getSeries(gbr, -6979747124570991354L);
     assertEquals(4, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
-    assertTrue(ts.sources.contains(ts2));
-    assertTrue(ts.sources.contains(ts3));
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts1));
+    assertTrue(ts.sources().contains(ts2));
+    assertTrue(ts.sources().contains(ts3));
+    assertTrue(ts.sources().contains(ts4));
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -252,10 +261,10 @@ public class TestGroupByResult {
     // xx hash is deterministic
     ts = getSeries(gbr, -6979747124570991354L);
     assertEquals(4, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
-    assertTrue(ts.sources.contains(ts2));
-    assertTrue(ts.sources.contains(ts3));
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts1));
+    assertTrue(ts.sources().contains(ts2));
+    assertTrue(ts.sources().contains(ts3));
+    assertTrue(ts.sources().contains(ts4));
   }
   
   @Test
@@ -340,8 +349,8 @@ public class TestGroupByResult {
     assertEquals(1, id.aggregatedTags().size());
     assertArrayEquals("host".getBytes(), id.aggregatedTags().get(0));
     assertEquals(2, ts.sources().size());
-    assertTrue(ts.sources.contains(ts3));
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts3));
+    assertTrue(ts.sources().contains(ts4));
     
     ts = getSeries(gbr, -1137681723123188454L);
     id = (TimeSeriesByteId) ts.id();
@@ -351,8 +360,8 @@ public class TestGroupByResult {
     assertEquals(1, id.aggregatedTags().size());
     assertArrayEquals("host".getBytes(), id.aggregatedTags().get(0));
     assertEquals(2, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
-    assertTrue(ts.sources.contains(ts2));
+    assertTrue(ts.sources().contains(ts1));
+    assertTrue(ts.sources().contains(ts2));
   }
   
   @Test
@@ -376,19 +385,19 @@ public class TestGroupByResult {
     // xx hash is deterministic
     GroupByTimeSeries ts = getSeries(gbr, 8606452997040963279L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts2));
+    assertTrue(ts.sources().contains(ts2));
     
     ts = getSeries(gbr, 3728368451019728235L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts3));
+    assertTrue(ts.sources().contains(ts3));
     
     ts = getSeries(gbr, -5921137706139174957L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts4));
     
     ts = getSeries(gbr, -4228542243250309079L);
     assertEquals(1, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
+    assertTrue(ts.sources().contains(ts1));
   }
   
   @Test
@@ -429,10 +438,10 @@ public class TestGroupByResult {
     // xx hash is deterministic
     GroupByTimeSeries ts = getSeries(gbr, -3292477735350538661L);
     assertEquals(4, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
-    assertTrue(ts.sources.contains(ts2));
-    assertTrue(ts.sources.contains(ts3));
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts1));
+    assertTrue(ts.sources().contains(ts2));
+    assertTrue(ts.sources().contains(ts3));
+    assertTrue(ts.sources().contains(ts4));
     
     config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -450,10 +459,10 @@ public class TestGroupByResult {
     // xx hash is deterministic
     ts = getSeries(gbr, -3292477735350538661L);
     assertEquals(4, ts.sources().size());
-    assertTrue(ts.sources.contains(ts1));
-    assertTrue(ts.sources.contains(ts2));
-    assertTrue(ts.sources.contains(ts3));
-    assertTrue(ts.sources.contains(ts4));
+    assertTrue(ts.sources().contains(ts1));
+    assertTrue(ts.sources().contains(ts2));
+    assertTrue(ts.sources().contains(ts3));
+    assertTrue(ts.sources().contains(ts4));
   }
   
   @Test
