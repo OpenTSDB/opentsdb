@@ -513,7 +513,7 @@ public class TestDefaultQueryPlanner {
     assertEquals(3, planner.graph().nodes().size());
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertNull(planner.nodeForId("ds"));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("m1")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("sum"), 
         planner.nodes_map.get("m1")));
     
@@ -645,7 +645,7 @@ public class TestDefaultQueryPlanner {
     assertEquals(5, planner.graph().nodes().size());
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("gb"), 
         planner.nodes_map.get("ds")));
-    assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
+    assertFalse(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("gb")));
     assertTrue(planner.graph().hasEdgeConnecting(SINK, planner.nodes_map.get("sum")));
     assertTrue(planner.graph().hasEdgeConnecting(planner.nodes_map.get("ds"), 
         planner.nodes_map.get("m1")));
@@ -3201,11 +3201,11 @@ public class TestDefaultQueryPlanner {
     assertEquals("gb1", source.nodeID());
     assertEquals("m1", source.dataSource());
     source = planner.serializationSources().get(1);
-    assertEquals("gb2", source.nodeID());
-    assertEquals("m2", source.dataSource());
-    source = planner.serializationSources().get(2);
     assertEquals("summarizer", source.nodeID());
     assertEquals("m1", source.dataSource());
+    source = planner.serializationSources().get(2);
+    assertEquals("gb2", source.nodeID());
+    assertEquals("m2", source.dataSource());
     source = planner.serializationSources().get(3);
     assertEquals("summarizer", source.nodeID());
     assertEquals("m2", source.dataSource());
