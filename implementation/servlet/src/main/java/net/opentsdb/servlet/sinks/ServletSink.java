@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package net.opentsdb.servlet.sinks;
 
 import java.io.ByteArrayOutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.ws.rs.core.Response;
 
@@ -65,6 +66,9 @@ public class ServletSink implements QuerySink, SerdesCallback {
   /** TEMP - This sucks but we need to figure out proper async writes. */
   private final ByteArrayOutputStream stream;
   
+  /** Used to tell us if we've written data to the caller or not. */
+  private final AtomicBoolean serialized;
+  
   /** The query sink callback. Only one allowed. */
   private QuerySinkCallback callback;
   
@@ -77,6 +81,7 @@ public class ServletSink implements QuerySink, SerdesCallback {
                      final ServletSinkConfig config) {
     this.context = context;
     this.config = config;
+    serialized = new AtomicBoolean();
     
     final SerdesFactory factory = context.tsdb().getRegistry()
         .getPlugin(SerdesFactory.class, config.serdesOptions().getType());
@@ -85,7 +90,8 @@ public class ServletSink implements QuerySink, SerdesCallback {
           + "factory for the type: " + config.serdesOptions().getType());
     }
     
-    // TODO - noooo!!!!
+    // TODO - noooo!!!! Use a pool eventually or figure out a way to stream
+    // it directly over TCP (though we'd have a race with errors).
     stream = new ByteArrayOutputStream();
     serdes = factory.newInstance(
         context, 
@@ -107,6 +113,7 @@ public class ServletSink implements QuerySink, SerdesCallback {
       return;
     }
     try {
+      
       serdes.serializeComplete(null);
       config.request().setAttribute("DATA", stream);
       if (context.stats() != null) {
@@ -125,9 +132,13 @@ public class ServletSink implements QuerySink, SerdesCallback {
 //        onError(e1);
 //        return;
 //      }
-      //config.async().complete();
-      config.async().dispatch();
-      logComplete();
+      if (serialized.compareAndSet(false, true)) {
+        config.async().dispatch();
+        logComplete();
+      } else if (LOG.isDebugEnabled()) {
+        LOG.debug("Lost race serializing response for query: " 
+            + JSON.serializeToString(context.query()));
+      }
     } catch (Exception e) {
       LOG.error("Unexpected exception dispatching async request for "
           + "query: " + JSON.serializeToString(context.query()), e);
@@ -179,16 +190,18 @@ public class ServletSink implements QuerySink, SerdesCallback {
           LOG.error("Failed to serialize result: " 
               + next.source().config().getId() + ":" 
               + next.dataSource(), (Throwable) ignored);
+          onError((Throwable) ignored);
+        } else {
+          if (context.query().isTraceEnabled()) {
+            context.logTrace(next.source(), "Finished serializing response: " 
+                + next.source().config().getId() + ":" + next.dataSource());
+          }
         }
         try {
           next.close();
         } catch (Throwable t) {
           LOG.warn("Failed to close result: " 
               + next.source().config().getId() + ":" + next.dataSource(), t);
-        }
-        if (context.query().isTraceEnabled()) {
-          context.logTrace(next.source(), "Finished serializing response: " 
-              + next.source().config().getId() + ":" + next.dataSource());
         }
         if (serdes_span != null) {
           serdes_span.setSuccessTags().finish();
@@ -225,21 +238,26 @@ public class ServletSink implements QuerySink, SerdesCallback {
   
   @Override
   public void onError(final Throwable t) {
-    LOG.error("Exception for query: " 
-        + JSON.serializeToString(context.query()), t);
-    context.logError("Error sent to the query sink: " + t.getMessage());
-    try {
-      if (t instanceof QueryExecutionException) {
-        QueryExecutionExceptionMapper.serialize(
-            (QueryExecutionException) t, 
-            config.async().getResponse());
-      } else {
-        GenericExceptionMapper.serialize(t, config.async().getResponse());
+    if (serialized.compareAndSet(false, true)) {
+      LOG.error("Exception for query: " 
+          + JSON.serializeToString(context.query()), t);
+      context.logError("Error sent to the query sink: " + t.getMessage());
+      try {
+        if (t instanceof QueryExecutionException) {
+          QueryExecutionExceptionMapper.serialize(
+              (QueryExecutionException) t, 
+              config.async().getResponse());
+        } else {
+          GenericExceptionMapper.serialize(t, config.async().getResponse());
+        }
+        config.async().complete();
+        logComplete(t);
+      } catch (Throwable t1) {
+        LOG.error("WFT? response may have been serialized?", t1);
       }
-      config.async().complete();
-      logComplete(t);
-    } catch (Throwable t1) {
-      LOG.error("WFT? response may have been serialized?", t1);
+    } else {
+      LOG.warn("Exception for sink after data was serialized for query: " 
+          + JSON.serializeToString(context.query()), t);
     }
   }
   
