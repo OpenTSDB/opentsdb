@@ -135,10 +135,10 @@ public class GroupByResult extends BaseWrappedQueryResult {
           // TODO - possible error here if one series has a NumericType and 
           // others have the array type.
           group.addSource(series, i);
+          series.close();
         } else {
           group.addSource(series);
         }
-        series.close();
       }
     } else if (next.idType().equals(Const.TS_BYTE_ID)) {
       final List<byte[]> keys = ((GroupByConfig) node.config()).getEncodedTagKeys();
@@ -202,10 +202,10 @@ public class GroupByResult extends BaseWrappedQueryResult {
             // TODO - possible error here if one series has a NumericType and 
             // others have the array type.
             group.addSource(series, i);
+            series.close();
           } else {
             group.addSource(series);
           }
-          series.close();
         } catch (IOException e) {
           throw new RuntimeException("Failed to build the group-by hash", e);
         }
