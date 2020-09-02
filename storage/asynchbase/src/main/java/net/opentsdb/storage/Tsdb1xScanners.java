@@ -77,6 +77,7 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
 /**
@@ -349,7 +350,6 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
     
     if (send_upstream) {
       try {
-        //scanners_done = 0;
         if (node.push()) {
           if (node.sentData()) {
             for (final Tsdb1xPartialTimeSeriesSet set : 
@@ -387,6 +387,10 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
               result = current_result;
               current_result = null;
             }
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Sending results upstream for config: " 
+                  + JSON.serializeToString(node.config()));
+            }
             node.onNext(result);
           } else {
             if ((current_result.timeSeries() == null || 
@@ -405,6 +409,10 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
               synchronized (this) {
                 result = current_result;
                 current_result = null;
+              }
+              if (LOG.isTraceEnabled()) {
+                LOG.trace("Sending results upstream for config: " 
+                    + JSON.serializeToString(node.config()));
               }
               node.onNext(result);
             }
