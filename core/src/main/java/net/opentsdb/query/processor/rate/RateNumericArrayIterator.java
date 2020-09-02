@@ -119,7 +119,7 @@ public class RateNumericArrayIterator implements QueryIterator,
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();
-      has_next = true;
+      has_next = this.source.hasNext();
     } else {
       this.source = null;
     }
