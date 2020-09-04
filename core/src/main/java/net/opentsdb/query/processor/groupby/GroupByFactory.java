@@ -172,7 +172,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
             if (i >= length) {
               break;
             }
-            final TimeSeries series = result.timeSeries().get(i);
+            final TimeSeries series = result.timeSeries().get(tsIndices[i]);
             accumulator.accumulate(series, aggregator);
             series.close();
           }
