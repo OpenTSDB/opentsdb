@@ -96,7 +96,27 @@ public class ESMetaResponse implements MetaResponse {
       // quick validation
       long max_hits = 0;
       for (final Map.Entry<String, MultiSearchResponse> response_entry : response.entrySet()) {
+        if (response_entry.getValue() == null) {
+          LOGGER.error("Null entry for response: " + response_entry.getKey());
+          continue;
+        }
+        if (response_entry.getValue().getResponses() == null || 
+            response_entry.getValue().getResponses().length < 1 || 
+            response_entry.getValue().getResponses()[0] == null) {
+          LOGGER.error("Null or empty responses for response: " + response_entry.getKey());
+          continue;
+        }
+        
         final SearchResponse response = response_entry.getValue().getResponses()[0].getResponse();
+        if (response == null) {
+          LOGGER.error("Null SearchResponse at index 0 for response: " + response_entry.getKey());
+          continue;
+        }
+        if (response.getHits() == null) {
+          LOGGER.error("Null hits response, something wrong with the client?: " 
+              + response_entry.getKey());
+          continue;
+        }
         if (response.getHits().getTotalHits() > max_hits) {
           max_hits = response.getHits().getTotalHits();
         }
