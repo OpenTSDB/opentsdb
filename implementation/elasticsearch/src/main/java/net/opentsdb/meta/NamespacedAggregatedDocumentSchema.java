@@ -34,15 +34,8 @@ import net.opentsdb.meta.impl.MetaQueryMarker;
 import net.opentsdb.meta.impl.MetaResponse;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.filter.ChainFilter;
+import net.opentsdb.query.filter.*;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
-import net.opentsdb.query.filter.ExplicitTagsFilter;
-import net.opentsdb.query.filter.MetricFilter;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.filter.NotFilter;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagKeyFilter;
-import net.opentsdb.query.filter.TagValueFilter;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 import org.elasticsearch.common.base.Strings;
@@ -156,6 +149,9 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       count ++;
       return count;
     } if (filter instanceof NotFilter) {
+      return count;
+    } if (filter instanceof AnyFieldRegexFilter) {
+      count++;
       return count;
     }
     if (filter instanceof ChainFilter) {

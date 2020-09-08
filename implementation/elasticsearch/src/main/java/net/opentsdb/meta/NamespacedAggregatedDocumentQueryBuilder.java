@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.ChainFilter;
@@ -45,6 +46,8 @@ import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Builds the ElasticSearch query
@@ -52,6 +55,8 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
  * @since 3.0
  */
 public class NamespacedAggregatedDocumentQueryBuilder {
+  private static final Logger LOG = LoggerFactory.getLogger(
+          NamespacedAggregatedDocumentQueryBuilder.class);
   public static final String QUERY_NAMESPACE_KEY = "namespace.lowercase";
   public static final String QUERY_TAG_KEY_KEY = "tags.key.lowercase";
   public static final String QUERY_TAG_VALUE_KEY = "tags.value";
@@ -89,35 +94,35 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     this.query = query;
   }
 
-  FilterBuilder setFilter(final QueryFilter filter, final List<FilterBuilder> metric_filters) {
+  FilterBuilder setFilter(final QueryFilter filter, final List<FilterBuilder> metric_filters, final boolean nested) {
     if (filter == null) {
       return null;
     }
 
     if (filter instanceof ExplicitTagsFilter) {
-      return setFilter(((ExplicitTagsFilter) filter).getFilter(), metric_filters);
+      return setFilter(((ExplicitTagsFilter) filter).getFilter(), metric_filters, nested);
     }
 
 
     if (filter instanceof TagKeyFilter) {
-      return getTagKeyFilter((TagKeyFilter) filter, true);
+      return getTagKeyFilter((TagKeyFilter) filter, nested);
     }
 
     if (filter instanceof TagValueFilter) {
-      return getTagValueFilter((TagValueFilter) filter, true);
+      return getTagValueFilter((TagValueFilter) filter, nested);
     }
 
     if (filter instanceof AnyFieldRegexFilter) {
-      return getAnyFieldFilter((AnyFieldRegexFilter) filter);
+      return getAnyFieldFilter((AnyFieldRegexFilter) filter, nested);
     }
 
     if (filter instanceof NotFilter) {
       return FilterBuilders.boolFilter().mustNot(
-          setFilter(((NotFilter) filter).getFilter(), metric_filters));
+          setFilter(((NotFilter) filter).getFilter(), metric_filters, nested));
     }
 
     if (filter instanceof MetricFilter) {
-      metric_filters.add(getMetricFilter((MetricFilter) filter, true));
+      metric_filters.add(getMetricFilter((MetricFilter) filter, nested));
       return null;
     }
 
@@ -126,14 +131,14 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       if (((ChainFilter) filter).getOp() == FilterOp.AND) {
         for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
           if (sub_filter instanceof MetricFilter) {
-            setFilter(sub_filter, metric_filters);
+            setFilter(sub_filter, metric_filters, nested);
           } else {
-            builder.must(setFilter(sub_filter, metric_filters));
+            builder.must(setFilter(sub_filter, metric_filters, nested));
           }
         }
       } else {
         for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
-          builder.should(setFilter(sub_filter, metric_filters));
+          builder.should(setFilter(sub_filter, metric_filters, nested));
         }
       }
       return builder;
@@ -141,6 +146,32 @@ public class NamespacedAggregatedDocumentQueryBuilder {
 
     throw new UnsupportedOperationException("Unsupported filter: "
         + filter.getClass().toString() + " and " + ((MetricFilter)filter).getMetric());
+  }
+
+  FilterBuilder setBasicFilterForAgg(final QueryFilter filter) {
+
+    if (filter instanceof AnyFieldRegexFilter) {
+      return getAnyFieldFilter((AnyFieldRegexFilter) filter, false);
+    }
+
+    if (filter instanceof ChainFilter) {
+      BoolFilterBuilder builder = FilterBuilders.boolFilter();
+      if (((ChainFilter) filter).getOp() == FilterOp.AND) {
+        for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+          FilterBuilder b = setBasicFilterForAgg(sub_filter);
+          if (b != null) builder.must(b);
+        }
+      } else {
+        for (final QueryFilter sub_filter : ((ChainFilter) filter).getFilters()) {
+          FilterBuilder b = setBasicFilterForAgg(sub_filter);
+          if (b != null) builder.should(b);
+        }
+      }
+      if (builder.hasClauses()) {
+        return builder;
+      } else return null;
+    }
+    return null;
   }
 
   FilterBuilder getMetricFilter(final MetricFilter filter, final boolean nested) {
@@ -176,10 +207,12 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       for (final String tag : ((TagValueLiteralOrFilter) filter).literals()) {
         lower_case.add(tag.toLowerCase());
       }
-      final FilterBuilder builder = FilterBuilders.boolFilter()
-          .must(FilterBuilders.termsFilter(QUERY_TAG_VALUE_KEY, lower_case))
-          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
-            ().toLowerCase()));
+      final BoolFilterBuilder builder = FilterBuilders.boolFilter();
+          builder.must(FilterBuilders.termsFilter(QUERY_TAG_VALUE_KEY, lower_case));
+      if (! filter.getTagKey().equalsIgnoreCase(".*")) {
+        builder.must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
+                ().toLowerCase()));
+      }
       if (nested) {
         return FilterBuilders.nestedFilter(TAG_PATH, builder);
       }
@@ -187,21 +220,25 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     } else if (filter instanceof TagValueRegexFilter) {
       final String regexp = convertToLuceneRegex(
           ((TagValueRegexFilter) filter).getFilter());
-      final FilterBuilder builder = FilterBuilders.boolFilter()
-          .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, regexp))
-          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
-            ().toLowerCase()));
+      final BoolFilterBuilder builder = FilterBuilders.boolFilter();
+          builder.must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, regexp));
+      if (! filter.getTagKey().equalsIgnoreCase(".*")) {
+        builder.must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
+                ().toLowerCase()));
+      }
       if (nested) {
         return FilterBuilders.nestedFilter(TAG_PATH, builder);
       }
       return builder;
     } else if (filter instanceof TagValueWildcardFilter) {
-      final FilterBuilder builder = FilterBuilders.boolFilter()
-          .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY,
+      final BoolFilterBuilder builder = FilterBuilders.boolFilter();
+          builder.must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY,
               ((TagValueWildcardFilter) filter).getFilter()
-                .toLowerCase().replace("*", ".*")))
-          .must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
-            ().toLowerCase()));
+                .toLowerCase().replace("*", ".*")));
+      if (! filter.getTagKey().equalsIgnoreCase(".*")) {
+        builder.must(FilterBuilders.termFilter(QUERY_TAG_KEY_KEY, filter.getTagKey
+                ().toLowerCase()));
+      }
       if (nested) {
         return FilterBuilders.nestedFilter(TAG_PATH, builder);
       }
@@ -229,21 +266,35 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return builder;
   }
 
-  FilterBuilder getAnyFieldFilter(final AnyFieldRegexFilter filter) {
-    final String pattern = convertToLuceneRegex(filter.pattern().toString());
+  FilterBuilder getAnyFieldFilter(final AnyFieldRegexFilter filter, final boolean nested) {
+    String filterStr = filter.pattern().toString();
+    final String pattern = convertToLuceneRegex(filterStr);
     final BoolFilterBuilder builder = FilterBuilders.boolFilter();
 
     // metric
-    builder.should(FilterBuilders.nestedFilter(METRIC_PATH,
-          FilterBuilders.boolFilter()
-            .should(FilterBuilders.regexpFilter(RESULT_METRIC, pattern))
-            .should(FilterBuilders.regexpFilter(QUERY_METRIC, pattern))));
+//    builder.should(FilterBuilders.nestedFilter(METRIC_PATH,
+//          FilterBuilders.boolFilter()
+//            .should(FilterBuilders.regexpFilter(RESULT_METRIC, pattern))
+//            .should(FilterBuilders.regexpFilter(QUERY_METRIC, pattern))));
 
     // tags
-    builder.should(FilterBuilders.nestedFilter(TAG_PATH,
+    builder.should(
         FilterBuilders.boolFilter()
           .should(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, pattern))
-          .should(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, pattern))));
+          .should(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, pattern)));
+
+    if (filterStr.contains(":")) {
+      int index = filterStr.indexOf(":");
+      String key = filterStr.substring(0, index);
+      String val = filterStr.substring(index+1);
+      builder.should(FilterBuilders.boolFilter()
+      .must(FilterBuilders.regexpFilter(QUERY_TAG_KEY_KEY, convertToLuceneRegex(key)))
+    .must(FilterBuilders.regexpFilter(QUERY_TAG_VALUE_KEY, convertToLuceneRegex(val))));
+    }
+
+    if (nested) {
+      return FilterBuilders.nestedFilter(TAG_PATH, builder);
+    }
     // TODO - verify this
     return builder;
   }
@@ -343,13 +394,13 @@ public class NamespacedAggregatedDocumentQueryBuilder {
         if (sub_filter instanceof NotFilter) {
           if (sub_filter instanceof TagKeyFilter) {
             if (Strings.isNullOrEmpty(field) || field.equalsIgnoreCase
-                (((TagKeyFilter) sub_filter).filter())) {
+                    (((TagKeyFilter) sub_filter).filter())) {
               tags_filters.addFilter(sub_filter);
             }
           }
           if (sub_filter instanceof TagValueFilter) {
             if (Strings.isNullOrEmpty(field) || field.equalsIgnoreCase
-                (((TagValueFilter) sub_filter).getTagKey())) {
+                    (((TagValueFilter) sub_filter).getTagKey())) {
               tags_filters.addFilter(sub_filter);
             }
           }
@@ -381,22 +432,51 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     }
 
     return AggregationBuilders.nested(TAGS_AGG)
-        .path(TAG_PATH)
-        .subAggregation(AggregationBuilders.filter(TAGS_UNIQUE)
-                .filter(pair_filter)
-                .subAggregation(AggregationBuilders.terms(TAGS_UNIQUE)
-            .field(RESULT_TAG_KEY_KEY)
-            .size(0)
-            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
-                Order.term(true) : Order.term(false))
-            .subAggregation(AggregationBuilders.filter(TAGS_SUB_AGG)
-                .filter(pair_filter)
-                .subAggregation(AggregationBuilders.terms(TAGS_SUB_UNIQUE)
-                    .field(RESULT_TAG_VALUE_KEY)
-                    .size(size)
-                    .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
-                        Order.term(true) : Order.term(false))))));
+            .path(TAG_PATH)
+            .subAggregation(AggregationBuilders.filter(TAGS_UNIQUE)
+                    .filter(pair_filter)
+                    .subAggregation(AggregationBuilders.terms(TAGS_UNIQUE)
+                            .field(RESULT_TAG_KEY_KEY)
+                            .size(0)
+                            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
+                                    Order.term(true) : Order.term(false))
+                            .subAggregation(AggregationBuilders.filter(TAGS_SUB_AGG)
+                                    .filter(pair_filter)
+                                    .subAggregation(AggregationBuilders.terms(TAGS_SUB_UNIQUE)
+                                            .field(RESULT_TAG_VALUE_KEY)
+                                            .size(size)
+                                            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
+                                                    Order.term(true) : Order.term(false))))));
   }
+
+  AggregationBuilder<?> basicAgg(final QueryFilter filter, final String
+          field, final int size) {
+
+    if (filter instanceof ExplicitTagsFilter) {
+      return basicAgg(((ExplicitTagsFilter) filter).getFilter(),
+              field, size);
+    }
+
+    BoolFilterBuilder tag_filters = (BoolFilterBuilder) setBasicFilterForAgg(filter);
+
+    return AggregationBuilders.nested(TAGS_AGG)
+            .path(TAG_PATH)
+            .subAggregation(AggregationBuilders.filter(TAGS_UNIQUE)
+                    .filter(FilterBuilders.boolFilter().must(tag_filters))
+                    .subAggregation(AggregationBuilders.terms(TAGS_UNIQUE)
+                            .field(RESULT_TAG_KEY_KEY)
+                            .size(0)
+                            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
+                                    Order.term(true) : Order.term(false))
+                            .subAggregation(AggregationBuilders.filter(TAGS_SUB_AGG)
+                                    .filter(FilterBuilders.boolFilter().must(tag_filters))
+                                    .subAggregation(AggregationBuilders.terms(TAGS_SUB_UNIQUE)
+                                            .field(RESULT_TAG_VALUE_KEY)
+                                            .size(size)
+                                            .order(query.order() == BatchMetaQuery.Order.ASCENDING ?
+                                                    Order.term(true) : Order.term(false))))));
+  }
+
 
   FilterBuilder getTagPairFilter(final QueryFilter filter, final boolean
           use_must) {
@@ -496,7 +576,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
                 .to(query.end().epoch());
           }
 
-          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters);
+          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters, true);
           List<FilterBuilder> all_filters = new ArrayList<>();
           all_filters.add(tag_filters);
           all_filters.addAll(metric_filters);
@@ -506,7 +586,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           search_source_builders_list.add(search_source_builder);
 
         } else if (meta_query.filter() instanceof ExplicitTagsFilter) {
-          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters);
+          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters, true);
           FilterBuilder explicit_filter = FilterBuilders.termFilter
               ("tags_value", NamespacedAggregatedDocumentSchema.countTagValueFilters(meta_query.filter(), 0));
 
@@ -518,7 +598,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           SearchSourceBuilder search_source_builder = buildESQuery(all_filters);
           search_source_builders_list.add(search_source_builder);
         } else {
-          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters);
+          FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters, true);
           List<FilterBuilder> all_filters = new ArrayList<>();
           all_filters.add(tag_filters);
           all_filters.addAll(metric_filters);
@@ -566,7 +646,12 @@ public class NamespacedAggregatedDocumentQueryBuilder {
               throw new IllegalArgumentException("Query not supported with AND operation. Don't use multiple MetricLiterals");
             }
             search_source_builder.aggregation(tagKeyAndValueAgg(meta_query.filter(),
-                query.aggregationField().toLowerCase(), query.aggregationSize()));
+                query.aggregationField() == null ? null : query.aggregationField().toLowerCase(), query.aggregationSize()));
+            search_source_builder.size(0);
+            break;
+          case BASIC:
+            search_source_builder.aggregation(basicAgg(meta_query.filter(),
+                    query.aggregationField() == null ? null : query.aggregationField().toLowerCase(), query.aggregationSize()));
             search_source_builder.size(0);
             break;
           case TIMESERIES:
@@ -581,6 +666,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
         }
       }
     }
+    LOG.info("Meta queries == " + search_source_builders);
     return search_source_builders;
   }
 
