@@ -15,6 +15,7 @@
 
 package net.opentsdb.meta.impl.es;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
@@ -361,6 +362,7 @@ public class ESMetaResponse implements MetaResponse {
                   }
                   break;
                 case TAG_KEYS_AND_VALUES:
+                case BASIC:
                   if (response.getAggregations() == null
                       || response
                       .getAggregations()
@@ -682,7 +684,9 @@ public class ESMetaResponse implements MetaResponse {
     }
 
     for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
-      if (bucket.getKey().equals(query.aggregationField())) {
+      if (Strings.isNullOrEmpty(query.aggregationField()) ||
+              query.aggregationField().equalsIgnoreCase(".*") ||
+              bucket.getKey().equals(query.aggregationField())) {
         if (result == null) {
           result =
               new NamespacedAggregatedDocumentResult(

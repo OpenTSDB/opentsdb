@@ -27,7 +27,8 @@ public interface BatchMetaQuery {
     TAG_KEYS,
     TAG_VALUES,
     TAG_KEYS_AND_VALUES,
-    TIMESERIES
+    TIMESERIES,
+    BASIC
   }
 
   public static enum Order {

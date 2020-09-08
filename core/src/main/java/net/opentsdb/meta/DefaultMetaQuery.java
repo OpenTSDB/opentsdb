@@ -19,9 +19,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
+import net.opentsdb.utils.JSON;
 
 /**
  * Represents parameters to search for metadata.
@@ -30,7 +32,7 @@ import net.opentsdb.meta.BatchMetaQuery.QueryType;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DefaultMetaQuery implements MetaQuery {
-  
+
   /**
    * The namespace for the query
    */
@@ -93,8 +95,8 @@ public class DefaultMetaQuery implements MetaQuery {
    * @param node   The JSON node for the query
    * @return a Builder after parsing the query
    */
-  public static Builder parse(final TSDB tsdb, 
-                              final ObjectMapper mapper, 
+  public static Builder parse(final TSDB tsdb,
+                              final ObjectMapper mapper,
                               final JsonNode node,
                               final QueryType query_type) {
     if (node == null) {
@@ -118,15 +120,42 @@ public class DefaultMetaQuery implements MetaQuery {
 
     if (query_type != QueryType.NAMESPACES) {
       n = node.get("filter");
-      if (n == null || n.isNull()) {
-        throw new IllegalArgumentException(
-          "The fitler field cannot be null or empty");
-      }
-      JsonNode type = n.get("type");
+      if (n != null) {
 
-      final QueryFilterFactory factory = tsdb.getRegistry()
-        .getPlugin(QueryFilterFactory.class, type.asText());
-      builder.setFilter((factory.parse(tsdb, mapper, n)));
+
+        JsonNode type = n.get("type");
+
+        final QueryFilterFactory factory = tsdb.getRegistry()
+                .getPlugin(QueryFilterFactory.class, type.asText());
+        builder.setFilter((factory.parse(tsdb, mapper, n)));
+      } else {
+        n = node.get("filters");
+        if (n != null) {
+          for (final JsonNode filter : n) {
+
+            final JsonNode child = filter.get("filter");
+            if (child == null) {
+              throw new IllegalArgumentException("Filter child cannot be null or empty.");
+            }
+            final JsonNode type_node = child.get("type");
+            if (type_node == null) {
+              throw new IllegalArgumentException("Filter must include a type.");
+            }
+            final String type = type_node.asText();
+            if (Strings.isNullOrEmpty(type)) {
+              throw new IllegalArgumentException("Filter type cannot be null "
+                      + "or empty.");
+            }
+            final QueryFilterFactory factory = tsdb.getRegistry()
+                    .getPlugin(QueryFilterFactory.class, type);
+            if (factory == null) {
+              throw new IllegalArgumentException("No filter factory found "
+                      + "for type: " + type);
+            }
+              builder.setFilter(factory.parse(tsdb, JSON.getMapper(), child));
+          }
+        }
+      }
     }
     return builder;
   }
