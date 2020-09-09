@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -26,7 +24,6 @@ import com.google.common.collect.Lists;
 
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
@@ -36,6 +33,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.utils.XXHash;
 
 /**
  * A result from the {@link GroupBy} node for a segment. The grouping is 
@@ -87,8 +85,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
       for (int i = 0; i < timeSeries.size(); i++) {
         final TimeSeries series = timeSeries.get(i);
         final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
-        final StringBuilder buf = new StringBuilder()
-            .append(id.metric());
+        long hash = XXHash.hash(id.metric());
         
         if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
           boolean matched = true;
@@ -102,7 +99,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
               matched = false;
               break;
             }
-            buf.append(tagv);
+            hash = XXHash.updateHash(hash, tagv);
           }
           
           if (!matched) {
@@ -110,7 +107,6 @@ public class GroupByResult extends BaseWrappedQueryResult {
           }
         }
         
-        final long hash = LongHashFunction.xx().hashChars(buf.toString());
         GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
         if (group == null) {
           if (((GroupByConfig) node.config()).getMergeIds() || 
@@ -148,68 +144,60 @@ public class GroupByResult extends BaseWrappedQueryResult {
         final TimeSeries series = timeSeries.get(i);
         final TimeSeriesByteId id = (TimeSeriesByteId) series.id();
         // TODO - bench me, may be a better way
-        final ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        
-        try {
-          buf.write(id.metric());
-          if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
-            boolean matched = true;
-            for (final byte[] key : keys) {
-              if (id.tags() == null || id.tags().size() < 1) {
-                matched = false;
-                break;
-              }
-              
-              final byte[] tagv = id.tags().get(key);
-              if (tagv == null) {
-                if (LOG.isDebugEnabled()) {
-                  LOG.debug("Dropping series from group by due to "
-                      + "missing tag key: " + key + "  " + series.id());
-                }
-                matched = false;
-                break;
-              }
-              buf.write(tagv);
+        long hash = XXHash.hash(id.metric());
+        if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
+          boolean matched = true;
+          for (final byte[] key : keys) {
+            if (id.tags() == null || id.tags().size() < 1) {
+              matched = false;
+              break;
             }
             
-            if (!matched) {
-              continue;
+            final byte[] tagv = id.tags().get(key);
+            if (tagv == null) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Dropping series from group by due to "
+                    + "missing tag key: " + key + "  " + series.id());
+              }
+              matched = false;
+              break;
             }
+            hash = XXHash.updateHash(hash, tagv);
           }
           
-          final long hash = LongHashFunction.xx().hashBytes(buf.toByteArray());
-          GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
-          if (group == null) {
-            if (((GroupByConfig) node.config()).getMergeIds() || 
-                ((GroupByConfig) node.config()).getFullMerge()) {
-              group = new GroupByTimeSeries(node, this);  
-            } else {
-              BaseTimeSeriesByteId.Builder group_id = 
-                  BaseTimeSeriesByteId.newBuilder(id.dataStore())
-                    .setAlias(id.alias())
-                    .setNamespace(id.namespace())
-                    .setMetric(id.metric());
-              if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
-                for (final byte[] key : ((GroupByConfig) node.config()).getEncodedTagKeys()) {
-                  group_id.addTags(key, id.tags().get(key));
-                }
-              }
-              group = new GroupByTimeSeries(node, this, group_id.build());
-            }
-            groups.put(hash, group);
+          if (!matched) {
+            continue;
           }
-          if (use_refs && series.types().contains(NumericArrayType.TYPE)) {
-            // TODO - possible error here if one series has a NumericType and 
-            // others have the array type.
-            group.addSource(series, i);
-            series.close();
-          } else {
-            group.addSource(series);
-          }
-        } catch (IOException e) {
-          throw new RuntimeException("Failed to build the group-by hash", e);
         }
         
+        GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
+        if (group == null) {
+          if (((GroupByConfig) node.config()).getMergeIds() || 
+              ((GroupByConfig) node.config()).getFullMerge()) {
+            group = new GroupByTimeSeries(node, this);  
+          } else {
+            BaseTimeSeriesByteId.Builder group_id = 
+                BaseTimeSeriesByteId.newBuilder(id.dataStore())
+                  .setAlias(id.alias())
+                  .setNamespace(id.namespace())
+                  .setMetric(id.metric());
+            if (!((GroupByConfig) node.config()).getTagKeys().isEmpty()) {
+              for (final byte[] key : ((GroupByConfig) node.config()).getEncodedTagKeys()) {
+                group_id.addTags(key, id.tags().get(key));
+              }
+            }
+            group = new GroupByTimeSeries(node, this, group_id.build());
+          }
+          groups.put(hash, group);
+        }
+        if (use_refs && series.types().contains(NumericArrayType.TYPE)) {
+          // TODO - possible error here if one series has a NumericType and 
+          // others have the array type.
+          group.addSource(series, i);
+          series.close();
+        } else {
+          group.addSource(series);
+        }
       }
     } else {
       // TODO - proper exception type
