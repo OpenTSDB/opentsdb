@@ -165,7 +165,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
     final List<TimeSeries> series;
     final List<Deferred<TimeSeriesStringId>> deferreds;
     if (result.idType() == Const.TS_BYTE_ID) {
-      series = Lists.newArrayList(result.timeSeries());
+      series = result.timeSeries();
       deferreds = Lists.newArrayListWithCapacity(series.size());
       for (final TimeSeries ts : result.timeSeries()) {
         deferreds.add(((TimeSeriesByteId) ts.id()).decode(false, span));
