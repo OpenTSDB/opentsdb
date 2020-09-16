@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -25,7 +23,6 @@ import org.junit.Test;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
-import net.opentsdb.utils.Pair;
 
 public class TestNaturalOuterJoin extends BaseJoinTest {
   
@@ -46,137 +43,191 @@ public class TestNaturalOuterJoin extends BaseJoinTest {
   public void leftAndRight() throws Exception {
     NaturalOuterJoin join = new NaturalOuterJoin(leftAndRightSet(TYPE));
     
-    int matched = 0;
-    while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      matched++;
-      if (next.getKey() == L_1) {
-        assertSame(R_1, next.getValue());
-      } else if (next.getKey() == L_2) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_4) {
-        assertTrue(next.getValue() == R_4A || next.getValue() == R_4B);
-      } else if (next.getKey() == L_5A) {
-        assertSame(R_5, next.getValue());
-      } else if (next.getKey() == L_5B) {
-        assertSame(R_5, next.getValue());
-      } else if (next.getKey() == L_6A) {
-        assertTrue(next.getValue() == R_6A || next.getValue() == R_6B);
-      } else if (next.getKey() == L_6B) {
-        assertTrue(next.getValue() == R_6A || next.getValue() == R_6B);
-      } else if (next.getKey() == null) {
-        assertSame(R_3, next.getValue());
-      }
-    }
-    assertEquals(11, matched);
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5A, R_5 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5B, R_5 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, R_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, R_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_2, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, R_1 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_3 }, next);
+    
+    assertFalse(join.hasNext());
   }
   
   @Test
   public void leftOnly() throws Exception {
     NaturalOuterJoin join = new NaturalOuterJoin(leftOnlySet(TYPE));
     
-    int matched = 0;
-    while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      matched++;
-      if (next.getKey() == L_1) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_2) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_4) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_5A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_5B) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_6A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_6B) {
-        assertNull(next.getValue());
-      }
-    }
-    assertEquals(7, matched);
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5A, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5B, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_2, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, null }, next);
+    
+    assertFalse(join.hasNext());
   }
   
   @Test
   public void leftOnlyDisjoint() throws Exception {
     NaturalOuterJoin join = new NaturalOuterJoin(leftOnlySet(TYPE));
     
-    int matched = 0;
-    while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      matched++;
-      if (next.getKey() == L_1) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_2) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_4) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_5A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_5B) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_6A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_6B) {
-        assertNull(next.getValue());
-      }
-    }
-    assertEquals(7, matched);
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5A, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5B, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_2, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, null }, next);
+    
+    assertFalse(join.hasNext());
   }
 
   @Test
   public void rightOnly() throws Exception {
     NaturalOuterJoin join = new NaturalOuterJoin(rightOnlySet(TYPE));
     
-    int matched = 0;
-    while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      matched++;
-      if (next.getKey() == R_1) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_3) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_4A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_4B) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_5) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_6A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_6B) {
-        assertNull(next.getValue());
-      }
-    }
-    assertEquals(7, matched);
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_5 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_3 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_1 }, next);
+    
+    assertFalse(join.hasNext());
   }
   
   @Test
   public void rightOnlyDisjoint() throws Exception {
     NaturalOuterJoin join = new NaturalOuterJoin(rightOnlySet(TYPE));
     
-    int matched = 0;
-    while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      matched++;
-      if (next.getKey() == R_1) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_3) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_4A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_4B) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_5) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_6A) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == R_6B) {
-        assertNull(next.getValue());
-      }
-    }
-    assertEquals(7, matched);
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_5 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_3 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_1 }, next);
+    
+    assertFalse(join.hasNext());
   }
   
   @Test
@@ -194,45 +245,393 @@ public class TestNaturalOuterJoin extends BaseJoinTest {
   @Test
   public void nulls() throws Exception {
     NaturalOuterJoin join = new NaturalOuterJoin(leftAndRightNullLists(TYPE));
-    int matched = 0;
-    while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      matched++;
-      if (next.getKey() == L_1) {
-        assertSame(R_1, next.getValue());
-      } else if (next.getKey() == L_2) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_6A) {
-        assertTrue(next.getValue() == R_6A || next.getValue() == R_6B);
-      } else if (next.getKey() == L_6B) {
-        assertTrue(next.getValue() == R_6A || next.getValue() == R_6B);
-      } else if (next.getKey() == null) {
-        assertSame(R_3, next.getValue());
-      }
-    }
-    assertEquals(7, matched);
+    
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_2, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, R_1 }, next);
+
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_5 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_3 }, next);
+    
+    assertFalse(join.hasNext());
   }
   
   @Test
   public void emptyLists() throws Exception {
     NaturalOuterJoin join = new NaturalOuterJoin(leftAndRightEmptyLists(TYPE));
-    int matched = 0;
-    while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      matched++;
-      if (next.getKey() == L_1) {
-        assertSame(R_1, next.getValue());
-      } else if (next.getKey() == L_2) {
-        assertNull(next.getValue());
-      } else if (next.getKey() == L_6A) {
-        assertTrue(next.getValue() == R_6A || next.getValue() == R_6B);
-      } else if (next.getKey() == L_6B) {
-        assertTrue(next.getValue() == R_6A || next.getValue() == R_6B);
-      } else if (next.getKey() == null) {
-        assertSame(R_3, next.getValue());
-      }
-    }
-    assertEquals(7, matched);
+    
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_2, null }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, R_1 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_5 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_3 }, next);
+    
+    assertFalse(join.hasNext());
   }
   
+  @Test
+  public void ternary() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternarySet(TYPE));
+    
+    // trove is deterministic for our test.
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6A, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6B, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6A, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6B, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6A, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, R_6B, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6A, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, R_6B, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5A, R_5, T_5A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5B, R_5, T_5A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5A, R_5, T_5B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5B, R_5, T_5B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, R_4A, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, R_4B, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, R_4A, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, R_4B, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_2, null, T_2 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, R_1, T_1 }, next);
+    
+    assertFalse(join.hasNext());
+  }
+
+  @Test
+  public void ternaryNullLists() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryNullListsSet(TYPE));
+    
+    // trove is deterministic for our test.
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, R_1, T_1 }, next);
+    
+    assertFalse(join.hasNext());
+  }
+  
+  @Test
+  public void ternaryEmptyLists() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryEmptyListsSet(TYPE));
+    
+    // trove is deterministic for our test.
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, R_1, T_1 }, next);
+    
+    assertFalse(join.hasNext());
+  }
+  
+  @Test
+  public void ternaryOnly() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryOnlySet(TYPE));
+    assertFalse(join.hasNext());
+  }
+
+  @Test
+  public void ternaryLeftOnly() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryLeftOnlySet(TYPE));
+    assertFalse(join.hasNext());
+  }
+
+  @Test
+  public void ternaryRightOnly() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryRightOnlySet(TYPE));
+    assertFalse(join.hasNext());
+  }
+  
+  @Test
+  public void ternaryAndLeftOnly() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryAndLeftOnlySet(TYPE));
+    
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, null, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, null, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6A, null, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_6B, null, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5A, null, T_5A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5B, null, T_5A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5A, null, T_5B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_5B, null, T_5B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, null, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_4, null, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_2, null, T_2 }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { L_1, null, T_1 }, next);
+    
+    assertFalse(join.hasNext());
+  }
+
+  @Test
+  public void ternaryAndRightOnly() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryAndRightOnlySet(TYPE));
+    
+    // trove is deterministic for our test.
+    assertTrue(join.hasNext());
+    TimeSeries[] next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B, T_6A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6A, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_6B, T_6B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_5, T_5A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_5, T_5B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B, T_4A }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4A, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_4B, T_4B }, next);
+    
+    assertTrue(join.hasNext());
+    next = join.next();
+    assertArrayEquals(new TimeSeries[] { null, R_1, T_1 }, next);
+    
+    assertFalse(join.hasNext());
+  }
+  
+  @Test
+  public void ternaryNoTernary() throws Exception {
+    NaturalOuterJoin join = new NaturalOuterJoin(ternaryNoTernarySet(TYPE));
+    assertFalse(join.hasNext());
+  }
 }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
   /**
    * The type of value represented in the left or right operand.
    */
-  static enum OperandType {
+  public static enum OperandType {
     VARIABLE,
     SUB_EXP,
     LITERAL_NUMERIC,
@@ -53,7 +53,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
   /**
    * The operation this expression will execute.
    */
-  static enum ExpressionOp {
+  public static enum ExpressionOp {
     OR(new String[] { "||", "OR" }),
     AND(new String[] { "&&", "AND" }),
     EQ(new String[] { "==" }),
@@ -68,7 +68,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
     DIVIDE(new String[] { "/" }),
     MOD(new String[] { "%" });
     
-    private final String[] symbols;
+    protected final String[] symbols;
       
     /**
      * Default ctor.
@@ -103,35 +103,35 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
   }
   
   /** The output metric name. Defaults to the ID. */
-  private String as;
+  protected String as;
   
   /** The left operand. */
-  private Object left;
+  protected Object left;
   
   /** The type of the left operand. */
-  private final OperandType left_type;
+  protected final OperandType left_type;
   
   /** The right operand. */
-  private Object right;
+  protected Object right;
   
   /** The type of the right operand. */
-  private final OperandType right_type;
+  protected final OperandType right_type;
   
   /** The expression operator. */
-  private final ExpressionOp op;
+  protected final ExpressionOp op;
   
   /** Whether or not we're negating the output. */
-  private boolean negate;
+  protected boolean negate;
   
   /** Whether or not we're "not"ting the output. */
-  private boolean not;
+  protected boolean not;
   
   /** A link to the original expression config. */
-  private final ExpressionConfig expression_config;
+  protected final ExpressionConfig expression_config;
   
   /** Node IDs for linking results. */
-  private QueryResultId left_id;
-  private QueryResultId right_id;
+  protected QueryResultId left_id;
+  protected QueryResultId right_id;
   
   /**
    * Protected ctor.
@@ -259,6 +259,10 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
   }
   
   public String toString() {
+    return stringBuilder().toString();
+  }
+  
+  protected StringBuilder stringBuilder() {
     return new StringBuilder()
         .append("{id=")
         .append(id)
@@ -282,8 +286,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
         .append(negate)
         .append(", not=")
         .append(not)
-        .append("}")
-        .toString();
+        .append("}");
   }
 
   @Override
@@ -308,7 +311,7 @@ public class ExpressionParseNode extends BaseQueryNodeConfig<ExpressionParseNode
     return new Builder();
   }
 
-  static class Builder extends BaseQueryNodeConfig.Builder<Builder, ExpressionParseNode> {
+  public static class Builder extends BaseQueryNodeConfig.Builder<Builder, ExpressionParseNode> {
     @JsonProperty
     protected Object left;
     @JsonProperty

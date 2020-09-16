@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.utils.Pair;
-
 /**
  * Performs a full Cartesian product for all series. Be careful as this 
  * can be huge! 
+ * 
+ * <b>NOTE:</b> When used in a ternary we just use the 
+ * {@link BaseJoin#naturalTernaryLeftOrRightAdvance()} method for now.
  * 
  * @since 3.0
  */
@@ -32,13 +32,13 @@ public class CrossJoin extends BaseJoin {
    */
   protected CrossJoin(final BaseHashedJoinSet join) {
     super(join);
-    left_iterator = join.left_map == null ? null : join.left_map.iterator();
-    if (left_iterator != null && join.right_map != null) {
-      pair = new Pair<TimeSeries, TimeSeries>(null, null);  
-      next = new Pair<TimeSeries, TimeSeries>(null, null);
+    if (join.condition_map != null && 
+        (join.left_map != null || join.right_map != null)) {
+      ternaryAdvance();
+    } else if (join.left_map != null && join.right_map != null) {
       advance();
     } else {
-      pair = null;
+      current = null;
       next = null;
     }
   }
@@ -53,8 +53,8 @@ public class CrossJoin extends BaseJoin {
           right_series != null && 
           right_idx + 1 < right_series.size()) {
         right_idx++;
-        next.setKey(left_series.get(left_idx));
-        next.setValue(right_series.get(right_idx));
+        next[0] = left_series.get(left_idx);
+        next[1] = right_series.get(right_idx);
         
         // move to the next right 
         if (right_idx >= right_series.size()) {
@@ -104,13 +104,18 @@ public class CrossJoin extends BaseJoin {
       }
       
       right_idx++;
-      next.setKey(left_series.get(left_idx));
-      next.setValue(right_series.get(right_idx));
+      next[0] = left_series.get(left_idx);
+      next[1] = right_series.get(right_idx);
       return;
     }
     
     // all done!
     next = null;
+  }
+  
+  @Override
+  protected void ternaryAdvance() {
+    naturalTernaryLeftOrRightAdvance();
   }
   
   /**

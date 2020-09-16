@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.expressions;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -23,12 +24,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.BaseWrappedQueryResult;
@@ -39,7 +39,6 @@ import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.utils.Bytes.ByteMap;
-import net.opentsdb.utils.Pair;
 
 /**
  * A query node that executes a binary expression such as "a + b" or
@@ -71,18 +70,16 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   /** The joiner. */
   protected final Joiner joiner;
   
-  /** Whether or not we need two sources or if we're operating on a 
-   * source and a literal. */
-  protected final Pair<QueryResult, QueryResult> results;
-  protected QueryResultId left_source;
-  protected QueryResultId right_source;
-  protected final int expected;
+  /** The map of result IDs to results, used for left, right and condition. */
+  protected final Map<QueryResultId, QueryResult> results;
+  
+  /** Flag populated when all the results have arrived. */
   protected final AtomicBoolean all_in;
   
   /** The result to populate and return. */
   protected ExpressionResult result;
   
-  /** Used to filtering when we're working on encoded IDs. */
+  /** Used for filtering when we're working on encoded IDs. */
   protected byte[] left_metric;
   protected byte[] right_metric;
   protected volatile boolean resolved_metrics;
@@ -103,29 +100,26 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     this.expression_config = expression_config;
     config = expression_config.getExpressionConfig();
     result = new ExpressionResult(this);
-    results = new Pair<QueryResult, QueryResult>();
+    results = Maps.newHashMapWithExpectedSize(3);
     all_in = new AtomicBoolean();
     
     if (expression_config.getLeftType() == OperandType.SUB_EXP || 
         expression_config.getLeftType() == OperandType.VARIABLE) {
       if (expression_config.getLeftId() == null) {
-        throw new IllegalStateException("[" + expression_config.getId() + "] Left ID cannot be null.");
+        throw new IllegalStateException("[" + expression_config.getId() 
+          + "] Left ID cannot be null.");
       } else {
-        left_source = expression_config.getLeftId();
+        results.put(expression_config.getLeftId(), null);
       }
     }
     if (expression_config.getRightType() == OperandType.SUB_EXP || 
          expression_config.getRightType() == OperandType.VARIABLE) {
       if (expression_config.getRightId() == null) {
-        throw new IllegalStateException("[" + expression_config.getId() + "] Right ID cannot be null.");
+        throw new IllegalStateException("[" + expression_config.getId() 
+          + "] Right ID cannot be null.");
       } else {
-        right_source = expression_config.getRightId();
+        results.put(expression_config.getRightId(), null);
       }
-    }
-    if (left_source != null && right_source != null) {
-      expected = 2;
-    } else {
-      expected = 1;
     }
     joiner = new Joiner(config.getJoin());
   }
@@ -137,64 +131,89 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
 
   @Override
   public void close() {
-    // TODO Auto-generated method stub
-    
+    if (!results.isEmpty()) {
+      for (final QueryResult result : results.values()) {
+        if (result != null) {
+          result.close();
+        }
+      }
+    }
   }
   
   @Override
   public void onNext(final QueryResult next) {
     if (LOG.isTraceEnabled()) {
       LOG.trace("Result: " + next.dataSource() + " (" + next.getClass() + ") " 
-        + " Want<" + left_source + ", " + right_source +">");
+        + " Want<" + results.keySet() +">");
     }
     
-    if (left_source != null && left_source.equals(next.dataSource())) {
-      if (LOG.isTraceEnabled()) {
-        LOG.trace("Matched left [" + left_source + "] with: " + next.dataSource());
-      }
-      if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
-        sendUpstream(new FailedQueryResult(next));
-        return;
-      }
-      synchronized (this) {
-        results.setKey(next);
-      }
-      if (right_source != null && right_source.equals(left_source)) {
-        synchronized (this) {
-          results.setValue(next);
-        }
-      }
-      LOG.trace("[" + config.getId() + "] Matched left source: " + next.dataSource());
-    } else if (right_source != null && right_source.equals(next.dataSource())) {
-      if (LOG.isTraceEnabled()) {
-        LOG.trace("Matched right [" + right_source + "] with: " + next.dataSource());
-      }
-      if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
-        sendUpstream(new FailedQueryResult(next));
-        return;
-      }
-      synchronized (this) {
-        results.setValue(next);
-      }
-      LOG.trace("[" + config.getId() + "] Matched right source: " + next.dataSource());
-    } else {
-      LOG.debug("Unmatched result: " + next.dataSource());
+    if (!Strings.isNullOrEmpty(next.error()) || next.exception() != null) {
+      sendUpstream(new FailedQueryResult(next));
       return;
     }
     
-    // NOTE: There is a race condition here where two results may resolve
-    // the IDs. That's ok though.
-    class ErrorCB implements Callback<Object, Exception> {
-      @Override
-      public Object call(final Exception ex) throws Exception {
-        LOG.error("Failure in binary expression node", ex);
-        sendUpstream(ex);
-        return null;
+    synchronized (results) {
+      if (!results.containsKey(next.dataSource())) {
+        LOG.debug("Unmatched result: " + next.dataSource());
+        return;
+      }
+      
+      results.put(next.dataSource(), next);
+    }
+    
+    if (resolveMetrics(next)) {
+      // resolving, don't progress yet.
+      return;
+    }
+    
+    if (resolveJoinStrings(next)) {
+      // resolving, don't progress yet.
+      return;
+    }
+    
+    // see if all the results are in.
+    boolean full_map = true;
+    synchronized (results) {
+      for (final Entry<QueryResultId, QueryResult> entry : results.entrySet()) {
+        if (entry.getValue() == null) {
+          full_map = false;
+          break;
+        }
       }
     }
     
-    // Try to resolve the variable names as metrics. This should return
-    // and empty
+    if (!full_map) {
+      LOG.trace("Not all results are in for: " + expression_config.getId());
+      return;
+    }
+    
+    if (all_in.compareAndSet(false, true)) {
+      try {
+        result.join();
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Sending expression upstream: " + expression_config.getId());
+        }
+        sendUpstream(result);
+      } catch (Exception e) {
+        e.printStackTrace();
+        sendUpstream(e);
+      }
+    }
+  }
+  
+  /**
+   * Method that resolves the strings to byte arrays when byte IDs are in play.
+   * When the resolution has completed asynchronously, the result is returned 
+   * to the {@link #onNext(QueryResult)} method of the node. 
+   * @param next The non-null next result.
+   * @return True if the resolution has started, false if it's not needed or has
+   * completed.
+   */
+  protected boolean resolveMetrics(final QueryResult next) {
+    if (resolved_metrics) {
+      return false;
+    }
+    
     if (next.idType() == Const.TS_BYTE_ID &&
         (expression_config.getLeftType() == OperandType.VARIABLE || 
          expression_config.getRightType() == OperandType.VARIABLE) && 
@@ -230,30 +249,30 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
           }
           
           resolved_metrics = true;
-          // fall through to the next step
+          // call back into onNext() to progress to the next step.
           onNext(next);
           return null;
         }
       }
       
-      if (next.timeSeries() == null || next.timeSeries().isEmpty()) {
-        onNext(new BaseWrappedQueryResult(BinaryExpressionNode.this, next) {
-          
-          @Override
-          public TypeToken<? extends TimeSeriesId> idType() {
-            return Const.TS_STRING_ID;
-          }
-          
-        });
-      } else {
-        ((TimeSeriesByteId) next.timeSeries().iterator().next().id())
-          .dataStore().encodeJoinMetrics(metrics, null /* TODO */)
-          .addCallback(new ResolveCB())
-          .addErrback(new ErrorCB());
-      }
-      return;
+      ((TimeSeriesByteId) next.timeSeries().iterator().next().id())
+        .dataStore().encodeJoinMetrics(metrics, null /* TODO */)
+        .addCallback(new ResolveCB())
+        .addErrback(new ErrorCB());
+      return true;
     }
-    
+    return false;
+  }
+  
+  /**
+   * Resolves the join tag key strings to byte arrays when byte IDs are in play.
+   * When the resolution has completed asynchronously, the result is returned 
+   * to the {@link #onNext(QueryResult)} method of the node. 
+   * @param next The non-null next result.
+   * @return True if the resolution has started, false if it's not needed or has
+   * completed.
+   */
+  protected boolean resolveJoinStrings(final QueryResult next) {
     if (next.idType() == Const.TS_BYTE_ID && 
         joiner.encodedJoins() == null && 
         !config.getJoin().getJoins().isEmpty()) {
@@ -287,7 +306,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
             encoded_joins.put(left, right);
           }
           joiner.setEncodedJoins(encoded_joins);
-          // fall through to the next step
+          // call onNext() again so that we trigger the count of results.
           onNext(next);
           return null;
         }
@@ -297,35 +316,18 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
         .dataStore().encodeJoinKeys(tagks, null /* TODO */)
         .addCallback(new ResolveCB())
         .addErrback(new ErrorCB());
-      return;
+      return true;
     }
-    
-    // see if all the results are in.
-    int received = 0;
-    synchronized (this) {
-      if (results.getKey() != null) {
-        received++;
-      }
-      if (results.getValue() != null) {
-        received++;
-      }
-    }
-    
-    if (received == expected) {
-      if (all_in.compareAndSet(false, true)) {
-        try {
-          result.set(results);
-          result.join();
-          if (LOG.isTraceEnabled()) {
-            LOG.trace("Sending expression upstream: " + expression_config.getId());
-          }
-          sendUpstream(result);
-        } catch (Exception e) {
-          sendUpstream(e);
-        }
-      }
-    } else if (LOG.isTraceEnabled()) {
-      LOG.trace("Not all results are in for: " + expression_config.getId());
+    return false;
+  }
+  
+  // NOTE: There is a race condition here where two results may resolve
+  // the IDs. That's ok though.
+  class ErrorCB implements Callback<Object, Exception> {
+    @Override
+    public Object call(final Exception ex) throws Exception {
+      sendUpstream(ex);
+      return null;
     }
   }
   
@@ -354,5 +356,9 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
   
   byte[] rightMetric() {
     return right_metric;
+  }
+
+  Map<QueryResultId, QueryResult> results() {
+    return results;
   }
 }

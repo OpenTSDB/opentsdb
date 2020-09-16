@@ -76,6 +76,7 @@ import net.opentsdb.expressions.parser.MetricExpressionParser.TernaryOperandsCon
 import net.opentsdb.expressions.parser.MetricExpressionVisitor;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+import net.opentsdb.query.processor.expressions.TernaryParseNode.Builder;
 
 /**
  * An Antlr4 visitor to build the expression sub-graph from the parsed
@@ -100,7 +101,7 @@ public class ExpressionParser extends DefaultErrorStrategy
 
   /** The set of variables extracted when parsing the expression. */
   private final Set<String> variables;
-
+  
   /**
    * Default ctor.
    * @param config The non-null expression config to parse.
@@ -139,7 +140,7 @@ public class ExpressionParser extends DefaultErrorStrategy
     final MetricExpressionParser parser = new MetricExpressionParser(tokens);
     parser.removeErrorListeners(); // suppress logging to stderr.
     parser.setErrorHandler(this);
-    parser.prog().accept(this);
+    Object obj = parser.prog().accept(this);
 
     if (nodes.size() < 1) {
       throw new ParseCancellationException("Unable to extract an "
@@ -148,6 +149,7 @@ public class ExpressionParser extends DefaultErrorStrategy
 
     final List<ExpressionParseNode> final_nodes =
         Lists.newArrayListWithExpectedSize(nodes.size());
+    
     for (int i = 0; i < nodes.size() - 1; i++) {
       final_nodes.add((ExpressionParseNode) nodes.get(i).build());
     }
@@ -348,6 +350,55 @@ public class ExpressionParser extends DefaultErrorStrategy
     return builder;
   }
 
+  @VisibleForTesting
+  Object newTernary(final Object condition,
+                    final Object left, 
+                    final Object right) {
+    // if we're only parsing the variables, don't worry about instantiating
+    // a node. For the condition, it should be a binary so the newBinary() call
+    // will populate variables for that.
+    if (config == null) {
+      if (condition instanceof String) {
+        variables.add((String) condition);
+      }
+      if (left instanceof String) {
+        variables.add((String) left);
+      }
+      if (right instanceof String) {
+        variables.add((String) right);
+      }
+      return null;
+    }
+    
+    final TernaryParseNode.Builder builder = 
+        (Builder) TernaryParseNode.newBuilder()
+          .setExpressionConfig(config);
+    if (condition instanceof ExpressionParseNode.Builder) {
+      // TODO - make sure it IS a sub expression
+      builder.setCondition(((ExpressionParseNode.Builder) condition).id())
+             .setConditionType(OperandType.SUB_EXP);
+    } else if (condition instanceof Null) {
+      throw new IllegalArgumentException("Can't have a null as the ternary "
+          + "condition.");
+      // TODO - other types, e.g. null, literals, etc.
+    } else if (condition instanceof NumericLiteral) {
+      builder.setCondition(condition)
+             .setConditionType(OperandType.LITERAL_NUMERIC);
+    } else if (condition instanceof String) {
+      builder.setCondition(condition)
+             .setConditionType(OperandType.VARIABLE);
+    } else {
+      throw new IllegalArgumentException("Unhandled ternary condition type: " 
+          + condition.getClass());
+    }
+    setBranch(builder, left, true);
+    setBranch(builder, right, false);
+    final String id = config.getId() + "_TernaryExp#" + cntr++;
+    builder.setId(id);
+    builder.setAs(id);
+    nodes.add(builder);
+    return builder;
+  }
   /**
    * Helper to build the binary expression.
    * @param builder A non-null builder.
@@ -408,8 +459,14 @@ public class ExpressionParser extends DefaultErrorStrategy
   public Object visitTerminal(TerminalNode node) {
     // this is a variable or operand (or parens).
     final String text = node.getText();
+    
     // TODO - break this into a numeric literal to avoid having to parse
     // here.
+    // TODO - ugg I hate specials. We should do this properly.
+    if (text.equalsIgnoreCase("nan")) {
+      return new NumericLiteral(Double.NaN);
+    }
+    
     if ((text.charAt(0) >= '0' &&
         text.charAt(0) <= '9') ||
         text.charAt(0) == '-') {
@@ -643,26 +700,35 @@ public class ExpressionParser extends DefaultErrorStrategy
 
   @Override
   public Object visitTernary(TernaryContext ctx) {
-    // TODO Auto-generated method stub
-    return null;
+    final Object obj = ctx.getChild(0).accept(this);
+    return obj;
   }
 
   @Override
   public Object visitParen_ternary_rule(Paren_ternary_ruleContext ctx) {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public Object visitMain_ternary_rule(Main_ternary_ruleContext ctx) {
-    // TODO Auto-generated method stub
-    return null;
+    // woah, 5 kids!!
+    // 0 == condition
+    // 1 == ?
+    // 2 == true expression
+    // 3 == :
+    // 4 == false expression
+    
+    // TODO - handle negatives, nots, etc The - signs will be terminals befor
+    // the condition, left, right, etc.
+    Object condition = ctx.getChild(0).accept(this);
+    Object left = ctx.getChild(2).accept(this);
+    Object right = ctx.getChild(4).accept(this);
+    return newTernary(condition, left, right);
   }
 
   @Override
   public Object visitTernaryOperands(TernaryOperandsContext ctx) {
-    // TODO Auto-generated method stub
-    return null;
+    return ctx.getChild(0).accept(this);
   }
 
   @Override

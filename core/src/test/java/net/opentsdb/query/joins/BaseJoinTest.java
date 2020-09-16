@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,6 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
-import net.opentsdb.utils.Pair;
 
 public class BaseJoinTest {
   protected static final String ID = "UT";
@@ -58,6 +57,9 @@ public class BaseJoinTest {
   protected static final byte[] ALIAS_R_BYTES = "raw".getBytes(Const.UTF8_CHARSET);
   protected static final String ALIAS2 = "UT";
   protected static final byte[] ALIAS2_BYTES = "UT".getBytes(Const.UTF8_CHARSET);
+  
+  protected static final String TERNARY = "subexp#0";
+  protected static final byte[] TERNARY_BYTES = "subexp#0".getBytes(Const.UTF8_CHARSET);
   
   // tag key and value byte arrays.
   protected final static byte[] HOST = new byte[] { 0, 0, 1 };
@@ -102,6 +104,16 @@ public class BaseJoinTest {
   protected final static TimeSeries R_6A = mock(TimeSeries.class);
   protected final static TimeSeries R_6B = mock(TimeSeries.class);
   
+  // ternary
+  protected final static TimeSeries T_1 = mock(TimeSeries.class);
+  protected final static TimeSeries T_2 = mock(TimeSeries.class);
+  protected final static TimeSeries T_4A = mock(TimeSeries.class);
+  protected final static TimeSeries T_4B = mock(TimeSeries.class);
+  protected final static TimeSeries T_5A = mock(TimeSeries.class);
+  protected final static TimeSeries T_5B = mock(TimeSeries.class);
+  protected final static TimeSeries T_6A = mock(TimeSeries.class);
+  protected final static TimeSeries T_6B = mock(TimeSeries.class);
+  
   protected static TimeSeriesId TAGLESS_STRING;
   protected static TimeSeriesId TAGLESS_BYTE;
   
@@ -133,6 +145,15 @@ public class BaseJoinTest {
   protected TimeSeriesId r6a_id;
   protected TimeSeriesId r6b_id;
   
+  protected TimeSeriesId t_1_id;
+  protected TimeSeriesId t_2_id;
+  protected TimeSeriesId t_4a_id;
+  protected TimeSeriesId t_4b_id;
+  protected TimeSeriesId t_5a_id;
+  protected TimeSeriesId t_5b_id;
+  protected TimeSeriesId t_6a_id;
+  protected TimeSeriesId t_6b_id;
+  
   @BeforeClass
   public static void beforeClass() throws Exception {
     when(L_1.toString()).thenReturn("L_1");
@@ -154,6 +175,15 @@ public class BaseJoinTest {
     when(L_6B.toString()).thenReturn("L_6B");
     when(R_6A.toString()).thenReturn("R_6A");
     when(R_6B.toString()).thenReturn("R_6B");
+    
+    when(T_1.toString()).thenReturn("T_1");
+    when(T_2.toString()).thenReturn("T_2");
+    when(T_4A.toString()).thenReturn("T_4A");
+    when(T_4B.toString()).thenReturn("T_4B");
+    when(T_5A.toString()).thenReturn("T_5A");
+    when(T_5B.toString()).thenReturn("T_5B");
+    when(T_6A.toString()).thenReturn("T_6A");
+    when(T_6B.toString()).thenReturn("T_6B");
     
     TAGLESS_STRING = BaseTimeSeriesStringId.newBuilder()
         .setAlias(ALIAS_L)
@@ -342,10 +372,263 @@ public class BaseJoinTest {
     return set;
   }
   
-  protected static Pair<QueryResult, QueryResult> multiResults(final TypeToken<?> ts_type) {
-    final Pair<QueryResult, QueryResult> results = new Pair<QueryResult, QueryResult>();
+  protected static BaseHashedJoinSet ternaryOnlySet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+    
+    // Ternaries!
+    set.condition_map.put(1, Lists.newArrayList(T_1));
+    set.condition_map.put(2, Lists.newArrayList(T_2));
+    set.condition_map.put(4, Lists.newArrayList(T_4A, T_4B));
+    set.condition_map.put(5, Lists.newArrayList(T_5A, T_5B));
+    set.condition_map.put(6, Lists.newArrayList(T_6A, T_6B));
+    
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternaryLeftOnlySet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.left_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.left_map.put(1, Lists.newArrayList(L_1));
+    set.left_map.put(2, Lists.newArrayList(L_2));
+    set.left_map.put(4, Lists.newArrayList(L_4));
+    set.left_map.put(5, Lists.newArrayList(L_5A, L_5B));
+    set.left_map.put(6, Lists.newArrayList(L_6A, L_6B));
+    
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternaryRightOnlySet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.right_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.right_map.put(1, Lists.newArrayList(R_1));
+    set.right_map.put(3, Lists.newArrayList(R_3));
+    set.right_map.put(4, Lists.newArrayList(R_4A, R_4B));
+    set.right_map.put(5, Lists.newArrayList(R_5));
+    set.right_map.put(6, Lists.newArrayList(R_6A, R_6B));
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternaryAndLeftOnlySet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.left_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.left_map.put(1, Lists.newArrayList(L_1));
+    set.left_map.put(2, Lists.newArrayList(L_2));
+    set.left_map.put(4, Lists.newArrayList(L_4));
+    set.left_map.put(5, Lists.newArrayList(L_5A, L_5B));
+    set.left_map.put(6, Lists.newArrayList(L_6A, L_6B));
+    
+    // Ternaries!
+    set.condition_map.put(1, Lists.newArrayList(T_1));
+    set.condition_map.put(2, Lists.newArrayList(T_2));
+    set.condition_map.put(4, Lists.newArrayList(T_4A, T_4B));
+    set.condition_map.put(5, Lists.newArrayList(T_5A, T_5B));
+    set.condition_map.put(6, Lists.newArrayList(T_6A, T_6B));
+    
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternaryAndRightOnlySet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.right_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.right_map.put(1, Lists.newArrayList(R_1));
+    set.right_map.put(3, Lists.newArrayList(R_3));
+    set.right_map.put(4, Lists.newArrayList(R_4A, R_4B));
+    set.right_map.put(5, Lists.newArrayList(R_5));
+    set.right_map.put(6, Lists.newArrayList(R_6A, R_6B));
+    
+    // Ternaries!
+    set.condition_map.put(1, Lists.newArrayList(T_1));
+    set.condition_map.put(2, Lists.newArrayList(T_2));
+    set.condition_map.put(4, Lists.newArrayList(T_4A, T_4B));
+    set.condition_map.put(5, Lists.newArrayList(T_5A, T_5B));
+    set.condition_map.put(6, Lists.newArrayList(T_6A, T_6B));
+    
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternaryNoTernarySet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.left_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.right_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+    
+    // one to one
+    set.left_map.put(1, Lists.newArrayList(L_1));
+    set.right_map.put(1, Lists.newArrayList(R_1));
+    
+    // left only
+    set.left_map.put(2, Lists.newArrayList(L_2));
+    
+    // right only
+    set.right_map.put(3, Lists.newArrayList(R_3));
+    
+    // one left, 2 right
+    set.left_map.put(4, Lists.newArrayList(L_4));
+    set.right_map.put(4, Lists.newArrayList(R_4A, R_4B));
+    
+    // 2 left, one right
+    set.left_map.put(5, Lists.newArrayList(L_5A, L_5B));
+    set.right_map.put(5, Lists.newArrayList(R_5));
+    
+    // 2 left, 2 right
+    set.left_map.put(6, Lists.newArrayList(L_6A, L_6B));
+    set.right_map.put(6, Lists.newArrayList(R_6A, R_6B));
+    
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternaryNullListsSet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.left_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.right_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+    
+    // one to one
+    set.left_map.put(1, Lists.newArrayList(L_1));
+    set.right_map.put(1, Lists.newArrayList(R_1));
+    
+    // left only
+    set.left_map.put(2, null);
+    
+    // right only
+    set.right_map.put(3, Lists.newArrayList(R_3));
+    
+    // one left, 2 right
+    set.left_map.put(4, null);
+    set.right_map.put(4, Lists.newArrayList(R_4A, R_4B));
+    
+    // 2 left, one right
+    set.left_map.put(5, Lists.newArrayList(L_5A, L_5B));
+    set.right_map.put(5, Lists.newArrayList(R_5));
+    
+    // 2 left, 2 right
+    set.left_map.put(6, null);
+    set.right_map.put(6, Lists.newArrayList(R_6A, R_6B));
+    
+    // Ternaries!
+    set.condition_map.put(1, Lists.newArrayList(T_1));
+    set.condition_map.put(2, Lists.newArrayList(T_2));
+    set.condition_map.put(4, Lists.newArrayList(T_4A, T_4B));
+    set.condition_map.put(5, null);
+    set.condition_map.put(6, Lists.newArrayList(T_6A, T_6B));
+    
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternaryEmptyListsSet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.left_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.right_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+    
+    // one to one
+    set.left_map.put(1, Lists.newArrayList(L_1));
+    set.right_map.put(1, Lists.newArrayList(R_1));
+    
+    // left only
+    set.left_map.put(2, Lists.newArrayList());
+    
+    // right only
+    set.right_map.put(3, Lists.newArrayList(R_3));
+    
+    // one left, 2 right
+    set.left_map.put(4, Lists.newArrayList());
+    set.right_map.put(4, Lists.newArrayList(R_4A, R_4B));
+    
+    // 2 left, one right
+    set.left_map.put(5, Lists.newArrayList(L_5A, L_5B));
+    set.right_map.put(5, Lists.newArrayList(R_5));
+    
+    // 2 left, 2 right
+    set.left_map.put(6, Lists.newArrayList());
+    set.right_map.put(6, Lists.newArrayList(R_6A, R_6B));
+    
+    // Ternaries!
+    set.condition_map.put(1, Lists.newArrayList(T_1));
+    set.condition_map.put(2, Lists.newArrayList(T_2));
+    set.condition_map.put(4, Lists.newArrayList(T_4A, T_4B));
+    set.condition_map.put(5, Lists.newArrayList());
+    set.condition_map.put(6, Lists.newArrayList(T_6A, T_6B));
+    
+    return set;
+  }
+  
+  protected static BaseHashedJoinSet ternarySet(final JoinType type) {
+    final TernaryKeyedHashedJoinSet set = new TernaryKeyedHashedJoinSet(type, 3);
+    
+    set.left_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.right_map = new TLongObjectHashMap<List<TimeSeries>>();
+    set.condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+    
+    // one to one
+    set.left_map.put(1, Lists.newArrayList(L_1));
+    set.right_map.put(1, Lists.newArrayList(R_1));
+    
+    // left only
+    set.left_map.put(2, Lists.newArrayList(L_2));
+    
+    // right only
+    set.right_map.put(3, Lists.newArrayList(R_3));
+    
+    // one left, 2 right
+    set.left_map.put(4, Lists.newArrayList(L_4));
+    set.right_map.put(4, Lists.newArrayList(R_4A, R_4B));
+    
+    // 2 left, one right
+    set.left_map.put(5, Lists.newArrayList(L_5A, L_5B));
+    set.right_map.put(5, Lists.newArrayList(R_5));
+    
+    // 2 left, 2 right
+    set.left_map.put(6, Lists.newArrayList(L_6A, L_6B));
+    set.right_map.put(6, Lists.newArrayList(R_6A, R_6B));
+    
+    // Ternaries!
+    set.condition_map.put(1, Lists.newArrayList(T_1));
+    set.condition_map.put(2, Lists.newArrayList(T_2));
+    set.condition_map.put(4, Lists.newArrayList(T_4A, T_4B));
+    set.condition_map.put(5, Lists.newArrayList(T_5A, T_5B));
+    set.condition_map.put(6, Lists.newArrayList(T_6A, T_6B));
+    
+    return set;
+  }
+  
+  protected static List<QueryResult> singleResult(final TypeToken<?> ts_type,
+                                                  final String ds) {
+    final QueryResult result = mock(QueryResult.class);
+    final List<TimeSeries> ts = Lists.newArrayList(
+        L_1, R_1,
+        L_2,
+        R_3,
+        L_4, R_4A, R_4B,
+        L_5A, L_5B, R_5,
+        L_6A, L_6B, R_6A, R_6B);
+    when(result.timeSeries()).thenReturn(ts);
+    when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return ts_type;
+      }
+    });
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId(ds, ds));
+    return Lists.newArrayList(result);
+  }
+  
+  protected static List<QueryResult> multiResults(final TypeToken<?> ts_type,
+                                                  final String left,
+                                                  final String right) {
+    final List<QueryResult> results = Lists.newArrayList();
     QueryResult result = mock(QueryResult.class);
-    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     List<TimeSeries> ts = Lists.newArrayList(
         L_1,
         L_2,
@@ -359,11 +642,11 @@ public class BaseJoinTest {
         return ts_type;
       }
     });
-    results.setKey(result);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId(left, left));
+    results.add(result);
     
     // right
     result = mock(QueryResult.class);
-    when(result.dataSource()).thenReturn(new DefaultQueryResultId("m2", "m2"));
     ts = Lists.newArrayList(
         R_1,
         R_3,
@@ -377,7 +660,68 @@ public class BaseJoinTest {
         return ts_type;
       }
     });
-    results.setValue(result);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId(right, right));
+    results.add(result);
+    return results;
+  }
+  
+  protected static List<QueryResult> ternaryResults(final TypeToken<?> ts_type,
+                                                    final String left,
+                                                    final String right,
+                                                    final String ternary) {
+    final List<QueryResult> results = Lists.newArrayList();
+    QueryResult result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId(left, left));
+    List<TimeSeries> ts = Lists.newArrayList(
+        L_1,
+        L_2,
+        L_4,
+        L_5A, L_5B,
+        L_6A, L_6B);
+    when(result.timeSeries()).thenReturn(ts);
+    when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return ts_type;
+      }
+    });
+    results.add(result);
+    
+    // right
+    result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId(right, right));
+    ts = Lists.newArrayList(
+        R_1,
+        R_3,
+        R_4A, R_4B,
+        R_5,
+        R_6A, R_6B);
+    when(result.timeSeries()).thenReturn(ts);
+    when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return ts_type;
+      }
+    });
+    results.add(result);
+    
+    // ternary
+    result = mock(QueryResult.class);
+    when(result.dataSource()).thenReturn(new DefaultQueryResultId(ternary, ternary));
+    ts = Lists.newArrayList(
+        T_1,
+        T_2,
+        T_4A, T_4B,
+        T_5A, T_5B,
+        T_6A, T_6B);
+    when(result.timeSeries()).thenReturn(ts);
+    when(result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return ts_type;
+      }
+    });
+    results.add(result);
     return results;
   }
   
@@ -493,6 +837,69 @@ public class BaseJoinTest {
         .addTags("owner", "cersei")
         .build();
     when(R_6B.id()).thenReturn(r6b_id);
+    
+    t_1_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web01")
+        .build();
+    when(T_1.id()).thenReturn(t_1_id);
+    t_2_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web02")
+        .build();
+    when(T_2.id()).thenReturn(t_2_id);
+    t_4a_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web04")
+        .addTags("owner", "tyrion")
+        .build();
+    when(T_4A.id()).thenReturn(t_4a_id);
+    t_4b_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web04")
+        .addTags("owner", "cersei")
+        .build();
+    when(T_4B.id()).thenReturn(t_4b_id);
+    t_5a_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web05")
+        .addTags("owner", "tyrion")
+        .build();
+    when(T_5A.id()).thenReturn(t_5a_id);
+    t_5b_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web05")
+        .addTags("owner", "cersei")
+        .build();
+    when(T_5B.id()).thenReturn(t_5b_id);
+    t_6a_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web06")
+        .addTags("owner", "tyrion")
+        .build();
+    when(T_6A.id()).thenReturn(t_6a_id);
+    t_6b_id = BaseTimeSeriesStringId.newBuilder()
+        .setAlias(TERNARY)
+        .setNamespace(NAMESPACE)
+        .setMetric(TERNARY)
+        .addTags("host", "web06")
+        .addTags("owner", "cersei")
+        .build();
+    when(T_6B.id()).thenReturn(t_6b_id);
   }
   
   protected void setByteIds() throws Exception {
@@ -607,6 +1014,69 @@ public class BaseJoinTest {
         .addTags(OWNER, CERSEI)
         .build();
     when(R_6B.id()).thenReturn(clone(r6b_id));
+    
+    t_1_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB01)
+        .build();
+    when(T_1.id()).thenReturn(t_1_id);
+    t_2_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB02)
+        .build();
+    when(T_2.id()).thenReturn(t_2_id);
+    t_4a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB04)
+        .addTags(OWNER, TYRION)
+        .build();
+    when(T_4A.id()).thenReturn(t_4a_id);
+    t_4b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB04)
+        .addTags(OWNER, CERSEI)
+        .build();
+    when(T_4B.id()).thenReturn(t_4b_id);
+    t_5a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB05)
+        .addTags(OWNER, TYRION)
+        .build();
+    when(T_5A.id()).thenReturn(t_5a_id);
+    t_5b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB05)
+        .addTags(OWNER, CERSEI)
+        .build();
+    when(T_5B.id()).thenReturn(t_5b_id);
+    t_6a_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB06)
+        .addTags(OWNER, TYRION)
+        .build();
+    when(T_6A.id()).thenReturn(t_6a_id);
+    t_6b_id = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setAlias(TERNARY_BYTES)
+        .setNamespace(NAMESPACE_BYTES)
+        .setMetric(TERNARY_BYTES)
+        .addTags(HOST, WEB06)
+        .addTags(OWNER, CERSEI)
+        .build();
+    when(T_6B.id()).thenReturn(t_6b_id);
   }
   
   protected static TimeSeriesId clone(final TimeSeriesId id) {
@@ -653,7 +1123,7 @@ public class BaseJoinTest {
   static class UTBaseHashedJoinSet extends BaseHashedJoinSet {
 
     public UTBaseHashedJoinSet(final JoinType type) {
-      super(type);
+      super(type, 1, false);
     }
     
   }

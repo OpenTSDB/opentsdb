@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.expressions;
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map.Entry;
 
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
@@ -32,7 +33,7 @@ import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.Pair;
 
 /**
- * The result of a BinaryExpressionNode.
+ * The result of a {@link BinaryExpressionNode} or {@link TernaryExpressionNode}.
  * 
  * @since 3.0
  */
@@ -40,11 +41,16 @@ public class ExpressionResult implements QueryResult {
   /** The parent node. */
   protected final BinaryExpressionNode node;
   
-  /** The list of 1 or 2 results. For now. */
-  protected Pair<QueryResult, QueryResult> results;
+  /** Whether or not we're a tenary result. */
+  protected final boolean is_ternary;
   
   /** The list of joined time series. */
   protected List<TimeSeries> time_series;
+  
+  /** The first non-null result we encounter so we can pass through result fields
+   * like timespec, etc.
+   */
+  protected QueryResult non_null_result;
   
   /**
    * Package private ctor.
@@ -52,15 +58,7 @@ public class ExpressionResult implements QueryResult {
    */
   ExpressionResult(final BinaryExpressionNode node) {
     this.node = node;
-  }
-  
-  /**
-   * Package private method to add a result.
-   * @param result A non-null result.
-   * Note that we don't check the Id types here.
-   */
-  void set(final Pair<QueryResult, QueryResult> results) {
-    this.results = results;
+    is_ternary = node instanceof TernaryNode;
   }
   
   /**
@@ -68,55 +66,61 @@ public class ExpressionResult implements QueryResult {
    * results it needs for the expression.
    */
   void join() {
-    final Iterable<Pair<TimeSeries, TimeSeries>> joins;
+    final Iterable<TimeSeries[]> joins;
     final ExpressionParseNode config = (ExpressionParseNode) node.config();
     
-    if ((config.getLeftType() == OperandType.SUB_EXP || 
-        config.getLeftType() == OperandType.VARIABLE) &&
-        (config.getRightType() == OperandType.SUB_EXP || 
-        config.getRightType() == OperandType.VARIABLE)) {
-      final boolean use_alias = 
-          config.getLeftType() != OperandType.VARIABLE ||
-              config.getRightType() != OperandType.VARIABLE;
-      joins = node.joiner().join(results, 
-          node.leftMetric() != null ? node.leftMetric() : 
-            ((String) config.getLeft()).getBytes(Const.UTF8_CHARSET), 
-          node.rightMetric() != null ? node.rightMetric() : 
-            ((String) config.getRight()).getBytes(Const.UTF8_CHARSET),
-          use_alias);
-    } else if (config.getLeftType() == OperandType.SUB_EXP || 
-        config.getLeftType() == OperandType.VARIABLE) {
-      final boolean use_alias = 
-          config.getLeftType() != OperandType.VARIABLE;
-      // left
-      joins = node.joiner().join(
-          results, 
-          node.leftMetric() != null ? node.leftMetric() : 
-            ((String) config.getLeft()).getBytes(Const.UTF8_CHARSET), 
-          true,
-          use_alias);
+    final byte[] left_key;
+    if (config.getLeft() != null && 
+        (config.getLeftType() == OperandType.SUB_EXP || 
+         config.getLeftType() == OperandType.VARIABLE)) {
+      left_key = node.leftMetric() != null ? node.leftMetric() : 
+          ((String) config.getLeft()).getBytes(Const.UTF8_CHARSET);
     } else {
-      final boolean use_alias = 
-          config.getRightType() != OperandType.VARIABLE;
-      // right
-      joins = node.joiner().join(
-          results, 
-          node.rightMetric() != null ? node.rightMetric() :
-            ((String) config.getRight()).getBytes(Const.UTF8_CHARSET), 
-          false, 
-          use_alias);
+      left_key = null;
     }
     
+    final byte[] right_key;
+    if (config.getRight() != null && 
+        (config.getRightType() == OperandType.SUB_EXP || 
+         config.getRightType() == OperandType.VARIABLE)) {
+      right_key = node.rightMetric() != null ? node.rightMetric() : 
+        ((String) config.getRight()).getBytes(Const.UTF8_CHARSET);
+    } else {
+      right_key = null;
+    }
+    
+    final byte[] ternary_key;
+    if (node instanceof TernaryNode) {
+      if (((TernaryNode) node).conditionMetric() != null) {
+        ternary_key = ((TernaryNode) node).conditionMetric();
+      } else {
+        ternary_key = ((TernaryParseNode) node.config()).getCondition()
+            .toString().getBytes(Const.UTF8_CHARSET);
+      }
+    } else {
+      ternary_key = null;
+    }
+    
+    joins = node.joiner().join(
+        node.results().values(),
+        (ExpressionParseNode) node.config(),
+        left_key, 
+        right_key,
+        ternary_key);
+    
     time_series = Lists.newArrayList();
-    for (final Pair<TimeSeries, TimeSeries> pair : joins) {
-      time_series.add(new ExpressionTimeSeries(node, this, pair.getKey(), pair.getValue()));
+    for (final TimeSeries[] pair : joins) {
+      time_series.add(new ExpressionTimeSeries(node, this, pair[0], pair[1], 
+          (pair.length == 3 ? pair[2] : null)));
     }
   }
   
   @Override
   public TimeSpecification timeSpecification() {
-    return results.getKey() != null ? results.getKey().timeSpecification() :
-      results.getValue().timeSpecification();
+    if (non_null_result == null) {
+      non_null_result = node.results().values().iterator().next();
+    }
+    return non_null_result.timeSpecification();
   }
 
   @Override
@@ -153,29 +157,32 @@ public class ExpressionResult implements QueryResult {
   
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
-    return results.getKey() != null ? results.getKey().idType() :
-      results.getValue().idType();
+    if (non_null_result == null) {
+      non_null_result = node.results().values().iterator().next();
+    }
+    return non_null_result.idType();
   }
 
   @Override
   public ChronoUnit resolution() {
-    return results.getKey() != null ? results.getKey().resolution() :
-      results.getValue().resolution();
+    if (non_null_result == null) {
+      non_null_result = node.results().values().iterator().next();
+    }
+    return non_null_result.resolution();
   }
 
   @Override
   public RollupConfig rollupConfig() {
-    return results.getKey() != null ? results.getKey().rollupConfig() :
-        results.getValue().rollupConfig();
+    if (non_null_result == null) {
+      non_null_result = node.results().values().iterator().next();
+    }
+    return non_null_result.rollupConfig();
   }
 
   @Override
   public void close() {
-    if (results.getKey() != null) {
-      results.getKey().close();
-    }
-    if (results.getValue() != null) {
-      results.getValue().close();
+    for (final Entry<QueryResultId, QueryResult> entry : node.results().entrySet()) {
+      entry.getValue().close();
     }
   }
 

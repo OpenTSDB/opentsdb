@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -142,8 +143,9 @@ public class TestBinaryExpressionNode {
     assertSame(expression_config, node.expression_config);
     assertNotNull(node.result);
     assertNotNull(node.joiner());
-    assertEquals(new DefaultQueryResultId("a", "a"), node.left_source);
-    assertEquals(new DefaultQueryResultId("SubExp#1", "b"), node.right_source);
+    assertEquals(2, node.results.size());
+    assertTrue(node.results.containsKey(new DefaultQueryResultId("a", "a")));
+    assertTrue(node.results.containsKey(new DefaultQueryResultId("SubExp#1", "b")));
     
     // one needed
     expression_config = ExpressionParseNode.newBuilder()
@@ -161,8 +163,8 @@ public class TestBinaryExpressionNode {
     assertSame(expression_config, node.expression_config);
     assertNotNull(node.result);
     assertNotNull(node.joiner());
-    assertEquals(new DefaultQueryResultId("a", "a"), node.left_source);
-    assertNull(node.right_source);
+    assertEquals(1, node.results.size());
+    assertTrue(node.results.containsKey(new DefaultQueryResultId("a", "a")));
     
     try {
       new BinaryExpressionNode(factory, null, expression_config);
@@ -229,13 +231,11 @@ public class TestBinaryExpressionNode {
     when(r2.source()).thenReturn(n2);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     
     node.onNext(r2);
-    assertSame(r2, node.results.getValue());
-    assertSame(node.results, ((ExpressionResult) node.result).results);
+    assertSame(r2, node.results.get(new DefaultQueryResultId("b", "b")));
     verify(upstream, times(1)).onNext(any(QueryResult.class));
   }
   
@@ -265,8 +265,7 @@ public class TestBinaryExpressionNode {
     when(r1.source()).thenReturn(n1);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertSame(node.results, ((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, times(1)).onNext(any(QueryResult.class));
   }
 
@@ -304,6 +303,7 @@ public class TestBinaryExpressionNode {
     });
     TimeSeries ts = mock(TimeSeries.class);
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
+    when(id.metric()).thenReturn(new byte[] { 'a' } );
     TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
     when(id.dataStore()).thenReturn(store);
@@ -327,8 +327,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -358,11 +357,9 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertNull(((ExpressionResult) node.result).results);
     
     node.onNext(r2);
-    assertSame(r2, node.results.getValue());
-    assertSame(node.results, ((ExpressionResult) node.result).results);
+    assertSame(r2, node.results.get(new DefaultQueryResultId("b", "b")));
     verify(upstream, times(1)).onNext(any(QueryResult.class));
   }
   
@@ -415,6 +412,7 @@ public class TestBinaryExpressionNode {
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
     TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
+    when(id.metric()).thenReturn(new byte[] { 'a' } );
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -436,8 +434,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -467,11 +464,9 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertNull(((ExpressionResult) node.result).results);
     
     node.onNext(r2);
-    assertSame(r2, node.results.getValue());
-    assertSame(node.results, ((ExpressionResult) node.result).results);
+    assertSame(r2, node.results.get(new DefaultQueryResultId("sub", "m1")));
     verify(upstream, times(1)).onNext(any(QueryResult.class));
   }
   
@@ -540,8 +535,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("sub1", "m1")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -560,11 +554,9 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertNull(((ExpressionResult) node.result).results);
     
     node.onNext(r2);
-    assertSame(r2, node.results.getValue());
-    assertSame(node.results, ((ExpressionResult) node.result).results);
+    assertSame(r2, node.results.get(new DefaultQueryResultId("sub2", "m1")));
     verify(upstream, times(1)).onNext(any(QueryResult.class));
   }
   
@@ -602,6 +594,7 @@ public class TestBinaryExpressionNode {
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
     TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
+    when(id.metric()).thenReturn(new byte[] { 'b' });
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -623,8 +616,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getValue());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("b", "b")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -654,7 +646,6 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertSame(node.results, ((ExpressionResult) node.result).results);
   }
   
   @Test
@@ -691,6 +682,7 @@ public class TestBinaryExpressionNode {
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
     TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
+    when(id.metric()).thenReturn(new byte[] { 'a' });
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -712,8 +704,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -743,7 +734,6 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertSame(node.results, ((ExpressionResult) node.result).results);
   }
 
   @Test
@@ -781,6 +771,7 @@ public class TestBinaryExpressionNode {
     TimeSeriesByteId id = mock(TimeSeriesByteId.class);
     TimeSeriesDataSourceFactory store = mock(TimeSeriesDataSourceFactory.class);
     when(ts.id()).thenReturn(id);
+    when(id.metric()).thenReturn(new byte[] { 'a' });
     when(id.dataStore()).thenReturn(store);
     when(id.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
@@ -802,8 +793,7 @@ public class TestBinaryExpressionNode {
             .thenReturn(tags);
 
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -833,7 +823,6 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
-    assertSame(node.results, ((ExpressionResult) node.result).results);
   }
   
   @Test
@@ -892,8 +881,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -913,7 +901,6 @@ public class TestBinaryExpressionNode {
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
-    assertNull(((ExpressionResult) node.result).results);
   }
   
   @Test
@@ -973,8 +960,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -1003,7 +989,6 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertNull(node.joiner.encodedJoins());
-    assertNull(((ExpressionResult) node.result).results);
   }
  
   @Test
@@ -1063,8 +1048,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(tags);
     
     node.onNext(r1);
-    assertSame(r1, node.results.getKey());
-    assertNull(((ExpressionResult) node.result).results);
+    assertSame(r1, node.results.get(new DefaultQueryResultId("a", "a")));
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -1093,7 +1077,6 @@ public class TestBinaryExpressionNode {
     verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
     verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
     assertNull(node.joiner.encodedJoins());
-    assertNull(((ExpressionResult) node.result).results);
   }
 
   @Test

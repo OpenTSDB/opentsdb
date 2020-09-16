@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -25,7 +26,10 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
@@ -56,8 +60,10 @@ public class TestExpressionTimeSeries {
   private Joiner joiner;
   private TimeSeries left;
   private TimeSeries right;
+  private TimeSeries condition;
   private TimeSeriesId left_id;
   private TimeSeriesId right_id;
+  private TimeSeriesId condition_id;
   private TimeSeriesId joined_id;
   private BinaryExpressionNodeFactory factory;
   
@@ -68,6 +74,7 @@ public class TestExpressionTimeSeries {
     joiner = mock(Joiner.class);
     left = mock(TimeSeries.class);
     right = mock(TimeSeries.class);
+    condition = mock(TimeSeries.class);
     factory = mock(BinaryExpressionNodeFactory.class);
     
     when(node.joiner()).thenReturn(joiner);
@@ -81,6 +88,10 @@ public class TestExpressionTimeSeries {
         .setMetric("sys.cpu.system")
         .addTags("host", "web01")
         .build();
+    condition_id = BaseTimeSeriesStringId.newBuilder()
+        .setMetric("subexp#0")
+        .addTags("host", "web01")
+        .build();
     joined_id = BaseTimeSeriesStringId.newBuilder()
         .setMetric("e1")
         .addTags("host", "web01")
@@ -89,17 +100,20 @@ public class TestExpressionTimeSeries {
     when(right.id()).thenReturn(right_id);
     when(joiner.joinIds(any(TimeSeries.class), any(TimeSeries.class), 
         anyString())).thenReturn(joined_id);
+    when(joiner.joinIds(eq(condition), eq(null), 
+        anyString())).thenReturn(condition_id);
     
     when(left.types()).thenReturn(Lists.newArrayList(NumericType.TYPE));
     when(right.types()).thenReturn(Lists.newArrayList(
         NumericType.TYPE, NumericSummaryType.TYPE));
+    when(condition.types()).thenReturn(Lists.newArrayList(NumericType.TYPE));
     
     when(factory.newTypedIterator(eq(NumericType.TYPE), 
         eq(node), eq(result), any(Map.class)))
-        .thenReturn(mock(TypedTimeSeriesIterator.class));
+        .thenReturn(mock(ExpressionNumericIterator.class));
     when(factory.newTypedIterator(eq(NumericArrayType.TYPE), 
         eq(node), eq(result), any(Map.class)))
-        .thenReturn(mock(TypedTimeSeriesIterator.class));
+        .thenReturn(mock(ExpressionNumericArrayIterator.class));
     
     JoinConfig jc = (JoinConfig) JoinConfig.newBuilder()
         .setJoinType(JoinType.INNER)
@@ -125,63 +139,136 @@ public class TestExpressionTimeSeries {
   @Test
   public void ctor() {
     ExpressionTimeSeries series = new ExpressionTimeSeries(
-        node, result, left, right);
+        node, result, left, right, condition);
     assertSame(joined_id, series.id());
     assertEquals(1, series.types().size());
     assertTrue(series.types().contains(NumericType.TYPE));
     
-    series = new ExpressionTimeSeries(node, result, left, null);
+    series = new ExpressionTimeSeries(node, result, left, null, condition);
     assertSame(joined_id, series.id());
+    assertEquals(1, series.types().size());
+    assertTrue(series.types().contains(NumericType.TYPE));
+    
+    
+    series = new ExpressionTimeSeries(node, result, null, null, condition);
+    assertSame(condition_id, series.id());
     assertEquals(1, series.types().size());
     assertTrue(series.types().contains(NumericType.TYPE));
     
     try {
-      new ExpressionTimeSeries(node, result, null, null);
+      new ExpressionTimeSeries(node, result, null, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     // no overlapping types
-    when(right.types()).thenReturn(Lists.newArrayList(
+    // TODO
+    /*when(right.types()).thenReturn(Lists.newArrayList(
         NumericArrayType.TYPE));
-    series = new ExpressionTimeSeries(node, result, left, right);
+    series = new ExpressionTimeSeries(node, result, left, right, condition);
     assertSame(joined_id, series.id());
-    assertEquals(0, series.types().size());
+    assertEquals(0, series.types().size());*/
   }
   
   @Test
   public void iterator() throws Exception {
     ExpressionTimeSeries series = new ExpressionTimeSeries(
-        node, result, left, right);
-    assertTrue(series.iterator(NumericType.TYPE).isPresent());
+        node, result, left, right, condition);
+    Optional<TypedTimeSeriesIterator<?>> op = series.iterator(NumericType.TYPE);
+    assertTrue(op.isPresent());
+    assertTrue(op.get() instanceof ExpressionNumericIterator);
     assertFalse(series.iterator(AnnotationType.TYPE).isPresent());
     
-    series = new ExpressionTimeSeries(node, result, null, right);
-    assertTrue(series.iterator(NumericType.TYPE).isPresent());
+    series = new ExpressionTimeSeries(node, result, null, right, condition);
+    op = series.iterator(NumericType.TYPE);
+    assertTrue(op.isPresent());
+    assertTrue(op.get() instanceof ExpressionNumericIterator);
     assertFalse(series.iterator(AnnotationType.TYPE).isPresent());
     
-    series = new ExpressionTimeSeries(node, result, left, null);
-    assertTrue(series.iterator(NumericType.TYPE).isPresent());
+    series = new ExpressionTimeSeries(node, result, left, null, condition);
+    op = series.iterator(NumericType.TYPE);
+    assertTrue(op.isPresent());
+    assertTrue(op.get() instanceof ExpressionNumericIterator);
     assertFalse(series.iterator(AnnotationType.TYPE).isPresent());
     
     when(left.types()).thenReturn(Lists.newArrayList(
         NumericArrayType.TYPE));
     when(right.types()).thenReturn(Lists.newArrayList(
         NumericArrayType.TYPE));
-    series = new ExpressionTimeSeries(node, result, left, right);
-    assertTrue(series.iterator(NumericArrayType.TYPE).isPresent());
+    series = new ExpressionTimeSeries(node, result, left, right, condition);
+    op = series.iterator(NumericArrayType.TYPE);
+    assertTrue(op.isPresent());
+    assertTrue(op.get() instanceof ExpressionNumericArrayIterator);
     assertFalse(series.iterator(NumericType.TYPE).isPresent());
   }
   
   @Test
   public void iterators() throws Exception {
     ExpressionTimeSeries series = new ExpressionTimeSeries(
-        node, result, left, right);
-    assertEquals(1, series.iterators().size());
+        node, result, left, right, condition);
+    Collection<TypedTimeSeriesIterator<?>> its = series.iterators();
+    assertEquals(1, its.size());
+    assertTrue(its.iterator().next() instanceof ExpressionNumericIterator);
     
-    series = new ExpressionTimeSeries(node, result, null, right);
-    assertEquals(2, series.iterators().size());
+    series = new ExpressionTimeSeries(node, result, null, right, condition);
+    its = series.iterators();
+    assertEquals(2, its.size());
+    Iterator<TypedTimeSeriesIterator<?>> it = its.iterator();
+    assertTrue(it.next() instanceof ExpressionNumericIterator);
+    assertNull(it.next());
     
-    series = new ExpressionTimeSeries(node, result, left, null);
-    assertEquals(1, series.iterators().size());
+    series = new ExpressionTimeSeries(node, result, left, null, condition);
+    its = series.iterators();
+    assertEquals(1, its.size());
+    assertTrue(its.iterator().next() instanceof ExpressionNumericIterator);
+  }
+
+  @Test
+  public void ternaryIterator() throws Exception {
+    node = mock(TernaryNode.class);
+    when(node.joiner()).thenReturn(joiner);
+    when(node.config()).thenReturn(config);
+    
+    TernaryNodeFactory ternary_factory = mock(TernaryNodeFactory.class);
+    when(node.factory()).thenReturn(ternary_factory);
+    when(ternary_factory.newTypedIterator(eq(NumericType.TYPE), 
+        eq((TernaryNode) node), eq(result), any(Map.class)))
+        .thenReturn(mock(TernaryNumericIterator.class));
+    
+    ExpressionTimeSeries series = new ExpressionTimeSeries(
+        node, result, left, right, condition);
+    Optional<TypedTimeSeriesIterator<?>> op = series.iterator(NumericType.TYPE);
+    assertTrue(op.isPresent());
+    assertTrue(op.get() instanceof TernaryNumericIterator);
+  }
+  
+  @Test
+  public void ternaryIterators() throws Exception {
+    node = mock(TernaryNode.class);
+    when(node.joiner()).thenReturn(joiner);
+    when(node.config()).thenReturn(config);
+    
+    TernaryNodeFactory ternary_factory = mock(TernaryNodeFactory.class);
+    when(node.factory()).thenReturn(ternary_factory);
+    when(ternary_factory.newTypedIterator(eq(NumericType.TYPE), 
+        eq((TernaryNode) node), eq(result), any(Map.class)))
+        .thenReturn(mock(TernaryNumericIterator.class));
+    
+    ExpressionTimeSeries series = new ExpressionTimeSeries(
+        node, result, left, right, condition);
+    Collection<TypedTimeSeriesIterator<?>> its = series.iterators();
+    assertEquals(1, its.size());
+    assertTrue(its.iterator().next() instanceof TernaryNumericIterator);
+    
+    series = new ExpressionTimeSeries(node, result, null, right, condition);
+    its = series.iterators();
+    assertEquals(2, its.size());
+    Iterator<TypedTimeSeriesIterator<?>> it = its.iterator();
+    assertTrue(it.next() instanceof TernaryNumericIterator);
+    assertNull(it.next());
+    
+    series = new ExpressionTimeSeries(node, result, left, null, condition);
+    its = series.iterators();
+    assertEquals(1, its.size());
+    assertTrue(its.iterator().next() instanceof TernaryNumericIterator);
   }
 }

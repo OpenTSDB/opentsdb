@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 package net.opentsdb.query.joins;
 
 import gnu.trove.set.hash.TLongHashSet;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.utils.Pair;
 
 /**
  * Computes the outer join, i.e. the full join with nulls on either side
@@ -27,6 +25,12 @@ import net.opentsdb.utils.Pair;
  * <p>
  * For hashes where more than one series satisfied the algorithm, a 
  * Cartesian product is produced.
+ * 
+ * TODO - Yank the `completed` hash set, we should be able to delete the entries
+ * as we go to save som RAM and ops.
+ * 
+ * <b>NOTE:</b> When used in a ternary we just use the 
+ * {@link BaseJoin#naturalTernaryLeftOrRightAdvance()} method for now. 
  * 
  * @since 3.0
  */
@@ -45,15 +49,14 @@ public class OuterJoin extends BaseJoin {
                       final boolean disjoint) {
     super(join);
     this.disjoint = disjoint;
-    left_iterator = join.left_map == null ? null : join.left_map.iterator();
-    right_iterator = join.right_map == null ? null : join.right_map.iterator();
     completed = new TLongHashSet();
-    if (left_iterator != null || right_iterator != null) {
-      pair = new Pair<TimeSeries, TimeSeries>(null, null);  
-      next = new Pair<TimeSeries, TimeSeries>(null, null);
+    if (join.condition_map != null && 
+        (join.left_map != null || join.right_map != null)) {
+      ternaryAdvance();
+    } else if (left_iterator != null || right_iterator != null) {
       advance();
     } else {
-      pair = null;
+      current = null;
       next = null;
     }
   }
@@ -69,15 +72,15 @@ public class OuterJoin extends BaseJoin {
             right_series != null && 
             right_idx + 1 < right_series.size()) {
           right_idx++;
-          next.setKey(left_series.get(left_idx));
-          next.setValue(right_series.get(right_idx));
+          next[0] = left_series.get(left_idx);
+          next[1] = right_series.get(right_idx);
           return;
         } else if (left_series != null && 
                    left_idx + 1 < left_series.size() &&
                    right_series == null) {
           left_idx++;
-          next.setKey(left_series.get(left_idx));
-          next.setValue(null);
+          next[0] = left_series.get(left_idx);
+          next[1] = null;
           return;
         }
         
@@ -107,8 +110,8 @@ public class OuterJoin extends BaseJoin {
           right_idx = -1;
           if (right_series == null) {
             // no match from left to right, return a null
-            next.setKey(left_series.get(left_idx));
-            next.setValue(null);
+            next[0] = left_series.get(left_idx);
+            next[1] = null;
             return;
           }
         }
@@ -134,8 +137,8 @@ public class OuterJoin extends BaseJoin {
           continue;
         } else {
           right_idx++;
-          next.setKey(left_series.get(left_idx));
-          next.setValue(right_series.get(right_idx));
+          next[0] = left_series.get(left_idx);
+          next[1] = right_series.get(right_idx);
         }
         
         // clear out the series if we've reached the end of the arrays.
@@ -165,14 +168,14 @@ public class OuterJoin extends BaseJoin {
             left_series != null && 
             left_idx + 1 < left_series.size()) {
           left_idx++;
-          next.setKey(left_series.get(left_idx));
-          next.setValue(right_series.get(right_idx));
+          next[0] = left_series.get(left_idx);
+          next[1] = right_series.get(right_idx);
           return;
         } else if (right_series != null && 
                    right_idx + 1 < right_series.size()) {
           right_idx++;
-          next.setKey(null);
-          next.setValue(right_series.get(right_idx));
+          next[0] = null;
+          next[1] = right_series.get(right_idx);
           return;
         }
         
@@ -204,8 +207,8 @@ public class OuterJoin extends BaseJoin {
           left_idx = -1;
           if (left_series == null) {
             // no match from right to left so return a null;
-            next.setKey(null);
-            next.setValue(right_series.get(right_idx));
+            next[0] = null;
+            next[1] = right_series.get(right_idx);
             return;
           }
         }
@@ -230,8 +233,8 @@ public class OuterJoin extends BaseJoin {
           continue;
         } else {
           left_idx++;
-          next.setKey(left_series.get(left_idx));
-          next.setValue(right_series.get(right_idx));
+          next[0] = left_series.get(left_idx);
+          next[1] = right_series.get(right_idx);
         }
         
         if (left_idx + 1 >= left_series.size() && 
@@ -246,5 +249,10 @@ public class OuterJoin extends BaseJoin {
     
     // all done!
     next = null;
+  }
+
+  @Override
+  protected void ternaryAdvance() {
+    naturalTernaryLeftOrRightAdvance();
   }
 }

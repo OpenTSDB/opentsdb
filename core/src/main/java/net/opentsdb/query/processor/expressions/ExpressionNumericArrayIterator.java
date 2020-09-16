@@ -93,7 +93,9 @@ public class ExpressionNumericArrayIterator extends
     }
     
     // final sanity check
-    if (left == null && right == null) {
+    if (this.getClass().equals(ExpressionNumericArrayIterator.class) &&
+        left == null && right == null) {
+      // only throw if we're the super class.
       throw new IllegalStateException("Must have at least one time "
           + "series in an expression.");
     }
