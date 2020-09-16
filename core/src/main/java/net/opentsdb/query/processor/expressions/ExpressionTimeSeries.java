@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,22 +16,17 @@ package net.opentsdb.query.processor.expressions;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * A container class for computing a binary operation on one or two 
@@ -44,6 +39,7 @@ public class ExpressionTimeSeries implements TimeSeries {
   /** Keys to populate the map. */
   public static final String LEFT_KEY = "L";
   public static final String RIGHT_KEY = "R";
+  public static final String CONDITION_KEY = "C";
   
   /** The parent node. */
   protected final BinaryExpressionNode node;
@@ -56,9 +52,11 @@ public class ExpressionTimeSeries implements TimeSeries {
   
   /** The right time series, may be null. */
   protected final TimeSeries right;
+  
+  protected final TimeSeries condition;
 
   /** The set of types in this series. */
-  protected final Set<TypeToken<? extends TimeSeriesDataType>> types;
+  protected final Collection<TypeToken<? extends TimeSeriesDataType>> types;
   
   /** The new Id of the time series. */
   protected final TimeSeriesId id;
@@ -74,8 +72,9 @@ public class ExpressionTimeSeries implements TimeSeries {
   ExpressionTimeSeries(final BinaryExpressionNode node,
                        final QueryResult result,
                        final TimeSeries left, 
-                       final TimeSeries right) {
-    if (left == null && right == null) {
+                       final TimeSeries right,
+                       final TimeSeries condition) {
+    if (left == null && right == null && condition == null) {
       throw new IllegalArgumentException("At least one operand must "
           + "be non-null.");
     }
@@ -83,29 +82,24 @@ public class ExpressionTimeSeries implements TimeSeries {
     this.result = result;
     this.left = left;
     this.right = right;
+    this.condition = condition;
     
-    types = Sets.newHashSetWithExpectedSize(1);
-    // look to join on types
-    if (left != null && right != null) {
-      if (left.types().contains(NumericArrayType.TYPE) && 
-        right != null && right.types().contains(NumericArrayType.TYPE)) {
-        types.add(NumericArrayType.TYPE);
-      } else if (left != null && left.types().contains(NumericSummaryType.TYPE) && 
-          right != null && right.types().contains(NumericSummaryType.TYPE)) {
-        types.add(NumericSummaryType.TYPE);
-      } else if (left != null && left.types().contains(NumericType.TYPE) && 
-          right != null && right.types().contains(NumericType.TYPE)) {
-        types.add(NumericType.TYPE);
-      }
-    } else if (left == null) {
-      types.addAll(right.types());
+    if (left != null) {
+      types = left.types();
+    } else if (right != null) {
+      types = right.types();
     } else {
-      types.addAll(left.types());
+      types = condition.types();
     }
-    // TODO - handle other types, e.g. bools if we add em.
-    // Otherwise we just drop the data since we don't have a type join.
-    id = node.joiner().joinIds(left, right, 
-        ((ExpressionParseNode) node.config()).getAs());
+    // look to join on types
+    // TODO - for now we expect all types to be the same.
+    if (left == null && right == null) {
+      id = node.joiner().joinIds(condition, null, 
+          ((ExpressionParseNode) node.config()).getAs());
+    } else {
+      id = node.joiner().joinIds(left, right, 
+          ((ExpressionParseNode) node.config()).getAs());
+    }
   }
   
   @Override
@@ -127,11 +121,20 @@ public class ExpressionTimeSeries implements TimeSeries {
     if (right != null) {
       builder.put(RIGHT_KEY, right);
     }
+    if (condition != null) {
+      builder.put(CONDITION_KEY, condition);
+    }
     
-    final TypedTimeSeriesIterator iterator = 
-        ((BinaryExpressionNodeFactory) node.factory())
+    final TypedTimeSeriesIterator iterator;
+    if (node instanceof TernaryNode) {
+      iterator = ((TernaryNodeFactory) node.factory())
+          .newTypedIterator(type, (TernaryNode) node, result,
+            (Map<String, TimeSeries>) builder.build()); 
+    } else {
+      iterator = ((BinaryExpressionNodeFactory) node.factory())
           .newTypedIterator(type, node, result,
             (Map<String, TimeSeries>) builder.build());
+    }
     if (iterator == null) {
       return Optional.empty();  
     }
@@ -148,13 +151,23 @@ public class ExpressionTimeSeries implements TimeSeries {
     if (right != null) {
       builder.put(RIGHT_KEY, right);
     }
+    if (condition != null) {
+      builder.put(CONDITION_KEY, condition);
+    }
+    
     final Map<String, TimeSeries> sources = (Map<String, TimeSeries>) builder.build();
     final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithExpectedSize(types.size());
     for (final TypeToken<? extends TimeSeriesDataType> type : types) {
-      iterators.add(((BinaryExpressionNodeFactory) node.factory()).newTypedIterator(
-          type, node, result, sources));
+      if (node instanceof TernaryNode) {
+        iterators.add(((TernaryNodeFactory) node.factory()).newTypedIterator(
+            type, (TernaryNode) node, result, sources));
+      } else {
+        iterators.add(((BinaryExpressionNodeFactory) node.factory()).newTypedIterator(
+            type, node, result, sources));
+      }
     }
+    
     return iterators;
   }
 
@@ -165,6 +178,14 @@ public class ExpressionTimeSeries implements TimeSeries {
 
   @Override
   public void close() {
-    
+    if (left != null) {
+      left.close();
+    }
+    if (right != null) {
+      right.close();
+    }
+    if (condition != null) {
+      condition.close();
+    }
   }
 }

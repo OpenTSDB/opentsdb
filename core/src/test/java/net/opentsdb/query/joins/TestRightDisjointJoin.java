@@ -48,10 +48,10 @@ public class TestRightDisjointJoin extends BaseJoinTest {
     
     int matched = 0;
     while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
+      TimeSeries[] next = join.next();
       matched++;
-      assertNull(next.getKey());
-      assertSame(R_3, next.getValue());
+      assertNull(next[0]);
+      assertSame(R_3, next[1]);
     }
     assertEquals(1, matched);
   }
@@ -67,8 +67,8 @@ public class TestRightDisjointJoin extends BaseJoinTest {
     RightDisjointJoin join = new RightDisjointJoin(rightOnlySet(TYPE));
     int matched = 0;
     while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
-      assertNull(next.getKey());
+      TimeSeries[] next = join.next();
+      assertNull(next[0]);
       matched++;
     }
     assertEquals(7, matched);
@@ -85,10 +85,10 @@ public class TestRightDisjointJoin extends BaseJoinTest {
     RightDisjointJoin join = new RightDisjointJoin(leftAndRightNullLists(TYPE));
     int matched = 0;
     while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
+      TimeSeries[] next = join.next();
       matched++;
-      assertNull(next.getKey());
-      assertSame(R_3, next.getValue());
+      assertNull(next[0]);
+      assertSame(R_3, next[1]);
     }
     assertEquals(1, matched);
   }
@@ -98,10 +98,10 @@ public class TestRightDisjointJoin extends BaseJoinTest {
     RightDisjointJoin join = new RightDisjointJoin(leftAndRightEmptyLists(TYPE));
     int matched = 0;
     while (join.hasNext()) {
-      Pair<TimeSeries, TimeSeries> next = join.next();
+      TimeSeries[] next = join.next();
       matched++;
-      assertNull(next.getKey());
-      assertSame(R_3, next.getValue());
+      assertNull(next[0]);
+      assertSame(R_3, next[1]);
     }
     assertEquals(1, matched);
   }

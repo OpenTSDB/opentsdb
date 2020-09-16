@@ -17,11 +17,13 @@ package net.opentsdb.query.joins;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +46,12 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode;
+import net.opentsdb.query.processor.expressions.TernaryParseNode;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.XXHash;
 import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
@@ -66,6 +71,13 @@ import net.opentsdb.utils.Bytes.ByteMap;
  */
 public class Joiner {
   private static final Logger LOG = LoggerFactory.getLogger(Joiner.class);
+  
+  /** The operand of a binary or ternary expression. */
+  public static enum Operand {
+    LEFT,
+    RIGHT,
+    CONDITION
+  }
   
   /** A non-null config to pull join information from. */
   protected final JoinConfig config;
@@ -113,27 +125,31 @@ public class Joiner {
    * were rejected.
    * @throws IllegalArgumentException if any args were null or invalid.
    */
-  public Iterable<Pair<TimeSeries, TimeSeries>> join(
-      final Pair<QueryResult, QueryResult> results, 
-      final byte[] left_key, 
-      final byte[] right_key,
-      final boolean use_alias) {
-    if (results == null || (results.getKey() == null && results.getValue() == null)) {
-      throw new IllegalArgumentException("Results can't be null.");
+  public Iterable<TimeSeries[]> join(final Collection<QueryResult> results, 
+                                     final ExpressionParseNode expression_config,
+                                     final byte[] left_key, 
+                                     final byte[] right_key,
+                                     final byte[] ternary_key) {
+    if (results == null || results.isEmpty()) {
+      throw new IllegalArgumentException("Results list can't be null "
+          + "or empty.");
     }
-    if (left_key == null || left_key.length < 1) {
-      throw new IllegalArgumentException("Left key cannot be null.");
-    }
-    if (right_key == null || right_key.length < 1) {
-      throw new IllegalArgumentException("Right key cannot be null.");
+    if ((left_key == null || left_key.length < 1) && 
+        (right_key == null || right_key.length < 1) && 
+        (ternary_key == null || ternary_key.length < 1)) {
+      throw new IllegalArgumentException("Must have at least one key.");
     }
     
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Joiner Left: " + new String(left_key, Const.UTF8_CHARSET) 
-          + "  Right: " + new String(right_key, Const.UTF8_CHARSET));
+      LOG.trace("Joiner Left: " + (left_key != null ? 
+              new String(left_key, Const.UTF8_CHARSET) : "null") 
+          + "  Right: " + (right_key != null ? 
+              new String(right_key, Const.UTF8_CHARSET) : "null") 
+          + "  Ternary: " + (ternary_key == null ? "null" : 
+              new String(ternary_key, Const.UTF8_CHARSET)));
     }
     
-    if (results.getKey().idType() == Const.TS_BYTE_ID && 
+    if (results.iterator().next().idType() == Const.TS_BYTE_ID &&
         encoded_joins == null &&
         config.getJoinType() != JoinType.NATURAL &&
         config.getJoinType() != JoinType.NATURAL_OUTER) {
@@ -141,88 +157,115 @@ public class Joiner {
           + "IDs but the local encoded tags map was null.");
     }
     
-    final KeyedHashedJoinSet join_set = 
-        new KeyedHashedJoinSet(config.getJoinType());
+    int expected_sets = left_key != null ? 1 : 0;
+    expected_sets += right_key != null ? 1 : 0;
+    expected_sets += ternary_key != null ? 1 : 0;
+    
+    final KeyedHashedJoinSet join_set = ternary_key != null ?
+        new TernaryKeyedHashedJoinSet(config.type, expected_sets) :
+        new KeyedHashedJoinSet(config.type, expected_sets, ternary_key != null);
     
     // calculate the hash for every series and let the hasher kick out
     // inapplicable series.
-    for (int i = 0; i < 2; i++) {
-      final QueryResult result = i == 0 ? results.getKey() : results.getValue();
+    for (final QueryResult result : results) {
       if (result == null) {
         continue;
       }
       
+      final Operand operand;
+      if (expression_config.getLeftId() != null &&
+          expression_config.getLeftId().equals(result.dataSource())) {
+        operand = Operand.LEFT;
+        if (left_key == null) {
+          LOG.warn("Received a result set for the left ID: " 
+              + expression_config.getLeftId() + " but the left key was null.");
+          continue;
+        }
+      } else if (expression_config.getRightId() != null &&
+          expression_config.getRightId().equals(result.dataSource())) {
+        operand = Operand.RIGHT;
+        if (right_key == null) {
+          LOG.warn("Received a result set for the right ID: " 
+              + expression_config.getRightId() + " but the right key was null.");
+          continue;
+        }
+      } else if (expression_config instanceof TernaryParseNode && 
+          ((TernaryParseNode) expression_config).getConditionId().equals(
+              result.dataSource())) {
+        operand = Operand.CONDITION;
+        if (ternary_key == null) {
+          LOG.warn("Received a result set for the ternary ID: " 
+              + ((TernaryParseNode) expression_config).getConditionId() 
+              + " but the ternary key was null.");
+          continue;
+        }
+      } else {
+        LOG.warn("Result in our set that we didn't want: " + result.dataSource());
+        continue;
+      }
+      
+      // TODO - don't do bytes and allocations here. If we drop the namespace
+      // field, we can use long hashes!
       for (final TimeSeries ts : result.timeSeries()) {
         if (ts.id().type() == Const.TS_BYTE_ID) {
           final TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
           final byte[] key;
-          if (use_alias) {
-            final byte[] local_key;
-            if (id.namespace() == null || id.namespace().length < 1) {
-              local_key = id.alias();
-            } else {
-              local_key = com.google.common.primitives.Bytes.concat(
-                  id.namespace(), id.alias());
-            }
-            
-            if (Bytes.memcmpMaybeNull(local_key, left_key) != 0 && 
-                Bytes.memcmpMaybeNull(local_key, right_key) != 0) {
-              // we didn't match on the alias so try the metric.
-              if (id.namespace() == null || id.namespace().length < 1) {
-                key = id.metric();
-              } else {
-                key = com.google.common.primitives.Bytes.concat(
-                    id.namespace(), id.metric());
-              }
-            } else {
-              key = local_key;
-            }
+          if (id.namespace() == null || id.namespace().length < 1) {
+            key = id.metric();
           } else {
-            if (id.namespace() == null || id.namespace().length < 1) {
-              key = id.metric();
-            } else {
-              key = com.google.common.primitives.Bytes.concat(
-                  id.namespace(), id.metric());
-            }
+            key = com.google.common.primitives.Bytes.concat(
+                id.namespace(), id.metric());
           }
           
-          if (Bytes.memcmpMaybeNull(key, left_key) != 0 && 
-              Bytes.memcmpMaybeNull(key, right_key) != 0) {
+          switch (operand) {
+          case LEFT:
+            if (Bytes.memcmp(key, left_key) == 0) {
+              hashByteId(operand, ts, join_set);
+            } else {
+              // TODO - log ejection
+              continue;
+            }
+            break;
+          case RIGHT:
+            if (Bytes.memcmp(key, right_key) == 0) {
+              hashByteId(operand, ts, join_set);
+            } else {
+              // TODO - log ejection
+              continue;
+            }
+            break;
+          case CONDITION:
+            if (Bytes.memcmp(key, ternary_key) == 0) {
+              hashByteId(operand, ts, join_set);
+            } else {
+              // TODO - log ejection
+              continue;
+            }
+            break;
+          default:
             // TODO - log ejection
             continue;
           }
-          
-          hashByteId(key, ts, join_set, i == 0);
         } else {
           final TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
           final String key;
-          if (use_alias) {
-            final String local_key = Strings.isNullOrEmpty(id.namespace()) ? 
-                id.alias() :
-                  id.namespace() + id.alias();
-            byte[] key_in_bytes = local_key != null ? 
-                local_key.getBytes(Const.UTF8_CHARSET) : new byte[0];
-            if (Bytes.memcmp(key_in_bytes, left_key) != 0 && 
-                Bytes.memcmp(key_in_bytes, right_key) != 0) {
-              // we didn't match on the alias so try the metric.
-              key = Strings.isNullOrEmpty(id.namespace()) ? 
-                  id.metric() :
-                    id.namespace() + id.metric();
-            } else {
-              key = local_key;
-            }
-          } else {
             key = Strings.isNullOrEmpty(id.namespace()) ? 
                 id.metric() :
                   id.namespace() + id.metric();
-          }
           final byte[] key_in_bytes = key.getBytes(Const.UTF8_CHARSET);
-          if (Bytes.memcmp(key_in_bytes, left_key) != 0 && 
-              Bytes.memcmp(key_in_bytes, right_key) != 0) {
+          if (operand == Operand.LEFT &&
+              Bytes.memcmp(key_in_bytes, left_key) == 0) {
+            hashStringId(operand, ts, join_set);
+          } else if (operand == Operand.RIGHT &&
+                     Bytes.memcmp(key_in_bytes, right_key) == 0) {
+            hashStringId(operand, ts, join_set);
+          } else if (operand == Operand.CONDITION && 
+                     Bytes.memcmp(key_in_bytes, ternary_key) == 0) {
+            hashStringId(operand, ts, join_set);
+          } else {
             // TODO - log ejection
             continue;
           }
-          hashStringId(key_in_bytes, ts, join_set, i == 0);
         }
       }
     }
@@ -244,20 +287,19 @@ public class Joiner {
    * were rejected.
    * @throws IllegalArgumentException if any args were null or invalid.
    */
-  public Iterable<Pair<TimeSeries, TimeSeries>> join(
-      final Pair<QueryResult, QueryResult> results,
+  public Iterable<TimeSeries[]> join(
+      final Collection<QueryResult> results,
       final byte[] filter,
       final boolean left,
       final boolean use_alias) {
-    if (results == null || (results.getKey() == null && results.getValue() == null)) {
-      throw new IllegalArgumentException("Results can't be null.");
+    if (results == null || results.isEmpty()) {
+      throw new IllegalArgumentException("Results can't be null or empty.");
     }
     if (filter == null || filter.length < 1) {
       throw new IllegalArgumentException("Filter cannot be null.");
     }
     
-    if ((results.getKey() != null ? results.getKey().idType() :
-        results.getValue().idType()) == Const.TS_BYTE_ID && 
+    if (results.iterator().next().idType() == Const.TS_BYTE_ID && 
         encoded_joins == null &&
         config.getJoinType() != JoinType.NATURAL &&
         config.getJoinType() != JoinType.NATURAL_OUTER) {
@@ -265,15 +307,10 @@ public class Joiner {
           + "IDs but the local encoded tags map was null.");
     }
     
-    final List<Pair<TimeSeries, TimeSeries>> join_set = Lists.newArrayList();
+    final List<TimeSeries[]> join_set = Lists.newArrayList();
     
     // calculate the hashes for every time series and joins.
-    for (int i = 0; i < 2; i++) {
-      final QueryResult result = i == 0 ? results.getKey() : results.getValue();
-      if (result == null) {
-        continue;
-      }
-      
+    for (final QueryResult result : results) {
       for (final TimeSeries ts : result.timeSeries()) {
         if (ts.id().type() == Const.TS_BYTE_ID) {
           final TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
@@ -328,8 +365,8 @@ public class Joiner {
             }
             
             if (satisfied_joins) {
-              join_set.add(new Pair<TimeSeries, TimeSeries>(
-                  left ? ts : null, left ? null : ts));
+              join_set.add(new TimeSeries[] {
+                  left ? ts : null, left ? null : ts });
             }
           }
           // TODO - log ejection
@@ -374,8 +411,8 @@ public class Joiner {
             }
             
             if (satisfied_joins) {
-              join_set.add(new Pair<TimeSeries, TimeSeries>(
-                  left ? ts : null, left ? null : ts));
+              join_set.add(new TimeSeries[] {
+                  left ? ts : null, left ? null : ts });
             }
           }
         }
@@ -657,17 +694,23 @@ public class Joiner {
    * @param join_set The non-null set to populate.
    */
   @VisibleForTesting
-  void hashStringId(final byte[] key,
+  void hashStringId(final Operand operand,
                     final TimeSeries ts,
-                    final KeyedHashedJoinSet join_set,
-                    boolean is_left) {
+                    final KeyedHashedJoinSet join_set) {
     final TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
-    final StringBuilder buf = new StringBuilder();
+    long hash = 0;
     
     // super critically important that we sort the tags.
-    final Map<String, String> sorted_tags = id.tags() != null && 
-        !id.tags().isEmpty() ? 
-            new TreeMap<String, String>(id.tags()) : null;
+    final Map<String, String> sorted_tags;
+    if (id.tags() == null) {
+      sorted_tags = Collections.emptyMap();
+    } else if (id.tags() instanceof NavigableMap) {
+      sorted_tags = id.tags();
+    } else if (!id.tags().isEmpty()) {
+      sorted_tags = new TreeMap<String, String>(id.tags());
+    } else {
+      sorted_tags = Collections.emptyMap();
+    }
     
     switch (config.type) {
     case NATURAL:
@@ -684,14 +727,18 @@ public class Joiner {
             if (config.joins != null && config.joins.containsKey(entry.getKey())) {
               matched_tags++;
             }
-            buf.append(entry.getValue());
+            if (hash == 0) {
+              hash = XXHash.hash(entry.getValue());
+            } else {
+              hash = XXHash.updateHash(hash, entry.getValue());
+            }
           }
         }
         
         if (!config.joins.isEmpty() && 
             matched_tags < config.joins.size()) {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+            LOG.trace("Ejecting a series that didn't match");
           }
           return;
         }
@@ -705,35 +752,41 @@ public class Joiner {
     default:
       // handles the other joins where we have to pull from the join config
       if (config.joins != null) {
+        //boolean is_left = join_set.left_key.equals(key);
         boolean matched = true;
         for (final Entry<String, String> pair : config.joins.entrySet()) {
-          final String value = id.tags().get(is_left ? pair.getKey() : pair.getValue());
+          String value = id.tags().get(pair.getKey());
           if (Strings.isNullOrEmpty(value)) {
-            if (LOG.isTraceEnabled()) {
-              LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+            value = id.tags().get(pair.getValue());
+            if (Strings.isNullOrEmpty(value)) {
+              // TODO - log the ejection
+              matched = false;
+              break;
             }
-            matched = false;
-            break;
           }
-          buf.append(value);
+          if (hash == 0) {
+            hash = XXHash.hash(value);
+          } else {
+            hash = XXHash.updateHash(hash, value);
+          }
         }
         if (!matched) {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+            LOG.trace("Ejecting a series that didn't match");
           }
           return;
         }
         if (config.getExplicitTags() && 
             id.tags().size() != config.getJoins().size()) {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Ejecting a series that didn't match: " + Bytes.pretty(key));
+            LOG.trace("Ejecting a series that didn't match");
           }
           return;
         }
       }
     }
     
-    join_set.add(key, LongHashFunction.xx().hashChars(buf.toString()), ts, is_left);
+    join_set.add(operand, hash, ts);
   }
   
   /**
@@ -744,74 +797,92 @@ public class Joiner {
    * @param join_set The non-null set to populate.
    */
   @VisibleForTesting
-  void hashByteId(final byte[] key,
+  void hashByteId(final Operand operand,
                   final TimeSeries ts,
-                  final KeyedHashedJoinSet join_set,
-                  boolean is_left) {
+                  final KeyedHashedJoinSet join_set) {
     final TimeSeriesByteId id = (TimeSeriesByteId) ts.id();
-    final ByteArrayOutputStream buf = new ByteArrayOutputStream();
+    long hash = 0;
     
-    try {
-      switch (config.type) {
-      case NATURAL:
-      case NATURAL_OUTER:
-      case CROSS:
-        // copy all the tag values for natural and cross IF no tags are
-        // present.
-        if (encoded_joins == null || 
-            config.type == JoinType.NATURAL ||
-            config.type == JoinType.NATURAL_OUTER) {
-          int matched_tags = 0;
-          if (id.tags() != null) {
-            for (final Entry<byte[], byte[]> entry : id.tags().entrySet()) {
-              if (encoded_joins != null && encoded_joins.containsKey(entry.getKey())) {
-                matched_tags++;
-              }
-              buf.write(entry.getValue());
+    final ByteMap<byte[]> tags;
+    if (id.tags() == null) { // shouldn't happen.
+      tags = new ByteMap<byte[]>();
+    } else if (id.tags() instanceof ByteMap) {
+      tags = (ByteMap<byte[]>) id.tags();
+    } else {
+      // TODO - may have other sorted byte map implementations to look for.
+      tags = new ByteMap<byte[]>();
+      for (final Entry<byte[], byte[]> entry : id.tags().entrySet()) {
+        tags.put(entry.getKey(), entry.getValue());
+      }
+    }
+    switch (config.type) {
+    case NATURAL:
+    case NATURAL_OUTER:
+    case CROSS:
+      // copy all the tag values for natural and cross and count the matching 
+      // join config tag keys present.
+      if (encoded_joins == null || 
+          config.type == JoinType.NATURAL ||
+          config.type == JoinType.NATURAL_OUTER) {
+        int matched_tags = 0;
+        if (id.tags() != null) {
+          for (final Entry<byte[], byte[]> entry : tags.entrySet()) {
+            if (encoded_joins != null && encoded_joins.containsKey(entry.getKey())) {
+              matched_tags++;
+            }
+            if (hash == 0) {
+              hash = XXHash.hash(entry.getValue());
+            } else {
+              hash = XXHash.updateHash(hash, entry.getValue());
             }
           }
-          
-          if (!config.joins.isEmpty() && 
-              matched_tags < config.joins.size()) {
-              // TODO - log the ejection
-            return;
-          }
-          
-          // break either way. If the series had no tags then we just 
-          // hash on the empty string.
-          break;
         }
         
-        // NOTE: We're letting the CROSS join fall through here so as to
-        // filter on the tags.
-      default:
-        if (config.joins != null) {
-          boolean matched = true;
-          for (final Entry<byte[], byte[]> pair : encoded_joins) {
-            byte[] value = id.tags().get(is_left ? pair.getKey() : pair.getValue());
+        if (!config.joins.isEmpty() && 
+            matched_tags < config.joins.size()) {
+            // TODO - log the ejection
+          return;
+        }
+        
+        // break either way. If the series had no tags then we just 
+        // hash on the empty string.
+        break;
+      }
+      
+      // NOTE: We're letting the CROSS join fall through here so as to
+      // filter on the tags.
+    default:
+      if (config.joins != null) {
+        boolean matched = true;
+        for (final Entry<byte[], byte[]> pair : encoded_joins) {
+          byte[] value = tags.get(pair.getKey());
+          if (value == null || value.length < 1) {
+            value = tags.get(pair.getValue());
             if (value == null || value.length < 1) {
               // TODO - log the ejection
               matched = false;
               break;
             }
-            buf.write(value);
           }
-          if (!matched) {
-            // TODO - log the ejection
-            return;
-          }
-          if (config.getExplicitTags() && 
-              id.tags().size() != config.getJoins().size()) {
-            // TODO - log the ejection
-            return;
+          if (hash == 0) {
+            hash = XXHash.hash(value);
+          } else {
+            hash = XXHash.updateHash(hash, value);
           }
         }
+        if (!matched) {
+          // TODO - log the ejection
+          return;
+        }
+        if (config.getExplicitTags() && 
+            tags.size() != config.getJoins().size()) {
+          // TODO - log the ejection
+          return;
+        }
       }
-      
-      join_set.add(key, LongHashFunction.xx().hashBytes(buf.toByteArray()), ts, is_left);
-    } catch (IOException e) {
-      throw new QueryExecutionException("Unexpected exception joining results", 0, e);
     }
+    
+    join_set.add(operand, hash, ts);
   }
   
   static boolean contains(final byte[] tag, final Collection<byte[]> tags) {

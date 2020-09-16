@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.utils.Pair;
-
 /**
  * A left join that only returns the values from the left hash map that
  * do <b>not</b> match a value in the right map.
+ * 
+ * <b>NOTE:</b> When used in a ternary we just use the 
+ * {@link BaseJoin#naturalTernaryLeftOrRightAdvance()} method for now.
  * 
  * @since 3.0
  */
@@ -32,13 +32,13 @@ public class LeftDisjointJoin extends BaseJoin {
    */
   protected LeftDisjointJoin(final BaseHashedJoinSet join) {
     super(join);
-    left_iterator = join.left_map == null ? null : join.left_map.iterator();
-    if (left_iterator != null) {
-      pair = new Pair<TimeSeries, TimeSeries>(null, null);  
-      next = new Pair<TimeSeries, TimeSeries>(null, null);
+    if (join.condition_map != null && 
+        join.left_map != null) {
+      ternaryAdvance();
+    } else if (left_iterator != null) {
       advance();
     } else {
-      pair = null;
+      current = null;
       next = null;
     }
   }
@@ -49,8 +49,8 @@ public class LeftDisjointJoin extends BaseJoin {
           (left_series != null && left_idx < left_series.size())) {
       if (left_series != null && left_idx + 1 < left_series.size()) {
         left_idx++;
-        next.setKey(left_series.get(left_idx));
-        next.setValue(null);
+        next[0] = left_series.get(left_idx);
+        next[1] = null;
         return;
       }
       
@@ -73,8 +73,8 @@ public class LeftDisjointJoin extends BaseJoin {
       if (join.right_map == null || 
           !join.right_map.containsKey(left_iterator.key())) {
         // no match from left to right, that's what we want
-        next.setKey(left_series.get(left_idx));
-        next.setValue(null);
+        next[0] = left_series.get(left_idx);
+        next[1] = null;
         return; 
       }
       
@@ -84,5 +84,10 @@ public class LeftDisjointJoin extends BaseJoin {
     
     // all done!
     next = null;
+  }
+
+  @Override
+  protected void ternaryAdvance() {
+    naturalTernaryLeftOrRightAdvance();
   }
 }

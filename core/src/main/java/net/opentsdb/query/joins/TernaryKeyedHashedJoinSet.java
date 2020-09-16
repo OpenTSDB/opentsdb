@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,33 +33,15 @@ import net.opentsdb.query.joins.Joiner.Operand;
  * 
  * @since 3.0
  */
-public class KeyedHashedJoinSet extends BaseHashedJoinSet {
+public class TernaryKeyedHashedJoinSet extends KeyedHashedJoinSet {
+
   
-  /**
-   * Default ctor.
-   * @param type The non-null type of join
-   * @param expected_sets The number of series we should expect 
-   * (left, right, condition)
-   */
-  protected KeyedHashedJoinSet(final JoinType type, 
-                               final int expected_sets) {
-    super(type, expected_sets, false);
+  protected TernaryKeyedHashedJoinSet(final JoinType type, 
+                                      final int expected_sets) {
+    super(type, expected_sets, true);
   }
   
-  /**
-   * Default ctor.
-   * @param type The non-null type of join
-   * @param expected_sets The number of series we should expect 
-   * (left, right, condition)
-   * @param is_ternary Whether or not it's a ternary set (used by the 
-   * {@link TernaryKeyedHashedJoinSet})
-   */
-  protected KeyedHashedJoinSet(final JoinType type, 
-                               final int expected_sets,
-                               final boolean is_ternary) {
-    super(type, expected_sets, is_ternary);
-  }
-  
+  @Override
   void add(final Operand operand, final long hash, final TimeSeries ts) {
     if (ts == null) {
       throw new IllegalArgumentException("Time series can't be null.");
@@ -85,8 +67,22 @@ public class KeyedHashedJoinSet extends BaseHashedJoinSet {
       }
       series.add(ts);
     } else {
-      throw new IllegalStateException("Shouldn't be here with a ternary condition.");
+      if (condition_map == null) {
+        condition_map = new TLongObjectHashMap<List<TimeSeries>>();
+      }
+      List<TimeSeries> series = condition_map.get(hash);
+      if (series == null) {
+        series = Lists.newArrayList();
+        condition_map.put(hash, series);
+      }
+      series.add(ts);
     }
   }
   
+  @Override
+  public String toString() {
+    return "L: " + (left_map != null ? left_map.size() : 0) + "  R: " +
+  (right_map != null ? right_map.size() : 0) + " C: " 
+        + (condition_map != null ? condition_map.size() : 0);
+  }
 }
