@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,13 +106,10 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
 
   }
 
-
-
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
@@ -178,12 +175,16 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
       return;
     }
     
-    // TODO - tag key filters.
-    
     if (filter instanceof TagValueFilter) {
       tag_keys.add(((TagValueFilter) filter).getTagKey());
       return;
     }
+    
+    if (filter instanceof TagKeyFilter) {
+      tag_keys.add(((TagKeyFilter) filter).filter());
+      return;
+    }
+    
     if (filter instanceof ChainFilter) {
       for (final QueryFilter child : ((ChainFilter) filter).getFilters()) {
         processFilter(child);
