@@ -54,6 +54,9 @@ public class TSUID implements TimeSeriesByteId {
   /** The schema. */
   protected final Schema schema;
   
+  /** The lazily initialized metric. */
+  protected byte[] metric;
+  
   /** The lazily initialized cache of tag mappings. */
   protected ByteMap<byte[]> tags;
   
@@ -265,7 +268,10 @@ public class TSUID implements TimeSeriesByteId {
 
   @Override
   public byte[] metric() {
-    return Arrays.copyOfRange(tsuid, 0, schema.metricWidth());
+    if (metric == null) {
+      metric = Arrays.copyOfRange(tsuid, 0, schema.metricWidth());
+    }
+    return metric;
   }
 
   @Override
