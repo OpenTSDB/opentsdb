@@ -141,7 +141,16 @@ public class NumericInterpolator implements QueryInterpolator<NumericType> {
     }
     
     has_next = false;
-    if (timestamp.compare(Op.EQ, next.timestamp())) {
+    while (timestamp.compare(Op.GT, next.timestamp())) {
+      if (iterator.hasNext()) {
+        next = (TimeSeriesValue<NumericType>) iterator.next();
+      } else {
+        next = null;
+        has_next = false;
+      }
+    }
+    
+    if (next != null && timestamp.compare(Op.EQ, next.timestamp())) {
       response.reset(next);
       if (previous == null) {
         previous = new MutableNumericValue(next);
