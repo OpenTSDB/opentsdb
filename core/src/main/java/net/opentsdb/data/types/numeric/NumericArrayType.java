@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,10 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
+import java.util.Collections;
+import java.util.List;
+
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
@@ -37,6 +41,10 @@ public interface NumericArrayType extends TimeSeriesDataType {
   /** The data type reference to pass around. */
   public static final TypeToken<NumericArrayType> TYPE = 
       TypeToken.of(NumericArrayType.class);
+  
+  /** The singleton list for series that only contain one type of data. */
+  public static final List<TypeToken<? extends TimeSeriesDataType>> SINGLE_LIST = 
+      Collections.unmodifiableList(Lists.newArrayList(TYPE));
   
   @Override
   default TypeToken<? extends TimeSeriesDataType> type() {

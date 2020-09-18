@@ -132,7 +132,7 @@ public class SummarizerNonPassThroughResult extends BaseWrappedQueryResult {
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
       // TODO - join with the factories supported.
-      return Lists.newArrayList(NumericSummaryType.TYPE);
+      return NumericSummaryType.SINGLE_LIST;
     }
 
     @Override

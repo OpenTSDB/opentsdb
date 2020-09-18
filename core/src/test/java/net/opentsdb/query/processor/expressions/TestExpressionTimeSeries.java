@@ -103,10 +103,10 @@ public class TestExpressionTimeSeries {
     when(joiner.joinIds(eq(condition), eq(null), 
         anyString())).thenReturn(condition_id);
     
-    when(left.types()).thenReturn(Lists.newArrayList(NumericType.TYPE));
+    when(left.types()).thenReturn(NumericType.SINGLE_LIST);
     when(right.types()).thenReturn(Lists.newArrayList(
         NumericType.TYPE, NumericSummaryType.TYPE));
-    when(condition.types()).thenReturn(Lists.newArrayList(NumericType.TYPE));
+    when(condition.types()).thenReturn(NumericType.SINGLE_LIST);
     
     when(factory.newTypedIterator(eq(NumericType.TYPE), 
         eq(node), eq(result), any(Map.class)))
