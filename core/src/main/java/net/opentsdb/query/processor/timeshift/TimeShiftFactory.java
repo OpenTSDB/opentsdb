@@ -142,7 +142,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory<TimeShiftConfig, Time
 
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericType.TYPE);
+      return NumericType.SINGLE_LIST;
     }
 
   }
@@ -172,7 +172,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory<TimeShiftConfig, Time
 
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericArrayType.TYPE);
+      return NumericArrayType.SINGLE_LIST;
     }
 
   }
@@ -202,7 +202,7 @@ public class TimeShiftFactory extends BaseQueryNodeFactory<TimeShiftConfig, Time
 
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericSummaryType.TYPE);
+      return NumericSummaryType.SINGLE_LIST;
     }
 
   }

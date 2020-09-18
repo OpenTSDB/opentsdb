@@ -350,7 +350,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
 
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericType.TYPE);
+      return NumericType.SINGLE_LIST;
     }
     
   }
@@ -396,7 +396,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericSummaryType.TYPE);
+      return NumericSummaryType.SINGLE_LIST;
     }
   }
 
@@ -435,7 +435,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
 
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericArrayType.TYPE);
+      return NumericArrayType.SINGLE_LIST;
     }
     
   }

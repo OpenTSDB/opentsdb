@@ -148,7 +148,7 @@ public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Su
 
     @Override
     public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return Lists.newArrayList(NumericSummaryType.TYPE);
+      return NumericSummaryType.SINGLE_LIST;
     }
         
   }

@@ -97,7 +97,7 @@ public class MockNumericTimeSeries implements TimeSeries {
 
   @Override
   public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-    return Lists.newArrayList(NumericType.TYPE);
+    return NumericType.SINGLE_LIST;
   }
 
   @Override

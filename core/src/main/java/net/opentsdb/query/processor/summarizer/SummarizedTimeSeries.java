@@ -90,7 +90,7 @@ public class SummarizedTimeSeries implements TimeSeries {
 
   @Override
   public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-    return Lists.newArrayList(NumericSummaryType.TYPE);
+    return NumericSummaryType.SINGLE_LIST;
   }
 
   @Override

@@ -15,7 +15,9 @@
 package net.opentsdb.data.types.numeric;
 
 import java.util.Collection;
+import java.util.List;
 
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
@@ -36,6 +38,10 @@ import net.opentsdb.rollup.DefaultRollupConfig;
 public interface NumericSummaryType extends TimeSeriesDataType {
   public static final TypeToken<NumericSummaryType> TYPE = 
       TypeToken.of(NumericSummaryType.class);
+  
+  /** The singleton list for series that only contain one type of data. */
+  public static final List<TypeToken<? extends TimeSeriesDataType>> SINGLE_LIST = 
+      Lists.newArrayList(TYPE);
   
   @Override
   default TypeToken<? extends TimeSeriesDataType> type() {

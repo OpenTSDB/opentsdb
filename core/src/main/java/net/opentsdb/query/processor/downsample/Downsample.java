@@ -328,7 +328,7 @@ public class Downsample extends AbstractQueryNode {
             config.getProcessAsArrays() && 
             (source.types().contains(NumericType.TYPE)
               || source.types().contains(NumericArrayType.TYPE))) {
-          return Lists.newArrayList(NumericArrayType.TYPE);
+          return NumericArrayType.SINGLE_LIST;
         } else {
           return source.types();
         }

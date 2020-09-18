@@ -145,7 +145,7 @@ public class NumericArrayTimeSeries implements TimeSeries {
 
   @Override
   public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-    return Lists.newArrayList(NumericArrayType.TYPE);
+    return NumericArrayType.SINGLE_LIST;
   }
 
   @Override

@@ -53,7 +53,7 @@ public class TestTimeShift {
   @BeforeClass
   public static void beforeClass() throws Exception {
     SERIES = mock(TimeSeries.class);
-    when(SERIES.types()).thenReturn(Lists.newArrayList(NumericType.TYPE));
+    when(SERIES.types()).thenReturn(NumericType.SINGLE_LIST);
     NODE = mock(TimeShift.class);
     FACTORY = mock(TimeShiftFactory.class);
     CONTEXT = mock(QueryPipelineContext.class);
