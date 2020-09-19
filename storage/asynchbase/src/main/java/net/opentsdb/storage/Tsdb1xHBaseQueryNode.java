@@ -73,7 +73,7 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
+public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xHBaseQueryNode.class);
 
@@ -709,15 +709,8 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
               Tsdb1xHBaseQueryNode.this, 
               config, 
               tsuids);
-          if (push) {
-            executor.fetchNext(null, span);
-          } else {
-            executor.fetchNext(new Tsdb1xQueryResult(
-                sequence_id.incrementAndGet(), 
-                Tsdb1xHBaseQueryNode.this, 
-                parent.schema()), 
-            span);
-          }
+          // Don't run in the meta store's threadpool.
+          parent.tsdb().getQueryThreadPool().submit(Tsdb1xHBaseQueryNode.this);
         } else {
           LOG.error("WTF? We lost an initialization race??");
         }
@@ -956,6 +949,19 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode {
       Deferred.group(deferreds)
         .addCallback(new GroupCB())
         .addErrback(new ErrorCB());
+    }
+  }
+  
+  @Override
+  public void run() {
+    if (push) {
+      executor.fetchNext(null, null);
+    } else {
+      executor.fetchNext(new Tsdb1xQueryResult(
+          sequence_id.incrementAndGet(), 
+          Tsdb1xHBaseQueryNode.this, 
+          parent.schema()), 
+      null);
     }
   }
 }
