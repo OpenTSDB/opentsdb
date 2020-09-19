@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow.Cell;
 import com.google.common.collect.Maps;
 
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
@@ -69,9 +68,8 @@ public class Tsdb1xBigtableQueryResult extends
   public void decode(final FlatRow row,
                      final RollupInterval interval) {
     final byte[] key = row.getRowKey().toByteArray();
-    final byte[] tsuid = schema.getTSUID(key);
     final long base_timestamp = schema.baseTimestamp(key);
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+    final long hash = schema.getTSUIDHash(key);
     final RowSeq numerics;
     if (((Tsdb1xBigtableQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
       if (interval != null) {
@@ -135,14 +133,14 @@ public class Tsdb1xBigtableQueryResult extends
     if (numerics != null) {
       final ChronoUnit resolution = numerics.dedupe(
           node.pipelineContext().tsdb(), keep_earliest, reversed);
-      addSequence(hash, tsuid, numerics, resolution);
+      addSequence(hash, key, numerics, resolution);
     }
     
     if (row_sequences != null) {
       for (final RowSeq sequence : row_sequences.values()) {
         final ChronoUnit resolution = sequence.dedupe(
             node.pipelineContext().tsdb(), keep_earliest, reversed);
-        addSequence(hash, tsuid, sequence, resolution);
+        addSequence(hash, key, sequence, resolution);
       }
     }
   }
@@ -162,9 +160,8 @@ public class Tsdb1xBigtableQueryResult extends
   public void decode(final Row row,
                      final RollupInterval interval) {
     final byte[] key = row.getKey().toByteArray();
-    final byte[] tsuid = schema.getTSUID(key);
     final long base_timestamp = schema.baseTimestamp(key);
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+    final long hash = schema.getTSUIDHash(key);
     final RowSeq numerics;
     if (((Tsdb1xBigtableQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
       if (interval != null) {
@@ -230,14 +227,14 @@ public class Tsdb1xBigtableQueryResult extends
     if (numerics != null) {
       final ChronoUnit resolution = numerics.dedupe(
           node.pipelineContext().tsdb(), keep_earliest, reversed);
-      addSequence(hash, tsuid, numerics, resolution);
+      addSequence(hash, key, numerics, resolution);
     }
     
     if (row_sequences != null) {
       for (final RowSeq sequence : row_sequences.values()) {
         final ChronoUnit resolution = sequence.dedupe(
             node.pipelineContext().tsdb(), keep_earliest, reversed);
-        addSequence(hash, tsuid, sequence, resolution);
+        addSequence(hash, key, sequence, resolution);
       }
     }
   }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.hbase.async.KeyValue;
 
 import com.google.common.collect.Maps;
 
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
@@ -67,9 +66,8 @@ public class Tsdb1xQueryResult extends
    */
   public void decode(final ArrayList<KeyValue> row,
                      final RollupInterval interval) {
-    final byte[] tsuid = schema.getTSUID(row.get(0).key());
     final long base_timestamp = schema.baseTimestamp(row.get(0).key());
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+    final long hash = schema.getTSUIDHash(row.get(0).key());
     final RowSeq numerics;
     if (((Tsdb1xHBaseQueryNode) node).fetchDataType(NUMERIC_TYPE)) {
       if (interval != null) {
@@ -126,17 +124,20 @@ public class Tsdb1xQueryResult extends
       }
     }
     
+    // TODO - we need to find a way to handle the dedupe ONCE in case we have 
+    //        multiple dps across multiple calls to a scanner!
+    // TODO - handle the write-back of the deduped columns.
     if (numerics != null) {
       final ChronoUnit resolution = numerics.dedupe(node.pipelineContext().tsdb(), 
           keep_earliest, reversed);
-      addSequence(hash, tsuid, numerics, resolution);
+      addSequence(hash, row.get(0).key(), numerics, resolution);
     }
     
     if (row_sequences != null) {
       for (final RowSeq sequence : row_sequences.values()) {
         final ChronoUnit resolution = sequence.dedupe(node.pipelineContext().tsdb(), 
             keep_earliest, reversed);
-        addSequence(hash, tsuid, sequence, resolution);
+        addSequence(hash, row.get(0).key(), sequence, resolution);
       }
     }
   }

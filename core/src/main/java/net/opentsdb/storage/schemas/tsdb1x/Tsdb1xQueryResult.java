@@ -17,6 +17,7 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -69,10 +70,10 @@ public class Tsdb1xQueryResult implements QueryResult {
   protected volatile boolean is_full;
   
   /** The number of bytes stored in the result. Rough estimate so far. */
-  protected volatile long bytes;
+  protected final AtomicLong bytes;
   
   /** The number of values stored in the result. */
-  protected volatile long dps;
+  protected final AtomicLong dps;
   
   /** The resolution of the data. */
   protected volatile ChronoUnit resolution;
@@ -113,6 +114,8 @@ public class Tsdb1xQueryResult implements QueryResult {
     this.schema = schema;
     results = Maps.newConcurrentMap();
     
+    bytes = new AtomicLong();
+    dps = new AtomicLong();
     final Configuration config = node.pipelineContext().tsdb().getConfig();
     byte_limit = node.config().getInt(config, Schema.QUERY_BYTE_LIMIT_KEY);
     dp_limit = node.config().getInt(config, Schema.QUERY_DP_LIMIT_KEY);
@@ -209,18 +212,18 @@ public class Tsdb1xQueryResult implements QueryResult {
    * NOTE: Since it's fast path, we aren't performing all the data
    * checks we could. Be careful.
    * @param tsuid_hash A hash of the TSUID.
-   * @param tsuid The non-null and non-empty TSUID.
+   * @param row_key The non-null and non-empty row key used to extract the TSUID.
    * @param sequence The non-null row sequence to add.
    * @param resolution The highest resolution of the sequence.
    */
   public void addSequence(final long tsuid_hash,
-                          final byte[] tsuid, 
+                          final byte[] row_key, 
                           final RowSeq sequence,
                           final ChronoUnit resolution) {
     // TODO - figure out the size for the new TimeSeries objects
     TimeSeries series = results.get(tsuid_hash);
     if (series == null) {
-      series = new Tsdb1xTimeSeries(tsuid, schema);
+      series = new Tsdb1xTimeSeries(schema.getTSUID(row_key), schema);
       TimeSeries extant = results.putIfAbsent(tsuid_hash, series);
       if (extant != null) {
         // lost the race
@@ -234,20 +237,19 @@ public class Tsdb1xQueryResult implements QueryResult {
     
     // NOTE: This can overcount if we have dupes that are dropped when
     // multiple rows are merged in a sequence.
-    synchronized (this) {
-      bytes += sequence.size();
-      dps += sequence.dataPoints();
-      if (this.resolution == null || 
-          resolution.ordinal() < this.resolution.ordinal()) {
-        this.resolution = resolution;
-      }
+    long bytes_read = bytes.addAndGet(sequence.size());
+    long dps_read = dps.addAndGet(sequence.dataPoints());
+    // TODO - may need sync but for now we'll just rely on memory ordering.
+    if (this.resolution == null || 
+        resolution.ordinal() < this.resolution.ordinal()) {
+      this.resolution = resolution;
     }
     
     // since it's a best effort we don't need the lock
-    if (byte_limit > 0 && bytes > byte_limit) {
+    if (byte_limit > 0 && bytes_read > byte_limit) {
       is_full = true;
     }
-    if (dp_limit > 0 && dps > dp_limit) {
+    if (dp_limit > 0 && dps_read > dp_limit) {
       is_full = true;
     }
   }
@@ -256,7 +258,7 @@ public class Tsdb1xQueryResult implements QueryResult {
    * this method doesn't check to see if we "are" full. If it's not full
    * then the DP error is returned. */
   public String resultIsFullErrorMessage() {
-    if (byte_limit > 0 && bytes > byte_limit) {
+    if (byte_limit > 0 && bytes.get() > byte_limit) {
       // TODO - properly format in MB or GB or KB...
       final long mbs = (byte_limit / 1024 / 1024);
       return "Sorry, you have attempted to fetch more than our maximum "

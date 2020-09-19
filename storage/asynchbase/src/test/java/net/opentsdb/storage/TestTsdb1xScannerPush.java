@@ -49,7 +49,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.NoDataPartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -747,12 +746,12 @@ public class TestTsdb1xScannerPush extends UTBase {
     assertTrue(scanner.last_pts.isEmpty());
     assertEquals(16, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         METRIC_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        TAGV_BYTES);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -823,12 +822,12 @@ public class TestTsdb1xScannerPush extends UTBase {
     assertTrue(scanner.last_pts.isEmpty());
     assertEquals(16, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         METRIC_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        TAGV_BYTES);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -899,12 +898,12 @@ public class TestTsdb1xScannerPush extends UTBase {
     assertTrue(scanner.last_pts.isEmpty());
     assertEquals(16, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         METRIC_BYTES, 
         TS_SINGLE_SERIES_GAP, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        TAGV_BYTES);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -995,12 +994,12 @@ public class TestTsdb1xScannerPush extends UTBase {
     assertTrue(scanner.last_pts.isEmpty());
     assertEquals(16, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         METRIC_BYTES, 
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        TAGV_BYTES);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1054,12 +1053,12 @@ public class TestTsdb1xScannerPush extends UTBase {
     assertTrue(scanner.last_pts.isEmpty());
     assertEquals(16, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         METRIC_BYTES, 
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        TAGV_BYTES);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1111,12 +1110,12 @@ public class TestTsdb1xScannerPush extends UTBase {
     assertTrue(scanner.last_pts.isEmpty());
     assertEquals(4, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         METRIC_BYTES, 
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        TAGV_BYTES);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1168,12 +1167,12 @@ public class TestTsdb1xScannerPush extends UTBase {
     assertTrue(scanner.last_pts.isEmpty());
     assertEquals(4, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         METRIC_BYTES, 
         TS_MULTI_COLUMN_SERIES, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        TAGV_BYTES);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
@@ -1834,18 +1833,18 @@ public class TestTsdb1xScannerPush extends UTBase {
   void verifyDoubleSeries(final int size) {
     assertEquals(size, tsdb.runnables.size());
     
-    final byte[] tsuid_a = schema.getTSUID(makeRowKey(
+    final byte[] key_a = makeRowKey(
         METRIC_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
-        TAGV_BYTES));
-    final long hash_a = LongHashFunction.xx().hashBytes(tsuid_a);
-    final byte[] tsuid_b = schema.getTSUID(makeRowKey(
+        TAGV_BYTES);
+    final long hash_a = schema.getTSUIDHash(key_a);
+    final byte[] key_b = makeRowKey(
         METRIC_BYTES, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
-        TAGV_B_BYTES));
-    final long hash_b = LongHashFunction.xx().hashBytes(tsuid_b);
+        TAGV_B_BYTES);
+    final long hash_b = schema.getTSUIDHash(key_b);
     TimeStamp start = new SecondTimeStamp(TS_DOUBLE_SERIES);
     TimeStamp end = start.getCopy();
     end.add(duration);
@@ -1883,12 +1882,12 @@ public class TestTsdb1xScannerPush extends UTBase {
                        final long series_start) {
     assertEquals(size, tsdb.runnables.size());
     
-    final byte[] tsuid = schema.getTSUID(makeRowKey(
+    final byte[] key = makeRowKey(
         metric, 
         TS_SINGLE_SERIES, 
         TAGK_BYTES,
-        tagv));
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+        tagv);
+    final long hash = schema.getTSUIDHash(key);
     
     TimeStamp start = new SecondTimeStamp(series_start);
     TimeStamp end = start.getCopy();
