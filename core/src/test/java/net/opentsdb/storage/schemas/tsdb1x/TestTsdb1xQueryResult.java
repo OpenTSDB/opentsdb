@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,11 +64,13 @@ public class TestTsdb1xQueryResult extends SchemaBase {
   // GMT: Monday, January 1, 2018 1:15:00 AM
   public static final int END_TS = 1514769300;
   
-  private static final byte[] TSUID_A = 
-      Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES);
-  private static final byte[] TSUID_B = 
-      Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES);
   private static final long BASE_TIME = 1514764800;
+  private static final byte[] TSUID_A = 
+      Bytes.concat(METRIC_BYTES, net.opentsdb.utils.Bytes.fromInt((int) BASE_TIME), 
+          TAGK_BYTES, TAGV_BYTES);
+  private static final byte[] TSUID_B = 
+      Bytes.concat(METRIC_BYTES, net.opentsdb.utils.Bytes.fromInt((int) BASE_TIME), 
+          TAGK_BYTES, TAGV_B_BYTES);
   private static final byte[] APPEND_Q = 
       new byte[] { Schema.APPENDS_PREFIX, 0, 0 };
   
@@ -127,8 +129,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertEquals(0, result.byte_limit);
     assertEquals(0, result.dp_limit);
     assertFalse(result.isFull());
-    assertEquals(0, result.bytes);
-    assertEquals(0, result.dps);
+    assertEquals(0, result.bytes.get());
+    assertEquals(0, result.dps.get());
     assertNull(result.timeSpecification());
     assertTrue(result.timeSeries().isEmpty());
     assertEquals(Const.TS_BYTE_ID, result.idType());
@@ -167,8 +169,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     assertEquals(42, result.byte_limit);
     assertEquals(24, result.dp_limit);
     assertFalse(result.isFull());
-    assertEquals(0, result.bytes);
-    assertEquals(0, result.dps);
+    assertEquals(0, result.bytes.get());
+    assertEquals(0, result.dps.get());
     assertNull(result.timeSpecification());
     assertTrue(result.timeSeries().isEmpty());
     assertEquals(Const.TS_BYTE_ID, result.idType());
@@ -209,8 +211,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.MILLIS);
     assertEquals(1, result.results.size());
-    assertEquals(48, result.bytes);
-    assertEquals(4, result.dps);
+    assertEquals(48, result.bytes.get());
+    assertEquals(4, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
@@ -218,8 +220,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.NANOS);
     assertEquals(2, result.results.size());
-    assertEquals(96, result.bytes);
-    assertEquals(8, result.dps);
+    assertEquals(96, result.bytes.get());
+    assertEquals(8, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.NANOS, result.resolution());
     
@@ -256,8 +258,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(1, result.results.size());
-    assertEquals(48, result.bytes);
-    assertEquals(4, result.dps);
+    assertEquals(48, result.bytes.get());
+    assertEquals(4, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.SECONDS, result.resolution());
     
@@ -265,8 +267,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
-    assertEquals(96, result.bytes);
-    assertEquals(8, result.dps);
+    assertEquals(96, result.bytes.get());
+    assertEquals(8, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.SECONDS, result.resolution());
     
@@ -285,8 +287,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
-    assertEquals(144, result.bytes);
-    assertEquals(12, result.dps);
+    assertEquals(144, result.bytes.get());
+    assertEquals(12, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
@@ -294,8 +296,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
-    assertEquals(192, result.bytes);
-    assertEquals(16, result.dps);
+    assertEquals(192, result.bytes.get());
+    assertEquals(16, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
@@ -332,8 +334,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(1, result.results.size());
-    assertEquals(48, result.bytes);
-    assertEquals(4, result.dps);
+    assertEquals(48, result.bytes.get());
+    assertEquals(4, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.SECONDS, result.resolution());
     
@@ -341,8 +343,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
-    assertEquals(96, result.bytes);
-    assertEquals(8, result.dps);
+    assertEquals(96, result.bytes.get());
+    assertEquals(8, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
@@ -361,8 +363,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_A),
         TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
-    assertEquals(144, result.bytes);
-    assertEquals(12, result.dps);
+    assertEquals(144, result.bytes.get());
+    assertEquals(12, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
@@ -370,8 +372,8 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     result.addSequence(LongHashFunction.xx().hashBytes(TSUID_B),
         TSUID_B, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
-    assertEquals(192, result.bytes);
-    assertEquals(16, result.dps);
+    assertEquals(192, result.bytes.get());
+    assertEquals(16, result.dps.get());
     assertFalse(result.isFull());
     assertEquals(ChronoUnit.MILLIS, result.resolution());
     
@@ -423,12 +425,12 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     
     // byte limit
     result = new Tsdb1xQueryResult(9, node, schema);
-    result.bytes = 1024;
+    result.bytes.set(1024);
     assertTrue(result.resultIsFullErrorMessage().contains("MB from storage"));
     
     // dp limit
-    result.bytes = 1;
-    result.dps = 42;
+    result.bytes.set(1);
+    result.dps.set(42);
     assertTrue(result.resultIsFullErrorMessage().contains("data points"));
   }
 }

@@ -138,6 +138,9 @@ public class NumericCodec implements Codec {
   /** The append qualifier. */
   public static final byte[] APPEND_QUALIFIER = new byte[] { 0, 0, 5 };
   
+  /** Multiplier. */
+  public static final long SECONDS_TO_LONG = 1000L * 1000L * 1000L;
+  
   /** The resolution of an offset for encoding/decoding purposes. */
   public static enum OffsetResolution {
     NANOS,
@@ -358,8 +361,10 @@ public class NumericCodec implements Codec {
    */
   public static long offsetFromSecondQualifier(final byte[] qualifier, 
                                                final int offset) {
-    return ((Bytes.getUnsignedShort(qualifier, offset) & S_MASK) 
-        >>> FLAG_BITS) * 1000L * 1000L * 1000L;
+    // TODO Bytes.getShort(qualifier, offset); applies a mask to null out the 
+    // first couple of bytes of the int. I doubt it's necessary: 0x0000FFFF
+    return (((qualifier[offset] << 8 | qualifier[offset + 1] & 0xFF) & S_MASK) 
+        >>> FLAG_BITS) * SECONDS_TO_LONG;
   }
   
   /**

@@ -71,6 +71,7 @@ import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.XXHash;
 
 /**
  * The interface for an OpenTSDB version 1 and version 2 schema where 
@@ -341,6 +342,24 @@ public class Schema implements WritableTimeSeriesDataStore {
     System.arraycopy(key, salt_width, timeless, 0, metric_width);
     System.arraycopy(key, offset, timeless, metric_width, key.length - offset);
     return timeless;
+  }
+  
+  /**
+   * For the case where we don't need the TSUID, just the hash of it, we can
+   * call this to get a determinstic value.
+   * @param key The full row key.
+   * @return Just the hash.
+   */
+  public long getTSUIDHash(final byte[] key) {
+    if (Bytes.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    int offset = salt_width + metric_width + TIMESTAMP_BYTES;
+    if (key.length <= offset) {
+      throw new IllegalArgumentException("Key was too short.");
+    }
+    long hash = XXHash.hash(key, salt_width, metric_width);
+    return XXHash.updateHash(hash, key, offset, key.length - offset);
   }
   
   /**

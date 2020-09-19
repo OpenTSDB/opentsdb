@@ -39,7 +39,6 @@ import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SecondTimeStamp;
@@ -446,9 +445,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
           }
           
           it.remove();
-          
-          final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
-          deferreds.add(resolveAndFilter(tsuid, row, result, child));
+          deferreds.add(resolveAndFilter(row, result, child));
         }
       }
       
@@ -585,8 +582,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
               break;
             }
             
-            final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
-            deferreds.add(resolveAndFilter(tsuid, row, result, child));
+            deferreds.add(resolveAndFilter(row, result, child));
           }
           
           return Deferred.groupInOrder(deferreds)
@@ -912,14 +908,13 @@ public class Tsdb1xScanner implements CloseablePooledObject {
       }
       last_ts.update(base_ts);
       
-      final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
-      final long hash = LongHashFunction.xx().hashBytes(tsuid);
-  
+      final long hash = owner.node().schema().getTSUIDHash(row.get(0).key());
       // TODO - find a better spot. We may not pull any data from this row so we
       // shouldn't bother putting it in the ids.
       if (!owner.node().pipelineContext().hasId(hash, Const.TS_BYTE_ID)) {
         owner.node().pipelineContext().addId(hash, 
-            new TSUID(tsuid, owner.node().schema()));
+            new TSUID(owner.node().schema().getTSUID(row.get(0).key()), 
+                      owner.node().schema()));
       }
       
       Tsdb1xPartialTimeSeries pts = rollup_interval != null ? 
@@ -1124,17 +1119,16 @@ public class Tsdb1xScanner implements CloseablePooledObject {
    * necessary when we have to go through filters that couldn't be sent
    * to HBase.
    * 
-   * @param tsuid A non-null TSUID.
    * @param row A non-null row to process.
    * @param result A non-null result to store successful matches into.
    * @param span An optional tracing span.
    * @return A deferred to wait on before starting the next fetch.
    */
-  final Deferred<ArrayList<KeyValue>> resolveAndFilter(final byte[] tsuid, 
+  final Deferred<ArrayList<KeyValue>> resolveAndFilter(
                                           final ArrayList<KeyValue> row, 
                                           final Tsdb1xQueryResult result, 
                                           final Span span) {
-    final long hash = LongHashFunction.xx().hashBytes(tsuid);
+    final long hash = owner.node().schema().getTSUIDHash(row.get(0).key());
     boolean skip_or_keep;
     synchronized (skips) {
       skip_or_keep = skips.contains(hash);
@@ -1159,7 +1153,8 @@ public class Tsdb1xScanner implements CloseablePooledObject {
     }
     
     if (id == null) {
-      ResolvingId new_id = new ResolvingId(tsuid, hash);
+      ResolvingId new_id = new ResolvingId(
+          owner.node().schema().getTSUID(row.get(0).key()), hash);
       final ResolvingId extant;
       // check for a race to avoid resolving the same ID multiple times.
       synchronized (keys_to_ids) {
