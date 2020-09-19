@@ -717,25 +717,27 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
         num_scanners_opened = client_stats.scannersOpened();
       }
       
-      // TODO - bytes are oddballs in that they are, currently, aggregating the
-      // counters for each instantiated region client so the delta can be
-      // negative. Fix this in asynchbase client.
-      delta = client_stats.extendedStats().bytesRead() - bytes_read;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.bytes.read", delta, "id", id);
-      }
-      bytes_read = client_stats.extendedStats().bytesRead();
-      
-      delta = client_stats.extendedStats().bytesWritten() - bytes_written;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.bytes.written", delta, "id", id);
-      }
-      bytes_written = client_stats.extendedStats().bytesWritten();
-      
-      delta = client_stats.extendedStats().rpcsAgedOut() - rpcs_aged_out;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.scanners.opened", delta, "id", id);
-        rpcs_aged_out = client_stats.extendedStats().rpcsAgedOut();
+      if (client_stats.extendedStats() != null) {
+        // TODO - bytes are oddballs in that they are, currently, aggregating the
+        // counters for each instantiated region client so the delta can be
+        // negative. Fix this in asynchbase client.
+        delta = client_stats.extendedStats().bytesRead() - bytes_read;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.bytes.read", delta, "id", id);
+        }
+        bytes_read = client_stats.extendedStats().bytesRead();
+        
+        delta = client_stats.extendedStats().bytesWritten() - bytes_written;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.bytes.written", delta, "id", id);
+        }
+        bytes_written = client_stats.extendedStats().bytesWritten();
+        
+        delta = client_stats.extendedStats().rpcsAgedOut() - rpcs_aged_out;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.scanners.opened", delta, "id", id);
+          rpcs_aged_out = client_stats.extendedStats().rpcsAgedOut();
+        }
       }
       
       stats.setGauge("hbase.rpcs.inflight", client_stats.inflightRPCs(), "id", id);
@@ -745,17 +747,19 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       stats.setGauge("hbase.regionClients.open", client_stats.regionClients(), "id", id);
       stats.setGauge("hbase.regionClients.dead", client_stats.deadRegionClients(), "id", id);
       
-      for (final Entry<String, Long> entry : 
-          client_stats.extendedStats().exceptionCounters().entrySet()) {
-        Long extant = exception_counters.get(entry.getKey());
-        if (extant == null) {
-          exception_counters.put(entry.getKey(), (long) entry.getValue());
-        } else {
-          delta = entry.getValue() - extant;
-          if (delta > 0) {
-            stats.incrementCounter("hbase.exceptions", delta, "id", id, 
-                "type", entry.getKey());
+      if (client_stats.extendedStats() != null) {
+        for (final Entry<String, Long> entry : 
+            client_stats.extendedStats().exceptionCounters().entrySet()) {
+          Long extant = exception_counters.get(entry.getKey());
+          if (extant == null) {
             exception_counters.put(entry.getKey(), (long) entry.getValue());
+          } else {
+            delta = entry.getValue() - extant;
+            if (delta > 0) {
+              stats.incrementCounter("hbase.exceptions", delta, "id", id, 
+                  "type", entry.getKey());
+              exception_counters.put(entry.getKey(), (long) entry.getValue());
+            }
           }
         }
       }
