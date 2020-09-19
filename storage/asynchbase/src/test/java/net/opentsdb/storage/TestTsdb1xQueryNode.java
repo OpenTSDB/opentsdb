@@ -984,8 +984,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
         gets.tsuids.get(1));
     assertTrue(node.initialized.get());
-    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
-    verify(upstream_b, times(1)).onNext(any(QueryResult.class));
+    verify(tsdb.query_pool, times(1)).submit(node);
   }
   
   @Test

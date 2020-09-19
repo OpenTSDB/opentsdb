@@ -28,6 +28,9 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 
 public class Tsdb1xTimeSeries implements TimeSeries {
@@ -36,6 +39,9 @@ public class Tsdb1xTimeSeries implements TimeSeries {
   
   /** A map of types to spans. */
   protected volatile Map<TypeToken<? extends TimeSeriesDataType>, Span<?>> data;
+  
+  /** Lazily assigned types list. */
+  protected volatile List<TypeToken<? extends TimeSeriesDataType>> types;
   
   /**
    * Default ctor.
@@ -81,7 +87,7 @@ public class Tsdb1xTimeSeries implements TimeSeries {
 
   @Override
   public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-    return data.keySet();
+    return types == null ? data.keySet() : types;
   }
 
   @Override
@@ -114,6 +120,17 @@ public class Tsdb1xTimeSeries implements TimeSeries {
           if (span == null) {
             throw new IllegalDataException("No span found for type: " 
                 + sequence.type());
+          }
+          if (types == null) {
+            if (sequence.type() == NumericType.TYPE) {
+              types = NumericType.SINGLE_LIST;
+            } else if (sequence.type() == NumericSummaryType.TYPE) {
+              types = NumericSummaryType.SINGLE_LIST;
+            } else if (sequence.type() == NumericArrayType.TYPE) {
+              types = NumericArrayType.SINGLE_LIST;
+            } else {
+              types = Lists.newArrayList(sequence.type());
+            }
           }
           data.put(sequence.type(), span);
         }
