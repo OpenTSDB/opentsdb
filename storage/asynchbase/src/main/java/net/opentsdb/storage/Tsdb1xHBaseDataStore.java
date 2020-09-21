@@ -839,81 +839,83 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
         inflight_breached = region_stats.inflightBreached();
       }
       
-      delta = region_stats.extendedStats().decodeCalled() - decode_called;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.decodeCalled", 
-            delta, "id", id, "regionServer", region_server);
-        decode_called = region_stats.extendedStats().decodeCalled();
-      }
-      
-      delta = region_stats.extendedStats().replays() - replays;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.replays", 
-            delta, "id", id, "regionServer", region_server);
-        replays = region_stats.extendedStats().replays();
-      }
-      
-      delta = region_stats.extendedStats().NSREExceptions() - nsre_exceptions;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.nsreExceptions", 
-            delta, "id", id, "regionServer", region_server);
-        nsre_exceptions = region_stats.extendedStats().NSREExceptions();
-      }
-      
-      delta = region_stats.extendedStats().probesSent() - probes_sent;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.probesSent", 
-            delta, "id", id, "regionServer", region_server);
-        probes_sent = region_stats.extendedStats().probesSent();
-      }
-      
-      delta = region_stats.extendedStats().probesSucceeded() - probes_succeeded;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.probesSucceeded", 
-            delta, "id", id, "regionServer", region_server);
-        probes_succeeded = region_stats.extendedStats().probesSucceeded();
-      }
-      
-      delta = region_stats.extendedStats().probesNsred() - probes_nsred;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.probesNSREd", 
-            delta, "id", id, "regionServer", region_server);
-        probes_nsred = region_stats.extendedStats().probesNsred();
-      }
-      
-      delta = region_stats.extendedStats().probesWithException() - probes_with_exception;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.probesWithException", 
-            delta, "id", id, "regionServer", region_server);
-        probes_with_exception = region_stats.extendedStats().probesWithException();
-      }
-      
-      delta = region_stats.extendedStats().probesTimedout() - probes_timedout;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.probesTimedout", 
-            delta, "id", id, "regionServer", region_server);
-        probes_timedout = region_stats.extendedStats().probesTimedout();
-      }
-      
-      delta = region_stats.extendedStats().CQTBEs() - cqtbes;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.CQTBEs", 
-            delta, "id", id, "regionServer", region_server);
-        cqtbes = region_stats.extendedStats().CQTBEs();
-      }
-      
-      delta = region_stats.extendedStats().bytesRead() - bytes_read;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.bytes.read", 
-            delta, "id", id, "regionServer", region_server);
-        bytes_read = region_stats.extendedStats().bytesRead();
-      }
-      
-      delta = region_stats.extendedStats().bytesWritten() - bytes_written;
-      if (delta > 0) {
-        stats.incrementCounter("hbase.regionServer.bytes.written", 
-            delta, "id", id, "regionServer", region_server);
-        bytes_written = region_stats.extendedStats().bytesWritten();
+      if (region_stats.extendedStats() != null) {
+        delta = region_stats.extendedStats().decodeCalled() - decode_called;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.decodeCalled", 
+              delta, "id", id, "regionServer", region_server);
+          decode_called = region_stats.extendedStats().decodeCalled();
+        }
+        
+        delta = region_stats.extendedStats().replays() - replays;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.replays", 
+              delta, "id", id, "regionServer", region_server);
+          replays = region_stats.extendedStats().replays();
+        }
+        
+        delta = region_stats.extendedStats().NSREExceptions() - nsre_exceptions;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.nsreExceptions", 
+              delta, "id", id, "regionServer", region_server);
+          nsre_exceptions = region_stats.extendedStats().NSREExceptions();
+        }
+        
+        delta = region_stats.extendedStats().probesSent() - probes_sent;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.probesSent", 
+              delta, "id", id, "regionServer", region_server);
+          probes_sent = region_stats.extendedStats().probesSent();
+        }
+        
+        delta = region_stats.extendedStats().probesSucceeded() - probes_succeeded;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.probesSucceeded", 
+              delta, "id", id, "regionServer", region_server);
+          probes_succeeded = region_stats.extendedStats().probesSucceeded();
+        }
+        
+        delta = region_stats.extendedStats().probesNsred() - probes_nsred;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.probesNSREd", 
+              delta, "id", id, "regionServer", region_server);
+          probes_nsred = region_stats.extendedStats().probesNsred();
+        }
+        
+        delta = region_stats.extendedStats().probesWithException() - probes_with_exception;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.probesWithException", 
+              delta, "id", id, "regionServer", region_server);
+          probes_with_exception = region_stats.extendedStats().probesWithException();
+        }
+        
+        delta = region_stats.extendedStats().probesTimedout() - probes_timedout;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.probesTimedout", 
+              delta, "id", id, "regionServer", region_server);
+          probes_timedout = region_stats.extendedStats().probesTimedout();
+        }
+        
+        delta = region_stats.extendedStats().CQTBEs() - cqtbes;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.CQTBEs", 
+              delta, "id", id, "regionServer", region_server);
+          cqtbes = region_stats.extendedStats().CQTBEs();
+        }
+        
+        delta = region_stats.extendedStats().bytesRead() - bytes_read;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.bytes.read", 
+              delta, "id", id, "regionServer", region_server);
+          bytes_read = region_stats.extendedStats().bytesRead();
+        }
+        
+        delta = region_stats.extendedStats().bytesWritten() - bytes_written;
+        if (delta > 0) {
+          stats.incrementCounter("hbase.regionServer.bytes.written", 
+              delta, "id", id, "regionServer", region_server);
+          bytes_written = region_stats.extendedStats().bytesWritten();
+        }
       }
       
       stats.setGauge("hbase.regionServer.rpcs.inflight", region_stats.inflightRPCs(),
@@ -930,17 +932,19 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
           !Double.isFinite(region_stats.rateLimit()) ? -1 : region_stats.rateLimit(),
           "id", id, "regionServer", region_server);
       
-      for (final Entry<String, Long> entry : 
-          region_stats.extendedStats().exceptionCounters().entrySet()) {
-        Long extant = exception_counters.get(entry.getKey());
-        if (extant == null) {
-          exception_counters.put(entry.getKey(), (long) entry.getValue());
-        } else {
-          delta = entry.getValue() - extant;
-          if (delta > 0) {
-            stats.incrementCounter("hbase.regionServer.exceptions", delta, "id", id, 
-                "regionServer", region_server, "type", entry.getKey());
+      if (region_stats.extendedStats() != null) {
+        for (final Entry<String, Long> entry : 
+            region_stats.extendedStats().exceptionCounters().entrySet()) {
+          Long extant = exception_counters.get(entry.getKey());
+          if (extant == null) {
             exception_counters.put(entry.getKey(), (long) entry.getValue());
+          } else {
+            delta = entry.getValue() - extant;
+            if (delta > 0) {
+              stats.incrementCounter("hbase.regionServer.exceptions", delta, "id", id, 
+                  "regionServer", region_server, "type", entry.getKey());
+              exception_counters.put(entry.getKey(), (long) entry.getValue());
+          }
         }
       }
     }
