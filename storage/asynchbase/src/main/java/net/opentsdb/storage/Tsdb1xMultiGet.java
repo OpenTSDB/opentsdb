@@ -202,6 +202,9 @@ public class Tsdb1xMultiGet implements
   /** How many batches have responded. */
   protected volatile AtomicIntegerArray finished_batches_per_set;
   
+  /** Backup to let us close if something is wedged. */
+  protected AtomicInteger close_attempts;
+  
   /**
    * Default ctor.
    */
@@ -213,6 +216,7 @@ public class Tsdb1xMultiGet implements
     has_failed = new AtomicBoolean();
     all_batches_sent = new AtomicBoolean();
     outstanding = new AtomicInteger();
+    close_attempts = new AtomicInteger();
   }
   
   public void run(final Timeout timeout) {
@@ -396,12 +400,15 @@ public class Tsdb1xMultiGet implements
   @Override
   public void close() {
     if (outstanding.get() > 0) {
-      node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
-          this, 100, TimeUnit.MILLISECONDS);
-      if (LOG.isTraceEnabled()) {
-        LOG.trace("Waiting on calls to finish before returning to the pool.");
+      if (close_attempts.incrementAndGet() < 100) {
+        node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
+            this, 100, TimeUnit.MILLISECONDS);
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Waiting on calls to finish before returning to the pool: " 
+              + close_attempts.get());
+        }
+        return;
       }
-      return;
     }
     node = null;
     source_config = null;
@@ -413,6 +420,7 @@ public class Tsdb1xMultiGet implements
     end_timestamp.updateEpoch(-1);
     all_batches_sent.set(false);
     has_failed.set(false);
+    close_attempts.set(0);
     child = null;
     outstanding.set(0);
     tsuid_idx = -1;
