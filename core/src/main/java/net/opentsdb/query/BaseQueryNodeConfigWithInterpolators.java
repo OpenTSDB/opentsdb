@@ -15,6 +15,8 @@
 package net.opentsdb.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -22,7 +24,9 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.Comparators.MapComparator;
 
 import java.util.Collection;
@@ -35,7 +39,10 @@ import java.util.Map;
  * 
  * @since 3.0
  */
-public abstract class BaseQueryNodeConfigWithInterpolators<B extends BaseQueryNodeConfigWithInterpolators.Builder<B, C>, C extends BaseQueryNodeConfigWithInterpolators> extends BaseQueryNodeConfig<B, C> {
+public abstract class BaseQueryNodeConfigWithInterpolators
+    <B extends BaseQueryNodeConfigWithInterpolators.Builder<B, C>, 
+       C extends BaseQueryNodeConfigWithInterpolators> 
+          extends BaseQueryNodeConfig<B, C> {
 
   /** A comparator for the interpolator map. */
   protected static MapComparator<TypeToken<?>, QueryInterpolatorConfig> INTERPOLATOR_CMP
@@ -172,4 +179,37 @@ public abstract class BaseQueryNodeConfigWithInterpolators<B extends BaseQueryNo
     return Hashing.combineOrdered(hashes);
   }
   
+  /**
+   * Parses out the "interpolatorConfigs" config.
+   * @param builder The non-null builder to populate.
+   * @param mapper The non-null mapper.
+   * @param tsdb The non-null TSDB.
+   * @param node The non-null node.
+   */
+  public static void parse(final Builder builder,
+                           final ObjectMapper mapper,
+                           final TSDB tsdb,
+                           final JsonNode node) {
+    JsonNode n = node.get("interpolatorConfigs");
+    if (n != null && !n.isNull()) {
+      for (final JsonNode config : n) {
+        JsonNode type_json = config.get("type");
+        final QueryInterpolatorFactory factory = tsdb.getRegistry().getPlugin(
+            QueryInterpolatorFactory.class, 
+            type_json == null ? null : type_json.asText());
+        if (factory == null) {
+          throw new IllegalArgumentException("Unable to find an "
+              + "interpolator factory for: " + 
+              type_json == null ? "default" :
+                type_json.asText());
+        }
+        
+        final QueryInterpolatorConfig interpolator_config = 
+            factory.parseConfig(mapper, tsdb, config);
+        builder.addInterpolatorConfig(interpolator_config);
+      }
+    }
+    
+    BaseQueryNodeConfig.parse(builder, mapper, tsdb, node);
+  }
 }

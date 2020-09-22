@@ -192,11 +192,11 @@ public class ExpressionParser extends DefaultErrorStrategy
   }
 
   /** Helper class. */
-  protected static class NumericLiteral {
+  public static class NumericLiteral {
     final boolean is_integer;
     final long number;
 
-    NumericLiteral(final long number) {
+    public NumericLiteral(final long number) {
       is_integer = true;
       this.number = number;
     }
