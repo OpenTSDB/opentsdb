@@ -21,6 +21,9 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -30,6 +33,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Comparators;
 
 /**
@@ -278,6 +282,32 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
       .setOverrides(overrides != null ? Maps.newHashMap(overrides) : null)
       .setType(type)
       .setId(id);
+  }
+  
+  /**
+   * Parses out the Id and sources.
+   * @param builder The non-null builder to populate.
+   * @param mapper The non-null mapper.
+   * @param tsdb The non-null TSDB.
+   * @param node The non-null node.
+   */
+  public static void parse(final Builder builder,
+                           final ObjectMapper mapper,
+                           final TSDB tsdb,
+                           final JsonNode node) {
+    JsonNode n = node.get("id");
+    if (n != null) {
+      builder.setId(n.asText());
+    }
+    
+    n = node.get("sources");
+    if (n != null && !n.isNull()) {
+      try {
+        builder.setSources(mapper.treeToValue(n, List.class));
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Failed to parse json", e);
+      }
+    }
   }
   
   /** Base builder for QueryNodeConfig. */
