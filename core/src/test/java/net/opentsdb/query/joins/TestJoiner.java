@@ -1193,7 +1193,7 @@ public class TestJoiner extends BaseJoinTest {
     Joiner joiner = new Joiner(config);
     
     TimeSeriesStringId id = (TimeSeriesStringId) joiner.joinIds(
-        L_1, R_1, ALIAS2);
+        L_1, R_1, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1203,7 +1203,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // left only
-    id = (TimeSeriesStringId) joiner.joinIds(L_1, null, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(L_1, null, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1213,7 +1213,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // right only
-    id = (TimeSeriesStringId) joiner.joinIds(null, R_1, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(null, R_1, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1223,7 +1223,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // two tags
-    id = (TimeSeriesStringId) joiner.joinIds(L_6A, R_6A, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(L_6A, R_6A, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1234,7 +1234,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // promote tag
-    id = (TimeSeriesStringId) joiner.joinIds(L_4, R_4A, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(L_4, R_4A, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1247,7 +1247,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless promote
     TimeSeries ts = mock(TimeSeries.class);
     when(ts.id()).thenReturn(TAGLESS_STRING);
-    id = (TimeSeriesStringId) joiner.joinIds(L_1, ts, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(L_1, ts, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1260,7 +1260,7 @@ public class TestJoiner extends BaseJoinTest {
     when(ts.id()).thenReturn(TAG_PROMOTION_L_STRING);
     TimeSeries r = mock(TimeSeries.class);
     when(r.id()).thenReturn(TAG_PROMOTION_R_STRING);
-    id = (TimeSeriesStringId) joiner.joinIds(ts, r, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(ts, r, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1274,17 +1274,17 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().contains("unit"));
     
     try {
-      joiner.joinIds((TimeSeries) null, (TimeSeries) null, ALIAS2);
+      joiner.joinIds((TimeSeries) null, (TimeSeries) null, ALIAS2, config.getJoinType());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      joiner.joinIds(L_1, R_1, null);
+      joiner.joinIds(L_1, R_1, null, config.getJoinType());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      joiner.joinIds(L_1, R_1, "");
+      joiner.joinIds(L_1, R_1, "", config.getJoinType());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -1296,7 +1296,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     joiner = new Joiner(config);
     
-    id = (TimeSeriesStringId) joiner.joinIds(L_1, R_1, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(L_1, R_1, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
@@ -1313,12 +1313,38 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     joiner = new Joiner(config);
     
-    id = (TimeSeriesStringId) joiner.joinIds(L_1, R_1, ALIAS2);
+    id = (TimeSeriesStringId) joiner.joinIds(L_1, R_1, ALIAS2, config.getJoinType());
     assertEquals(ALIAS2, id.alias());
     assertEquals(NAMESPACE, id.namespace());
     assertEquals(ALIAS2, id.metric());
     assertEquals(1, id.tags().size());
     assertEquals("web01", id.tags().get("host"));
+    assertTrue(id.aggregatedTags().isEmpty());
+    assertTrue(id.disjointTags().isEmpty());
+    
+    // cross tagless
+    TimeSeriesStringId tagless_id = BaseTimeSeriesStringId.newBuilder()
+        .setMetric("tagless")
+        .build();
+    TimeSeries tagless = mock(TimeSeries.class);
+    when(tagless.id()).thenReturn(tagless_id);
+    id = (TimeSeriesStringId) joiner.joinIds(L_5A, tagless, ALIAS2, JoinType.CROSS);
+    assertEquals(ALIAS2, id.alias());
+    assertEquals(NAMESPACE, id.namespace());
+    assertEquals(ALIAS2, id.metric());
+    assertEquals(2, id.tags().size());
+    assertEquals("web05", id.tags().get("host"));
+    assertEquals("tyrion", id.tags().get("owner"));
+    assertTrue(id.aggregatedTags().isEmpty());
+    assertTrue(id.disjointTags().isEmpty());
+    
+    id = (TimeSeriesStringId) joiner.joinIds(tagless, R_4A, ALIAS2, JoinType.CROSS);
+    assertEquals(ALIAS2, id.alias());
+    assertNull(id.namespace());
+    assertEquals(ALIAS2, id.metric());
+    assertEquals(2, id.tags().size());
+    assertEquals("web04", id.tags().get("host"));
+    assertEquals("tyrion", id.tags().get("owner"));
     assertTrue(id.aggregatedTags().isEmpty());
     assertTrue(id.disjointTags().isEmpty());
   }
@@ -1335,7 +1361,7 @@ public class TestJoiner extends BaseJoinTest {
     Joiner joiner = new Joiner(config);
     
     TimeSeriesByteId id = (TimeSeriesByteId) joiner.joinIds(
-        L_1, R_1, ALIAS2);
+        L_1, R_1, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1345,7 +1371,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // left only
-    id = (TimeSeriesByteId) joiner.joinIds(L_1, null, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(L_1, null, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1355,7 +1381,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // right only
-    id = (TimeSeriesByteId) joiner.joinIds(null, R_1, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(null, R_1, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1365,7 +1391,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // two tags
-    id = (TimeSeriesByteId) joiner.joinIds(L_6A, R_6A, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(L_6A, R_6A, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1376,7 +1402,7 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().isEmpty());
     
     // promote tag
-    id = (TimeSeriesByteId) joiner.joinIds(L_4, R_4A, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(L_4, R_4A, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1389,7 +1415,7 @@ public class TestJoiner extends BaseJoinTest {
     // tagless promote
     TimeSeries ts = mock(TimeSeries.class);
     when(ts.id()).thenReturn(TAGLESS_BYTE);
-    id = (TimeSeriesByteId) joiner.joinIds(L_1, ts, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(L_1, ts, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1402,7 +1428,7 @@ public class TestJoiner extends BaseJoinTest {
     when(ts.id()).thenReturn(TAG_PROMOTION_L_BYTE);
     TimeSeries r = mock(TimeSeries.class);
     when(r.id()).thenReturn(TAG_PROMOTION_R_BYTE);
-    id = (TimeSeriesByteId) joiner.joinIds(ts, r, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(ts, r, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1416,17 +1442,17 @@ public class TestJoiner extends BaseJoinTest {
     assertTrue(id.disjointTags().contains(UNIT));
     
     try {
-      joiner.joinIds((TimeSeries) null, (TimeSeries) null, ALIAS2);
+      joiner.joinIds((TimeSeries) null, (TimeSeries) null, ALIAS2, config.getJoinType());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      joiner.joinIds(L_1, R_1, null);
+      joiner.joinIds(L_1, R_1, null, config.getJoinType());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      joiner.joinIds(L_1, R_1, "");
+      joiner.joinIds(L_1, R_1, "", config.getJoinType());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -1438,7 +1464,7 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     joiner = new Joiner(config);
     
-    id = (TimeSeriesByteId) joiner.joinIds(L_1, R_1, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(L_1, R_1, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
@@ -1455,12 +1481,38 @@ public class TestJoiner extends BaseJoinTest {
         .build();
     joiner = new Joiner(config);
     
-    id = (TimeSeriesByteId) joiner.joinIds(L_1, R_1, ALIAS2);
+    id = (TimeSeriesByteId) joiner.joinIds(L_1, R_1, ALIAS2, config.getJoinType());
     assertArrayEquals(ALIAS2_BYTES, id.alias());
     assertArrayEquals(NAMESPACE_BYTES, id.namespace());
     assertArrayEquals(ALIAS2_BYTES, id.metric());
     assertEquals(1, id.tags().size());
     assertArrayEquals(WEB01, id.tags().get(HOST));
+    assertTrue(id.aggregatedTags().isEmpty());
+    assertTrue(id.disjointTags().isEmpty());
+    
+    TimeSeriesByteId tagless_id = BaseTimeSeriesByteId.newBuilder(
+        mock(TimeSeriesDataSourceFactory.class))
+        .setMetric(METRIC_L_BYTES)
+        .build();
+    TimeSeries tagless = mock(TimeSeries.class);
+    when(tagless.id()).thenReturn(tagless_id);
+    id = (TimeSeriesByteId) joiner.joinIds(L_5A, tagless, ALIAS2, JoinType.CROSS);
+    assertArrayEquals(ALIAS2_BYTES, id.alias());
+    assertArrayEquals(NAMESPACE_BYTES, id.namespace());
+    assertArrayEquals(ALIAS2_BYTES, id.metric());
+    assertEquals(2, id.tags().size());
+    assertArrayEquals(WEB05, id.tags().get(HOST));
+    assertArrayEquals(TYRION, id.tags().get(OWNER));
+    assertTrue(id.aggregatedTags().isEmpty());
+    assertTrue(id.disjointTags().isEmpty());
+    
+    id = (TimeSeriesByteId) joiner.joinIds(tagless, R_4A, ALIAS2, JoinType.CROSS);
+    assertArrayEquals(ALIAS2_BYTES, id.alias());
+    assertNull(id.namespace());
+    assertArrayEquals(ALIAS2_BYTES, id.metric());
+    assertEquals(2, id.tags().size());
+    assertArrayEquals(WEB04, id.tags().get(HOST));
+    assertArrayEquals(TYRION, id.tags().get(OWNER));
     assertTrue(id.aggregatedTags().isEmpty());
     assertTrue(id.disjointTags().isEmpty());
   }
