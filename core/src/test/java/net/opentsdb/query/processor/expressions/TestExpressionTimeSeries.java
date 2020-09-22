@@ -56,6 +56,7 @@ public class TestExpressionTimeSeries {
 
   private BinaryExpressionNode node;
   private ExpressionParseNode config;
+  private ExpressionConfig exp_config;
   private QueryResult result;
   private Joiner joiner;
   private TimeSeries left;
@@ -99,9 +100,9 @@ public class TestExpressionTimeSeries {
     when(left.id()).thenReturn(left_id);
     when(right.id()).thenReturn(right_id);
     when(joiner.joinIds(any(TimeSeries.class), any(TimeSeries.class), 
-        anyString())).thenReturn(joined_id);
+        anyString(), any(JoinType.class))).thenReturn(joined_id);
     when(joiner.joinIds(eq(condition), eq(null), 
-        anyString())).thenReturn(condition_id);
+        anyString(), any(JoinType.class))).thenReturn(condition_id);
     
     when(left.types()).thenReturn(NumericType.SINGLE_LIST);
     when(right.types()).thenReturn(Lists.newArrayList(
@@ -134,6 +135,15 @@ public class TestExpressionTimeSeries {
         .setId("e1")
         .build();
     when(node.config()).thenReturn(config);
+    
+    exp_config = ExpressionConfig.newBuilder()
+        .setAs("e1")
+        .setExpression("a + b")
+        .setJoinConfig(jc)
+        .addInterpolatorConfig(numeric_config)
+        .setId("e1")
+        .build();
+    when(node.expressionConfig()).thenReturn(exp_config);
   }
   
   @Test
@@ -227,6 +237,7 @@ public class TestExpressionTimeSeries {
     node = mock(TernaryNode.class);
     when(node.joiner()).thenReturn(joiner);
     when(node.config()).thenReturn(config);
+    when(node.expressionConfig()).thenReturn(exp_config);
     
     TernaryNodeFactory ternary_factory = mock(TernaryNodeFactory.class);
     when(node.factory()).thenReturn(ternary_factory);
@@ -246,6 +257,7 @@ public class TestExpressionTimeSeries {
     node = mock(TernaryNode.class);
     when(node.joiner()).thenReturn(joiner);
     when(node.config()).thenReturn(config);
+    when(node.expressionConfig()).thenReturn(exp_config);
     
     TernaryNodeFactory ternary_factory = mock(TernaryNodeFactory.class);
     when(node.factory()).thenReturn(ternary_factory);

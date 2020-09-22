@@ -100,6 +100,7 @@ public class TestExpressionResult {
         .build();
     
     when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(config);
     when(node.joiner()).thenReturn(joiner);
   }
   
@@ -806,6 +807,7 @@ public class TestExpressionResult {
     node = mock(TernaryNode.class);
     when(node.config()).thenReturn(expression_config);
     when(node.joiner()).thenReturn(joiner);
+    when(node.expressionConfig()).thenReturn(config);
     TernaryParseNode config = (TernaryParseNode) expression_config;
     if (byte_mode) {
       if (expression_config.getLeft().equals("a")) {

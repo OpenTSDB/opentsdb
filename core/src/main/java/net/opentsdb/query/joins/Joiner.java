@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -33,9 +31,9 @@ import java.util.TreeMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
@@ -43,14 +41,12 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode;
 import net.opentsdb.query.processor.expressions.TernaryParseNode;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.XXHash;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -440,7 +436,8 @@ public class Joiner {
    */
   public TimeSeriesId joinIds(final TimeSeries left, 
                               final TimeSeries right, 
-                              final String as) {
+                              final String as,
+                              final JoinType join_type) {
     if (Strings.isNullOrEmpty(as)) {
       throw new IllegalArgumentException("As (new metric name) cannot "
           + "be null or empty.");
@@ -454,10 +451,10 @@ public class Joiner {
       // upstream.
       if (left.id().type() == Const.TS_BYTE_ID) {
         return joinIds((TimeSeriesByteId) left.id(), 
-            (TimeSeriesByteId) right.id(), as);        
+            (TimeSeriesByteId) right.id(), as, join_type);
       } else {
         return joinIds((TimeSeriesStringId) left.id(), 
-            (TimeSeriesStringId) right.id(), as);
+            (TimeSeriesStringId) right.id(), as, join_type);
       }
     } else if (left == null) {
       if (right.id().type() == Const.TS_BYTE_ID) {
@@ -504,12 +501,37 @@ public class Joiner {
   @VisibleForTesting
   TimeSeriesId joinIds(final TimeSeriesStringId left, 
                        final TimeSeriesStringId right, 
-                       final String as) {
+                       final String as,
+                       final JoinType join_type) {
     final BaseTimeSeriesStringId.Builder builder = BaseTimeSeriesStringId
         .newBuilder()
         .setNamespace(left.namespace())
         .setAlias(as)
         .setMetric(as);
+    
+    if (join_type == JoinType.CROSS && 
+        (left.tags() == null || left.tags().isEmpty() ||
+         right.tags() == null || right.tags().isEmpty())) {
+      // we have a cross with a flattened series on one side.
+      if (left.tags() != null && !left.tags().isEmpty()) {
+        builder.setTags(Maps.newHashMap(left.tags()));
+        if (left.aggregatedTags() != null && !left.aggregatedTags().isEmpty()) {
+          builder.setAggregatedTags(Lists.newArrayList(left.aggregatedTags()));
+        }
+        if (left.disjointTags() != null && !left.disjointTags().isEmpty()) {
+          builder.setDisjointTags(Lists.newArrayList(left.disjointTags()));
+        }
+        return builder.build();
+      }
+      builder.setTags(Maps.newHashMap(right.tags()));
+      if (right.aggregatedTags() != null && !right.aggregatedTags().isEmpty()) {
+        builder.setAggregatedTags(Lists.newArrayList(right.aggregatedTags()));
+      }
+      if (right.disjointTags() != null && !right.disjointTags().isEmpty()) {
+        builder.setDisjointTags(Lists.newArrayList(right.disjointTags()));
+      }
+      return builder.build();
+    }
     
     final Set<String> agg_tags = Sets.newHashSet();
     final Set<String> disj_tags = Sets.newHashSet();
@@ -599,13 +621,40 @@ public class Joiner {
   @VisibleForTesting
   TimeSeriesId joinIds(final TimeSeriesByteId left, 
                        final TimeSeriesByteId right, 
-                       final String as) {
+                       final String as,
+                       final JoinType join_type) {
     final BaseTimeSeriesByteId.Builder builder = BaseTimeSeriesByteId
         .newBuilder(left.dataStore())
         .setNamespace(left.namespace())
         .setAlias(as.getBytes(Const.UTF8_CHARSET))
         .setMetric(as.getBytes(Const.UTF8_CHARSET))
         .setSkipMetric(true);
+    
+    if (join_type == JoinType.CROSS && 
+        (left.tags() == null || left.tags().isEmpty() ||
+         right.tags() == null || right.tags().isEmpty())) {
+      // we have a cross with a flattened series on one side.
+      if (left.tags() != null && !left.tags().isEmpty()) {
+        // TODO - May not be a ByteMap and are we safe with ref?
+        builder.setTags((ByteMap<byte[]>) left.tags());
+        if (left.aggregatedTags() != null && !left.aggregatedTags().isEmpty()) {
+          builder.setAggregatedTags(Lists.newArrayList(left.aggregatedTags()));
+        }
+        if (left.disjointTags() != null && !left.disjointTags().isEmpty()) {
+          builder.setDisjointTags(Lists.newArrayList(left.disjointTags()));
+        }
+        return builder.build();
+      }
+      // TODO - May not be a ByteMap and are we safe with ref?
+      builder.setTags((ByteMap<byte[]>) right.tags());
+      if (right.aggregatedTags() != null && !right.aggregatedTags().isEmpty()) {
+        builder.setAggregatedTags(Lists.newArrayList(right.aggregatedTags()));
+      }
+      if (right.disjointTags() != null && !right.disjointTags().isEmpty()) {
+        builder.setDisjointTags(Lists.newArrayList(right.disjointTags()));
+      }
+      return builder.build();
+    }
     
     final ByteSet agg_tags = new ByteSet();
     final ByteSet disj_tags = new ByteSet();

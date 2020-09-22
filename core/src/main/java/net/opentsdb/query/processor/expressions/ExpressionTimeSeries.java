@@ -95,10 +95,12 @@ public class ExpressionTimeSeries implements TimeSeries {
     // TODO - for now we expect all types to be the same.
     if (left == null && right == null) {
       id = node.joiner().joinIds(condition, null, 
-          ((ExpressionParseNode) node.config()).getAs());
+          ((ExpressionParseNode) node.config()).getAs(), 
+          node.expressionConfig().getJoin().getJoinType());
     } else {
       id = node.joiner().joinIds(left, right, 
-          ((ExpressionParseNode) node.config()).getAs());
+          ((ExpressionParseNode) node.config()).getAs(),
+          node.expressionConfig().getJoin().getJoinType());
     }
   }
   
