@@ -190,6 +190,17 @@ public abstract class YamlJsonBaseProvider implements Provider {
     timer.newTimeout(this, next_run, TimeUnit.SECONDS);
   }
   
+  @Override
+  public void populateRawMap(final Map<String, String> map) {
+    for (final Entry<String, Object> entry : cache.entrySet()) {
+      if (entry.getValue() == null) {
+        map.put(entry.getKey(), null);
+      } else {
+        map.put(entry.getKey(), entry.getValue().toString());
+      }
+    }
+  }
+  
   /**
    * Helper to call binders.
    * @param key The non-null key to pass to the bind function.

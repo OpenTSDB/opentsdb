@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.apache.http.HttpResponse;
@@ -166,11 +165,6 @@ public class HttpProvider extends YamlJsonBaseProvider {
     }
   }
 
-  @Override
-  public void populateRawMap(Map<String, String> map) {
-    // no-op 
-  }
-  
   String getFileName() {
     return uri.replaceAll(CACHE_REPLACE, "_");
   }
