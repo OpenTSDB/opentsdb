@@ -347,6 +347,10 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       async_config.overrideConfig("hbase.security.authentication", "mtlstemp");
     }
     
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("AsyncHBase Config: " + async_config.dumpConfiguration());
+    }
+    
     enable_appends = config.getBoolean(ENABLE_APPENDS_KEY);
     enable_appends_coproc = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
     
