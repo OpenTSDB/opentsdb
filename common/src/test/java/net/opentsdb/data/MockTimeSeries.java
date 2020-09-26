@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -83,6 +83,32 @@ public class MockTimeSeries implements TimeSeries {
       data.put(value.type(), types);
     }
     types.add(value);
+  }
+  
+  /**
+   * Attempts to remove the value at the given index. Doesn't perform a check
+   * to make sure the value is there.
+   * @param type The non-null type to remove.
+   * @param index The index to remove at.
+   */
+  public void remove(final TypeToken<? extends TimeSeriesDataType> type, 
+                     final int index) {
+    List<TimeSeriesValue<?>> list = data.get(type);
+    if (list != null) {
+      list.remove(index);
+    }
+  }
+  
+  /**
+   * Attempts to replace the value at the given index. Doesn't perform an index check.
+   * @param index The index to replace at.
+   * @param value The value to insert.
+   */
+  public void replace(final int index, final TimeSeriesValue<?> value) {
+    List<TimeSeriesValue<?>> list = data.get(value.type());
+    if (list != null) {
+      list.set(index, value);
+    }
   }
   
   /** Flushes the map of data but leaves the ID alone. Also resets 

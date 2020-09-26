@@ -305,7 +305,7 @@ public class PluginsConfig extends Validatable {
   /**
    * Retrieves the plugin with the given class type and ID.
    * @param clazz The type of plugin to be fetched.
-   * @param id An optional ID, may be null if the default is fetched.
+   * @param base_id An optional ID, may be null if the default is fetched.
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
