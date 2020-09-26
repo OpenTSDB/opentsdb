@@ -146,7 +146,7 @@ public class ArrayAverageFactory extends BaseArrayFactoryWithIntPool {
           int_array = new int[to - from];
         }
         
-        for (int i = 0; i < double_accumulator.length; i++) {
+        for (int i = 0; i < to - from; i++) {
           if (!Double.isNaN(double_accumulator[i])){
             int_array[i] = 1;
           } else {

@@ -613,7 +613,6 @@ public class DownsampleNumericToNumericArrayIterator
     Arrays.fill(nans, Double.NaN);
     agg.accumulate(nans);
     nextPool(agg);
-    LOG.info("AGGED:*************** " + Arrays.toString(agg.doubleArray()) + "  START: " + agg.offset() + "  END: " + agg.end());
     return this;
   }
   
