@@ -480,7 +480,6 @@ public class TestDownsampleConfig {
             .addInterpolatorConfig(summary_config)
             .build();
 
-    System.out.println(config3);
     assertFalse(!config.equals(config3));
     assertEquals(config.hashCode(), config3.hashCode());
 

@@ -105,7 +105,7 @@ public interface UniqueId {
   /**
    * Attempts to match the UID to a string, checking the cache first then storage.
    * 
-   * @param id A non-null and non-empty byte array ID associated with that name.
+   * @param base_id A non-null and non-empty byte array ID associated with that name.
    * @param span An optional tracing span.
    * @return A deferred resolving to the string if found, {@link NoSuchUniqueId}
    * if not found (or null) or an exception from the data store.

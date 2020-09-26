@@ -165,7 +165,6 @@ public abstract class BaseQueryNodeConfigWithInterpolators
 
     hashes.add(super.buildHashCode());
 
-
     if (interpolator_configs != null) {
       List<QueryInterpolatorConfig> values = Lists.newArrayList(interpolator_configs.values());
       Collections.sort(values);
