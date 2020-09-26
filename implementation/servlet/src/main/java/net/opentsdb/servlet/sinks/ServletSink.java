@@ -276,7 +276,10 @@ public class ServletSink implements QuerySink, SerdesCallback {
             if (Strings.isNullOrEmpty(local_namespace)) {
               // extract from metric filter.
               local_namespace = ((TimeSeriesDataSourceConfig) config).getMetric().getMetric();
-              local_namespace = local_namespace.substring(0, local_namespace.indexOf('.'));
+              final int idx = local_namespace.indexOf('.');
+              if (idx >= 0) {
+                local_namespace = local_namespace.substring(0, idx);
+              }
             }
             
             if (namespace == null) {
