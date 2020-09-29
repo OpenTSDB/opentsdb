@@ -100,6 +100,7 @@ public class NaturalOuterJoin extends BaseJoin {
           }
           if (join.right_map != null) {
             right_series = join.right_map.remove(left_iterator.key());
+            right_iterator = join.right_map.iterator();
           }
         } else {
           left_iterator = null; // fall through and reset the iterator!
@@ -112,6 +113,7 @@ public class NaturalOuterJoin extends BaseJoin {
     
     while ((right_iterator != null && right_iterator.hasNext()) ||
         (right_series != null && right_idx < right_series.size())) {
+      
       if (right_series != null && right_idx < right_series.size()) {
         next[0] = null;
         next[1] = right_series.get(right_idx);
@@ -123,6 +125,9 @@ public class NaturalOuterJoin extends BaseJoin {
         right_iterator.advance();
         right_series = right_iterator.value();
         right_idx = 0;
+      } else {
+        right_series = null;
+        break;
       }
     }
     
