@@ -436,6 +436,10 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
       if (config.getType().equals(TimeSeriesDataSourceConfig.DEFAULT) ||
           config instanceof TimeSeriesDataSourceConfig) {
         // TODO - will break if we have diff metric filters.
+        if (((TimeSeriesDataSourceConfig) config).getMetric() == null) {
+          continue;
+        }
+        
         final String metric = ((TimeSeriesDataSourceConfig) config).getMetric().getMetric();
         
         // TODO - this is a skiplist map so we could, if we have a prefix in the
