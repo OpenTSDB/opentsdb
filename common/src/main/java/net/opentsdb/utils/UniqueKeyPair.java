@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014-2019 The OpenTSDB Authors.
+// Copyright (C) 2014-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,12 +45,9 @@ public class UniqueKeyPair<K, V> extends Pair<K,V> {
   }
 
   /**
-   * Compares the Keys of two pairs for equality. If the incoming object
-   * reference is
-   * the same, the result is true. Then {@code .equals} is called on both
-   * objects (if they are not null)
-   * @return true if the objects refer to the same address or both objects are
-   * equal
+   * Checks to see if the pairs have the same key, ignoring the count.
+   * @return true if the objects refer to the same address or both objects have
+   * the same key.
    */
   @Override
   public boolean equals(final Object object) {

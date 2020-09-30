@@ -160,11 +160,14 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
     return null;
   }
 
-  
   @Override
   public WritableTimeSeriesDataStore newStoreInstance(
       final TSDB tsdb, 
       final String id) {
+    return mds;
+  }
+
+  MockDataStore mds() {
     return mds;
   }
   
