@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.util.Set;
 import org.junit.Test;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
 
@@ -57,8 +58,7 @@ public class TestFilterUtils {
         .build();
 
     QueryFilter explicitFilter = ExplicitTagsFilter.newBuilder().setFilter(filter).build();
-    assertTrue(FilterUtils.matchesTags(explicitFilter, tags, null));
-
+    assertTrue(FilterUtils.matchesTags(explicitFilter, tags, Sets.newHashSet()));
 
     // nested explicit tags chains
     filter = ChainFilter.newBuilder()
