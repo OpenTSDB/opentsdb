@@ -21,6 +21,7 @@ import net.opentsdb.data.TimeSeriesDatumStringId;
 
 import java.util.Map;
 import java.util.Map.Entry;
+
 import java.util.Set;
 
 /**
@@ -48,19 +49,18 @@ public class FilterUtils {
    */
   public static boolean matchesTags(final QueryFilter filter,
                                     final Map<String, String> tags,
-                                    Set<String> matched) {
+                                    final Set<String> matched) {
     if (filter == null) {
       throw new IllegalArgumentException("Filter cannot be null.");
     }
     if (tags == null) {
       throw new IllegalArgumentException("Tags cannot be null.");
     }
-
+    
     if (filter instanceof ExplicitTagsFilter) {
-      matched = Sets.newHashSetWithExpectedSize(tags.size());
       final boolean satisfied = matchesTags(
           ((ExplicitTagsFilter) filter).getFilter(), tags, matched);
-
+      
       if (!satisfied) {
         return false;
       }
