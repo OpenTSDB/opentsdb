@@ -75,6 +75,8 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.UniqueKeyPair;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +92,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -863,7 +866,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           }
           
           if (filter != null) {
-            if (!FilterUtils.matchesTags(filter, entry.getKey().tags(), null)) {
+            if (!FilterUtils.matchesTags(filter, entry.getKey().tags(), (Set<String>) null)) {
               continue;
             }
           }
@@ -1187,6 +1190,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           + suffix;
   }
 
+  Map<TimeSeriesDatumStringId, MockSpan> database() {
+    return database;
+  }
+  
   public static class PooledMockPTS implements PartialTimeSeries<NumericLongArrayType>, 
       CloseablePooledObject,
       NumericLongArrayType {
@@ -1362,4 +1369,5 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
     
   }
+
 }

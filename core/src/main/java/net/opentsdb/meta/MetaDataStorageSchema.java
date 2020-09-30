@@ -19,8 +19,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesByteId;
-import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018 The OpenTSDB Authors.
+// Copyright (C) 2018-2020 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
-import java.util.Set;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.auth.Authentication;
@@ -50,12 +49,15 @@ import javax.servlet.AsyncContext;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.ByteArrayOutputStream;
-import java.util.List;
 import java.util.Map;
 
 @Path("search/timeseries")
@@ -129,18 +131,18 @@ public class MetaRpc {
 
         // parse the query
         final String content_type = request.getHeader("Content-Type");
+        final String json_query;
         final BatchMetaQuery query;
         if (content_type != null && content_type.toLowerCase().contains("yaml")) {
            throw new Exception("yaml query not supported. please use json");
         } else {
             ObjectMapper mapper = JSON.getMapper();
             JsonNode node = mapper.readTree(request.getInputStream());
+            json_query = node.toString();
             query = DefaultBatchMetaQuery.parse(tsdb, mapper, node).build();
         }
 
-        ObjectMapper map = new ObjectMapper();
-        LOG.info("Meta query == " + map.writeValueAsString
-                (query.metaQueries()));
+        ObjectMapper map = JSON.getMapper();
         // TODO validate
         if (parse_span != null) {
             parse_span.setSuccessTags()
@@ -152,12 +154,14 @@ public class MetaRpc {
         async.setTimeout((Integer) servlet_config.getServletContext()
                 .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
 
-        LOG.info("Executing new query=" + JSON.serializeToString(
+        LOG.info("Executing new meta query=" + JSON.serializeToString(
                 ImmutableMap.<String, Object>builder()
                         // TODO - possible upstream headers
                         .put("queryId", Bytes.byteArrayToString(String.valueOf(query.hashCode()).getBytes()))
                         .put("traceId", trace != null ? trace.traceId() : "")
-                        .put("query", JSON.serializeToString(query))
+                        .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
+                        .put("remote", request.getRemoteAddr())
+                        .put("query", json_query)
                         .build()));
         Span setup_span = null;
         if (query_span != null) {
