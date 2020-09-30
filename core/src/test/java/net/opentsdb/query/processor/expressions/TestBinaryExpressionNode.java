@@ -317,6 +317,8 @@ public class TestBinaryExpressionNode {
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -424,6 +426,8 @@ public class TestBinaryExpressionNode {
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -528,6 +532,11 @@ public class TestBinaryExpressionNode {
       }
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
@@ -603,6 +612,8 @@ public class TestBinaryExpressionNode {
       }
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
@@ -694,6 +705,8 @@ public class TestBinaryExpressionNode {
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -780,6 +793,8 @@ public class TestBinaryExpressionNode {
       }
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+            .thenReturn(Lists.newArrayList(ts))
+            .thenReturn(Lists.newArrayList(ts))
             .thenReturn(Lists.newArrayList(ts))
             .thenReturn(Lists.newArrayList(ts))
             .thenReturn(Lists.newArrayList(ts))
@@ -950,6 +965,8 @@ public class TestBinaryExpressionNode {
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
@@ -1035,6 +1052,8 @@ public class TestBinaryExpressionNode {
       }
     });
     when(r1.timeSeries()).thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
+      .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))
       .thenReturn(Lists.newArrayList(ts))

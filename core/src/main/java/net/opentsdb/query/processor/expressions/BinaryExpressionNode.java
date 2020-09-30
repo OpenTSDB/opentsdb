@@ -213,6 +213,9 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
     if (resolved_metrics) {
       return false;
     }
+    if (next.timeSeries() == null || next.timeSeries().isEmpty()) {
+      return false;
+    }
     
     if (next.idType() == Const.TS_BYTE_ID &&
         (expression_config.getLeftType() == OperandType.VARIABLE || 
@@ -255,7 +258,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
         }
       }
       
-      ((TimeSeriesByteId) next.timeSeries().iterator().next().id())
+      ((TimeSeriesByteId) next.timeSeries().get(0).id())
         .dataStore().encodeJoinMetrics(metrics, null /* TODO */)
         .addCallback(new ResolveCB())
         .addErrback(new ErrorCB());
@@ -273,6 +276,10 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
    * completed.
    */
   protected boolean resolveJoinStrings(final QueryResult next) {
+    if (next.timeSeries() == null || next.timeSeries().isEmpty()) {
+      return false;
+    }
+    
     if (next.idType() == Const.TS_BYTE_ID && 
         joiner.encodedJoins() == null && 
         !config.getJoin().getJoins().isEmpty()) {
@@ -312,7 +319,7 @@ public class BinaryExpressionNode extends AbstractQueryNode<ExpressionParseNode>
         }
       }
       
-      ((TimeSeriesByteId) next.timeSeries().iterator().next().id())
+      ((TimeSeriesByteId) next.timeSeries().get(0).id())
         .dataStore().encodeJoinKeys(tagks, null /* TODO */)
         .addCallback(new ResolveCB())
         .addErrback(new ErrorCB());
