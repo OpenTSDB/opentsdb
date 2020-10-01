@@ -146,6 +146,17 @@ public class ExplicitTagsFilter implements TagKeyFilter, NestedQueryFilter {
   }
   
   @Override
+  public String toString() {
+    return new StringBuilder()
+        .append("{type=")
+        .append(getClass().getSimpleName())
+        .append(", filter=")
+        .append(filter.toString())
+        .append("}")
+        .toString();
+  }
+  
+  @Override
   public Deferred<Void> initialize(final Span span) {
     return filter.initialize(span);
   }

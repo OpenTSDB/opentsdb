@@ -66,6 +66,17 @@ public class MetricLiteralFilter implements MetricFilter {
   }
 
   @Override
+  public String toString() {
+    return new StringBuilder()
+        .append("{type=")
+        .append(getClass().getSimpleName())
+        .append(", metric=")
+        .append(metric)
+        .append("}")
+        .toString();
+  }
+  
+  @Override
   public boolean equals(final Object o) {
     if (this == o)
       return true;
@@ -78,12 +89,10 @@ public class MetricLiteralFilter implements MetricFilter {
 
   }
 
-
   @Override
   public int hashCode() {
     return buildHashCode().asInt();
   }
-
 
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {

@@ -36,6 +36,7 @@ import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.MetricFilter;
+import net.opentsdb.query.filter.NestedQueryFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagKeyFilter;
@@ -44,6 +45,8 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UniqueKeyPair;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.common.base.Strings;
+import org.elasticsearch.common.collect.Sets;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
@@ -86,12 +89,7 @@ public class ESMetaResponse implements MetaResponse {
       final NamespacedAggregatedDocumentResult result;
 
       MetaQuery metaQuery = query.metaQueries().get(0);
-      Optional<QueryFilter> metricFilter =
-          ((ChainFilter) metaQuery.filter())
-              .getFilters().stream()
-                  .filter(queryFilter -> queryFilter instanceof MetricFilter)
-                  .findFirst();
-      String metric = ((MetricFilter) metricFilter.get()).getMetric();
+      String metric = findMetric(metaQuery.filter());
       NamespacedKey namespacedKey = new NamespacedKey(metaQuery.namespace(), metaQuery.id());
       // quick validation
       long max_hits = 0;
@@ -749,7 +747,7 @@ public class ESMetaResponse implements MetaResponse {
                 meta_query.namespace() + "." + m, tags);
             if (isMultiGet) {
               if (!FilterUtils.matchesTags(meta_query.filter(), 
-                  ((TimeSeriesStringId) id).tags(), null)) {
+                  ((TimeSeriesStringId) id).tags(), Sets.newHashSet())) {
                 if (LOGGER.isTraceEnabled()) {
                   LOGGER.trace("Dropping ES meta response " + id 
                       + " as it doesn't match our tags.");
@@ -770,7 +768,7 @@ public class ESMetaResponse implements MetaResponse {
             meta_query.namespace() + "." + metric, tags);
         if (isMultiGet) {
           if (!FilterUtils.matchesTags(meta_query.filter(), 
-              ((TimeSeriesStringId) id).tags(), null)) {
+              ((TimeSeriesStringId) id).tags(), Sets.newHashSet())) {
             if (LOGGER.isTraceEnabled()) {
               LOGGER.trace("Dropping ES meta response " + id 
                   + " as it doesn't match our tags.");
@@ -785,6 +783,23 @@ public class ESMetaResponse implements MetaResponse {
     return result;
   }
 
+  private String findMetric(final QueryFilter filter) {
+    if (filter instanceof NestedQueryFilter) {
+      return findMetric(((NestedQueryFilter) filter).getFilter());
+    } else if (filter instanceof ChainFilter) {
+      for (final QueryFilter child : ((ChainFilter) filter).getFilters()) {
+        final String metric = findMetric(child);
+        if (!Strings.isNullOrEmpty(metric)) {
+          return metric;
+        }
+      }
+    } else if (filter instanceof MetricFilter) {
+      // TODO - regex?
+      return ((MetricFilter) filter).getMetric();
+    }
+    return null;
+  }
+  
   private TimeSeriesId buildTimeseries(final String metric, 
                                        final List<Map<String, String>> tags) {
     final BaseTimeSeriesStringId.Builder builder = 
