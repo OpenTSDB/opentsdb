@@ -46,7 +46,6 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UniqueKeyPair;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.common.base.Strings;
 import org.elasticsearch.common.collect.Sets;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;

@@ -250,19 +250,19 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
         plan.terminalSourceNodes(config));
     for (final QueryNodeConfig source : sources) {
       if (!(source instanceof TimeSeriesDataSourceConfig)) {
-        LOG.debug("Hmmm, wasn't a data source config? " + source);
         continue;
       }
+      
       if (((TimeSeriesDataSourceConfig) source).getSummaryAggregations() == null ||
           ((TimeSeriesDataSourceConfig) source).getSummaryAggregations().isEmpty()) {
         final TimeSeriesDataSourceConfig.Builder new_source = 
             (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
-        new_source.setSummaryInterval((config).getInterval());
+        new_source.setSummaryInterval(newConfig.getInterval());
         if (config.getAggregator().equalsIgnoreCase("avg")) {
           new_source.addSummaryAggregation("sum");
           new_source.addSummaryAggregation("count");
         } else {
-          new_source.addSummaryAggregation(config.getAggregator());
+          new_source.addSummaryAggregation(newConfig.getAggregator());
         }
         plan.replace(source, new_source.build());
       }      
