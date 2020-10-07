@@ -579,11 +579,11 @@ public class NamespacedAggregatedDocumentQueryBuilder {
           FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters, true);
           List<FilterBuilder> all_filters = new ArrayList<>();
           all_filters.add(tag_filters);
-          all_filters.addAll(metric_filters);
+
           all_filters.add(time_filter);
 
-          SearchSourceBuilder search_source_builder = buildESQuery(all_filters);
-          search_source_builders_list.add(search_source_builder);
+          buildESQuery(all_filters, metric_filters, search_source_builders_list);
+
 
         } else if (meta_query.filter() instanceof ExplicitTagsFilter) {
           FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters, true);
@@ -592,18 +592,15 @@ public class NamespacedAggregatedDocumentQueryBuilder {
 
           List<FilterBuilder> all_filters = new ArrayList<>();
           all_filters.add(tag_filters);
-          all_filters.addAll(metric_filters);
           all_filters.add(explicit_filter);
 
-          SearchSourceBuilder search_source_builder = buildESQuery(all_filters);
-          search_source_builders_list.add(search_source_builder);
+          buildESQuery(all_filters, metric_filters, search_source_builders_list);
         } else {
           FilterBuilder tag_filters = setFilter(meta_query.filter(), metric_filters, true);
           List<FilterBuilder> all_filters = new ArrayList<>();
           all_filters.add(tag_filters);
-          all_filters.addAll(metric_filters);
-          SearchSourceBuilder search_source_builder = buildESQuery(all_filters);
-          search_source_builders_list.add(search_source_builder);
+
+          buildESQuery(all_filters, metric_filters, search_source_builders_list);
         }
 
         int count = 0;
@@ -670,14 +667,30 @@ public class NamespacedAggregatedDocumentQueryBuilder {
     return search_source_builders;
   }
 
-  private SearchSourceBuilder buildESQuery(List<FilterBuilder> filters) {
+  private void buildESQuery(List<FilterBuilder> filters, List<FilterBuilder> metric_filters,
+                                           List<SearchSourceBuilder> search_source_builders) {
     if (filters.isEmpty()) {
       throw new IllegalArgumentException("Filters cannot be empty");
     }
 
-    BoolFilterBuilder bool_filter_builder = FilterBuilders.boolFilter();
+    if (metric_filters.isEmpty()) {
+      BoolFilterBuilder bool_filter_builder = FilterBuilders.boolFilter();
+      search_source_builders.add(addTagFiltersToESQuery(filters, bool_filter_builder));
+      return;
+    }
 
-    if (! filters.isEmpty()) {
+    for (FilterBuilder metric_filter: metric_filters) {
+      BoolFilterBuilder bool_filter_builder = FilterBuilders.boolFilter();
+      bool_filter_builder.must(metric_filter);
+
+      SearchSourceBuilder search_source_builder = addTagFiltersToESQuery(filters, bool_filter_builder);
+      search_source_builders.add(search_source_builder);
+    }
+
+  }
+
+  public SearchSourceBuilder addTagFiltersToESQuery(List<FilterBuilder> filters, BoolFilterBuilder bool_filter_builder) {
+    if (!filters.isEmpty()) {
       for (FilterBuilder each_filter : filters) {
         if (each_filter != null) {
           bool_filter_builder.must(each_filter);
