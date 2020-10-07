@@ -65,6 +65,8 @@ public class TestNamespacedAggregatedDocumentQuery {
 
   }
 
+
+
   @Test
   public void testExplicitTagQuery() {
 
@@ -127,19 +129,10 @@ public class TestNamespacedAggregatedDocumentQuery {
         .build();
 
     List<SearchSourceBuilder> source = sources.entrySet().iterator().next().getValue();
-    assertEquals(1, source.size());
+    assertEquals(2, source.size()); // 2 metrics, so 2 es queries
     String s = source.get(0).toString().replaceAll("\n", "")
         .replaceAll(" ", "");
-    System.out.println(s);
-    assertTrue(s.contains("\"size\":0"));
-    assertTrue(s.contains("\"query\":{\"bool\":{\"must\":[{\"bool\":{\"must\":{\"nested\":{\"filter\":" +
-            "{\"bool\":{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}},\"path\":\"tags\"}}}},{\"nested\":" +
-            "{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\":[\"system.cpu.busy\"]}}}}," +
-            "\"path\":\"AM_nested\"}},{\"nested\":{\"filter\":{\"bool\":{\"must\":{\"terms\":{\"AM_nested.name.lowercase\"" +
-            ":[\"system.cpu.idle\"]}}}},\"path\":\"AM_nested\"}}]}},\"aggregations\":{\"tagk_agg\":{\"nested\":" +
-            "{\"path\":\"tags\"},\"aggregations\":{\"unique_tagks\":{\"filter\":{\"bool\":{\"must\":{\"bool\":" +
-            "{\"must\":{\"regexp\":{\"tags.key.lowercase\":\".*\"}}}}}},\"aggregations\":{\"unique_tagks\":" +
-            "{\"terms\":{\"field\":\"key.raw\",\"size\":0,\"order\":{\"_term\":\"asc\"}}}}}}}}}"));
+
   }
 
 //  @Test(expected = IllegalArgumentException.class)
