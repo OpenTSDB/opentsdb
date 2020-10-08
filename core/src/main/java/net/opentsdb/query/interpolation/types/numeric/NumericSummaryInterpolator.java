@@ -17,6 +17,7 @@ package net.opentsdb.query.interpolation.types.numeric;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -132,23 +133,33 @@ public class NumericSummaryInterpolator implements
     if (iterator == null || next == null) {
       return fill(timestamp);
     }
-    
+    // TODO - won't handle LERP but does work for now similar to the NI
     has_next = false;
-    if (next != null && next.timestamp().compare(Op.LTE, timestamp)) {
+    while (timestamp.compare(Op.GT, next.timestamp())) {
       if (iterator.hasNext()) {
-        if (config.sync()) {
-          advanceSynchronized();
-        } else {
-          next = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-          setReadAheads(next);
-        }
+        next = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+      } else {
+        next = null;
+        has_next = false;
+      }
+    }
+    
+    if (next != null && timestamp.compare(Op.EQ, next.timestamp())) {
+      response.reset(next);
+      
+      if (iterator.hasNext()) {
+        next = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+        has_next = true;
       } else {
         next = null;
       }
+    } else if (next != null && next.timestamp().compare(Op.LTE, timestamp)) {
+      if (next != null) {
+        has_next = true;
+      }
+      return fill(timestamp);
     }
-
-    has_next = next != null;
-    return fill(timestamp);
+    return response;
   }
 
   @Override

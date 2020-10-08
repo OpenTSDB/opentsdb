@@ -243,11 +243,12 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
 
   @Override
   public boolean hasNext() {
-    return idx < results.length;
+    return results != null && idx < results.length;
   }
 
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
+    dp.clear();
     dp.resetTimestamp(ts);
     if (Double.isInfinite(results[idx])) {
       dp.resetValue(expected_summary, Double.NaN);
@@ -277,7 +278,13 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     if (agg == AggEnum.avg) {
       counts = new long[intervals];
     }
+    boolean had_data = false;
     for (int i = 0; i < accumulators.length; i++) {
+      if (!accumulators[i].had_data) {
+        continue;
+      }
+      
+      had_data = true;
       switch (agg) {
       case sum:
       case zimsum:
@@ -356,12 +363,17 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         }
       }
     }
+    
+    if (!had_data) {
+      results = null;
+    }
   }
   
   class Acc implements Accumulator {
     final int index;
     double[] accumulator;
     long[] counts;
+    boolean had_data;
     
     Acc(final int index) {
       this.index = index;
@@ -411,6 +423,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
           if (v != null && v.isInteger()) {
             counts[bucket] += v.longValue();
           }
+          had_data = true;
         } else {
           if (expected_summary < 0) {
             expected_summary = value.value().summariesAvailable().iterator().next();
@@ -469,6 +482,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
               }
               counts[bucket]++;
             }
+            had_data = true;
           }
         }
       }

@@ -80,7 +80,6 @@ public class ExpressionNumericSummaryIterator extends
          ((BinaryExpressionNode) node).config().getLeftType() 
             == OperandType.LITERAL_NUMERIC ||
          ((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
-        has_next = true;
       }
     } else {
       QueryInterpolatorConfig interpolator_config = 
@@ -153,6 +152,8 @@ public class ExpressionNumericSummaryIterator extends
             != OperandType.LITERAL_NUMERIC &&
           !((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
         has_next = false;
+        summaries_available = null;
+        return;
       }
     } else {
       QueryInterpolatorConfig interpolator_config = 
@@ -222,6 +223,7 @@ public class ExpressionNumericSummaryIterator extends
           next_ts.update(right_interpolator.nextReal());
         }
       }
+      has_next = right_interpolator.hasNext();
     }
     
     // final sanity check
@@ -287,7 +289,6 @@ public class ExpressionNumericSummaryIterator extends
           left_literal : left.value(summary);
       final NumericType right_value = right == null ? 
           right_literal : right.value(summary);
-      
       final NumericType result;
       switch (((ExpressionParseNode) node.config()).getOperator()) {
       // logical
