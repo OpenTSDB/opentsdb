@@ -44,97 +44,97 @@ public class TestTernaryNumericSummaryIterator extends BaseNumericSummaryTest {
   
   // TODO - more tests.
   
-  @Test
-  public void ctor() throws Exception {
-    RollupConfig rollup_config = mock(RollupConfig.class);
-    when(rollup_config.getAggregationIds()).thenReturn(
-        (Map) ImmutableMap.builder()
-          .put("sum", 0)
-          .put("count", 2)
-          .put("avg", 5)
-          .build());
-    when(RESULT.rollupConfig()).thenReturn(rollup_config);
-    
-    setupData(new double[] { 1, 5, 2 }, new long[] { 1, 2, 2 }, 
-              new double[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false,
-              new double[] { 0, 1, 1 }, new long[] { 1, 0, 0 });
-    
-    // others test regular interpolator configs, here test fallback 
-    // to numeric type config.
-    ExpressionConfig config = (ExpressionConfig) ExpressionConfig.newBuilder()
-      .setExpression("a ? b : c")
-      .setJoinConfig(JOIN_CONFIG)
-      .addInterpolatorConfig(NUMERIC_CONFIG)
-      //.addInterpolatorConfig(NUMERIC_SUMMARY_CONFIG) // doh!
-      .setId("e1")
-      .build();
-    when(node.expressionConfig()).thenReturn(config);
-    
-    TernaryNumericSummaryIterator iterator = 
-        new TernaryNumericSummaryIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-              .put(ExpressionTimeSeries.CONDITION_KEY, condition)
-              .build());
-    NumericSummaryInterpolatorConfig nsic = 
-        (NumericSummaryInterpolatorConfig) iterator.left_interpolator
-          .fillPolicy().config();
-    assertEquals(3, nsic.getExpectedSummaries().size());
-    assertTrue(nsic.getExpectedSummaries().contains(0));
-    assertTrue(nsic.getExpectedSummaries().contains(2));
-    assertTrue(nsic.getExpectedSummaries().contains(5));
-    // nulls for both
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft(null)
-        .setLeftType(OperandType.NULL)
-        .setRight(null)
-        .setRightType(OperandType.NULL)
-        .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    
-    try {
-      new ExpressionNumericSummaryIterator(node, RESULT, 
-          (Map) ImmutableMap.builder()
-            .build());
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
-  }
+//  @Test
+//  public void ctor() throws Exception {
+//    RollupConfig rollup_config = mock(RollupConfig.class);
+//    when(rollup_config.getAggregationIds()).thenReturn(
+//        (Map) ImmutableMap.builder()
+//          .put("sum", 0)
+//          .put("count", 2)
+//          .put("avg", 5)
+//          .build());
+//    when(RESULT.rollupConfig()).thenReturn(rollup_config);
+//    
+//    setupData(new double[] { 1, 5, 2 }, new long[] { 1, 2, 2 }, 
+//              new double[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false,
+//              new double[] { 0, 1, 1 }, new long[] { 1, 0, 0 });
+//    
+//    // others test regular interpolator configs, here test fallback 
+//    // to numeric type config.
+//    ExpressionConfig config = (ExpressionConfig) ExpressionConfig.newBuilder()
+//      .setExpression("a ? b : c")
+//      .setJoinConfig(JOIN_CONFIG)
+//      .addInterpolatorConfig(NUMERIC_CONFIG)
+//      //.addInterpolatorConfig(NUMERIC_SUMMARY_CONFIG) // doh!
+//      .setId("e1")
+//      .build();
+//    when(node.expressionConfig()).thenReturn(config);
+//    
+//    TernaryNumericSummaryIterator iterator = 
+//        new TernaryNumericSummaryIterator(node, RESULT, 
+//            (Map) ImmutableMap.builder()
+//              .put(ExpressionTimeSeries.LEFT_KEY, left)
+//              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+//              .put(ExpressionTimeSeries.CONDITION_KEY, condition)
+//              .build());
+//    NumericSummaryInterpolatorConfig nsic = 
+//        (NumericSummaryInterpolatorConfig) iterator.left_interpolator
+//          .fillPolicy().config();
+//    assertEquals(3, nsic.getExpectedSummaries().size());
+//    assertTrue(nsic.getExpectedSummaries().contains(0));
+//    assertTrue(nsic.getExpectedSummaries().contains(2));
+//    assertTrue(nsic.getExpectedSummaries().contains(5));
+//    // nulls for both
+//    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+//        .setLeft(null)
+//        .setLeftType(OperandType.NULL)
+//        .setRight(null)
+//        .setRightType(OperandType.NULL)
+//        .setExpressionOp(ExpressionOp.SUBTRACT)
+//        .setExpressionConfig(CONFIG)
+//        .setId("expression")
+//        .build();
+//    when(node.config()).thenReturn(expression_config);
+//    
+//    try {
+//      new ExpressionNumericSummaryIterator(node, RESULT, 
+//          (Map) ImmutableMap.builder()
+//            .build());
+//      fail("Expected IllegalStateException");
+//    } catch (IllegalStateException e) { }
+//  }
   
-  @Test
-  public void longLong() throws Exception {
-    setupData(new double[] { 1, 5, 2 }, new long[] { 3, 2, 2 }, 
-              new double[] { 4, 10, 8 }, new long[] { 1, 5, 1 }, false,
-              new double[] { 0, 1, 1 }, new long[] { 1, 0, 0 });
-
-    TernaryNumericSummaryIterator iterator = 
-        new TernaryNumericSummaryIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-              .put(ExpressionTimeSeries.CONDITION_KEY, condition)
-              .build());
-    assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericSummaryType> value = 
-        (TimeSeriesValue<NumericSummaryType>) iterator.next();
-    assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(4, value.value().value(0).doubleValue(), 0.001);
-    assertEquals(3, value.value().value(2).longValue());
-    
-    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-    assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(5, value.value().value(0).doubleValue(), 0.001);
-    assertEquals(5, value.value().value(2).longValue());
-    
-    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-    assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(2, value.value().value(0).doubleValue(), 0.001);
-    assertEquals(1, value.value().value(2).longValue());
-    assertFalse(iterator.hasNext());
-  }
+//  @Test
+//  public void longLong() throws Exception {
+//    setupData(new double[] { 1, 5, 2 }, new long[] { 3, 2, 2 }, 
+//              new double[] { 4, 10, 8 }, new long[] { 1, 5, 1 }, false,
+//              new double[] { 0, 1, 1 }, new long[] { 1, 0, 0 });
+//
+//    TernaryNumericSummaryIterator iterator = 
+//        new TernaryNumericSummaryIterator(node, RESULT, 
+//            (Map) ImmutableMap.builder()
+//              .put(ExpressionTimeSeries.LEFT_KEY, left)
+//              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+//              .put(ExpressionTimeSeries.CONDITION_KEY, condition)
+//              .build());
+//    assertTrue(iterator.hasNext());
+//    TimeSeriesValue<NumericSummaryType> value = 
+//        (TimeSeriesValue<NumericSummaryType>) iterator.next();
+//    assertEquals(1000, value.timestamp().msEpoch());
+//    assertEquals(4, value.value().value(0).doubleValue(), 0.001);
+//    assertEquals(3, value.value().value(2).longValue());
+//    
+//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+//    assertEquals(3000, value.timestamp().msEpoch());
+//    assertEquals(5, value.value().value(0).doubleValue(), 0.001);
+//    assertEquals(5, value.value().value(2).longValue());
+//    
+//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+//    assertEquals(5000, value.timestamp().msEpoch());
+//    assertEquals(2, value.value().value(0).doubleValue(), 0.001);
+//    assertEquals(1, value.value().value(2).longValue());
+//    assertFalse(iterator.hasNext());
+//  }
 
   // TODO - more UTS!!
   

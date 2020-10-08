@@ -52,10 +52,12 @@ public class SummarizerPassThroughNumericSummaryIterator implements QueryIterato
   @Override
   public boolean hasNext() {
     if (!iterator.hasNext()) {
-      if (long_values != null) {
-        sts.summarize(long_values, 0, idx);
-      } else {
-        sts.summarize(double_values, 0, idx);
+      if (idx > 0) {
+        if (long_values != null) {
+          sts.summarize(long_values, 0, idx);
+        } else {
+          sts.summarize(double_values, 0, idx);
+        }
       }
       return false;
     }
