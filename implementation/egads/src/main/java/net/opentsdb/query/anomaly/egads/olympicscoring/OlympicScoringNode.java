@@ -100,7 +100,6 @@ public class OlympicScoringNode extends AbstractQueryNode {
   protected final AtomicBoolean failed;
   protected final AtomicBoolean building_prediction;
   protected final AtomicBoolean cache_error;
-  protected final AtomicBoolean called_prediction_cache;
   protected final boolean cache_hits[];
   protected volatile BaselineQuery[][] baseline_queries;
   protected final TemporalAmount baseline_period;
@@ -128,7 +127,6 @@ public class OlympicScoringNode extends AbstractQueryNode {
     failed = new AtomicBoolean();
     cache_error = new AtomicBoolean();
     building_prediction = new AtomicBoolean();
-    called_prediction_cache = new AtomicBoolean();
     baseline_period = DateTime.parseDuration2(config.getBaselinePeriod());
     
     // TODO - find the proper ds in graph in order
@@ -211,6 +209,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         ts += (model_units == ChronoUnit.HOURS ? 3600 : 86400);
       }
       prediction_starts = new long[num_predictions];
+      //called_prediction_cache = new AtomicBoolean[num_predictions];
       predictions = new QueryResult[num_predictions];
       if (num_predictions > 1) {
         latch.set(num_predictions + 1);
@@ -221,6 +220,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
       int i = 0;
       while (ts < context.query().endTime().epoch()) {
         prediction_starts[i] = ts;
+        //called_prediction_cache[i] = new AtomicBoolean();
         cache_keys[i++] = ((OlympicScoringFactory) factory)
           .generateCacheKey(context.query(), (int) ts);
         ts += (model_units == ChronoUnit.HOURS ? 3600 : 86400);
@@ -282,7 +282,9 @@ public class OlympicScoringNode extends AbstractQueryNode {
 
   @Override
   public void onNext(final QueryResult next) {
-    current = next;
+    synchronized (this) {
+      current = next;
+    }
     countdown();
   }
   
@@ -290,69 +292,84 @@ public class OlympicScoringNode extends AbstractQueryNode {
    * Do the actual work of alignment, evaluation, etc.
    */
   void run() {
-    // Got baseline and current data, yay!
-    TLongObjectMap<TimeSeries> map = new TLongObjectHashMap<TimeSeries>();
-    
-    for (final TimeSeries series : current.timeSeries()) {
-      final long hash = series.id().buildHashCode();
-      map.put(hash, series);
-    }
-    
-    final EgadsResult result = new EgadsResult(
-        this, current, config.getSerializeObserved());
-    if (predictions.length > 1) {
-      // join first then eval
-      final TLongObjectMap<TimeSeries[]> series_arrays = 
-          new TLongObjectHashMap<TimeSeries[]>();
-      for (int i = 0; i < predictions.length; i++) {
-        final int series_limit = predictions[i].timeSeries().size();
-        for (int x = 0; x < series_limit; x++) {
-          final TimeSeries series = predictions[i].timeSeries().get(x);
-          final long hash = series.id().buildHashCode();
-          TimeSeries[] array = series_arrays.get(hash);
-          if (array == null) {
-            array = new TimeSeries[predictions.length];
-            series_arrays.put(hash, array);
-          }
-          array[i] = series;
-        }
+    try {
+      if (current == null) {
+        LOG.error("Current data is null!");
+        sendUpstream(new QueryExecutionException("No current data.", 500, 0));
+        return;
+      }
+      // Got baseline and current data, yay!
+      TLongObjectMap<TimeSeries> map = new TLongObjectHashMap<TimeSeries>();
+      for (final TimeSeries series : current.timeSeries()) {
+        final long hash = series.id().buildHashCode();
+        map.put(hash, series);
       }
       
-      TLongObjectIterator<TimeSeries[]> iterator = series_arrays.iterator();
-      while (iterator.hasNext()) {
-        iterator.advance();
-        TimeSeries series = null;
+      final EgadsResult result = new EgadsResult(
+          this, current, config.getSerializeObserved());
+      if (predictions.length > 1) {
+        // join first then eval
+        final TLongObjectMap<TimeSeries[]> series_arrays = 
+            new TLongObjectHashMap<TimeSeries[]>();
         for (int i = 0; i < predictions.length; i++) {
-          if (iterator.value()[i] == null) {
+          if (predictions[i] == null ||
+              predictions[i].timeSeries() == null || 
+              predictions[i].timeSeries().isEmpty()) {
+            LOG.warn("Null or empty set of series at: " + i + "  " + predictions[i]);
+            continue;
+          }
+          final int series_limit = predictions[i].timeSeries().size();
+          for (int x = 0; x < series_limit; x++) {
+            final TimeSeries series = predictions[i].timeSeries().get(x);
+            final long hash = series.id().buildHashCode();
+            TimeSeries[] array = series_arrays.get(hash);
+            if (array == null) {
+              array = new TimeSeries[predictions.length];
+              series_arrays.put(hash, array);
+            }
+            array[i] = series;
+          }
+        }
+        
+        TLongObjectIterator<TimeSeries[]> iterator = series_arrays.iterator();
+        while (iterator.hasNext()) {
+          iterator.advance();
+          TimeSeries series = null;
+          for (int i = 0; i < predictions.length; i++) {
+            if (iterator.value()[i] == null) {
+              continue;
+            }
+            
+            series = iterator.value()[i];
+            break;
+          }
+          
+          if (series == null) {
+            LOG.warn("Whoops, null series in predictions?? Shouldn't happen!");
             continue;
           }
           
-          series = iterator.value()[i];
-          break;
+          final long hash = series.id().buildHashCode();
+          TimeSeries cur = map.remove(hash);
+          evaluate(cur, iterator.value(), result);
+          cur.close();
         }
-        
-        if (series == null) {
-          LOG.warn("Whoops, null series in predictions?? Shouldn't happen!");
-          continue;
+      } else {
+        final int series_limit = predictions[0].timeSeries().size();
+        for (int i = 0; i < series_limit; i++) {
+          final TimeSeries series = predictions[0].timeSeries().get(i);
+          final long hash = series.id().buildHashCode();
+          TimeSeries cur = map.remove(hash);
+          evaluate(cur, series, result);
+          cur.close();
         }
-        
-        final long hash = series.id().buildHashCode();
-        TimeSeries cur = map.remove(hash);
-        evaluate(cur, iterator.value(), result);
-        cur.close();
       }
-    } else {
-      final int series_limit = predictions[0].timeSeries().size();
-      for (int i = 0; i < series_limit; i++) {
-        final TimeSeries series = predictions[0].timeSeries().get(i);
-        final long hash = series.id().buildHashCode();
-        TimeSeries cur = map.remove(hash);
-        evaluate(cur, series, result);
-        cur.close();
-      }
+      map = null; // release to GC
+      sendUpstream(result);
+    } catch (Throwable t) {
+      LOG.error("Failed to process egads query.", t);
+      sendUpstream(t);
     }
-    map = null; // release to GC
-    sendUpstream(result);
   }
   
   void evaluate(final TimeSeries cur, 
@@ -482,12 +499,15 @@ public class OlympicScoringNode extends AbstractQueryNode {
     if (context.query().isTraceEnabled()) {
       context.queryContext().logTrace("EGADS Properties: " + properties.toString());
     }
+    LOG.debug("[EGADS] Running baseline with properties: " + properties.toString() 
+      + "  For index: " + prediction_idx);
      // TODO - parallelize on each time series.
     final List<TimeSeries> computed = Lists.newArrayList();
     TLongObjectIterator<OlympicScoringBaseline[]> it = join.iterator();
     while (it.hasNext()) {
       it.advance();
       TimeSeries ts = it.value()[prediction_idx].predict(properties, prediction_starts[prediction_idx]);
+      LOG.debug("[EGADS] Baseline series: " + ts.id() + "  For index: " + prediction_idx);
       if (ts != null) {
         computed.add(ts);
       }
@@ -533,6 +553,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
             "amomaly.EGADS.query.prediction.cache.hit", 
             "model", OlympicScoringFactory.TYPE,
             "mode", config.getMode().toString());
+        LOG.debug("Cache hit for index: " + index);
         countdown();
       } else {
         context.queryContext().logDebug("Prediction cache miss for query.");
@@ -540,6 +561,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
             "amomaly.EGADS.query.prediction.cache.miss", 
             "model", OlympicScoringFactory.TYPE,
             "mode", config.getMode().toString());
+        LOG.debug("Cache miss for index: " + index + ". Fetching baseline.");
         fetchBaselineData(index);
       }
       
@@ -583,7 +605,8 @@ public class OlympicScoringNode extends AbstractQueryNode {
         return;
       }
       
-      if (period_idx + 1 < config.getBaselineNumPeriods()) {
+      if (period_idx + 1 < config.getBaselineNumPeriods() && 
+          baseline_queries[prediction_idx][period_idx + 1] != null) {
         // fire next
         baseline_queries[prediction_idx][period_idx + 1].sub_context.initialize(null)
           .addCallback(new SubQueryCB( 
@@ -606,7 +629,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
     public void onNext(final QueryResult next) {
       updateState(State.RUNNING, prediction_idx, null);
       // TODO filter, for now assume one result
-      
+      try {
       for (final TimeSeries series : next.timeSeries()) {
         final long hash = series.id().buildHashCode();
         synchronized (join) {
@@ -623,6 +646,9 @@ public class OlympicScoringNode extends AbstractQueryNode {
       }
       
       next.close();
+      } catch (Throwable t) {
+        LOG.error("WTF?", t);
+      }
     }
 
     @Override
@@ -716,7 +742,11 @@ public class OlympicScoringNode extends AbstractQueryNode {
       end.add(Duration.of(1, model_units));
     }
     
-    // fire!
+    // build the queries. If we have a funky query that is back-to-back, fire one
+    // instead of multiple
+    boolean consecutive = true;
+    final long start_epoch = start.epoch(); 
+    long last_epoch = end.epoch();
     for (int i = 0; i < config.getBaselineNumPeriods(); i++) {
       final BaselineQuery query = new BaselineQuery(prediction_index, i);
       baseline_queries[prediction_index][i] = query;
@@ -730,8 +760,28 @@ public class OlympicScoringNode extends AbstractQueryNode {
       }
       start.add(baseline_period);
       end.add(baseline_period);
+      if (start.epoch() - last_epoch > 0) {
+        consecutive = false;
+      }
+      last_epoch = end.epoch();
     }
 
+    if (consecutive && (end.epoch() - start_epoch <= 86400)) {
+      LOG.info("Switching to single query mode!");
+      for (int i = 1; i < config.getBaselineNumPeriods(); i++) {
+        baseline_queries[prediction_index][i] = null;
+      }
+      baseline_queries[prediction_index][0].sub_context = buildQuery(
+          (int) start_epoch, 
+          (int) end.epoch(), 
+          context.queryContext(), 
+          baseline_queries[prediction_index][0]);
+      if (context.query().isTraceEnabled()) {
+        context.queryContext().logTrace("Rebuilding consecutive baseline query at [0] " + 
+        JSON.serializeToString(baseline_queries[prediction_index][0].sub_context.query()));
+      }
+    }
+    
     baseline_queries[prediction_index][0].sub_context.initialize(null)
       .addCallback(new SubQueryCB(baseline_queries[prediction_index][0].sub_context))
       .addErrback(new ErrorCB());
@@ -815,6 +865,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
     
     context.tsdb().getQueryThreadPool().submit(new Runnable() {
       public void run() {
+        try {
         class CacheErrorCB implements Callback<Object, Exception> {
           @Override
           public Object call(final Exception e) throws Exception {
@@ -840,7 +891,12 @@ public class OlympicScoringNode extends AbstractQueryNode {
         
         final long expiration;
         if (model_units == ChronoUnit.HOURS) {
-          expiration = 3600 * 2 * 1000;
+          long end = prediction_starts[prediction_index] + 3600;
+          if (DateTime.currentTimeMillis() / 1000 < end) {
+            expiration = (60 * 5) * 1000;
+          } else {
+            expiration = 3600 * 2 * 1000;
+          }
         } else {
           expiration = 86400 * 2 * 1000;
         }
@@ -852,6 +908,9 @@ public class OlympicScoringNode extends AbstractQueryNode {
             "amomaly.EGADS.query.prediction.cache.write", 
             "model", OlympicScoringFactory.TYPE,
             "mode", config.getMode().toString());
+        } catch (Throwable t) {
+          LOG.error("Failed to cache prediction", t);
+        }
       }
     });
   }
@@ -894,20 +953,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
               prediction_index,
               false);
         } else if (present.state == State.COMPLETE) {
-          for (int i = 0; i < predictions.length; i++) {
-            if (prediction_attempts.decrementAndGet() < 0) {
-              handleError(new QueryExecutionException("Whoops, too many "
-                    + "prediction attempts made: " 
-                    + (predictions.length - prediction_attempts.get()), 423),
-                  prediction_index,
-                  false);
-              return false;
-            }
-            cache.fetch(pipelineContext(), cache_keys[prediction_index], null)
-              .addCallback(new CacheCB(i))
-              .addErrback(new CacheErrCB(i));
-          }
-          
+          return true;
         } else if (present.state == State.RUNNING) {
           handleError(new QueryExecutionException("Lost a race building "
               + "prediction for prediction start [" + prediction_starts[prediction_index] + "] and key " 
@@ -931,19 +977,7 @@ public class OlympicScoringNode extends AbstractQueryNode {
         return true;
       }
     } else if (state.state == State.COMPLETE) {
-      // TODO - handle infinite loops here, we need to inc a volatile and
-      // fail if we hit too many retries.
-      if (called_prediction_cache.compareAndSet(false, true)) {
-        for (int i = 0; i < predictions.length; i++) {
-          cache.fetch(pipelineContext(), cache_keys[prediction_index], null)
-            .addCallback(new CacheCB(i))
-            .addErrback(new CacheErrCB(i));
-        }
-      } else {
-        throw new IllegalStateException("Whoops? Tried calling prediction cache "
-            + "fetch more than once?");
-      }
-      
+      return true;
     } else if (state.state == State.RUNNING) {
       handleError(new QueryExecutionException("Lost a race building "
           + "prediction for prediction start [" + prediction_starts[prediction_index] + "] and key " 
