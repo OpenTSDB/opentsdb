@@ -232,6 +232,29 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
     // to the query start and end times. The config will then align them.
     if (config.startTime() != null) {
       // we've been here
+      // and we need to find our sources if we have a rollup as well as set the 
+      // padding.
+      final List<QueryNodeConfig> sources = Lists.newArrayList(
+          plan.terminalSourceNodes(config));
+      for (final QueryNodeConfig source : sources) {
+        if (!(source instanceof TimeSeriesDataSourceConfig)) {
+          continue;
+        }
+        
+        if (((TimeSeriesDataSourceConfig) source).getSummaryAggregations() == null ||
+            ((TimeSeriesDataSourceConfig) source).getSummaryAggregations().isEmpty()) {
+          final TimeSeriesDataSourceConfig.Builder new_source = 
+              (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
+          new_source.setSummaryInterval(config.getInterval());
+          if (config.getAggregator().equalsIgnoreCase("avg")) {
+            new_source.addSummaryAggregation("sum");
+            new_source.addSummaryAggregation("count");
+          } else {
+            new_source.addSummaryAggregation(config.getAggregator());
+          }
+          plan.replace(source, new_source.build());
+        }      
+      }
       return;
     }
     
