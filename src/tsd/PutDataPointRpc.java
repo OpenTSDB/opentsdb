@@ -539,7 +539,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         if (show_details) {
           details.add(getHttpDetails("Unexpected exception", dp));
         }
-        LOG.warn("Unexpected exception: " + dp);
+        LOG.warn("Unexpected exception: " + dp, e);
         unknown_errors.incrementAndGet();
       }
     }
