@@ -783,7 +783,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
         r = Double.MAX_VALUE;
         break;
       case MIN:
-        r = Double.MIN_VALUE;
+        r = -Double.MAX_VALUE;
         break;
       case PREV:
         r = y0;
