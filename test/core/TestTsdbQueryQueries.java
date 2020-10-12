@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
@@ -1606,7 +1607,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     sub.setMetric(METRIC_STRING);
     sub.setAggregator("sum");
     sub.setDownsample("1h-sum");
-    sub.setFilters(Lists.newArrayList(new TagVLiteralOrFilter("host", TAGV_STRING)));
+    sub.setFilters(Lists.<TagVFilter>newArrayList(new TagVLiteralOrFilter("host", TAGV_STRING)));
 
     ts_query.setQueries(Arrays.asList(sub));
     ts_query.validateAndSetQuery();
