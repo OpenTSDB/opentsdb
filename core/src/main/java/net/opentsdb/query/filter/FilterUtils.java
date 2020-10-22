@@ -58,13 +58,17 @@ public class FilterUtils {
     }
     
     if (filter instanceof ExplicitTagsFilter) {
+      Set<String> matched_tags = matched;
+      if (matched == null) {
+        matched_tags = Sets.newHashSet();
+      }
       final boolean satisfied = matchesTags(
-          ((ExplicitTagsFilter) filter).getFilter(), tags, matched);
+          ((ExplicitTagsFilter) filter).getFilter(), tags, matched_tags);
       
       if (!satisfied) {
         return false;
       }
-      if (matched.size() != tags.size()) {
+      if (matched_tags.size() != tags.size()) {
         return false;
       }
       return true;
