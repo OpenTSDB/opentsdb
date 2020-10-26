@@ -24,7 +24,7 @@
 
 APACHE_MATH_VERSION := 3.4.1
 APACHE_MATH := third_party/apache/commons-math3-$(APACHE_MATH_VERSION).jar
-APACHE_MATH_BASE_URL := http://repo1.maven.org/maven2/org/apache/commons/commons-math3/$(APACHE_MATH_VERSION)
+APACHE_MATH_BASE_URL := https://repo1.maven.org/maven2/org/apache/commons/commons-math3/$(APACHE_MATH_VERSION)
 
 $(APACHE_MATH): $(APACHE_MATH).md5
 	set dummy "$(APACHE_MATH_BASE_URL)" "$(APACHE_MATH)"; shift; $(FETCH_DEPENDENCY)
