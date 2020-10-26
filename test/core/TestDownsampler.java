@@ -1277,14 +1277,23 @@ public class TestDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
+
+    // This query, in combination with the configuration/interval above, is asking for rolled up COUNTs (i.e. already
+    // downsampled).  These COUNTs should then be SUMmed over some interval we'll define later in a DownsamplingSpecification
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.COUNT,
         3600000, Aggregators.SUM);
+
+    // These points represent rolled up COUNTs that would be stored in the rollup table (e.g. tsdb-rollup-1h) and as
+    // such we don't expect these to be COUNTed again on retrieval.  These points are at 5s intervals
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 2, 4),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 3, 8)
     }));
+
+    // The rolled up points above are at 5s intervals but we want to downsample these further so that we only get
+    // points at 10s intervals
     specification = new DownsamplingSpecification("10s-count");
     downsampler = new Downsampler(source, specification, 0, 0, rollup_query);
     verify(source, never()).next();
@@ -1297,10 +1306,16 @@ public class TestDownsampler {
       timestamps_in_millis.add(dp.timestamp());
     }
 
+    // Asserts here different to upstream as there is a bug upstream and the original test was written to pass with the bug.
+    // 2 points are expected because the 4 points at 5s intervals will be downsampled to 2 points at 10s intervals
     assertEquals(2, values.size());
-    assertEquals(2, values.get(0), 0.0000001);
+
+    // Expect the SUM of points 1 and 2
+    assertEquals(3, values.get(0), 0.0000001);
     assertEquals(BASE_TIME + 00000L, timestamps_in_millis.get(0).longValue());
-    assertEquals(2, values.get(1), 0.0000001);
+
+    // Expect the SUM of points 3 and 4
+    assertEquals(12, values.get(1), 0.0000001);
     assertEquals(BASE_TIME + 10000L, timestamps_in_millis.get(1).longValue());
   }
   

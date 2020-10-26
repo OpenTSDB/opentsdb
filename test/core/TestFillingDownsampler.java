@@ -975,7 +975,7 @@ public class TestFillingDownsampler {
     step(downsampler, timestamp += 100, Double.NaN);
     assertFalse(downsampler.hasNext());
   }
-  
+
   @Test
   public void testDownsampler_rollupCount() {
     final RollupInterval interval = RollupInterval.builder()
@@ -984,35 +984,49 @@ public class TestFillingDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
+
+    // This query, in combination with the configuration/interval above, is asking for rolled up COUNTs (i.e. already
+    // downsampled).  These COUNTs should then be SUMmed over some interval we'll define later in a DownsamplingSpecification
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.COUNT,
         3600000, Aggregators.SUM);
     final long baseTime = 1000L;
+
+    // These points represent rolled up COUNTs that would be stored in the rollup table (e.g. tsdb-rollup-1h) and as
+    // such we don't expect these to be COUNTed again on retrieval.  These points are at 25ms intervals
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  0L, 12.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  1L, 11.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  2L, 10.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  3L,  9.),
-        
+
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  4L,  8.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  5L,  7.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  6L,  6.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  7L,  5.),
-        
+
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  8L,  4.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L *  9L,  3.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L * 10L,  2.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L * 11L,  1.),
       });
 
+    // The rolled up points above are at 25ms intervals but we want to downsample these further so that we only get
+    // points at 100ms intervals
     specification = new DownsamplingSpecification("100ms-count-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
       baseTime + 12L * 25L, specification, 0, 0, rollup_query);
 
     long timestamp = baseTime;
-    step(downsampler, timestamp, 4);
-    step(downsampler, timestamp += 100, 4);
-    step(downsampler, timestamp += 100, 4);
+
+    // Expect the SUM of points 1 to 4
+    step(downsampler, timestamp, 42);
+
+    // Expect the SUM of points 5 to 8
+    step(downsampler, timestamp += 100, 26);
+
+    // Expect the SUM of points 9 to 12
+    step(downsampler, timestamp += 100, 10);
     assertFalse(downsampler.hasNext());
   }
   
