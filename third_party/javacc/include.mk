@@ -15,7 +15,7 @@
 
 JAVACC_VERSION := 6.1.2
 JAVACC := third_party/javacc/javacc-$(JAVACC_VERSION).jar
-JAVACC_BASE_URL := http://central.maven.org/maven2/net/java/dev/javacc/javacc/$(JAVACC_VERSION)
+JAVACC_BASE_URL := https://repo1.maven.org/maven2/net/java/dev/javacc/javacc/$(JAVACC_VERSION)
 
 $(JAVACC): $(JAVACC).md5
 	set dummy "$(JAVACC_BASE_URL)" "$(JAVACC)"; shift; $(FETCH_DEPENDENCY)
