@@ -491,7 +491,8 @@ public class SaltScanner {
     private long rows_pre_filter = 0;
     private long dps_post_filter = 0;
     private long rows_post_filter = 0;
-    
+    private long query_timeout = tsdb.getConfig().getLong("tsd.query.timeout");
+
     public ScannerCB(final Scanner scanner, final int index) {
       this.scanner = scanner;
       this.index = index;
@@ -554,7 +555,24 @@ public class SaltScanner {
         final List<Deferred<Object>> lookups = 
             filters != null && !filters.isEmpty() ? 
                 new ArrayList<Deferred<Object>>(rows.size()) : null;
-        
+
+        // fail the query when the timeout exceeded
+        if (this.query_timeout > 0 && fetch_time > (this.query_timeout * 1000000)) {
+          try {
+            close(false);
+            handleException(
+                new QueryException(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE,
+                "Sorry, your query timed out. Time limit: "
+                    + this.query_timeout + " ms, fetch time: "
+                    + (double)(fetch_time)/1000000 + " ms. Please try filtering "
+                    + "using more tags or decrease your time range."));
+            return false;
+          } catch (Exception e) {
+            LOG.error("Sorry, Scanner is closed: " + scanner, e);
+            return false;
+          }
+        }
+
         // validation checking before processing the next set of results. It's 
         // kinda funky but we want to allow queries to sneak through that were
         // just a *tad* over the limits so that's why we don't check at the 
