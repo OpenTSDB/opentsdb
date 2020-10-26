@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -44,6 +45,11 @@ final class IncomingDataPoints implements WritableDataPoints {
    * after we which we switch to exponential buckets.
    */
   static final Histogram putlatency = new Histogram(16000, (short) 2, 100);
+
+  /**
+   * Keep track of the number of UIDs that came back null with auto_metric disabled.
+   */
+  static final AtomicLong auto_metric_rejection_count = new AtomicLong();
 
   /** The {@code TSDB} instance we belong to. */
   private final TSDB tsdb;
@@ -137,9 +143,14 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     short pos = (short) Const.SALT_WIDTH();
 
-    copyInRowKey(row, pos,
-        (tsdb.config.auto_metric() ? tsdb.metrics.getOrCreateId(metric)
-            : tsdb.metrics.getId(metric)));
+    byte[] metric_id  = (tsdb.config.auto_metric() ? tsdb.metrics.getOrCreateId(metric)
+            : tsdb.metrics.getId(metric));
+
+    if(!tsdb.config.auto_metric() && metric_id == null) {
+      auto_metric_rejection_count.incrementAndGet();
+    }
+
+    copyInRowKey(row, pos, metric_id);
     pos += metric_width;
 
     pos += Const.TIMESTAMP_BYTES;
@@ -149,60 +160,6 @@ final class IncomingDataPoints implements WritableDataPoints {
       pos += tag.length;
     }
     return row;
-  }
-
-  /**
-   * Returns a partially initialized row key for this metric and these tags. The
-   * only thing left to fill in is the base timestamp.
-   * 
-   * @since 2.0
-   */
-  static Deferred<byte[]> rowKeyTemplateAsync(final TSDB tsdb,
-      final String metric, final Map<String, String> tags) {
-    final short metric_width = tsdb.metrics.width();
-    final short tag_name_width = tsdb.tag_names.width();
-    final short tag_value_width = tsdb.tag_values.width();
-    final short num_tags = (short) tags.size();
-
-    int row_size = (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES 
-        + tag_name_width * num_tags + tag_value_width * num_tags);
-    final byte[] row = new byte[row_size];
-
-    // Lookup or create the metric ID.
-    final Deferred<byte[]> metric_id;
-    if (tsdb.config.auto_metric()) {
-      metric_id = tsdb.metrics.getOrCreateIdAsync(metric, metric, tags);
-    } else {
-      metric_id = tsdb.metrics.getIdAsync(metric);
-    }
-
-    // Copy the metric ID at the beginning of the row key.
-    class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
-      public byte[] call(final byte[] metricid) {
-        copyInRowKey(row, (short) Const.SALT_WIDTH(), metricid);
-        return row;
-      }
-    }
-
-    // Copy the tag IDs in the row key.
-    class CopyTagsInRowKeyCB implements
-        Callback<Deferred<byte[]>, ArrayList<byte[]>> {
-      public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
-        short pos = (short) (Const.SALT_WIDTH() + metric_width);
-        pos += Const.TIMESTAMP_BYTES;
-        for (final byte[] tag : tags) {
-          copyInRowKey(row, pos, tag);
-          pos += tag.length;
-        }
-        // Once we've resolved all the tags, schedule the copy of the metric
-        // ID and return the row key we produced.
-        return metric_id.addCallback(new CopyMetricInRowKeyCB());
-      }
-    }
-
-    // Kick off the resolution of all tags.
-    return Tags.resolveOrCreateAllAsync(tsdb, metric, tags)
-        .addCallbackDeferring(new CopyTagsInRowKeyCB());
   }
 
   public void setSeries(final String metric, final Map<String, String> tags) {
