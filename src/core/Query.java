@@ -197,7 +197,7 @@ public interface Query {
    * way we get this one data point is by aggregating all the data points of
    * that interval together using an {@link Aggregator}.  This enables you
    * to compute things like the 5-minute average or 10 minute 99th percentile.
-   * @param interval Number of seconds wanted between each data point.
+   * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
    */
