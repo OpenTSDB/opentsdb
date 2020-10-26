@@ -47,6 +47,12 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
  */
 final class UniqueIdRpc implements HttpRpc {
 
+  private final TSDB.OperationMode mode;
+
+  public UniqueIdRpc(TSDB.OperationMode mode) {
+    this.mode = mode;
+  }
+
   @Override
   public void execute(TSDB tsdb, HttpQuery query) throws IOException {
     
@@ -165,53 +171,61 @@ final class UniqueIdRpc implements HttpRpc {
 
     // GET
     if (method == HttpMethod.GET) {
-      
+      if (!mode.isRead()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in wo mode.");
+      }
+
       final String uid = query.getRequiredQueryStringParam("uid");
       final UniqueIdType type = UniqueId.stringToUniqueIdType(
           query.getRequiredQueryStringParam("type"));
       try {
         final UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, uid)
-            .joinUninterruptibly();
+        .joinUninterruptibly();
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (NoSuchUniqueId e) {
-        throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
-                "Could not find the requested UID", e);
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Could not find the requested UID", e);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
-      // POST
+    // POST
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-      
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
+
       final UIDMeta meta;
       if (query.hasContent()) {
         meta = query.serializer().parseUidMetaV1();
       } else {
         meta = this.parseUIDMetaQS(query);
       }
-
+      
       /**
        * Storage callback used to determine if the storage call was successful
        * or not. Also returns the updated object from storage.
        */
       class SyncCB implements Callback<Deferred<UIDMeta>, Boolean> {
-
+        
         @Override
         public Deferred<UIDMeta> call(Boolean success) throws Exception {
           if (!success) {
             throw new BadRequestException(
-                    HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                    "Failed to save the UIDMeta to storage",
-                    "This may be caused by another process modifying storage data");
+                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                "Failed to save the UIDMeta to storage", 
+                "This may be caused by another process modifying storage data");
           }
-
+          
           return UIDMeta.getUIDMeta(tsdb, meta.getType(), meta.getUID());
         }
-
+        
       }
-
+      
       try {
-        final Deferred<UIDMeta> process_meta = meta.syncToStorage(tsdb,
-                method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+        final Deferred<UIDMeta> process_meta = meta.syncToStorage(tsdb, 
+            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final UIDMeta updated_meta = process_meta.joinUninterruptibly();
         tsdb.indexUIDMeta(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
@@ -220,32 +234,41 @@ final class UniqueIdRpc implements HttpRpc {
       } catch (IllegalArgumentException e) {
         throw new BadRequestException(e);
       } catch (NoSuchUniqueId e) {
-        throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
-      // DELETE
+    // DELETE    
     } else if (method == HttpMethod.DELETE) {
-      
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
+
       final UIDMeta meta;
       if (query.hasContent()) {
         meta = query.serializer().parseUidMetaV1();
       } else {
         meta = this.parseUIDMetaQS(query);
       }
-      try {
+      try {        
         meta.delete(tsdb).joinUninterruptibly();
         tsdb.deleteUIDMeta(meta);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete UIDMeta information", e);
       } catch (NoSuchUniqueId e) {
-        throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
-                "Could not find the requested UID", e);
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Could not find the requested UID", e);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
       query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
+      
+    } else {
+      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+          "Method not allowed", "The HTTP method [" + method.getName() +
+          "] is not permitted for this endpoint");
     }
   }
   
@@ -261,7 +284,11 @@ final class UniqueIdRpc implements HttpRpc {
 
     // GET
     if (method == HttpMethod.GET) {
-      
+      if (!mode.isRead()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in wo mode.");
+      }
+
       String tsuid = null;
       if (query.hasQueryStringParam("tsuid")) {
         tsuid = query.getQueryStringParam("tsuid");
@@ -313,6 +340,10 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // POST / PUT
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
 
       final TSMeta meta;
       if (query.hasContent()) {
@@ -431,7 +462,11 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // DELETE  
     } else if (method == HttpMethod.DELETE) {
-      
+      if (!mode.isWrite()) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+                "This operation is not allowed in ro mode.");
+      }
+
       final TSMeta meta;
       if (query.hasContent()) {
         meta = query.serializer().parseTSMetaV1();
@@ -487,11 +522,14 @@ final class UniqueIdRpc implements HttpRpc {
    * @param query The query for this request
    */
   private void handleRename(final TSDB tsdb, final HttpQuery query) {
+    if (!mode.isWrite()) {
+      throw new BadRequestException(HttpResponseStatus.NOT_FOUND, "Operation not allowed",
+              "This operation is not allowed in ro mode.");
+    }
     // only accept GET and POST
     RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
 
     final HashMap<String, String> source;
-
     if (query.method() == HttpMethod.POST) {
       source = query.serializer().parseUidRenameV1();
     } else {
