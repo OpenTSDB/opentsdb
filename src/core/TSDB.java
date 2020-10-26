@@ -968,6 +968,13 @@ public final class TSDB {
       collector.clearExtraTag("class");
     }
 
+    collector.addExtraTag("class", "IncomingDataPoints");
+    try {
+      collector.record("uid.autometric.rejections", IncomingDataPoints.auto_metric_rejection_count, "method=put");
+    } finally {
+      collector.clearExtraTag("class");
+    }
+
     collector.addExtraTag("class", "TSDB");
     try {
       collector.record("datapoints.added", datapoints_added, "type=all");
