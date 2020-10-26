@@ -279,9 +279,13 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
     if (stats != null) {
       stats.incrementRawTimeSeriesCount(next.timeSeries().size());
     }
+    if (executor == null) {
+      onError(new QueryExecutionException("Executor was null.", 500));
+      return;
+    }
+    final State state = executor.state();
+    
     context.tsdb().getQueryThreadPool().submit(new Runnable() {
-      final State state = executor.state();
-      
       @Override
       public void run() {
         sendUpstream(next);
@@ -516,8 +520,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
           .addErrback(new MetaErrorCB(span));
     } else {
       synchronized (this) {
-        executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
-            Tsdb1xScannersPool.TYPE).claim().object();
+        //executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
+        //    Tsdb1xScannersPool.TYPE).claim().object();
+        executor = new Tsdb1xScanners();
         ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           if (push) {
@@ -625,8 +630,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
       }
       
       synchronized (Tsdb1xHBaseQueryNode.this) {
-        executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
-            Tsdb1xScannersPool.TYPE).claim().object();
+        //executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
+        //    Tsdb1xScannersPool.TYPE).claim().object();
+        executor = new Tsdb1xScanners();
         ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           if (push) {
@@ -703,8 +709,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
             child.setSuccessTags()
                  .finish();
           }
-          executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
-              Tsdb1xMultiGetPool.TYPE).claim().object();
+          //executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
+          //    Tsdb1xMultiGetPool.TYPE).claim().object();
+          executor = new Tsdb1xMultiGet();
           ((Tsdb1xMultiGet) executor).reset(
               Tsdb1xHBaseQueryNode.this, 
               config, 
@@ -912,8 +919,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
                 child.setSuccessTags()
                      .finish();
               }
-              executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
-                  Tsdb1xMultiGetPool.TYPE).claim().object();
+              //executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
+              //    Tsdb1xMultiGetPool.TYPE).claim().object();
+              executor = new Tsdb1xMultiGet();
               ((Tsdb1xMultiGet) executor).reset(
                   Tsdb1xHBaseQueryNode.this, 
                   config, 
