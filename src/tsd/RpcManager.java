@@ -244,6 +244,8 @@ public final class RpcManager {
    * These are not generally configurable via TSDB config.
    * @param telnet a map of telnet command names to {@link TelnetRpc}
    * instances.
+   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
+   * mode?
    * @param http a map of API endpoints to {@link HttpRpc} instances.
    */
   private void initializeBuiltinRpcs(final OperationMode mode,
@@ -374,8 +376,6 @@ public final class RpcManager {
   protected void initializeHttpRpcPlugins(final OperationMode mode,
         final String[] pluginClassNames,
         final ImmutableMap.Builder<String, HttpRpcPlugin> http) {
-
-    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
 
     for (final String plugin : pluginClassNames) {
       final HttpRpcPlugin rpc = createAndInitialize(plugin, HttpRpcPlugin.class);
