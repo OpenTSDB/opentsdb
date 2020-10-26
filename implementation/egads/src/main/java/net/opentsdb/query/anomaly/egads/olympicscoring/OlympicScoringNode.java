@@ -351,6 +351,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
           
           final long hash = series.id().buildHashCode();
           TimeSeries cur = map.remove(hash);
+          if (cur == null) {
+            LOG.warn("No current data for hash: " + hash);
+            continue;
+          }
           evaluate(cur, iterator.value(), result);
           cur.close();
         }
@@ -360,6 +364,10 @@ public class OlympicScoringNode extends AbstractQueryNode {
           final TimeSeries series = predictions[0].timeSeries().get(i);
           final long hash = series.id().buildHashCode();
           TimeSeries cur = map.remove(hash);
+          if (cur == null) {
+            LOG.warn("No current data for hash: " + hash);
+            continue;
+          }
           evaluate(cur, series, result);
           cur.close();
         }
