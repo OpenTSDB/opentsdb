@@ -244,10 +244,7 @@ public class FillingDownsampler extends Downsampler {
             specification.getFunction() == Aggregators.COUNT) {
           double count = 0;
           while (values_in_interval.hasNextValue()) {
-            count += values_in_interval.nextValueCount();
-            // WARNING: consume and move next or we'll be stuck in an infinite
-            // loop here.
-            values_in_interval.nextDoubleValue(); 
+            count += values_in_interval.nextDoubleValue();
           }
           value = count;
         } else {
