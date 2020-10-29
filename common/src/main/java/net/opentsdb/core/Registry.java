@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.core;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -75,6 +76,14 @@ public interface Registry {
    */
   public <T> T getPlugin(final Class<T> clazz, final String id);
 
+  /**
+   * Retrieve a list of plugin instances of the given type.
+   * @param <T> The type of plugin to be fetched.
+   * @param clazz The type of plugin to be fetched.
+   * @return A list of instances that may be empty or null.
+   */
+  public <T> List<T> getPlugins(final Class<T> clazz);
+  
   /** @return An umodifiable map of registered plugins. */
   public Map<Class<?>, Map<String, TSDBPlugin>> plugins();
   
