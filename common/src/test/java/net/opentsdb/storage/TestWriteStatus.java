@@ -37,12 +37,12 @@ public class TestWriteStatus {
   public void retry() throws Exception {
     WriteStatus status = WriteStatus.retry(null);
     assertEquals(WriteState.RETRY, status.state());
-    assertNull(status.message());
+    assertEquals("Retry", status.message());
     assertNull(status.exception());
     
     status = WriteStatus.retry("");
     assertEquals(WriteState.RETRY, status.state());
-    assertEquals("", status.message());
+    assertEquals("Retry", status.message());
     assertNull(status.exception());
     
     status = WriteStatus.retry("oops");
@@ -55,12 +55,12 @@ public class TestWriteStatus {
   public void rejected() throws Exception {
     WriteStatus status = WriteStatus.rejected(null);
     assertEquals(WriteState.REJECTED, status.state());
-    assertNull(status.message());
+    assertEquals("Rejected", status.message());
     assertNull(status.exception());
     
     status = WriteStatus.rejected("");
     assertEquals(WriteState.REJECTED, status.state());
-    assertEquals("", status.message());
+    assertEquals("Rejected", status.message());
     assertNull(status.exception());
     
     status = WriteStatus.rejected("oops");
