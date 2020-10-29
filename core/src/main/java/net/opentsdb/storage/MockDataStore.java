@@ -27,6 +27,9 @@ import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
+import net.opentsdb.data.LowLevelMetricData;
+import net.opentsdb.data.LowLevelTimeSeriesData;
+import net.opentsdb.data.LowLevelTimeSeriesData.HashedNamespacedLowLevelTimeSeriesData;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
@@ -237,6 +240,91 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       states.add(WriteStatus.OK);
     }
     return Deferred.fromResult(states);
+  }
+  
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state,
+                                           final LowLevelTimeSeriesData data,
+                                           final Span span) {
+    if (!(data instanceof LowLevelMetricData)) {
+      return Deferred.fromError(new UnsupportedOperationException("TODO"));
+    }
+
+    try {
+      final LowLevelMetricData metric = (LowLevelMetricData) data;
+      int count = 0;
+      
+      while (metric.advance()) {
+        try {
+          MutableNumericValue dp = new MutableNumericValue();
+          switch (metric.valueFormat()) {
+          case DOUBLE:
+            if (!Double.isFinite(metric.doubleValue())) {
+              continue;
+            }
+            dp.reset(metric.timestamp(), metric.doubleValue());
+            break;
+          case FLOAT:
+            if (!Float.isFinite(metric.floatValue())) {
+              continue;
+            }
+            dp.reset(metric.timestamp(), metric.floatValue());
+            break;
+          case INTEGER:
+            dp.reset(metric.timestamp(), metric.longValue());
+          }
+        
+          BaseTimeSeriesDatumStringId.Builder builder = BaseTimeSeriesDatumStringId.newBuilder();
+          if (data instanceof HashedNamespacedLowLevelTimeSeriesData) {
+            final HashedNamespacedLowLevelTimeSeriesData nsd = 
+                (HashedNamespacedLowLevelTimeSeriesData) data;
+            if (nsd.namespaceLength() > 0) {
+              StringBuilder buf = new StringBuilder();
+              buf.append(new String(nsd.namespaceBuffer(), nsd.namespaceStart(), 
+                  nsd.namespaceLength(), Const.UTF8_CHARSET))
+                .append(".")
+                .append(new String(metric.metricBuffer(), metric.metricStart(), 
+                    metric.metricLength(), Const.UTF8_CHARSET));
+              builder.setMetric(buf.toString());
+            } else {
+              builder.setMetric(new String(metric.metricBuffer(), 
+                  metric.metricStart(), metric.metricLength(), Const.UTF8_CHARSET));
+            }
+          } else {
+            builder.setMetric(new String(metric.metricBuffer(), 
+                metric.metricStart(), metric.metricLength(), Const.UTF8_CHARSET));
+          }
+          while (metric.advanceTagPair()) {
+            builder.addTags(
+                new String(metric.tagsBuffer(), metric.tagKeyStart(), 
+                    metric.tagKeyLength(), Const.UTF8_CHARSET), 
+                new String(metric.tagsBuffer(), metric.tagValueStart(), 
+                    metric.tagValueLength(), Const.UTF8_CHARSET));
+          }
+    
+          TimeSeriesDatumStringId id = builder.build();
+          MockSpan data_span = database.get(id);
+          if (data_span == null) {
+            data_span = new MockSpan((TimeSeriesDatumStringId) id);
+            database.put((TimeSeriesDatumStringId) id, data_span);
+          }
+          data_span.addValue(dp);
+        } catch (IllegalArgumentException e) {
+          LOG.warn("Dropping mock data", e);
+        }
+        count++;
+      }
+      
+      // TODO pool and resize the write status'
+      List<WriteStatus> status = Lists.newArrayListWithExpectedSize(count);
+      for (int i = 0; i < count; i++) {
+        status.add(WriteStatus.OK);
+      }
+      return Deferred.fromResult(status);
+    } catch (Exception t) {
+      t.printStackTrace();
+      return Deferred.fromError(t);
+    }
   }
   
   class MockSpan {

@@ -43,6 +43,7 @@ import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -494,6 +495,14 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
                                            final Span span) {
     // TODO Auto-generated method stub
     return null;
+  }
+  
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state,
+                                           final LowLevelTimeSeriesData data,
+                                           final Span span) {
+    return Deferred.fromError(new UnsupportedOperationException(
+        "TODO - Need to implement this."));
   }
   
   public Deferred<Object> shutdown() {

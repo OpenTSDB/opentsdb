@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.stats.Span;
@@ -67,6 +68,22 @@ public class BlackHoleWriter extends BaseTSDBPlugin implements
                                            final Span span) {
     final List<WriteStatus> list = Lists.newArrayListWithExpectedSize(data.size());
     for (int i = 0; i < data.size(); i++) {
+      list.add(WriteStatus.OK);
+    }
+    return Deferred.fromResult(list);
+  }
+
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state,
+                                           final LowLevelTimeSeriesData data,
+                                           final Span span) {
+    int count = 0;
+    while (data.advance()) {
+      count++;
+    }
+    // TODO - use a pool and custom list implementation that we can re-size.
+    final List<WriteStatus> list = Lists.newArrayListWithExpectedSize(count);
+    for (int i = 0; i < count; i++) {
       list.add(WriteStatus.OK);
     }
     return Deferred.fromResult(list);

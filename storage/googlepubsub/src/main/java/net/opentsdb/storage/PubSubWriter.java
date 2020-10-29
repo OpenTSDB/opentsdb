@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.query.serdes.TimeSeriesDataSerdes;
@@ -215,6 +216,13 @@ public class PubSubWriter extends BaseTSDBPlugin implements
     }
   }
 
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state,
+                                           final LowLevelTimeSeriesData data,
+                                           final Span span) {
+    return Deferred.fromError(new UnsupportedOperationException("TODO"));
+  }
+  
   @Override
   public String type() {
     return TYPE;
