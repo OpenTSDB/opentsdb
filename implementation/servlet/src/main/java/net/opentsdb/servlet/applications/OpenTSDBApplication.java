@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.servlet.applications;
 
+import java.util.List;
+
 import javax.servlet.ServletConfig;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Context;
@@ -25,6 +27,8 @@ import net.opentsdb.servlet.resources.PutDataPointRpc;
 import net.opentsdb.servlet.resources.QueryRpc;
 import net.opentsdb.servlet.resources.RawQueryRpc;
 import net.opentsdb.servlet.resources.RegistryRpc;
+import net.opentsdb.servlet.resources.ServletResource;
+
 import org.glassfish.jersey.server.ResourceConfig;
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.configuration.Configuration;
@@ -79,6 +83,15 @@ public class OpenTSDBApplication extends ResourceConfig {
       register(GenericExceptionMapper.class);
       register(MetaRpc.class);
       register(new QueryExecutionExceptionMapper(false, 1024));
+      
+      // load any configured resource plugins.
+      final List<ServletResource> resource_plugins = 
+          tsdb.getRegistry().getPlugins(ServletResource.class);
+      if (resource_plugins != null) {
+        for (final ServletResource resource : resource_plugins) {
+          register(resource);
+        }
+      }
       
       addProperties(ImmutableMap.of(
           "jersey.config.server.monitoring.statistics.mbeans.enabled", "true"));
