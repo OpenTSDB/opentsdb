@@ -35,6 +35,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -320,6 +321,14 @@ public class Schema implements WritableTimeSeriesDataStore {
         TimeSeriesSharedTagsAndTimeData.fromCollection(forwards), 
         span)
           .addCallback(new WriteCB());
+  }
+  
+  @Override
+  public Deferred<List<WriteStatus>> write(final AuthState state,
+                                           final LowLevelTimeSeriesData data,
+                                           final Span span) {
+    // TODO - pass this info through the validator.
+    return data_store.write(state, data, span);
   }
   
   /**
