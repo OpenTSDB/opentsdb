@@ -99,6 +99,7 @@
     <module>implementation/server-undertow</module>
     <module>implementation/aws-secrets</module>
     <module>implementation/query-runner</module>
+    <module>implementation/influx</module>
     <module>storage/asynchbase</module>
     <module>storage/bigtable</module>
     <module>storage/googlepubsub</module>

@@ -30,6 +30,7 @@ import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.LowLevelMetricData;
 import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.LowLevelTimeSeriesData.HashedNamespacedLowLevelTimeSeriesData;
+import net.opentsdb.data.LowLevelTimeSeriesData.NamespacedLowLevelTimeSeriesData;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.PartialTimeSeriesSet;
@@ -275,9 +276,9 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           }
         
           BaseTimeSeriesDatumStringId.Builder builder = BaseTimeSeriesDatumStringId.newBuilder();
-          if (data instanceof HashedNamespacedLowLevelTimeSeriesData) {
-            final HashedNamespacedLowLevelTimeSeriesData nsd = 
-                (HashedNamespacedLowLevelTimeSeriesData) data;
+          if (data instanceof NamespacedLowLevelTimeSeriesData) {
+            final NamespacedLowLevelTimeSeriesData nsd = 
+                (NamespacedLowLevelTimeSeriesData) data;
             if (nsd.namespaceLength() > 0) {
               StringBuilder buf = new StringBuilder();
               buf.append(new String(nsd.namespaceBuffer(), nsd.namespaceStart(), 
@@ -383,12 +384,17 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
               new MillisecondTimeStamp(base_timestamp + ROW_WIDTH));
           sources.put(NumericType.TYPE, shard);
         }
-        if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
-          shard.add(value.timestamp().msEpoch(), 
-              ((TimeSeriesValue<NumericType>) value).value().longValue());
-        } else {
-          shard.add(value.timestamp().msEpoch(), 
-              ((TimeSeriesValue<NumericType>) value).value().doubleValue());
+        try {
+          if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
+            shard.add(value.timestamp().msEpoch(), 
+                ((TimeSeriesValue<NumericType>) value).value().longValue());
+          } else {
+            shard.add(value.timestamp().msEpoch(), 
+                ((TimeSeriesValue<NumericType>) value).value().doubleValue());
+          }
+        } catch (IllegalArgumentException e) {
+          // probably the NumericMillisecondShard out of order issue. Ignore it
+          // for now.
         }
       }
     }

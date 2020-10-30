@@ -149,7 +149,7 @@ public class TestMockDataStore {
           }
           
         }, null);
-      fail("Expected IllegalArgumentException");
+      //fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   

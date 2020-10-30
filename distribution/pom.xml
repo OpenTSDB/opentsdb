@@ -73,6 +73,11 @@
           <artifactId>opentsdb-egads</artifactId>
           <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-influx</artifactId>
+          <version>${project.version}</version>
+        </dependency>
     </dependencies>
   
     <build>
