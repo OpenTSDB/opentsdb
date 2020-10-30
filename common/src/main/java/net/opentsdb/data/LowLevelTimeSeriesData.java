@@ -59,17 +59,17 @@ public interface LowLevelTimeSeriesData extends Closeable {
   /** Called by the consumer to determine if there is any valid in this payload.
    * If true then data can be consumed by calling the other methods of this
    * interface. If false then either there is no more data to consume or there
-   * was an error in parsing, see {@link #parsingError()}.
+   * was an error in parsing, see {@link #hasParsingError()}.
    * @return True if there was data to be read, false if there is no more data
    * to read or an error occured. */
   public boolean advance();
   
   /** @return Whether or not an error happened during parsing in which case there should
-   * be information in {@link #parsingException()}. */
-  public boolean parsingError();
+   * be information in {@link #parsingError()}. */
+  public boolean hasParsingError();
   
   /** @return A descriptive message if parsing failed, null if not. */
-  public String parsingException();
+  public String parsingError();
   
   /** @return The timestamp for the current entry. May not be null if 
    * {@link #advance()} returned true.. */

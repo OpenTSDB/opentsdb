@@ -60,7 +60,7 @@ public interface LowLevelMetricData extends LowLevelTimeSeriesData{
    * @since 3.0
    */
   public interface HashedLowLevelMetricData extends LowLevelMetricData, 
-      LowLevelTimeSeriesData {
+      HashedLowLevelTimeSeriesData {
     
     /** @return The hash of the current metric. */
     public long metricHash();

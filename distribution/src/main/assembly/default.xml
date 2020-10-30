@@ -30,6 +30,7 @@
         <include>net.opentsdb:opentsdb-elasticsearch-transportclient</include>
         <include>net.opentsdb:opentsdb-redis</include>
         <include>net.opentsdb:opentsdb-egads</include>
+        <include>net.opentsdb:opentsdb-influx</include>
       </includes>
       <outputDirectory>lib</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>
