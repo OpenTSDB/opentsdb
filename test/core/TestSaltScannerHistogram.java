@@ -39,6 +39,8 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Maps;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -197,7 +199,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans, 0, 0);
-    assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     HistogramSpan span = spans.get(key_a);
@@ -230,7 +232,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans, 0, 0);
 
-    assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     HistogramSpan span = spans.get(key_a);
@@ -265,7 +267,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans, 0, 0);
 
-    assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(3, spans.size());
 
     HistogramSpan span = spans.get(key_a);
@@ -299,7 +301,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, filters, false, null, query_stats, 0, spans, 0, 0);
 
-    assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
+    assertTrue(Maps.difference(spans, scanner.scanHistogram().joinUninterruptibly()).areEqual());
     assertEquals(0, spans.size());
   }
 

@@ -194,9 +194,9 @@ public class FillingDownsampler extends Downsampler {
         // The calculated interval timestamp matches what we expect, so we can
         // do normal processing.
         if (rollup_query != null && 
-            (rollup_query.getGroupBy() == Aggregators.AVG || 
-            rollup_query.getGroupBy() == Aggregators.DEV)) {
-          if (rollup_query.getGroupBy() == Aggregators.AVG) {
+            (rollup_query.getRollupAgg() == Aggregators.AVG || 
+            rollup_query.getRollupAgg() == Aggregators.DEV)) {
+          if (rollup_query.getRollupAgg() == Aggregators.AVG) {
             if (specification.getFunction() == Aggregators.AVG) {
               double sum = 0;
               long count = 0;
@@ -244,10 +244,7 @@ public class FillingDownsampler extends Downsampler {
             specification.getFunction() == Aggregators.COUNT) {
           double count = 0;
           while (values_in_interval.hasNextValue()) {
-            count += values_in_interval.nextValueCount();
-            // WARNING: consume and move next or we'll be stuck in an infinite
-            // loop here.
-            values_in_interval.nextDoubleValue(); 
+            count += values_in_interval.nextDoubleValue();
           }
           value = count;
         } else {

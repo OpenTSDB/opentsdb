@@ -30,9 +30,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.Bytes;
 import org.hbase.async.FilterList;
+import org.hbase.async.FuzzyRowFilter;
+import org.hbase.async.KeyRegexpFilter;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,6 +46,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.storage.MockBase;
@@ -1552,6 +1558,75 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
     assertEquals(0, dps.length);
   }
+  @Test
+  public void runRollupFiltering() throws Exception {
+    storeLongTimeSeriesSeconds(false, false);
+    final List<byte[]> families = new ArrayList<byte[]>();
+    families.add("t".getBytes(MockBase.ASCII()));
+    storage.addTable("tsdb-agg".getBytes(), families);
+    setupGroupByTagValues();
+    long start_timestamp = 1559347200L;
+
+
+    RollupInterval defaultInterval = RollupInterval.builder()
+            .setTable("tsdb")
+            .setPreAggregationTable("tsdb-agg")
+            .setInterval("1m")
+            .setRowSpan("1h")
+            .build();
+
+    RollupInterval rollupInterval = RollupInterval.builder()
+            .setTable("tsdb-agg")
+            .setPreAggregationTable("tsdb-agg")
+            .setInterval("1h")
+            .setRowSpan("1d")
+            .build();
+    Whitebox.setInternalState(tsdb, "default_interval", defaultInterval);
+
+    RollupConfig rollupConfig = RollupConfig.builder().setAggregationIds(new HashMap<String, Integer>() {{
+      put("sum", 0);
+      put("count", 1);
+      put("min", 2);
+      put("max", 3);
+      put("avg", 4);
+    }}).setIntervals(Arrays.asList(defaultInterval, rollupInterval)).build();
+
+    Whitebox.setInternalState(tsdb, "default_interval", defaultInterval);
+    Whitebox.setInternalState(tsdb,"rollup_config", rollupConfig);
+
+    this.tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 42L, new HashMap<String, String>() {{ put("host", "web01");}}, false, "1h", "sum", null);
+    this.tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 42L, new HashMap<String, String>() {{ put("host", "web02");}}, false, "1h", "sum", null);
+    this.tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 42L, new HashMap<String, String>() {{ put("host", "web01");}}, false, "1h", "count", null);
+    this.tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 42L, new HashMap<String, String>() {{ put("host", "web02");}}, false, "1h", "count", null);
+
+    TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1559343600");
+    ts_query.setEnd("1559350800");
+
+    final TSSubQuery sub = new TSSubQuery();
+    sub.setMetric(METRIC_STRING);
+    sub.setAggregator("sum");
+    sub.setDownsample("1h-sum");
+    sub.setFilters(Lists.<TagVFilter>newArrayList(new TagVLiteralOrFilter("host", TAGV_STRING)));
+
+    ts_query.setQueries(Arrays.asList(sub));
+    ts_query.validateAndSetQuery();
+    query.configureFromQuery(ts_query, 0);
+
+    final DataPoints[] dps = query.run();
+    assertEquals(1, dps.length);
+    assertEquals(1, dps[0].aggregatedSize());
+    assertEquals(METRIC_STRING, dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
+
+    long ts = start_timestamp * 1000;
+    final DataPoint dp = dps[0].iterator().next();
+    assertEquals(42, dp.doubleValue(), 0);
+    assertEquals(ts, dp.timestamp());
+    assertEquals(1, dps[0].size());
+  }
 
   @Test
   public void runPreAggregate() throws Exception {
@@ -1633,6 +1708,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     // assert fuzzy
     for (final MockScanner scanner : storage.getScanners()) {
       assertTrue(scanner.getFilter() instanceof FilterList);
+      FilterList filter_list = (FilterList) scanner.getFilter();
+      assertEquals(2, filter_list.size());
+      assertTrue(filter_list.filters().get(0) instanceof FuzzyRowFilter);
+      assertTrue(filter_list.filters().get(1) instanceof KeyRegexpFilter);
     }
   }
 
@@ -1664,6 +1743,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     // assert fuzzy
     for (final MockScanner scanner : storage.getScanners()) {
       assertTrue(scanner.getFilter() instanceof FilterList);
+      FilterList filter_list = (FilterList) scanner.getFilter();
+      assertEquals(2, filter_list.size());
+      assertTrue(filter_list.filters().get(0) instanceof FuzzyRowFilter);
+      assertTrue(filter_list.filters().get(1) instanceof KeyRegexpFilter);
     }
   }
 
@@ -1690,6 +1773,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     // assert fuzzy
     for (final MockScanner scanner : storage.getScanners()) {
       assertTrue(scanner.getFilter() instanceof FilterList);
+      FilterList filter_list = (FilterList) scanner.getFilter();
+      assertEquals(2, filter_list.size());
+      assertTrue(filter_list.filters().get(0) instanceof FuzzyRowFilter);
+      assertTrue(filter_list.filters().get(1) instanceof KeyRegexpFilter);
     }
   }
 

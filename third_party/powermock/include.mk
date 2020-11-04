@@ -25,7 +25,7 @@
 
 POWERMOCK_MOCKITO_VERSION := 1.5.4
 POWERMOCK_MOCKITO := third_party/powermock/powermock-mockito-release-full-$(POWERMOCK_MOCKITO_VERSION)-full.jar
-POWERMOCK_MOCKITO_BASE_URL := http://central.maven.org/maven2/org/powermock/powermock-mockito-release-full/$(POWERMOCK_MOCKITO_VERSION)
+POWERMOCK_MOCKITO_BASE_URL := https://repo1.maven.org/maven2/org/powermock/powermock-mockito-release-full/$(POWERMOCK_MOCKITO_VERSION)
 
 $(POWERMOCK_MOCKITO): $(POWERMOCK_MOCKITO).md5
 	set dummy "$(POWERMOCK_MOCKITO_BASE_URL)" "$(POWERMOCK_MOCKITO)"; shift; $(FETCH_DEPENDENCY)

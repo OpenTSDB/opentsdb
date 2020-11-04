@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenTSDB on port %i
+After=network-online.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+User=opentsdb
+Group=opentsdb
+LimitNOFILE=65535
+Environment=JAVA_HOME=/usr/lib/jvm/jre-openjdk
+Environment='JVMARGS=-Xmx6000m -DLOG_FILE=/var/log/opentsdb/%p_%i.log -DQUERY_LOG=/var/log/opentsdb/%p_%i_queries.log -XX:+ExitOnOutOfMemoryError -enableassertions -enablesystemassertions'
+ExecStart=/usr/bin/tsdb tsd --config /etc/opentsdb/opentsdb.conf --port %i
+Restart=always
+StandardOutput=journal

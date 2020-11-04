@@ -116,9 +116,15 @@ public class TestQueryUtil extends UTBase {
   
   @Test
   public void setDataTableScanFilterEnableBoth() throws Exception {
+<<<<<<< HEAD:storage/asynchbase/src/test/java/net/opentsdb/storage/TestQueryUtil.java
     when(scanner.getCurrentKey()).thenReturn(new byte[] { 0, 0, 0, 1 });
     final ByteMap<List<byte[]>> tags = new ByteMap<List<byte[]>>();
     tags.put(new byte[] { 0, 0, 1 }, Lists.newArrayList( new byte[] {0, 0, 1} ));
+=======
+    when(scanner.getCurrentKey()).thenReturn(new byte[] { 0, 0, 0, 0, 0, 0, 1 });
+    final ByteMap<byte[][]> tags = new ByteMap<byte[][]>();
+    tags.put(new byte[] { 0, 0, 1 }, new byte[][] { new byte[] {0, 0, 1} });
+>>>>>>> f08dd760ca5071475d2ea59d5c9f33ea09a5fa28:test/query/TestQueryUtil.java
     QueryUtil.setDataTableScanFilter(
         schema,
         scanner,
@@ -126,7 +132,7 @@ public class TestQueryUtil extends UTBase {
         true,
         true,
         0);
-    verify(scanner, times(2)).getCurrentKey();
+    verify(scanner, times(3)).getCurrentKey();
     // TODO - validate the regex and fuzzy filter
     verify(scanner, times(1)).setFilter(any(FilterList.class));
     verify(scanner, times(1)).setStartKey(any(byte[].class));

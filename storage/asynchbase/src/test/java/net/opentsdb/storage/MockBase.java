@@ -1735,7 +1735,14 @@ public final class MockBase {
         if (pattern != null) {
           final String from_bytes = new String(last_row, regex_charset);
           if (!pattern.matcher(from_bytes).find()) {
-            continue;
+            if (filter instanceof FilterList) {
+              FilterList.Operator op = Whitebox.getInternalState(filter, "op");
+              if (op == FilterList.Operator.MUST_PASS_ALL) {
+                continue;
+              }
+            } else {
+              continue;
+            }
           }
         }
 

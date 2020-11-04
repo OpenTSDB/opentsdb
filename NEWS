@@ -1,5 +1,61 @@
 OpenTSDB - Changelog
 
+* Version 2.4.0 (2018-12-16)
+
+Noteworthy Changes:
+  - Set default data block encoding to `DIFF` in the create table script.
+  - Add callbacks to log errors in the FSCK tool when a call was made to
+    fix something.
+  - Add a sum of squares aggregator "squareSum".
+  - Add the diff aggregator that computes the difference between the first
+    and last values.
+  - Add a SystemD template to the RPM package.
+  - Allow tags to be added via HTTP header.
+  - Add example implementations for the Authorization and Authentication
+    plugins.
+  - Change `tsd.storage.use_otsdb_timestamp` to default to false.
+  - Literal or filter now allows single character values.
+  - Rollup query code now only uses the downsampler value to pick an interval.
+  - Add jdk 8 in the debian script.
+  - Setup fill policies in the Nagios check
+
+Bug Fixes:
+  - Fix rollup scanner filter for single aggregate queries.
+  - Fix FSCK HBase timestamps when deduping. Sometimes they were negative.
+  - Fix exception handling when writing data over HTTP with the sync flag enabled.
+  - Fix missing source files in the Makefile.
+  - Change UID cache to longs from ints and add hit and miss counters.
+  - Fix HighestCurrent returning the wrong results.
+  - Fix running query stats queryStart timestamp to millis.
+  - Fix TimeShift millisecond bug.
+  - Fix post remove step in the debian package.
+
+* Version 2.3.2 (2018-12-16)
+
+Noteworthy Changes:
+  - A new Python wrapper script to make FSCK repair runs easier.
+  - Track performance in the Nagios/Icinga script
+  - Add a Contributions file.
+  - Add a config, 'tsd.core.bulk.allow_out_of_order_timestamps' to allow out of
+    order timestamps for bulk ingest.
+  - NOTE: This version also includes a JDK 8 compiled version of Jackson due to 
+    security patches. If you need to run with an older JDK please replace the 
+	Jackson JARs with older versions.
+
+Bug Fixes:
+  - Unwrap NoSuchUniqueIds when writing data points to make it easier to understand
+    exceptions.
+  - Fix an NPE in the PutDataPointRpc class if a data point in the list is null. 
+  - Fix a Makefile error in the clean portion.
+  - Fix an NPOE in the UIDManager print result.
+  - Fix a bug in the UI where Y formats may contain a percent sign.
+  - Allow specifying the data block encoding and TTL in the HBase table creation
+    script.
+  - Change the make and TSDB scripts to use relative paths.
+  - Fix parsing of `use_meta` from the URI for the search endpoint.
+  - Fix the clean cache script to be a bit more OS agnostic.
+
+
 * Version 2.4.0 RC2 (2017-10-08)
 
 Noteworthy Changes:
@@ -15,36 +71,34 @@ Noteworthy Changes:
     operational mode is enabled to avoid wasting memory on maps that will never be
     used.
 
-Bug Fixes:
-  - Roll back UTF8 issue with UIDs in RC1 wherein the stored bytes weren't converting
-    properly and vice-versa. We'll have to work on full UTF8 support in 3.x
-  - Fix a build issue for Javacc
-  - Add Kryo as a dependency to the fat jar
-  - Javadoc fixes
-  - Fix an issue with calendar aligned downsampling by seeking to the start time of
-    the query when the zone-aligned timestamp may be earlier than the query start time
-  - Add the missing QueryLimitOverride to the makefile
-  - Fix compatibility with Bigtable for 2.4
-  - Enable standard read-only APIs when the TSD is in write only mode
-
-* Version 2.4.0 RC1 (2017-06-11)
+* Version 2.3.1 (2018-04-21)
 
 Noteworthy Changes:
-  - Rollup and pre-aggregated data storage for writing and querying lower resolution
-    data for queries with extremely high cardinality or low cardinality but wide time
-    ranges that would overwhelm the JVM normally.
-  - Support for storing and querying histograms, digest and sketches. These provide 
-    distributed percentile calculations that are much more accurate than trying to
-    average percentiles from multiple sources.
-  - A new authentication plugin for determining whether or not users should have access
-    to various queries.
-  - Support HBase's Date Tiered Compaction as an option by writing the cell timestamp
-    as the data point's timestamp. This can also help with TTL'd tables where really old
-    data written to the table will be dropped immediately.
-  - Allow HBase/Bigtable batched get requests for queries with the option of using the
-    search plugin to pre-resolve all of the time series. This can greatly improve
-    performance for queries when selecting a small subset of data from high cardinality
-    metrics.
+  - When setting up aggregators, advance to the first data point equal to or greater
+    than the query start timestamp. This helps with calendar downsampling intervals.
+  - Add support to the Nagios check script for downsampling fill policies.
+
+Bug Fixes:
+  - Fix expression calculation by avoiding double execution and checking both
+    output types for boolean values.
+  - Fixing missing tools scripts in builds.
+  - Default HBase 1.2.5 in the OSX install script
+  - Upgrade AsyncBigtable to 0.3.1
+  - Log query stats when a channel is closed unexpectedly.
+  - Add the Java 8 path in the debian init script and remove Java 6.
+  - Pass the column family name to the get requests in the compaction scheduler.
+  - Fix a comparison issue in the UI on group by tags.
+  - Filter annotation queries by the starting timestamp, excluding those in a row that
+    began before the query start time.
+  - Tiny stap at purging backticks from Gnuplot scripts.
+  - Remove the `final` annotation from the meta classes so they can be extended.
+  - Fix the javacc maven plugin version.
+  - Fix the literal or filter to allow single character filters.
+  - Fix query start stats logging to use the ms instead of nano time.
+  - Move Jackson and Netty to newer versions for security reasons.
+  - Upgrade to AsyncHBase 1.8.2 for compatibility with HBase 1.3 and 2.0
+  - Fix the Highest Current calculation to handle empty time series.
+  - Change the cache hits counters to longs.
 
 * Version 2.3.0 (2016-12-31)
 

@@ -99,6 +99,9 @@ public class Config {
   /** tsd.storage.fix_duplicates */
   private boolean fix_duplicates = false;
 
+  /** tsd.http.header_tag */
+  private String http_header_tag = null;
+
   /** tsd.http.request.max_chunk */
   private int max_chunked_requests = 4096;
 
@@ -255,6 +258,16 @@ public class Config {
     return scanner_max_num_rows;
   }
 
+  /** @return whether or not additional http header tag is allowed */
+  public boolean enable_header_tag() {
+    return http_header_tag != null ;
+  }
+  
+  /** @return the lookup value for additional http header tag */
+  public String get_name_header_tag() {
+    return http_header_tag ;
+  }
+  
   /** @return whether or not chunked requests are supported */
   public boolean enable_chunked_requests() {
     return enable_chunked_requests;
@@ -532,7 +545,6 @@ public class Config {
     default_map.put("tsd.core.connections.limit", "0");
     default_map.put("tsd.core.enable_api", "true");
     default_map.put("tsd.core.enable_ui", "true");
-    default_map.put("tsd.core.hist_decoder", "net.opentsdb.core.SimpleHistogramDecoder");
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
@@ -600,6 +612,7 @@ public class Config {
     default_map.put("tsd.core.stats_with_port", "false");
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.query.allow_delete", "false");
+    default_map.put("tsd.http.header_tag", "");
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
     default_map.put("tsd.http.request.cors_domains", "");
@@ -607,7 +620,7 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
-    default_map.put("tsd.storage.use_otsdb_timestamp", "true");
+    default_map.put("tsd.storage.use_otsdb_timestamp", "false");
     default_map.put("tsd.storage.use_max_value", "true");
     default_map.put("tsd.storage.get_date_tiered_compaction_start", "0");
 
@@ -726,6 +739,9 @@ public class Config {
       this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
     if (this.hasProperty("tsd.http.request.max_chunk")) {
       max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
+    }
+    if (this.hasProperty("tsd.http.header_tag")) {
+      http_header_tag = this.getString("tsd.http.header_tag");
     }
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");

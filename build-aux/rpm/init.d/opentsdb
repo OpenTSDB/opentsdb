@@ -75,7 +75,7 @@ start() {
 
   # Set a default value for JVMARGS
   : ${JVMXMX:=-Xmx6000m}
-  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/tools/opentsdb_restart.py}
+  : ${JVMARGS:=-DLOG_FILE=${LOG_FILE}opentsdb.log -DQUERY_LOG=${LOG_FILE}queries.log -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/tools/opentsdb_restart.py}
   export JVMARGS
 
   if [ "`id -u -n`" == root ] ; then
@@ -83,6 +83,7 @@ start() {
     # daemons to create and rename log files.
     chown $USER: $LOG_DIR > /dev/null 2>&1
     chown $USER: ${LOG_FILE}*opentsdb.log > /dev/null 2>&1
+    chown $USER: ${LOG_FILE}*queries.log > /dev/null 2>&1
     chown $USER: ${LOG_FILE}opentsdb.out > /dev/null 2>&1
     chown $USER: ${LOG_FILE}opentsdb.err > /dev/null 2>&1
 

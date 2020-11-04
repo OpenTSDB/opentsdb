@@ -411,7 +411,11 @@ public class QueryStats {
         obj.put("remote", stats.remote_address);
         obj.put("user", stats.user);
         obj.put("headers", stats.headers);
+<<<<<<< HEAD
         obj.put("queryStart", DateTime.msFromNano(stats.query_start_ns));
+=======
+        obj.put("queryStart", stats.query_start_ms);
+>>>>>>> f08dd760ca5071475d2ea59d5c9f33ea09a5fa28
         obj.put("elapsed", DateTime.msFromNanoDiff(DateTime.nanoTime(), 
             stats.query_start_ns));
         running.add(obj);
