@@ -304,6 +304,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
       if(config.failOnAnyError()) {
         //Error out
         onError(new IncompleteStateException(log));
+        return;
       }
 
       context.queryContext().logWarn(HACluster.this,
