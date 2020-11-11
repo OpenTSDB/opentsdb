@@ -124,9 +124,8 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
   }
 
   /**@return */
-  public boolean failOnAnyError() {
-    //TODO: Avoid parsing Boolean each time.
-    return Boolean.parseBoolean(fail_on_any_error);
+  public String failOnAnyError() {
+    return fail_on_any_error;
   }
 
   /** @return An optional timeout for the primary when a secondary

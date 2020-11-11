@@ -194,7 +194,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
         builder.setSecondaryTimeout(tsdb.getConfig().getString(
             getConfigKey(SECONDARY_KEY)));
       }
-      if(Strings.isNullOrEmpty(cluster_config.getFail_on_any_error())) {
+      if(Strings.isNullOrEmpty(cluster_config.failOnAnyError())) {
         builder.setFailOnAnyError(tsdb.getConfig().getString(
             getConfigKey(FAIL_ON_ANY_ERROR)));
       }

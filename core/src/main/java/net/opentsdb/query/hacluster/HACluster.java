@@ -224,7 +224,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
                 (next.error() == null ? "" : next.error());
       }
 
-      if(config.failOnAnyError()) {
+      if(Boolean.parseBoolean(config.failOnAnyError())) {
         if(next.exception() != null) {
           onError(new IncompleteStateException(log, next.exception()));
         } else {
@@ -301,7 +301,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
         log = "Secondary timed out after: " + config.getSecondaryTimeout();
       }
 
-      if(config.failOnAnyError()) {
+      if(Boolean.parseBoolean(config.failOnAnyError())) {
         //Error out
         onError(new IncompleteStateException(log));
         return;
