@@ -36,6 +36,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.servlet.resources.ServletResource;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
 import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
@@ -52,9 +53,10 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
   public static final String KEY_PREFIX = "influx.parser.";
   public static final String HASH = "hash";
   public static final String DATA_STORE_ID = "store_id";
+  public static final String ASYNC_CONSUMER = "asynchronous.enable";
   public static final String TYPE = InfluxWriteResource.class.getSimpleName();
   
-  private static final ThreadLocal<InfluxLineProtocolParser> PARSERS = 
+  protected static final ThreadLocal<InfluxLineProtocolParser> PARSERS = 
       new ThreadLocal<InfluxLineProtocolParser>() {
     @Override
     protected InfluxLineProtocolParser initialValue() {
@@ -62,9 +64,11 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
     }
   };
   
-  private String data_store_id;
-  private boolean compute_hash;
-  private WritableTimeSeriesDataStore data_store;
+  protected String data_store_id;
+  protected boolean compute_hash;
+  protected WritableTimeSeriesDataStore data_store;
+  protected ObjectPool parser_pool;
+  protected boolean async;
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -86,7 +90,8 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
           "Unable to find a default data store for ID: " 
               + (data_store_id == null ? "Default" : data_store_id)));
     }
-    
+    async = tsdb.getConfig().getBoolean(getConfigKey(ASYNC_CONSUMER));
+    parser_pool = tsdb.getRegistry().getObjectPool(InfluxLineProtocolParserPool.TYPE);
     compute_hash = tsdb.getConfig().getBoolean(getConfigKey(HASH));
     return Deferred.fromResult(null);
   }
@@ -103,7 +108,7 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
     } else {
       namespace = null;
     }
-    return parseStream(servlet_config, request, namespace, data_store, compute_hash);
+    return parseStream(servlet_config, request, namespace);
   }
 
   @Override
@@ -115,36 +120,45 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
    * Parses the influx line protocol data.
    * @param servlet_config The servlet config.
    * @param request The non-null request we'll read the stream from.
-   * @param namespace The namespace parsed from query params.
-   * @param data_store The data store to write to.
    * @return The response to send to the caller.
    * @throws Exception If something goes pear shaped.
    */
-  protected static Response parseStream(final @Context ServletConfig servlet_config, 
-                                        final @Context HttpServletRequest request, 
-                                        final String namespace,
-                                        final WritableTimeSeriesDataStore data_store,
-                                        final boolean compute_hash) 
+  protected Response parseStream(final @Context ServletConfig servlet_config, 
+                                 final @Context HttpServletRequest request, 
+                                 final String namespace) 
                                             throws Exception {
-    final InfluxLineProtocolParser parser = PARSERS.get();
+    InfluxLineProtocolParser parser = null;
     try {
-      parser.computeHashes(compute_hash);
-      
       InputStream stream = request.getInputStream();
-      String encoding = request.getHeader("Content-Encoding");
+      final String encoding = request.getHeader("Content-Encoding");
       if (!Strings.isNullOrEmpty(encoding)) {
         if (encoding.equalsIgnoreCase("gzip")) {
           stream = new GZIPInputStream(stream);
         }
       }
       
-      parser.setInputStream(stream);
+      if (async) {
+        if (parser_pool != null) {
+          parser = (InfluxLineProtocolParser) parser_pool.claim().object();
+        } else {
+          parser = new InfluxLineProtocolParser();
+        }
+        parser.computeHashes(compute_hash);
+        parser.fillBufferFromStream(stream);
+      } else {
+        // sync
+        parser = PARSERS.get();
+        parser.computeHashes(compute_hash);
+        parser.setInputStream(stream);
+      }
+      
       if (!Strings.isNullOrEmpty(namespace)) {
         parser.setNamespace(namespace);
       }
       
       data_store.write(null, parser, null);
-      parser.close();
+      // TODO - proper async with a call to determine if we should wait to respond
+      // with the write status(s) or not.
       return Response.noContent()
           .header("Content-Type", "text/plain")
           .build();
@@ -153,7 +167,9 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
       // TODO - proper influx error format.
       throw new QueryExecutionException("Failed to parse write data.", 400, e);
     } finally {
-      parser.close();
+      if (!async && parser != null) {
+        parser.close();
+      }
     }
   }
   
@@ -166,6 +182,12 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
       tsdb.getConfig().register(getConfigKey(HASH), false, false, 
           "Whether or not to compute the hashes on the Influx payload as we "
           + "parse. Depends no whether or not downstream requires the hashes.");
+    }
+    if (!tsdb.getConfig().hasProperty(getConfigKey(ASYNC_CONSUMER))) {
+      tsdb.getConfig().register(getConfigKey(ASYNC_CONSUMER), false, false, 
+          "Whether or not the consumer of these messages is asynchronous meaning "
+          + "we need to pull a parser from the pool and pass it on wherein the "
+          + "consumer will be responsible for closing it.");
     }
   }
   
