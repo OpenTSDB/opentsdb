@@ -223,6 +223,35 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
   }
   
   /**
+   * For async cases will re-use the buffer if we're part of the pool.
+   * @param stream
+   * @throws IOException 
+   */
+  public void fillBufferFromStream(final InputStream stream) throws IOException {
+    if (buffer == null) {
+      buffer = new byte[DEFAULT_STREAM_READ_AMOUNT];
+    }
+    int idx = 0;
+    while (true) {
+      if (idx + DEFAULT_STREAM_READ_AMOUNT >= buffer.length) {
+        byte[] temp = new byte[buffer.length * 2];
+        System.arraycopy(buffer, 0, temp, 0, idx);
+        buffer = temp;
+      }
+      int read = stream.read(buffer, idx, DEFAULT_STREAM_READ_AMOUNT);
+      if (read < 0) {
+        break;
+      }
+      idx += read;
+    }
+    offset = 0;
+    end = offset + idx;
+    line_start = offset;
+    line_end = line_start;
+    namespace = null;
+  }
+  
+  /**
    * Sets the namespace for this payload.
    * @param namespace The namespace to store. If null or empty, treats the 
    * namespace as null.
@@ -264,10 +293,11 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
         LOG.warn("Failed to close the stream for the influx parser", e);
       }
       stream = null;
-    } else {
+    } else if (pooled_object == null) {
       // byte buffer mode so release the ref so it can be consumed.
       buffer = null;
-    }
+    } // but if it IS part of a pool, leave it
+      // TODO downsize if it grew too big. 
     if (pooled_object != null) {
       pooled_object.release();
     }
