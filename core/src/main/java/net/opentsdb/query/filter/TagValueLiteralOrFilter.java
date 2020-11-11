@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018  The OpenTSDB Authors.
+// Copyright (C) 2015-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package net.opentsdb.query.filter;
-
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -86,6 +85,25 @@ public class TagValueLiteralOrFilter extends BaseTagValueFilter
       return false;
     }
     return literals.contains(tagv);
+  }
+  
+  @Override
+  public boolean matches(final String tag_key, final String tag_value) {
+    if (Strings.isNullOrEmpty(tag_key)) {
+      return false;
+    }
+    if (!this.tag_key.equals(tag_key)) {
+      return false;
+    }
+    if (Strings.isNullOrEmpty(tag_value)) {
+      return false;
+    }
+    return literals.contains(tag_value);
+  }
+  
+  @Override
+  public boolean matches(final String tag_value) {
+    return literals.contains(tag_value);
   }
   
   @Override

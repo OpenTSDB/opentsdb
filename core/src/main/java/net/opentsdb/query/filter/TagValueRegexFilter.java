@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,6 +80,28 @@ public class TagValueRegexFilter extends BaseTagValueFilter {
     return pattern.matcher(tagv).find();
   }
 
+  @Override
+  public boolean matches(final String tag_key, final String tag_value) {
+    if (Strings.isNullOrEmpty(tag_key)) {
+      return false;
+    }
+    if (!this.tag_key.equals(tag_key)) {
+      return false;
+    }
+    if (Strings.isNullOrEmpty(tag_value)) {
+      return false;
+    }
+    if (matches_all) {
+      return true;
+    }
+    return pattern.matcher(tag_value).find();
+  }
+  
+  @Override
+  public boolean matches(final String tag_value) {
+    return pattern.matcher(tag_value).find();
+  }
+  
   @Override
   public String getType() {
     return TagValueRegexFactory.TYPE;

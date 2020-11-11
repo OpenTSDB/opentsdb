@@ -25,8 +25,8 @@ import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.*;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
@@ -215,7 +215,7 @@ public class MetaRpc {
             json.writeStartArray();
             for (TimeSeriesId timeSeriesId : metadata_storage_result.timeSeries()) {
               json.writeStartObject();
-              BaseTimeSeriesStringId id = (BaseTimeSeriesStringId) timeSeriesId;
+              TimeSeriesStringId id = (TimeSeriesStringId) timeSeriesId;
               json.writeStringField("metric", id.metric());
               json.writeObjectFieldStart("tags");
 
