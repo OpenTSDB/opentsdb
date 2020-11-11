@@ -202,9 +202,7 @@ public class ESMetaResponse implements MetaResponse {
           if (count == 0) {
             response = responses[i].getResponse();
           }
-          for (int k = i;
-              k < i + count;
-              k++) { // we have one query per metric so go through them accordingly
+          for (int k = i; k < responses.length; k++) { // we have one query per metric so go through them accordingly
             response = responses[k].getResponse();
 
             if (response == null) {
