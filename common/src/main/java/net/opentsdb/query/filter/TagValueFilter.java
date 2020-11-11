@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,4 +36,19 @@ public interface TagValueFilter extends QueryFilter {
    */
   public boolean matches(final Map<String, String> tags);
   
+  /**
+   * Matches the given key and value strings.
+   * @param tag_key The non-null and non-empty tag key.
+   * @param tag_value The non-null and non-empty tag value.
+   * @return True if satisfied, false if not.
+   */
+  public boolean matches(final String tag_key, final String tag_value);
+  
+  /**
+   * Method that assumes the tag key was already matched and only examines
+   * the value.
+   * @param tag_value The non-null tag value.
+   * @return True if satisfied, false if not.
+   */
+  public boolean matches(final String tag_value);
 }

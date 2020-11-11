@@ -438,7 +438,7 @@ public class FilterUtils {
     } else if (filter instanceof TagValueFilter) {
         return ((TagValueFilter) filter).matches(id.tags());
     } else if (filter instanceof TagKeyFilter) {
-      return ((TagValueFilter) filter).matches(id.tags());
+      return ((TagKeyFilter) filter).matches(id.tags());
     } else if (filter instanceof AnyFieldRegexFilter) {
       if (((AnyFieldRegexFilter) filter).matches(id.metric())) {
         return true;
