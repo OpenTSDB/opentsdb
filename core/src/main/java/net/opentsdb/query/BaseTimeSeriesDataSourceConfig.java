@@ -121,7 +121,9 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       result_ids = Lists.newArrayList();
     }
     if (result_ids.isEmpty()) {
-      result_ids.add(new DefaultQueryResultId(id, id));
+      // this could be a Collections.emptyList() which is immutable. So  build
+      // a new one.
+      result_ids = Lists.newArrayList(new DefaultQueryResultId(id, id));
     }
     source_id = builder.sourceId;
     types = builder.types;
