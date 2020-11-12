@@ -473,7 +473,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
 
   @Override
   public void run(final Timeout timeout) {
-    if (close_attempts++ > 6000) {
+    if (close_attempts++ > 20) {
       LOG.warn("Whoops, bug returning scanners to the pool after " 
           + close_attempts + ". Resetting scanners done.");
       scanners_done = scanners.get(scanner_index).length;
