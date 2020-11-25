@@ -47,6 +47,9 @@ public class AnyFieldRegexFilter implements QueryFilter {
    */
   private final Pattern pattern;
 
+  /** Whether or not the regex would match-all. */
+  final boolean matches_all;
+  
   /**
    * Protected ctor.
    *
@@ -58,6 +61,17 @@ public class AnyFieldRegexFilter implements QueryFilter {
       throw new IllegalArgumentException("Filter cannot be null or empty.");
     }
     pattern = Pattern.compile(builder.filter.trim());
+    
+    if (builder.filter.trim().equals(".*") || 
+        builder.filter.trim().equals("^.*") || 
+        builder.filter.trim().equals(".*$") || 
+        builder.filter.trim().equals("^.*$")) {
+      // yeah there are many more permutations but these are the most likely
+      // to be encountered in the wild.
+      matches_all = true;
+    } else {
+      matches_all = false;
+    }
   }
 
   /** @return The original filter string. */
@@ -83,6 +97,11 @@ public class AnyFieldRegexFilter implements QueryFilter {
     return false;
   }
 
+  /** Whether or not the regex would match all strings. */
+  public boolean matchesAll() {
+    return matches_all;
+  }
+  
   @Override
   public String getType() {
     return AnyFieldRegexFactory.TYPE;
