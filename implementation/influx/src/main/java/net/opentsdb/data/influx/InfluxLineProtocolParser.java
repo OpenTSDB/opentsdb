@@ -16,6 +16,7 @@ package net.opentsdb.data.influx;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -443,7 +444,7 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
 
   @Override
   public int tagBufferLength() {
-    return tags_length;
+    return tags_length - 1;
   }
 
   @Override
@@ -585,7 +586,7 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
    * @return True if the line was valid and had useable data, false if not.
    */
   private boolean processLine() {
-    field_index = value_index = tags_length = tag_index = 0;
+    field_index = value_index = tags_length = tag_index = tags_count = 0;
     boolean has_quote = false;
     boolean escaped_char = false;
     int idx = line_start;
@@ -760,7 +761,7 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
       // done with tags!
       // TODO - sort !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (hash_it) {
-        sortTagHashes(0, tags_count);
+        sortTagHashes(0, tags_count - 1);
         for (int x = 0; x < tags_count; x++) {
           if (x == 0) {
             tag_set_hash = tag_key_hashes[x];
