@@ -723,10 +723,10 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
           if (hash_it) {
             if (matched % 2 == 0) {
               tag_value_hashes[tags_count] = 
-                  XXHash.hash(tag_buffer, tag_start, tags_length - 1 - tag_start);
+                  XXHash.hash(tag_buffer, tag_start, tags_length - tag_start);
             } else {
               tag_key_hashes[tags_count] = 
-                  XXHash.hash(tag_buffer, tag_start, tags_length - 1 - tag_start);
+                  XXHash.hash(tag_buffer, tag_start, tags_length - tag_start);
             }
           }
           tag_buffer[tags_length++] = 0; // null it with the delimiter.
