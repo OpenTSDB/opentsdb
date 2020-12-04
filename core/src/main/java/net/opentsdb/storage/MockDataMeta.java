@@ -96,7 +96,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
       }
     }
     Map<NamespacedKey, MetaDataStorageResult> results = Maps.newHashMap();
-    switch (query.type()) {
+    switch (query.getType()) {
     case NAMESPACES:
       // we'll iterate and pull out the metrics to the first dot.
       // TODO - no filter?
@@ -128,7 +128,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
       break;
     default:
       return Deferred.fromError(
-          new IllegalArgumentException("Unsupported type: " + query.type()));
+          new IllegalArgumentException("Unsupported type: " + query.getType()));
     }
     return Deferred.fromResult(results);
   }
@@ -179,16 +179,16 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
    */
   void handleSingleTypeMetaQuery(final BatchMetaQuery query,
                                  final Map<NamespacedKey, MetaDataStorageResult> results) {
-    for (final MetaQuery meta_query : query.metaQueries()) {
+    for (final MetaQuery meta_query : query.getQueries()) {
       NamespacedKey key = null;
       int hits = 0;
-      switch (query.type()) {
+      switch (query.getType()) {
       case METRICS:
         Map<String, UniqueKeyPair<String, Long>> metrics = null;
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
               data_store.database().entrySet()) {
-          if (FilterUtils.matchesMetrics(meta_query.filter(), entry.getKey(), 
-              meta_query.namespace())) {
+          if (FilterUtils.matchesMetrics(meta_query.getFilter(), entry.getKey(), 
+              meta_query.getNamespace())) {
             if (metrics == null) {
               metrics = Maps.newHashMap();
             }
@@ -207,7 +207,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
               extant.setValue(extant.getValue() + 1);
             }
             if (key == null) {
-              key = getNamespace(entry.getKey(), meta_query.id());
+              key = getNamespace(entry.getKey(), meta_query.getId());
             }
             hits++;
           }
@@ -223,11 +223,11 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
         Set<String> matches = Sets.newHashSet();
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
             data_store.database().entrySet()) {
-          if (FilterUtils.matchesTagKeysOrValues(meta_query.filter(), 
+          if (FilterUtils.matchesTagKeysOrValues(meta_query.getFilter(), 
                                                  entry.getKey(), 
-                                                 meta_query.namespace(), 
+                                                 meta_query.getNamespace(), 
                                                  matches, 
-                                                 query.type() == QueryType.TAG_KEYS)) {
+                                                 query.getType() == QueryType.TAG_KEYS)) {
             for (final String match : matches) {
               if (tag_keys_or_values == null) {
                 tag_keys_or_values = Maps.newHashMap();
@@ -240,7 +240,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
                 extant.setValue(extant.getValue() + 1);
               }
               if (key == null) {
-                key = getNamespace(entry.getKey(), meta_query.id());
+                key = getNamespace(entry.getKey(), meta_query.getId());
               }
             }
             hits++;
@@ -257,8 +257,8 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
         Map<String, String> tag_pairs = Maps.newHashMap(); 
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
               data_store.database().entrySet()) {
-          if (FilterUtils.matchesTags(meta_query.filter(), entry.getKey(), 
-              meta_query.namespace(), tag_pairs)) {
+          if (FilterUtils.matchesTags(meta_query.getFilter(), entry.getKey(), 
+              meta_query.getNamespace(), tag_pairs)) {
             for (final Entry<String, String> tags : tag_pairs.entrySet()) {
               // blech
               UniqueKeyPair<String, Long> extant = keys.get(tags.getKey());
@@ -284,7 +284,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
               }
               
               if (key == null) {
-                key = getNamespace(entry.getKey(), meta_query.id());
+                key = getNamespace(entry.getKey(), meta_query.getId());
               }
             }
           }
@@ -306,8 +306,8 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
         Set<TimeSeriesId> ids = null;
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
               data_store.database().entrySet()) {
-          if (FilterUtils.matches(meta_query.filter(), entry.getKey(), 
-                meta_query.namespace())) {
+          if (FilterUtils.matches(meta_query.getFilter(), entry.getKey(), 
+                meta_query.getNamespace())) {
             if (ids == null) {
               ids = Sets.newHashSet();
             }
@@ -316,7 +316,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
                 .setTags(entry.getKey().tags())
                 .build());
             if (key == null) {
-              key = getNamespace(entry.getKey(), meta_query.id());
+              key = getNamespace(entry.getKey(), meta_query.getId());
             }
           }
         }

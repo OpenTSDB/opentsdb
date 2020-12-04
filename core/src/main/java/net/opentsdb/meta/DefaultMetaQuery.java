@@ -60,15 +60,15 @@ public class DefaultMetaQuery implements MetaQuery {
     }
   }
 
-  public String namespace() {
+  public String getNamespace() {
     return namespace;
   }
 
-  public QueryFilter filter() {
+  public QueryFilter getFilter() {
     return filters;
   }
 
-  public String id() {
+  public String getId() {
     return id;
   }
 

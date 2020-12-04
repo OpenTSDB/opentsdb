@@ -262,7 +262,7 @@ public class MetaRpc {
 
             json.writeFieldName("tagKeys");
             json.writeStartArray();
-            if (query.type() == QueryType.TAG_KEYS &&
+            if (query.getType() == QueryType.TAG_KEYS &&
                     metadata_storage_result.tagKeysOrValues() != null) {
               for (final Pair<String, Long> key_or_value : metadata_storage_result.tagKeysOrValues()) {
                 json.writeStartObject();
@@ -275,7 +275,7 @@ public class MetaRpc {
 
             json.writeFieldName("tagValues");
             json.writeStartArray();
-            if (query.type() == QueryType.TAG_VALUES &&
+            if (query.getType() == QueryType.TAG_VALUES &&
                     metadata_storage_result.tagKeysOrValues() != null) {
               for (final Pair<String, Long> key_or_value : metadata_storage_result.tagKeysOrValues()) {
                 json.writeStartObject();

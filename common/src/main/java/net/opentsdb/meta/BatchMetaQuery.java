@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,23 +36,23 @@ public interface BatchMetaQuery {
     DESCENDING
   }
 
-  public int from();
+  public int getFrom();
 
-  public int to();
+  public int getTo();
 
-  public String aggregationField();
+  public String getAggregationField();
 
-  public int aggregationSize();
+  public int getAggregationSize();
 
-  public QueryType type();
+  public QueryType getType();
 
-  public Order order();
+  public Order getOrder();
 
-  public TimeStamp start();
+  public TimeStamp getStart();
 
-  public TimeStamp end();
+  public TimeStamp getEnd();
 
-  public List<MetaQuery> metaQueries();
+  public List<MetaQuery> getQueries();
 
   public List<MetaQuery> meta_query = new ArrayList<>();
 
