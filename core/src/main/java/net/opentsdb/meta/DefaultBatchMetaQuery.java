@@ -105,11 +105,11 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     return namespace;
   }
 
-  public int from() {
+  public int getFrom() {
     return from;
   }
 
-  public int to() {
+  public int getTo() {
     return to;
   }
 
@@ -117,31 +117,31 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
     return filters;
   }
 
-  public String aggregationField() {
+  public String getAggregationField() {
     return aggregation_field;
   }
 
-  public int aggregationSize() {
+  public int getAggregationSize() {
     return agg_size;
   }
 
-  public QueryType type() {
+  public QueryType getType() {
     return type;
   }
 
-  public Order order() {
+  public Order getOrder() {
     return order;
   }
 
-  public TimeStamp start() {
+  public TimeStamp getStart() {
     return start;
   }
 
-  public TimeStamp end() {
+  public TimeStamp getEnd() {
     return end;
   }
 
-  public List<MetaQuery> metaQueries() {
+  public List<MetaQuery> getQueries() {
     return meta_query;
   }
 

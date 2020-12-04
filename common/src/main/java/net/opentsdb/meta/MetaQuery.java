@@ -23,11 +23,11 @@ import net.opentsdb.query.filter.QueryFilter;
  */
 public interface MetaQuery {
 
-  public String namespace();
+  public String getNamespace();
 
-  public QueryFilter filter();
+  public QueryFilter getFilter();
 
-  public String id();
+  public String getId();
   
   /**
    * Builder through which the query is parsed and parameters are set

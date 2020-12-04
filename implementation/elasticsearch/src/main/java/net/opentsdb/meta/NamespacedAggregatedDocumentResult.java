@@ -71,9 +71,9 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
                                             final MetaQuery meta_query) {
     this.result = result;
     this.query = query;
-    if (query != null && query.type() != null &&
-        query.type() != QueryType.NAMESPACES) {
-      namespaces = Sets.newHashSet(meta_query.namespace());
+    if (query != null && query.getType() != null &&
+        query.getType() != QueryType.NAMESPACES) {
+      namespaces = Sets.newHashSet(meta_query.getNamespace());
     }
     this.meta_query = meta_query;
   }
@@ -89,7 +89,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
 
   @Override
   public String id() {
-    return meta_query != null ? meta_query.id() : null;
+    return meta_query != null ? meta_query.getId() : null;
   }
 
   @Override
@@ -113,7 +113,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       return Collections.emptyList();
     }
     final List<String> sorted = Lists.newArrayList(namespaces);
-    if (query.order() == Order.ASCENDING) {
+    if (query.getOrder() == Order.ASCENDING) {
       Collections.sort(sorted);
     } else {
       Collections.sort(sorted, Collections.reverseOrder());
@@ -138,7 +138,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       return Collections.emptyList();
     }
     final List<UniqueKeyPair<String, Long>> sorted = Lists.newArrayList(metrics.values());
-    if (query.order() == Order.ASCENDING) {
+    if (query.getOrder() == Order.ASCENDING) {
       Collections.sort(sorted, UniqueKeyPair_CMP);
     } else {
       Collections.sort(sorted, REVERSE_UniqueKeyPair_CMP);
@@ -168,7 +168,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
     }
     final List<UniqueKeyPair<String, Long>> sorted = Lists.newArrayList
             (tag_keys_or_values.values());
-    if (query.order() == Order.ASCENDING) {
+    if (query.getOrder() == Order.ASCENDING) {
       Collections.sort(sorted, UniqueKeyPair_CMP);
     } else {
       Collections.sort(sorted, REVERSE_UniqueKeyPair_CMP);
@@ -213,7 +213,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
                             final boolean matchMetric) {
 
     if (matchMetric && meta_query != null &&
-          !matchMetric(metric_only, false, meta_query.filter())) {
+          !matchMetric(metric_only, false, meta_query.getFilter())) {
       return;
     }
 
@@ -251,7 +251,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
       tags = Maps.newHashMap();
     }
     if (tags.get(key) == null) {
-      Set<UniqueKeyPair<String, Long>> result = new TreeSet<>(query.order() == Order.ASCENDING ?
+      Set<UniqueKeyPair<String, Long>> result = new TreeSet<>(query.getOrder() == Order.ASCENDING ?
           UniqueKeyPair_CMP : REVERSE_UniqueKeyPair_CMP);
       result.addAll(values);
       tags.put(key, result);
@@ -265,10 +265,10 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    * BatchMetaQuery}.
    *
    * @param values A non-null (possibly empty) list.
-   * @See {@link BatchMetaQuery#aggregationField()}
+   * @See {@link BatchMetaQuery#getAggregationField()}
    */
   public void addTags(final List<UniqueKeyPair<String, Long>> values) {
-    addTags(new UniqueKeyPair(query.aggregationField(), 1l), values);
+    addTags(new UniqueKeyPair(query.getAggregationField(), 1l), values);
   }
 
   /**
@@ -278,7 +278,7 @@ public class NamespacedAggregatedDocumentResult implements MetaDataStorageResult
    */
   public void addTag(final  UniqueKeyPair<String, Long> key, final UniqueKeyPair<String, Long> value) {
     if (tags == null) {
-      tags = Maps.newTreeMap(query.order() == Order.ASCENDING ? UniqueKeyPair_CMP : REVERSE_UniqueKeyPair_CMP);
+      tags = Maps.newTreeMap(query.getOrder() == Order.ASCENDING ? UniqueKeyPair_CMP : REVERSE_UniqueKeyPair_CMP);
     }
     Collection<UniqueKeyPair<String, Long>> values = tags.get(key);
     if (values == null) {
