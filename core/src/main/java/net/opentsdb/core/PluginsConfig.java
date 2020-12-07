@@ -108,8 +108,6 @@ public class PluginsConfig extends Validatable {
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.query.filter.QueryFilterFactory"));
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
-        "net.opentsdb.stats.StatsCollector"));
-    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.query.interpolation.QueryInterpolatorFactory"));
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.storage.DatumIdValidator"));

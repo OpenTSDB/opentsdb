@@ -16,6 +16,7 @@ package net.opentsdb.stats;
 
 import java.net.URI;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -58,6 +59,7 @@ public class UltrabrewMetrics extends BaseTSDBPlugin implements StatsCollector {
   
   public static final String INFLUX_URI = "tsd.stats.reporter.influx.uri";
   public static final String INFLUX_DB = "tsd.stats.reporter.influx.database";
+  public static final String INFLUX_ENDPOINT = "tsd.stats.reporter.influx.endpoint";
   public static final String INFLUX_FREQUENCY = "tsd.stats.reporter.influx.frequency";
   
   public static final TypeReference<List<String>> LIST_TYPE = 
@@ -148,6 +150,8 @@ public class UltrabrewMetrics extends BaseTSDBPlugin implements StatsCollector {
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
     this.id = Strings.isNullOrEmpty(id) ? TYPE : id;
+    this.tsdb = tsdb;
+    
     LOG.info("Initializing Ultrabrew metrics...");
     metric_registry = new MetricRegistry();
     registerConfigs();
@@ -186,8 +190,10 @@ public class UltrabrewMetrics extends BaseTSDBPlugin implements StatsCollector {
     }
     
     if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(INFLUX_URI))) {
+      String endpoint = tsdb.getConfig().getString(INFLUX_ENDPOINT);
       InfluxDBReporter.Builder reporter_builder = InfluxDBReporter.builder()
           .withBaseUri(URI.create(tsdb.getConfig().getString(INFLUX_URI)))
+          .withEndpoint(endpoint)
           .withDatabase(tsdb.getConfig().getString(INFLUX_DB))
           .withWindowSize(tsdb.getConfig().getInt(INFLUX_FREQUENCY));
       if (histos != null && !histos.isEmpty()) {
@@ -211,6 +217,7 @@ public class UltrabrewMetrics extends BaseTSDBPlugin implements StatsCollector {
         array[i] = array[i].trim();
       }
       static_tags = array;
+      LOG.info("Reporting static tags: " + Arrays.toString(static_tags));
     }
     
     LOG.info("Successfully initialized Ultrabrew metrics.");
@@ -291,6 +298,10 @@ public class UltrabrewMetrics extends BaseTSDBPlugin implements StatsCollector {
     if (!tsdb.getConfig().hasProperty(INFLUX_DB)) {
       tsdb.getConfig().register(INFLUX_DB, null, false, 
           "The database to report influx stats under.");
+    }
+    if (!tsdb.getConfig().hasProperty(INFLUX_ENDPOINT)) {
+      tsdb.getConfig().register(INFLUX_ENDPOINT, null, false, 
+          "The endpoint to report to. Must include the DB as well.");
     }
     if (!tsdb.getConfig().hasProperty(INFLUX_FREQUENCY)) {
       tsdb.getConfig().register(INFLUX_FREQUENCY, 60, false, 
@@ -394,5 +405,13 @@ public class UltrabrewMetrics extends BaseTSDBPlugin implements StatsCollector {
     System.arraycopy(static_tags, 0, final_tags, 0, static_tags.length);
     System.arraycopy(tags, 0, final_tags, static_tags.length, tags.length);
     return final_tags;
+  }
+  
+  /**
+   * Helper for others to get the registry.
+   * @return The registry.
+   */
+  public MetricRegistry getRegistry() {
+    return metric_registry;
   }
 }
