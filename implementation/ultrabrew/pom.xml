@@ -49,12 +49,12 @@
          <dependency>
            <groupId>io.ultrabrew.metrics</groupId>
            <artifactId>metrics-reporter-influxdb</artifactId>
-           <version>0.6.0</version>
+           <version>0.7.0</version>
          </dependency>
          <dependency>
            <groupId>io.ultrabrew.metrics</groupId>
            <artifactId>metrics-reporter-opentsdb</artifactId>
-           <version>0.6.0</version>
+           <version>0.7.0</version>
          </dependency>
       </dependencies>
    </dependencyManagement>
@@ -142,7 +142,18 @@
                      <exclude>net.opentsdb:opentsdb-core</exclude>
                      <exclude>ch.qos.logback:logback*</exclude>
                      <exclude>com.fasterxml*:*</exclude>
-                     <exclude>javax*:*</exclude>
+                     <exclude>org.apache.commons:*</exclude>
+                     <exclude>org.apache.httpcomponents:*</exclude>
+                     <exclude>commons-codec:*</exclude>
+                     <exclude>commons-logging:*</exclude>
+                     <exclude>com.google.guava:*</exclude>
+                     <exclude>org.antlr:*</exclude>
+                     <exclude>net.sf.trove4j:*</exclude>
+                     <exclude>io.opentracing:*</exclude>
+                     <exclude>net.openhft:*</exclude>
+                     <exclude>jakarta.xml.bind:*</exclude>
+                     <exclude>org.yaml:*</exclude>
+                     <exclude>io.netty:*</exclude>
                   </excludes>
                </artifactSet>
                <filters>
@@ -152,7 +163,6 @@
                           <exclude>META-INF/*.SF</exclude> 
                           <exclude>META-INF/*.DSA</exclude>  
                           <exclude>META-INF/*.RSA</exclude>
-                          <!--  <exclude>org.slf4j:*</exclude> -->  
                           <exclude>net.opentsdb:*</exclude>
                         </excludes>
                   </filter>
