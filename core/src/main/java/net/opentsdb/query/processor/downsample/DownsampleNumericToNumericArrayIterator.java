@@ -28,7 +28,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.ArrayCountFactory.ArrayCount;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
-import net.opentsdb.query.QueryIterator;
+import net.opentsdb.query.AggregatingQueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
  * @since 3.0
  */
 public class DownsampleNumericToNumericArrayIterator 
-    implements QueryIterator, TimeSeriesValue<NumericArrayType> {
+    implements AggregatingQueryIterator, TimeSeriesValue<NumericArrayType> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(DownsampleNumericToNumericArrayIterator.class);
@@ -235,10 +235,10 @@ public class DownsampleNumericToNumericArrayIterator
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
-  public TimeSeriesValue<NumericArrayType> nextPool(Aggregator aggregator) {
+  public void next(Aggregator aggregator) {
     has_next = false;
     if (value == null) {
-      return null;
+      return;
     }
     
     NumericArrayAggregator numericArrayAggregator = (NumericArrayAggregator) aggregator; // group by
@@ -346,7 +346,7 @@ public class DownsampleNumericToNumericArrayIterator
       }
     }
 
-    return null;
+    return;
   }
 
   private double getAggValue(double[] localDoubleAggs, long[] localLongAggs) {
@@ -612,7 +612,7 @@ public class DownsampleNumericToNumericArrayIterator
     double[] nans = new double[config.intervals()];
     Arrays.fill(nans, Double.NaN);
     agg.accumulate(nans);
-    nextPool(agg);
+    next(agg);
     return this;
   }
   

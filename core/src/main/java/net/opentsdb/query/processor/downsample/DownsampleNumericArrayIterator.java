@@ -31,7 +31,7 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
-import net.opentsdb.query.QueryIterator;
+import net.opentsdb.query.AggregatingQueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
@@ -45,7 +45,7 @@ import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
  * 
  * @since 3.0
  */
-public class DownsampleNumericArrayIterator implements QueryIterator, 
+public class DownsampleNumericArrayIterator implements AggregatingQueryIterator,
     TimeSeriesValue<NumericArrayType>, 
     NumericArrayType {
 
@@ -309,9 +309,9 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
   }
 
   @Override
-  public TimeSeriesValue<NumericArrayType> nextPool(final Aggregator aggregator) {
+  public void next(final Aggregator aggregator) {
     if (iterator == null) {
-      return null;
+      return;
     }
 
     final NumericArrayAggregator agg = (NumericArrayAggregator) aggregator;
@@ -324,7 +324,7 @@ public class DownsampleNumericArrayIterator implements QueryIterator,
     } else {
       agg.accumulate(double_values, 0, intervals);
     }
-    return null;
+    return;
   }
   
   /**

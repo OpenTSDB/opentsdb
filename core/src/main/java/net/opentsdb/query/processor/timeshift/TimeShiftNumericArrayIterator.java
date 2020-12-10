@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.data.AggregatingTypedTimeSeriesIterator;
 import net.opentsdb.data.Aggregator;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -26,6 +27,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.query.AggregatingQueryIterator;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryResult;
 
@@ -35,7 +37,7 @@ import net.opentsdb.query.QueryResult;
  *
  * @since 3.0
  */
-public class TimeShiftNumericArrayIterator implements QueryIterator,
+public class TimeShiftNumericArrayIterator implements AggregatingQueryIterator,
     TimeSeriesValue<NumericArrayType> {
 
   /** The iterator. */
@@ -103,7 +105,10 @@ public class TimeShiftNumericArrayIterator implements QueryIterator,
   }
 
   @Override
-  public TimeSeriesValue<? extends TimeSeriesDataType> nextPool(Aggregator aggregator) {
-    return iterator.nextPool(aggregator);
+  public void next(final Aggregator aggregator) {
+    if (iterator instanceof AggregatingTypedTimeSeriesIterator) {
+      ((AggregatingTypedTimeSeriesIterator) iterator).next(aggregator);
+    }
+    throw new UnsupportedOperationException("TODO!");
   }
 }
