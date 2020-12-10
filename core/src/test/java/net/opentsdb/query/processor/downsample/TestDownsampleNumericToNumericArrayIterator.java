@@ -180,7 +180,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -229,7 +229,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -286,7 +286,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     NumericArrayAggregator numericArrayAggregator1 =
         factory.newAggregator(config.getInfectiousNan());
@@ -295,7 +295,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     numericArrayAggregator1.accumulate(nans);
     final DownsampleNumericToNumericArrayIterator it1 =
         new DownsampleNumericToNumericArrayIterator(node, result, source);
-    it1.nextPool(numericArrayAggregator1);
+    it1.next(numericArrayAggregator1);
     numericArrayAggregator.combine(numericArrayAggregator1);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
@@ -343,7 +343,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     long[] doubleArray = numericArrayAggregator.longArray();
 
@@ -390,7 +390,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     long[] doubleArray = numericArrayAggregator.longArray();
 
@@ -437,7 +437,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     NumericArrayAggregator numericArrayAggregator1 =
         factory.newAggregator(config.getInfectiousNan());
@@ -446,7 +446,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     numericArrayAggregator1.accumulate(nans);
     final DownsampleNumericToNumericArrayIterator it1 =
         new DownsampleNumericToNumericArrayIterator(node, result, source);
-    it1.nextPool(numericArrayAggregator1);
+    it1.next(numericArrayAggregator1);
     numericArrayAggregator.combine(numericArrayAggregator1);
 
     long[] doubleArray = numericArrayAggregator.longArray();
@@ -494,7 +494,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     NumericArrayAggregator numericArrayAggregator1 =
         factory.newAggregator(config.getInfectiousNan());
@@ -503,7 +503,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     numericArrayAggregator1.accumulate(nans);
     final DownsampleNumericToNumericArrayIterator it1 =
         new DownsampleNumericToNumericArrayIterator(node, result, source);
-    it1.nextPool(numericArrayAggregator1);
+    it1.next(numericArrayAggregator1);
     numericArrayAggregator.combine(numericArrayAggregator1);
 
     long[] doubleArray = numericArrayAggregator.longArray();
@@ -551,7 +551,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     NumericArrayAggregator numericArrayAggregator1 =
         factory.newAggregator(config.getInfectiousNan());
@@ -560,7 +560,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     numericArrayAggregator1.accumulate(nans);
     final DownsampleNumericToNumericArrayIterator it1 =
         new DownsampleNumericToNumericArrayIterator(node, result, source);
-    it1.nextPool(numericArrayAggregator1);
+    it1.next(numericArrayAggregator1);
     numericArrayAggregator.combine(numericArrayAggregator1);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
@@ -608,7 +608,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     NumericArrayAggregator numericArrayAggregator1 =
         factory.newAggregator(config.getInfectiousNan());
@@ -617,7 +617,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     numericArrayAggregator1.accumulate(nans);
     final DownsampleNumericToNumericArrayIterator it1 =
         new DownsampleNumericToNumericArrayIterator(node, result, source);
-    it1.nextPool(numericArrayAggregator1);
+    it1.next(numericArrayAggregator1);
     numericArrayAggregator.combine(numericArrayAggregator1);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
@@ -665,7 +665,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     NumericArrayAggregator numericArrayAggregator1 =
         factory.newAggregator(config.getInfectiousNan());
@@ -674,7 +674,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     numericArrayAggregator1.accumulate(nans);
     final DownsampleNumericToNumericArrayIterator it1 =
         new DownsampleNumericToNumericArrayIterator(node, result, source);
-    it1.nextPool(numericArrayAggregator1);
+    it1.next(numericArrayAggregator1);
     numericArrayAggregator.combine(numericArrayAggregator1);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
@@ -722,7 +722,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     NumericArrayAggregator numericArrayAggregator1 =
         factory.newAggregator(config.getInfectiousNan());
@@ -731,7 +731,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     numericArrayAggregator1.accumulate(nans);
     final DownsampleNumericToNumericArrayIterator it1 =
         new DownsampleNumericToNumericArrayIterator(node, result, source);
-    it1.nextPool(numericArrayAggregator1);
+    it1.next(numericArrayAggregator1);
     numericArrayAggregator.combine(numericArrayAggregator1);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
@@ -783,7 +783,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -913,7 +913,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -960,7 +960,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1007,7 +1007,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     long[] longArray = numericArrayAggregator.longArray();
     for (long l : longArray) {
@@ -1057,7 +1057,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1104,7 +1104,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1151,7 +1151,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1226,7 +1226,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1282,7 +1282,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     long[] longArray = numericArrayAggregator.longArray();
 
@@ -1338,7 +1338,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1396,7 +1396,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1452,7 +1452,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
 
@@ -1507,7 +1507,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
     assertEquals(1, doubleArray.length);
@@ -1552,7 +1552,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
     assertEquals(1, doubleArray.length);
@@ -1597,7 +1597,7 @@ public class TestDownsampleNumericToNumericArrayIterator {
     Arrays.fill(nans, Double.NaN);
     numericArrayAggregator.accumulate(nans);
 
-    it.nextPool(numericArrayAggregator);
+    it.next(numericArrayAggregator);
 
     double[] doubleArray = numericArrayAggregator.doubleArray();
     assertEquals(1, doubleArray.length);

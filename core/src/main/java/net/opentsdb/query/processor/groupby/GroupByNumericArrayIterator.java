@@ -20,6 +20,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.utils.TSDBQueryQueue;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatingTypedTimeSeriesIterator;
 import net.opentsdb.data.ArrayAggregatorConfig;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -600,8 +601,8 @@ public class GroupByNumericArrayIterator
             optional.get()) {
           if (iterator.hasNext()) {
             has_next = true;
-            if (aggregator != null) {
-              iterator.nextPool(aggregator);
+            if (aggregator != null && iterator instanceof AggregatingTypedTimeSeriesIterator) {
+              ((AggregatingTypedTimeSeriesIterator) iterator).next(aggregator);
             } else {
               final TimeSeriesValue<NumericArrayType> array =
                   (TimeSeriesValue<NumericArrayType>) iterator.next();
