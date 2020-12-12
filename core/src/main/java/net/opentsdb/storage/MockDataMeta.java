@@ -103,7 +103,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
       final Set<String> namespaces = Sets.newHashSet();
       int hits = 0;
       for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
-            data_store.database().entrySet()) {
+            data_store.getDatabase().entrySet()) {
         if (!Strings.isNullOrEmpty(entry.getKey().namespace())) {
           namespaces.add(entry.getKey().namespace());
           hits++;
@@ -186,7 +186,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
       case METRICS:
         Map<String, UniqueKeyPair<String, Long>> metrics = null;
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
-              data_store.database().entrySet()) {
+              data_store.getDatabase().entrySet()) {
           if (FilterUtils.matchesMetrics(meta_query.getFilter(), entry.getKey(), 
               meta_query.getNamespace())) {
             if (metrics == null) {
@@ -222,7 +222,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
         Map<String, UniqueKeyPair<String, Long>> tag_keys_or_values = null;
         Set<String> matches = Sets.newHashSet();
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
-            data_store.database().entrySet()) {
+            data_store.getDatabase().entrySet()) {
           if (FilterUtils.matchesTagKeysOrValues(meta_query.getFilter(), 
                                                  entry.getKey(), 
                                                  meta_query.getNamespace(), 
@@ -256,7 +256,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
         Map<String, Map<String, UniqueKeyPair<String, Long>>> pairs = Maps.newHashMap();
         Map<String, String> tag_pairs = Maps.newHashMap(); 
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
-              data_store.database().entrySet()) {
+              data_store.getDatabase().entrySet()) {
           if (FilterUtils.matchesTags(meta_query.getFilter(), entry.getKey(), 
               meta_query.getNamespace(), tag_pairs)) {
             for (final Entry<String, String> tags : tag_pairs.entrySet()) {
@@ -305,7 +305,7 @@ public class MockDataMeta extends BaseTSDBPlugin implements MetaDataStorageSchem
       case TIMESERIES:
         Set<TimeSeriesId> ids = null;
         for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
-              data_store.database().entrySet()) {
+              data_store.getDatabase().entrySet()) {
           if (FilterUtils.matches(meta_query.getFilter(), entry.getKey(), 
                 meta_query.getNamespace())) {
             if (ids == null) {

@@ -177,8 +177,8 @@ public class SchemaFactory extends BaseTSDBPlugin
           } catch (NoSuchRollupForIntervalException e) {
             // ignore, we'll use raw.
           }
+          
         }
-        
         // TODO compute the padding
         builder.setPrePadding("1h");
         builder.setPostPadding("30m");

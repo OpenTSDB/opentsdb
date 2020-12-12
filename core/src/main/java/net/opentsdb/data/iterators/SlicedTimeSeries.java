@@ -140,7 +140,7 @@ public class SlicedTimeSeries implements TimeSeries {
       }
     }
     
-    
+
     @Override
     public boolean hasNext() {
       if (source_idx >= sources.size()) {

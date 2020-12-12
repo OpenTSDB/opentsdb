@@ -29,7 +29,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.LowLevelMetricData;
 import net.opentsdb.data.LowLevelTimeSeriesData;
-import net.opentsdb.data.LowLevelTimeSeriesData.HashedNamespacedLowLevelTimeSeriesData;
 import net.opentsdb.data.LowLevelTimeSeriesData.NamespacedLowLevelTimeSeriesData;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.PartialTimeSeries;
@@ -50,9 +49,11 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.iterators.SlicedTimeSeries;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
-import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+//import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.pools.BaseObjectPoolAllocator;
 import net.opentsdb.pools.CloseablePooledObject;
@@ -79,7 +80,6 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
-import net.opentsdb.utils.UniqueKeyPair;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,6 +87,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.Collection;
@@ -113,6 +114,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
   private static final Logger LOG = LoggerFactory.getLogger(MockDataStore.class);
   
   public static final long ROW_WIDTH = 3600000;
+  public static final long SUMMARY_ROW_WIDTH = 3600000 * 24;
   public static final long HOSTS = 4;
   public static final long INTERVAL = 60000;
   public static final long HOURS = 24;
@@ -127,9 +129,11 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
   
   /** The super inefficient and thread unsafe in-memory db. */
   private Map<TimeSeriesDatumStringId, MockSpan> database;
+  private Map<TimeSeriesDatumStringId, MockSpan> rollup_database;
   
   /** Thread pool used by the executions. */
   private final ExecutorService thread_pool;
+  private final boolean rollups_enabled;
   
   public MockDataStore(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
@@ -141,7 +145,8 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
     
     database = Maps.newHashMap();
-    generateMockData();
+    rollup_database = Maps.newHashMap();
+    
     if (!tsdb.getConfig().hasProperty("MockDataStore.threadpool.enable")) {
       tsdb.getConfig().register("MockDataStore.threadpool.enable", false, 
           false, "Whether or not to execute results in an asynchronous "
@@ -179,7 +184,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
     
     key = configKey("rollups.enable");
-    final boolean rollups_enabled = tsdb.getConfig().getBoolean(key);
+    rollups_enabled = tsdb.getConfig().getBoolean(key);
     if (rollups_enabled) {
       key = configKey("rollups.config");
       if (!tsdb.getConfig().hasProperty(key)) {
@@ -208,18 +213,34 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     } else {
       rollup_config = null;
     }
+    
+    generateMockData();
   }
   
   public Deferred<WriteStatus> write(final AuthState state, 
                                      final TimeSeriesDatum datum, 
                                      final Span span) {
-    MockSpan data_span = database.get((TimeSeriesDatumStringId) datum.id());
-    if (data_span == null) {
-      data_span = new MockSpan((TimeSeriesDatumStringId) datum.id());
-      database.put((TimeSeriesDatumStringId) datum.id(), data_span);
+    // route it
+    if (datum.value().type() == NumericSummaryType.TYPE) {
+      MockSpan data_span = rollup_database.get((TimeSeriesDatumStringId) datum.id());
+      if (data_span == null) {
+        data_span = new MockSummarySpan((TimeSeriesDatumStringId) datum.id());
+        rollup_database.put((TimeSeriesDatumStringId) datum.id(), data_span);
+      }
+      data_span.addValue(datum.value());
+      return Deferred.fromResult(WriteStatus.OK);
+    } else if (datum.value().type() == NumericType.TYPE) {
+      MockSpan data_span = database.get((TimeSeriesDatumStringId) datum.id());
+      if (data_span == null) {
+        data_span = new MockRawSpan((TimeSeriesDatumStringId) datum.id());
+        database.put((TimeSeriesDatumStringId) datum.id(), data_span);
+      }
+      data_span.addValue(datum.value());
+      return Deferred.fromResult(WriteStatus.OK);
+    } else {
+      return Deferred.fromError(new IllegalArgumentException(
+          "Not supporting " + datum.value().type() + " yet."));
     }
-    data_span.addValue(datum.value());
-    return Deferred.fromResult(WriteStatus.OK);
   }
   
   public Deferred<List<WriteStatus>> write(
@@ -228,12 +249,24 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       final Span span) {
     int i = 0;
     for (final TimeSeriesDatum datum : data) {
-      MockSpan data_span = database.get(datum.id());
-      if (data_span == null) {
-        data_span = new MockSpan((TimeSeriesDatumStringId) datum.id());
-        database.put((TimeSeriesDatumStringId) datum.id(), data_span);
+      if (datum.value().type() == NumericSummaryType.TYPE) {
+        MockSpan data_span = rollup_database.get((TimeSeriesDatumStringId) datum.id());
+        if (data_span == null) {
+          data_span = new MockSummarySpan((TimeSeriesDatumStringId) datum.id());
+          rollup_database.put((TimeSeriesDatumStringId) datum.id(), data_span);
+        }
+        data_span.addValue(datum.value());
+      } else if (datum.value().type() == NumericType.TYPE) {
+        MockSpan data_span = database.get(datum.id());
+        if (data_span == null) {
+          data_span = new MockRawSpan((TimeSeriesDatumStringId) datum.id());
+          database.put((TimeSeriesDatumStringId) datum.id(), data_span);
+        }
+        data_span.addValue(datum.value());
+      } else {
+         Deferred.fromError(new IllegalArgumentException(
+            "Not supporting " + datum.value().type() + " yet."));
       }
-      data_span.addValue(datum.value());
       i++;
     }
     final List<WriteStatus> states = Lists.newArrayListWithExpectedSize(i);
@@ -251,6 +284,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       return Deferred.fromError(new UnsupportedOperationException("TODO"));
     }
 
+    // TODO - rollups
     try {
       final LowLevelMetricData metric = (LowLevelMetricData) data;
       int count = 0;
@@ -306,7 +340,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           TimeSeriesDatumStringId id = builder.build();
           MockSpan data_span = database.get(id);
           if (data_span == null) {
-            data_span = new MockSpan((TimeSeriesDatumStringId) id);
+            data_span = new MockRawSpan((TimeSeriesDatumStringId) id);
             database.put((TimeSeriesDatumStringId) id, data_span);
           }
           data_span.addValue(dp);
@@ -328,11 +362,22 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
   }
   
-  class MockSpan {
+  interface MockSpan {
+    public void addValue(TimeSeriesValue<?> value);
+    public List<MockRow> rows();
+  }
+  
+  interface MockRow extends TimeSeries {
+    long baseTimestamp();
+    void addValue(TimeSeriesValue<?> value);
+    TimeSeriesStringId id();
+  }
+  
+  class MockRawSpan implements MockSpan {
     private List<MockRow> rows = Lists.newArrayList();
     private final TimeSeriesDatumStringId id;
     
-    public MockSpan(final TimeSeriesDatumStringId id) {
+    public MockRawSpan(final TimeSeriesDatumStringId id) {
       this.id = id;
     }
     
@@ -340,99 +385,53 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       long base_time = value.timestamp().msEpoch() - 
           (value.timestamp().msEpoch() % ROW_WIDTH);
       for (final MockRow row : rows) {
-        if (row.base_timestamp == base_time) {
+        if (row.baseTimestamp() == base_time) {
           row.addValue(value);
           return;
         }
       }
       
-      final MockRow row = new MockRow(id, value);
+      final MockTimeSeries row = new MockTimeSeries(
+          TimeSeriesDatumStringWrapperId.wrap((TimeSeriesDatumStringId) id), 
+          base_time);
+      row.addValue(value);
       rows.add(row);
     }
   
-    List<MockRow> rows() {
+    @Override
+    public List<MockRow> rows() {
       return rows;
     }
   }
   
-  class MockRow implements TimeSeries {
-    private TimeSeriesStringId id;
-    public long base_timestamp;
-    public Map<TypeToken<? extends TimeSeriesDataType>, TimeSeries> sources;
+  class MockSummarySpan implements MockSpan {
+    private List<MockRow> rows = Lists.newArrayList();
+    private final TimeSeriesDatumStringId id;
     
-    public MockRow(final TimeSeriesDatumStringId id, 
-                   final TimeSeriesValue<?> value) {
-      this.id = TimeSeriesDatumStringWrapperId.wrap((TimeSeriesDatumStringId) id);
-      base_timestamp = value.timestamp().msEpoch() - 
-          (value.timestamp().msEpoch() % ROW_WIDTH);
-      sources = Maps.newHashMap();
-      // TODO - other types
-      if (value.type() == NumericType.TYPE) {
-        addValue(value);
-      }
+    public MockSummarySpan(final TimeSeriesDatumStringId id) {
+      this.id = id;
     }
     
-    public void addValue(final TimeSeriesValue<?> value) {
-      // TODO - other types
-      if (value.type() == NumericType.TYPE) {
-        NumericMillisecondShard shard = 
-            (NumericMillisecondShard) sources.get(NumericType.TYPE);
-        if (shard == null) {
-          shard = new NumericMillisecondShard(
-              id,
-              new MillisecondTimeStamp(base_timestamp), 
-              new MillisecondTimeStamp(base_timestamp + ROW_WIDTH));
-          sources.put(NumericType.TYPE, shard);
-        }
-        try {
-          if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
-            shard.add(value.timestamp().msEpoch(), 
-                ((TimeSeriesValue<NumericType>) value).value().longValue());
-          } else {
-            shard.add(value.timestamp().msEpoch(), 
-                ((TimeSeriesValue<NumericType>) value).value().doubleValue());
-          }
-        } catch (IllegalArgumentException e) {
-          // probably the NumericMillisecondShard out of order issue. Ignore it
-          // for now.
+    public void addValue(TimeSeriesValue<?> value) {
+      long base_time = value.timestamp().msEpoch() - 
+          (value.timestamp().msEpoch() % SUMMARY_ROW_WIDTH);
+      for (final MockRow row : rows) {
+        if (row.baseTimestamp() == base_time) {
+          row.addValue(value);
+          return;
         }
       }
+      
+      final MockTimeSeries row = new MockTimeSeries(
+          TimeSeriesDatumStringWrapperId.wrap((TimeSeriesDatumStringId) id), 
+          base_time);
+      row.addValue(value);
+      rows.add(row);
     }
-
-    @Override
-    public TimeSeriesStringId id() {
-      return id;
+  
+    public List<MockRow> rows() {
+      return rows;
     }
-
-    @Override
-    public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
-        final TypeToken<? extends TimeSeriesDataType> type) {
-      // TODO - other types
-      if (type == NumericType.TYPE) {
-        return Optional.of(sources.get(NumericType.TYPE).iterator(NumericType.TYPE).get());
-      }
-      return Optional.empty();
-    }
-
-    @Override
-    public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
-      // TODO - other types
-      final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> its =
-          Lists.newArrayListWithCapacity(1);
-      its.add(sources.get(NumericType.TYPE).iterator(NumericType.TYPE).get());
-      return its;
-    }
-
-    @Override
-    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-      return sources.keySet();
-    }
-
-    @Override
-    public void close() {
-      // TODO Auto-generated method stub
-    }
-    
   }
   
   private void generateMockData() {
@@ -463,6 +462,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       throw new IllegalStateException("Interval can't be 0 or less.");
     }
     
+    final boolean rollups_enabled = tsdb.getConfig().getBoolean(configKey("rollups.enable"));
     for (int t = 0; t < hours; t++) {
       for (final String metric : METRICS) {
         for (final String dc : DATACENTERS) {
@@ -474,9 +474,15 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
                 .build();
             MutableNumericValue dp = new MutableNumericValue();
             TimeStamp ts = new MillisecondTimeStamp(0);
+            
+            long sum = 0;
+            long max = 0;
+            long min = Long.MAX_VALUE;
+            long count = 0;
             for (long i = 0; i < (ROW_WIDTH / interval); i++) {
               ts.updateMsEpoch(start_timestamp + (i * interval) + (t * ROW_WIDTH));
-              dp.reset(ts, t + h + i);
+              long v = t + h + i;
+              dp.reset(ts, v);
               write(null, new TimeSeriesDatum() {
                 
                 @Override
@@ -490,6 +496,39 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
                 }
                 
               }, null);
+              
+              if (rollups_enabled) {
+                sum += v;
+                if (v > max) {
+                  max = v;
+                }
+                if (v < min) {
+                  min = v;
+                }
+                count++;
+              }
+            }
+            
+            if (rollups_enabled) {
+              MutableNumericSummaryValue sdp = new MutableNumericSummaryValue();
+              sdp.resetTimestamp(new SecondTimeStamp((start_timestamp / 1000) + (t * 3600)));
+              sdp.resetValue(rollup_config.getAggregationIds().get("sum"), sum);
+              sdp.resetValue(rollup_config.getAggregationIds().get("max"), max);
+              sdp.resetValue(rollup_config.getAggregationIds().get("min"), min);
+              sdp.resetValue(rollup_config.getAggregationIds().get("count"), count);
+              write(null, new TimeSeriesDatum() {
+                
+                @Override
+                public TimeSeriesDatumStringId id() {
+                  return id;
+                }
+
+                @Override
+                public TimeSeriesValue<? extends TimeSeriesDataType> value() {
+                  return sdp;
+                }
+                
+              }, null);
             }
           }
         }
@@ -499,6 +538,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
 
   Map<TimeSeriesDatumStringId, MockSpan> getDatabase() {
     return database;
+  }
+  
+  Map<TimeSeriesDatumStringId, MockSpan> getRollupDatabase() {
+    return rollup_database;
   }
   
   /**
@@ -645,10 +688,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         
         // matched the filters
         MockRow row = null;
-        Iterator<MockRow> iterator = entry.getValue().rows.iterator();
+        Iterator<MockRow> iterator = entry.getValue().rows().iterator();
         while (iterator.hasNext()) {
           row = iterator.next();
-          if (row.base_timestamp >= st.msEpoch()) {
+          if (row.baseTimestamp() >= st.msEpoch()) {
             break;
           }
         }
@@ -656,13 +699,13 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           continue;
         }
         
-        if (row.base_timestamp > e.msEpoch()) {
+        if (row.baseTimestamp() > e.msEpoch()) {
           continue;
         }
         
         final long id_hash = row.id().buildHashCode();
         if (!context.hasId(id_hash, Const.TS_STRING_ID)) {
-          context.addId(id_hash, row.id);
+          context.addId(id_hash, row.id());
         }
         
         iterators.put(id_hash, iterator);
@@ -706,7 +749,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
             continue;
           }
           
-          if (row.base_timestamp == ts) {
+          if (row.baseTimestamp() == ts) {
             PooledMockPTS ppts = (PooledMockPTS) pool.claim().object();
             ppts.setData(row, array_pool, its.getKey(), set);
             
@@ -840,6 +883,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     }
   }
   
+  RollupConfig rollupConfig() {
+    return rollup_config;
+  }
+  
   class LocalResult implements QueryResult, Runnable {
     final TimeSeriesDataSourceConfig config;
     final SemanticQuery query;
@@ -848,6 +895,8 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     final long sequence_id;
     final List<TimeSeries> matched_series;
     final net.opentsdb.stats.Span trace_span;
+    final TimeSpecification time_spec;
+    final boolean use_rollups;
     
     LocalResult(final QueryPipelineContext context, 
                 final LocalNode pipeline, 
@@ -869,12 +918,75 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         this.trace_span = null;
       }
       query = (SemanticQuery) context.query();
+      
+      // rollups IF we have a valid downsampler.
+      use_rollups = rollups_enabled && 
+          config.getRollupIntervals() != null && 
+          !config.getRollupIntervals().isEmpty(); 
+      if (use_rollups) {
+        int ts = (int) context.query().startTime().epoch();
+        ts = ts - (ts % 3600);
+        if (ts < context.query().startTime().epoch()) {
+          ts += 3600;
+        }
+        SecondTimeStamp start = new SecondTimeStamp(ts);
+        
+        ts = (int) context.query().endTime().epoch();
+        ts = ts - (ts % 3600);
+        SecondTimeStamp end = new SecondTimeStamp(ts);
+        time_spec = new TimeSpecification() {
+
+          @Override
+          public TimeStamp start() {
+            return start;
+          }
+
+          @Override
+          public TimeStamp end() {
+            return end;
+          }
+
+          @Override
+          public TemporalAmount interval() {
+            return Duration.ofSeconds(3600);
+          }
+
+          @Override
+          public String stringInterval() {
+            return "1h";
+          }
+
+          @Override
+          public ChronoUnit units() {
+            return ChronoUnit.HOURS;
+          }
+
+          @Override
+          public ZoneId timezone() {
+            return Const.UTC;
+          }
+
+          @Override
+          public void updateTimestamp(int offset, TimeStamp timestamp) {
+            // TODO Auto-generated method stub
+            
+          }
+
+          @Override
+          public void nextTimestamp(TimeStamp timestamp) {
+            // TODO Auto-generated method stub
+            
+          }
+          
+        };
+      } else {
+        time_spec = null;
+      }
     }
     
     @Override
     public TimeSpecification timeSpecification() {
-      // TODO Auto-generated method stub
-      return null;
+      return time_spec;
     }
 
     @Override
@@ -915,8 +1027,8 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           return;
         }
         
-        final long start_ts;
-        final long end_ts;
+        long start_ts;
+        long end_ts;
         if (config.timeShifts() == null) {
           start_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
               query.startTime().msEpoch() : 
@@ -944,6 +1056,17 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           end_ts = ts.msEpoch();
         }
         
+        // tweak for rollups
+        if (use_rollups) {
+          long original_start = start_ts;
+          start_ts = start_ts - (start_ts % 3600000);
+          if (start_ts < original_start) {
+            start_ts += 3600000;
+          }
+          
+          end_ts = end_ts - (end_ts % 3600000);
+        }
+        
         QueryFilter filter = config.getFilter();
         if (filter == null && !Strings.isNullOrEmpty(config.getFilterId())) {
           filter = context.query().getFilter(config.getFilterId());
@@ -951,18 +1074,19 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         
         if (LOG.isDebugEnabled()) {
           LOG.debug("Running the filter: " + filter);
+          LOG.debug("Querying with rollups: " + use_rollups);
         }
         
-        for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : database.entrySet()) {
+        for (final Entry<TimeSeriesDatumStringId, MockSpan> entry : 
+          use_rollups ? rollup_database.entrySet() : database.entrySet()) {
           // TODO - handle filter types
           if (!(config).getMetric().matches(entry.getKey().metric())) {
             continue;
           }
           
-          if (filter != null) {
-            if (!FilterUtils.matchesTags(filter, entry.getKey().tags(), (Set<String>) null)) {
-              continue;
-            }
+          if (filter != null && 
+              !FilterUtils.matchesTags(filter, entry.getKey().tags(), (Set<String>) null)) {
+            continue;
           }
           
           // matched the filters
@@ -971,10 +1095,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
                   config.getFetchLast() ? new LastTimeSeries(query) : new SlicedTimeSeries() 
                       : null;
           int rows = 0;
-          for (final MockRow row : entry.getValue().rows) {
-            if ((row.base_timestamp >= start_ts || 
-                row.base_timestamp + ROW_WIDTH >= start_ts) && 
-                  row.base_timestamp < end_ts) {
+          for (final MockRow row : entry.getValue().rows()) {
+            if ((row.baseTimestamp() >= start_ts || 
+                row.baseTimestamp() + SUMMARY_ROW_WIDTH >= start_ts) && 
+                  row.baseTimestamp() < end_ts) {
               ++rows;
               if (context.queryContext().mode() == QueryMode.SINGLE) {
                 if (config.getFetchLast()) {
@@ -1284,10 +1408,6 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
           + suffix;
   }
 
-  Map<TimeSeriesDatumStringId, MockSpan> database() {
-    return database;
-  }
-  
   public static class PooledMockPTS implements PartialTimeSeries<NumericLongArrayType>, 
       CloseablePooledObject,
       NumericLongArrayType {
@@ -1460,6 +1580,158 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
       } catch (Exception e) {
         return Deferred.fromError(e);
       }
+    }
+    
+  }
+
+  public class MockTimeSeries implements TimeSeries, MockRow {
+
+    /** The non-null ID. */
+    protected final TimeSeriesStringId id;
+    
+    /** The base timestamp. */
+    protected final long base_timestamp;
+    
+    /** The map of types to lists of time series. */
+    protected Map<TypeToken<? extends TimeSeriesDataType>, 
+      List<TimeSeriesValue<?>>> data;
+    
+    /**
+     * Alternate ctor to set sorting.
+     * @param id A non-null Id.
+     * @param sort Whether or not to sort on timestamps on the output.
+     */
+    public MockTimeSeries(final TimeSeriesStringId id, final long base_timestamp) {
+      if (id == null) {
+        throw new IllegalArgumentException("ID cannot be null.");
+      }
+      this.id = id;
+      this.base_timestamp = base_timestamp;
+      data = Maps.newHashMap();
+    }
+    
+    /**
+     * @param value A non-null value to add to the proper array. Must return a type.
+     */
+    public void addValue(final TimeSeriesValue<?> value) {
+      if (value == null) {
+        throw new IllegalArgumentException("Can't store null values.");
+      }
+      
+      List<TimeSeriesValue<?>> types = data.get(value.type());
+      if (types == null) {
+        types = Lists.newArrayList();
+        data.put(value.type(), types);
+      }
+      
+      final TimeSeriesValue<?> clone;
+      // TODO - other types. We Have to clone here as the source may be low level
+      // or (in the case of the generated data) re-using existing objects.
+      if (value.type() == NumericType.TYPE) {
+        MutableNumericValue mdv = new MutableNumericValue();
+        mdv.reset((TimeSeriesValue<NumericType>) value);
+        clone = mdv;
+      } else if (value.type() == NumericSummaryType.TYPE) {
+        MutableNumericSummaryValue mdv = new MutableNumericSummaryValue();
+        mdv.reset((TimeSeriesValue<NumericSummaryType>) value);
+        clone = mdv;
+      } else {
+        LOG.warn("Unsupported type so far: " + value.type());
+        return;
+      }
+      types.add(clone);
+    }
+    
+    /** Flushes the map of data but leaves the ID alone. Also resets 
+     * the closed flag. */
+    public void clear() {
+      data.clear();
+    }
+    
+    @Override
+    public TimeSeriesStringId id() {
+      return id;
+    }
+
+    @Override
+    public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
+        final TypeToken<? extends TimeSeriesDataType> type) {
+      List<TimeSeriesValue<? extends TimeSeriesDataType>> types = data.get(type);
+      if (types == null) {
+        return Optional.empty();
+      }
+      final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator =
+          new MockTimeSeriesIterator(types.iterator(), type);
+      return Optional.of(iterator);
+    }
+
+    @Override
+    public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
+      final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators
+        = Lists.newArrayListWithCapacity(data.size());
+      for (final Entry<TypeToken<? extends TimeSeriesDataType>, 
+          List<TimeSeriesValue<?>>> entry : data.entrySet()) {
+        
+        iterators.add(new MockTimeSeriesIterator(entry.getValue().iterator(), entry.getKey()));
+      }
+      return iterators;
+    }
+
+    @Override
+    public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
+      return data.keySet();
+    }
+
+    @Override
+    public long baseTimestamp() {
+      return base_timestamp;
+    }
+    
+    @Override
+    public void close() {
+      
+    }
+
+    
+    
+    public Map<TypeToken<? extends TimeSeriesDataType>, 
+        List<TimeSeriesValue<?>>> data() {
+      return data;
+    }
+    
+    /**
+     * Iterator over the list of values.
+     */
+    class MockTimeSeriesIterator implements TypedTimeSeriesIterator {
+      private final Iterator<TimeSeriesValue<?>> iterator;
+      private final TypeToken<? extends TimeSeriesDataType> type;
+      
+      MockTimeSeriesIterator(final Iterator<TimeSeriesValue<?>> iterator,
+                             final TypeToken<? extends TimeSeriesDataType> type) {
+        this.iterator = iterator;
+        this.type = type;
+      }
+      
+      @Override
+      public boolean hasNext() {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public TimeSeriesValue<?> next() {
+        return iterator.next();
+      }
+      
+      @Override
+      public TypeToken<? extends TimeSeriesDataType> getType() {
+        return type;
+      }
+      
+      @Override
+      public void close() {
+        // no-op for now
+      }
+      
     }
     
   }
