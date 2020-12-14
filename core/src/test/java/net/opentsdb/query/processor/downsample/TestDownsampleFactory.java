@@ -135,6 +135,8 @@ public class TestDownsampleFactory {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
+        .setStart("0")
+        .setEnd("3600")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .build();

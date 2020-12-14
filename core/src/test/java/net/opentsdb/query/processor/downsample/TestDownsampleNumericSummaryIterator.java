@@ -43,7 +43,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -131,20 +130,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 24, 36, 2 };
-    long[] counts = new long[] { 2, 5, 1, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 1000L;
     }
     assertEquals(4, i);
@@ -156,16 +151,14 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 24, 36, 2 };
     long[] counts = new long[] { 2, 5, 1, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
@@ -184,20 +177,17 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 24, 36, 2 };
-    long[] counts = new long[] { 2, 5, 1, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
+      System.out.println(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 1000L;
     }
     assertEquals(4, i);
@@ -210,16 +200,14 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 24, 36, 2 };
     long[] counts = new long[] { 2, 5, 1, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
@@ -238,18 +226,15 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long ts = BASE_TIME + (3600 * 1L * 1000L);
-    assertTrue(ds.hasNext());
+    assertTrue(it.hasNext());
     final TimeSeriesValue<NumericSummaryType> tsv = 
-        (TimeSeriesValue<NumericSummaryType>) ds.next();
+        (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(ts, tsv.timestamp().msEpoch());
-    assertEquals(24, tsv.value().value(0).longValue());
-    assertEquals(5, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
-    assertFalse(ds.hasNext());
+    assertEquals(24, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -259,18 +244,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long ts = BASE_TIME + (3600 * 1L * 1000L);
-    assertTrue(ds.hasNext());
+    assertTrue(it.hasNext());
     final TimeSeriesValue<NumericSummaryType> tsv = 
-        (TimeSeriesValue<NumericSummaryType>) ds.next();
+        (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(ts, tsv.timestamp().msEpoch());
     assertNull(tsv.value().value(0));
     assertNull(tsv.value().value(2));
     assertEquals(4.8, tsv.value().value(5).doubleValue(), 0.001);
-    assertFalse(ds.hasNext());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -280,10 +263,8 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-   assertFalse(ds.hasNext());
+   assertFalse(it.hasNext());
   }
   
   @Test
@@ -293,10 +274,8 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-   assertFalse(ds.hasNext());
+   assertFalse(it.hasNext());
   }
   
   @Test
@@ -306,10 +285,8 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-   assertFalse(ds.hasNext());
+   assertFalse(it.hasNext());
   }
   
   @Test
@@ -319,10 +296,8 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-   assertFalse(ds.hasNext());
+   assertFalse(it.hasNext());
   }
   
   @Test
@@ -332,20 +307,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36, 15, 6 };
-    long[] counts = new long[] { 2, 1, 5, 3 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       if (ts == BASE_TIME + (3600 * 4L * 1000L)) {
         ts += 3600 * 1000L;
       } else {
@@ -389,16 +360,14 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
@@ -445,20 +414,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
     long ts = BASE_TIME + (3600 * 1000L);
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2L * 1000L;
     }
     assertEquals(2, i);
@@ -499,16 +464,14 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
     long ts = BASE_TIME + (3600 * 1000L);
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
@@ -527,24 +490,21 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36, -1, 6 };
     long[] counts = new long[] { -1, 1, -1, 3 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      
       if (sums[i] < 0 || counts[i] < 0) {
-        assertNull(tsv.value());
+        assertTrue(Double.isNaN(tsv.value().value(5).doubleValue()));
       } else {
         assertEquals((double) sums[i] / (double) counts[i], tsv.value().value(5).doubleValue(), 0.001);
-        assertEquals(1, tsv.value().summariesAvailable().size());
       }
+      assertEquals(1, tsv.value().summariesAvailable().size());
       if (ts == BASE_TIME + (3600L * 4L * 1000L)) {
         ts += 3600 * 1000L;
       } else {
@@ -586,23 +546,19 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.0001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -636,25 +592,27 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
+    double[] counts = new double[] { 2, Double.NaN, 1, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
-      assertEquals((double) sums[i] / (double) counts[i], tsv.value().value(5).doubleValue(), 0.001);
+      if (Double.isNaN(sums[i])) {
+        assertTrue(Double.isNaN(tsv.value().value(5).doubleValue()));
+      } else {
+        assertEquals((double) sums[i] / (double) counts[i], tsv.value().value(5).doubleValue(), 0.001);
+      }
       assertEquals(1, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      ts += 3600 * 1000L;
       i++;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -688,23 +646,19 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
-    long ts = BASE_TIME + (3600 * 1L * 1000L);
+    double[] sums = new double[] { Double.NaN, 24, Double.NaN, 2 };
+    long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -738,25 +692,27 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
-    long ts = BASE_TIME + (3600 * 1L * 1000L);
+    double[] sums = new double[] { Double.NaN, 24, Double.NaN, 2 };
+    double[] counts = new double[] { Double.NaN, 5, Double.NaN, 4 };
+    long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
-      assertEquals((double) sums[i] / (double) counts[i], tsv.value().value(5).doubleValue(), 0.001);
+      if (Double.isNaN(sums[i])) {
+        assertTrue(Double.isNaN(tsv.value().value(5).doubleValue()));
+      } else {
+        assertEquals((double) sums[i] / (double) counts[i], tsv.value().value(5).doubleValue(), 0.001);
+      }
       assertEquals(1, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      ts += 3600 * 1000L;
       i++;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -790,23 +746,20 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
+      System.out.println(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -840,25 +793,28 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
+    double[] counts = new double[] { 2, Double.NaN, 1, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
+      System.out.println(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
-      assertEquals((double) sums[i] / (double) counts[i], tsv.value().value(5).doubleValue(), 0.001);
+      if (Double.isNaN(sums[i])) {
+        assertTrue(Double.isNaN(tsv.value().value(5).doubleValue()));
+      } else {
+        assertEquals((double) sums[i] / (double) counts[i], tsv.value().value(5).doubleValue(), 0.001);
+      }
       assertEquals(1, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      ts += 3600 * 1000L;
       i++;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -892,23 +848,19 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
-    long ts = BASE_TIME + (3600 * 1L * 1000L);
+    double[] sums = new double[] { Double.NaN, 24, Double.NaN, 2 };
+    long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -942,23 +894,19 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -992,23 +940,19 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
-    long ts = BASE_TIME + (3600 * 1L * 1000L);
+    double[] sums = new double[] { Double.NaN, 24, Double.NaN, 2 };
+    long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -1021,10 +965,8 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    assertFalse(ds.hasNext());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -1033,20 +975,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 66, 38 };
-    long[] counts = new long[] { 7, 5 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1059,20 +997,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 38 };
-    long[] counts = new long[] { 5 };
     long ts = BASE_TIME + (3600 * 2L * 1000L);
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(1, i);
@@ -1113,20 +1047,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1167,20 +1097,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1217,20 +1143,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1267,20 +1189,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1317,20 +1235,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1367,16 +1281,14 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
@@ -1419,20 +1331,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1469,20 +1377,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1519,20 +1423,16 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1544,18 +1444,15 @@ public class TestDownsampleNumericSummaryIterator {
         BASE_TIME + (3600 * 4L * 1000L));
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     // only one value as the second is truncated by the config end.
-    assertTrue(ds.hasNext());
+    assertTrue(it.hasNext());
     final TimeSeriesValue<NumericSummaryType> tsv = 
-        (TimeSeriesValue<NumericSummaryType>) ds.next();
+        (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(102, tsv.value().value(0).longValue());
-    assertEquals(8, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
-    assertFalse(ds.hasNext());
+    assertEquals(102, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -1593,18 +1490,15 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     // only one value as the second is truncated by the config end.
-    assertTrue(ds.hasNext());
+    assertTrue(it.hasNext());
     final TimeSeriesValue<NumericSummaryType> tsv = 
-        (TimeSeriesValue<NumericSummaryType>) ds.next();
+        (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(78, tsv.value().value(0).longValue());
-    assertEquals(3, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
-    assertFalse(ds.hasNext());
+    assertEquals(78, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -1642,18 +1536,15 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     // only one value as the second is truncated by the config end.
-    assertTrue(ds.hasNext());
+    assertTrue(it.hasNext());
     final TimeSeriesValue<NumericSummaryType> tsv = 
-        (TimeSeriesValue<NumericSummaryType>) ds.next();
+        (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(24, tsv.value().value(0).longValue());
-    assertEquals(5, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
-    assertFalse(ds.hasNext());
+    assertEquals(24, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
+    assertFalse(it.hasNext());
   }
 
   @Test
@@ -1663,18 +1554,15 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     // only one value as the second is truncated by the config end.
-    assertTrue(ds.hasNext());
+    assertTrue(it.hasNext());
     final TimeSeriesValue<NumericSummaryType> tsv = 
-        (TimeSeriesValue<NumericSummaryType>) ds.next();
+        (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(104, tsv.value().value(0).longValue());
-    assertEquals(12, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
-    assertFalse(ds.hasNext());
+    assertEquals(104, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -1684,18 +1572,15 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     // only one value as the second is truncated by the config end.
-    assertTrue(ds.hasNext());
+    assertTrue(it.hasNext());
     final TimeSeriesValue<NumericSummaryType> tsv = 
-        (TimeSeriesValue<NumericSummaryType>) ds.next();
+        (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME + (3600 * 1L * 1000L), tsv.timestamp().msEpoch());
-    assertEquals(60, tsv.value().value(0).longValue());
-    assertEquals(6, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
-    assertFalse(ds.hasNext());
+    assertEquals(24, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -1705,10 +1590,8 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    assertFalse(ds.hasNext());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -1718,10 +1601,8 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
-    assertFalse(ds.hasNext());
+    assertFalse(it.hasNext());
   }
   
   @Test
@@ -1739,9 +1620,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 1000L;
     }
     assertEquals(4, i);
@@ -1763,9 +1643,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 1000L;
     }
     assertEquals(4, i);
@@ -1784,9 +1663,8 @@ public class TestDownsampleNumericSummaryIterator {
     final TimeSeriesValue<NumericSummaryType> tsv = 
         (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(ts, tsv.timestamp().msEpoch());
-    assertEquals(24, tsv.value().value(0).longValue());
-    assertEquals(5, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
+    assertEquals(24, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
     assertFalse(it.hasNext());
   }
   
@@ -1849,16 +1727,14 @@ public class TestDownsampleNumericSummaryIterator {
         new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -1900,18 +1776,16 @@ public class TestDownsampleNumericSummaryIterator {
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
+    double[] sums = new double[] { 24, 2 };
     long ts = BASE_TIME + (3600 * 1000L);
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2L * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
   }
@@ -1948,20 +1822,18 @@ public class TestDownsampleNumericSummaryIterator {
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -1996,20 +1868,18 @@ public class TestDownsampleNumericSummaryIterator {
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
-    long ts = BASE_TIME + (3600 * 1L * 1000L);
+    double[] sums = new double[] { Double.NaN, 24, Double.NaN, 2 };
+    long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -2044,20 +1914,18 @@ public class TestDownsampleNumericSummaryIterator {
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -2092,20 +1960,23 @@ public class TestDownsampleNumericSummaryIterator {
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
-    long ts = BASE_TIME + (3600 * 1L * 1000L);
+    double[] sums = new double[] { Double.NaN, 24, Double.NaN, 2 };
+    long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      if (Double.isNaN(sums[i])) {
+        assertTrue(Double.isNaN(tsv.value().value(0).doubleValue()));
+      } else {
+        assertEquals(sums[i], tsv.value().value(0).doubleValue(), 0.001);
+      }
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
+      i++;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -2140,20 +2011,18 @@ public class TestDownsampleNumericSummaryIterator {
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
     
-    long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
+    double[] sums = new double[] { 42, Double.NaN, 36, Double.NaN };
     long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -2188,20 +2057,18 @@ public class TestDownsampleNumericSummaryIterator {
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
     
-    long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
-    long ts = BASE_TIME + (3600 * 1L * 1000L);
+    double[] sums = new double[] { Double.NaN, 24, Double.NaN, 2 };
+    long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
-      ts += 3600 * 2 * 1000L;
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
-    assertEquals(2, i);
+    assertEquals(4, i);
   }
   
   @Test
@@ -2234,9 +2101,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2258,9 +2124,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(1, i);
@@ -2309,9 +2174,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2360,9 +2224,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2407,9 +2270,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2454,9 +2316,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2501,9 +2362,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2541,16 +2401,14 @@ public class TestDownsampleNumericSummaryIterator {
         new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
-    long[] counts = new long[] { 5, 4 };
     long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2588,16 +2446,14 @@ public class TestDownsampleNumericSummaryIterator {
         new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
-    long[] counts = new long[] { 2, 1 };
     long ts = BASE_TIME;
     int i = 0;
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2642,9 +2498,8 @@ public class TestDownsampleNumericSummaryIterator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
-      assertEquals(sums[i], tsv.value().value(0).longValue());
-      assertEquals(counts[i++], tsv.value().value(2).longValue());
-      assertEquals(2, tsv.value().summariesAvailable().size());
+      assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 2 * 1000L;
     }
     assertEquals(2, i);
@@ -2662,9 +2517,8 @@ public class TestDownsampleNumericSummaryIterator {
     final TimeSeriesValue<NumericSummaryType> tsv = 
         (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(102, tsv.value().value(0).longValue());
-    assertEquals(8, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
+    assertEquals(102, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
     assertFalse(it.hasNext());
   }
   
@@ -2708,9 +2562,8 @@ public class TestDownsampleNumericSummaryIterator {
     final TimeSeriesValue<NumericSummaryType> tsv = 
         (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(78, tsv.value().value(0).longValue());
-    assertEquals(3, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
+    assertEquals(78, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
     assertFalse(it.hasNext());
   }
   
@@ -2754,9 +2607,8 @@ public class TestDownsampleNumericSummaryIterator {
     final TimeSeriesValue<NumericSummaryType> tsv = 
         (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(24, tsv.value().value(0).longValue());
-    assertEquals(5, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
+    assertEquals(24, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
     assertFalse(it.hasNext());
   }
 
@@ -2771,9 +2623,8 @@ public class TestDownsampleNumericSummaryIterator {
     final TimeSeriesValue<NumericSummaryType> tsv = 
         (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME, tsv.timestamp().msEpoch());
-    assertEquals(104, tsv.value().value(0).longValue());
-    assertEquals(12, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
+    assertEquals(104, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
     assertFalse(it.hasNext());
   }
   
@@ -2790,9 +2641,8 @@ public class TestDownsampleNumericSummaryIterator {
     final TimeSeriesValue<NumericSummaryType> tsv = 
         (TimeSeriesValue<NumericSummaryType>) it.next();
     assertEquals(BASE_TIME + (3600 * 1L * 1000L), tsv.timestamp().msEpoch());
-    assertEquals(60, tsv.value().value(0).longValue());
-    assertEquals(6, tsv.value().value(2).longValue());
-    assertEquals(2, tsv.value().summariesAvailable().size());
+    assertEquals(24, tsv.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, tsv.value().summariesAvailable().size());
     assertFalse(it.hasNext());
   }
   
@@ -3417,15 +3267,13 @@ public class TestDownsampleNumericSummaryIterator {
     
     DownsampleNumericSummaryIterator it = 
         new DownsampleNumericSummaryIterator(node, result, source);
-    net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
-      .Downsampler ds = it.new Downsampler();
     
     double[] avgs = new double[] { 0.7, 0.4, 0.6, 0.033 };
     long ts = BASE_TIME;
     int i = 0;
-    while (ds.hasNext()) {
+    while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
-          (TimeSeriesValue<NumericSummaryType>) ds.next();
+          (TimeSeriesValue<NumericSummaryType>) it.next();
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertEquals(avgs[i++], tsv.value().value(5).doubleValue(), 0.001);
       assertEquals(1, tsv.value().summariesAvailable().size());
@@ -3460,6 +3308,8 @@ public class TestDownsampleNumericSummaryIterator {
                 .addExpectedSummary(2)
                 .setDataType(NumericSummaryType.TYPE.toString())
                 .build())
+        .setStart(Long.toString(start))
+        .setEnd(Long.toString(end))
         .build();
     when(node.config()).thenReturn(config);
     
