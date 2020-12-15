@@ -514,10 +514,23 @@ public class OlympicScoringNode extends AbstractQueryNode {
     TLongObjectIterator<OlympicScoringBaseline[]> it = join.iterator();
     while (it.hasNext()) {
       it.advance();
-      TimeSeries ts = it.value()[prediction_idx].predict(properties, prediction_starts[prediction_idx]);
-      LOG.debug("[EGADS] Baseline series: " + ts.id() + "  For index: " + prediction_idx);
+      OlympicScoringBaseline[] baselines = it.value();
+      if (baselines == null) {
+        LOG.warn("[EGADS] No baselines for: " + this);
+        continue;
+      }
+      if (baselines[prediction_idx] == null) {
+        LOG.warn("[EGADS] No baseline at prediction index [" + prediction_idx + "] for " + this);
+        continue;
+      }
+      
+      TimeSeries ts = baselines[prediction_idx].predict(properties, prediction_starts[prediction_idx]);
       if (ts != null) {
+        LOG.debug("[EGADS] Baseline series: " + ts.id() + "  For index: " + prediction_idx);
         computed.add(ts);
+      } else {
+        LOG.warn("[EGADS] No time series returned from prediction call at index [" 
+            + prediction_idx + "] for " + this);
       }
     }
     TimeStamp start = new SecondTimeStamp(prediction_starts[prediction_idx]);
