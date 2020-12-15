@@ -98,7 +98,7 @@ public class RatioConfig extends BaseQueryNodeConfigWithInterpolators<
   
   @Override
   public boolean pushDown() {
-    return true;
+    return false;
   }
 
   @Override
