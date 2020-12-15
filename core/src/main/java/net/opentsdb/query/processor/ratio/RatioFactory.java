@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.ratio;
 
+import java.util.List;
 import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,7 +31,6 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
-import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
@@ -77,10 +77,20 @@ public class RatioFactory extends BaseQueryNodeFactory<RatioConfig, Rate> {
         plan.configGraph().predecessors(config));
     for (int i = 0; i < config.getDataSources().size(); i++) {
       final String source = config.getDataSources().get(i);
-      final String metric = plan.getMetricForDataSource(config, 
-          config.getDataSources().get(i));
+      final String metric = plan.getMetricForDataSource(config, source);
       if (Strings.isNullOrEmpty(metric)) {
         throw new IllegalArgumentException("No metric found for source: " + source);
+      }
+      
+      QueryNodeConfig right = null;
+      for (final QueryNodeConfig ds : downstream) {
+        if (hasSourceNode(ds, source, plan)) {
+          right = ds;
+          break;
+        }
+      }
+      if (right == null) {
+        throw new IllegalArgumentException("No data source node found for: " + source);
       }
       
       final QueryResultId gbid = new DefaultQueryResultId(
@@ -98,13 +108,6 @@ public class RatioFactory extends BaseQueryNodeFactory<RatioConfig, Rate> {
           .setId("ratio_gb_" + source)
           .build();
       
-      QueryNodeConfig right = null;
-      for (final QueryNodeConfig ds : downstream) {
-        if (ds.getId().equals(source)) {
-          right = ds;
-          break;
-        }
-      }
       
       ExpressionConfig exp_config = ExpressionConfig.newBuilder()
           .setExpression("ratio")
@@ -185,4 +188,20 @@ public class RatioFactory extends BaseQueryNodeFactory<RatioConfig, Rate> {
     return TYPE;
   }
 
+  boolean hasSourceNode(final QueryNodeConfig config, 
+                        final String source, 
+                        final QueryPlanner plan) {
+    for (final QueryResultId id : (List<QueryResultId>) config.resultIds()) {
+      if (id.dataSource().equals(source)) {
+        return true;
+      }
+    }
+    
+    for (final QueryNodeConfig ds : plan.configGraph().successors(config)) {
+      if (hasSourceNode(ds, source, plan)) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
