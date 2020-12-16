@@ -156,7 +156,6 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     }
     
     temp_dp = new MutableNumericValue();
-    
     // search
     while (iterator.hasNext()) {
       next_value = iterator.next();
@@ -246,7 +245,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
       }
     } else {
       if (next_value.value() == null ||
-          next_value.value().value(sum_id) == null) {
+          next_value.value().value(summary) == null) {
         aggs[0][i++] = Double.NaN;
       } else {
         aggs[0][i++] = next_value.value().value(summary).toDouble();
@@ -285,7 +284,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         }
       } else {
         if (next_value.value() == null ||
-            next_value.value().value(sum_id) == null) {
+            next_value.value().value(summary) == null) {
           aggs[0][i++] = Double.NaN;
         } else {
           aggs[0][i++] = next_value.value().value(summary).toDouble();
