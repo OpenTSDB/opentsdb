@@ -84,10 +84,10 @@ public class TestDownsampleNumericSummaryIterator {
   public void before() throws Exception {
     rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
+        .addAggregationId("max", 1)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
         .addInterval(RollupInterval.builder()
-            .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")
             .setInterval("1h")
@@ -166,6 +166,53 @@ public class TestDownsampleNumericSummaryIterator {
       assertEquals(1, tsv.value().summariesAvailable().size());
       ts += 3600 * 1000L;
       i++;
+    }
+    assertEquals(4, i);
+  }
+  
+  @Test
+  public void downsampler1hMaxAligned() throws Exception {
+    source = new MockTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build());
+    
+    MutableNumericSummaryValue v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME));
+    v.resetValue(1, 5);
+    source.addValue(v);
+    
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 1L * 1000L)));
+    v.resetValue(1, 24);
+    source.addValue(v);
+    
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 2L * 1000L)));
+    v.resetValue(1, 8);
+    v.resetValue(2, 1);
+    source.addValue(v);
+    
+    v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(BASE_TIME + (3600 * 3L * 1000L)));
+    v.resetValue(1, 2);
+    source.addValue(v);
+    
+    setConfig("max", "1h", false, BASE_TIME, BASE_TIME + (3600 * 7L * 1000L));
+    
+    DownsampleNumericSummaryIterator it = 
+        new DownsampleNumericSummaryIterator(node, result, source);
+    
+    long[] max = new long[] { 5, 24, 8, 2 };
+    long ts = BASE_TIME;
+    int i = 0;
+    while (it.hasNext()) {
+      final TimeSeriesValue<NumericSummaryType> tsv = 
+          (TimeSeriesValue<NumericSummaryType>) it.next();
+      assertEquals(ts, tsv.timestamp().msEpoch());
+      assertEquals(max[i++], tsv.value().value(1).doubleValue(), 0.001);
+      assertEquals(1, tsv.value().summariesAvailable().size());
+      ts += 3600 * 1000L;
     }
     assertEquals(4, i);
   }
