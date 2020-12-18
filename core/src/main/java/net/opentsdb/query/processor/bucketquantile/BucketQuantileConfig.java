@@ -77,6 +77,7 @@ public class BucketQuantileConfig extends BaseQueryNodeConfigWithInterpolators<
   private final boolean counter_buckets;
   private final double nan_threshold;
   private final double missing_metric_threshold;
+  private volatile HashCode cached_hash;
   
   private BucketQuantileConfig(final Builder builder) {
     super(builder);
@@ -298,6 +299,10 @@ public class BucketQuantileConfig extends BaseQueryNodeConfigWithInterpolators<
   
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
+    if (cached_hash != null) {
+      return cached_hash;
+    }
+    
     final List<HashCode> hashes =
         Lists.newArrayListWithCapacity(3);
     hashes.add(super.buildHashCode());
@@ -323,7 +328,8 @@ public class BucketQuantileConfig extends BaseQueryNodeConfigWithInterpolators<
     hasher.putString(as, Const.UTF8_CHARSET)
           .putBoolean(infectious_nan);
     hashes.add(hasher.hash());
-    return Hashing.combineOrdered(hashes);
+    cached_hash = Hashing.combineOrdered(hashes);
+    return cached_hash;
   }
 
   @Override
