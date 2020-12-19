@@ -58,6 +58,17 @@ public class NotFilter implements NestedQueryFilter {
   }
   
   @Override
+  public String toString() {
+    return new StringBuilder()
+        .append("{type=")
+        .append(getClass().getSimpleName())
+        .append(", filter=")
+        .append(filter)
+        .append("}")
+        .toString();
+  }
+  
+  @Override
   public Deferred<Void> initialize(final Span span) {
     return filter.initialize(span);
   }
