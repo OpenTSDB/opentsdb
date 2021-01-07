@@ -83,8 +83,22 @@ public class PromQLResource extends BaseTSDBPlugin implements ServletResource {
   
   public static final String TYPE = PromQLResource.class.getSimpleName().toString();
 
-  @POST
   @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response get(final @Context ServletConfig servlet_config, 
+                      final @Context HttpServletRequest request) throws Exception {
+    final Object stream = request.getAttribute("DATA");
+    if (stream != null) {
+      return Response.ok()
+          .entity(((ByteArrayOutputStream) stream).toByteArray())
+          .header("Content-Type", "application/json")
+          .build();
+    }
+    
+    return handleQuery(servlet_config, request);
+  }
+  
+  @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public Response post(final @Context ServletConfig servlet_config, 
