@@ -16,6 +16,7 @@ package net.opentsdb.utils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -80,6 +81,9 @@ public final class JSON {
     jsonMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
   }
 
+  public static final TypeReference<Map<String, String>> STRING_MAP_REFERENCE = 
+      new TypeReference<Map<String, String>>() { };
+  
   /**
    * Deserializes a JSON formatted string to a specific class type
    * <b>Note:</b> If you get mapping exceptions you may need to provide a 
