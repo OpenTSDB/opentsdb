@@ -106,7 +106,12 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig<SlidingWindowConfig
 
   @Override
   public Builder toBuilder() {
-    return null;
+    return new Builder()
+        .setAggregator(aggregator)
+        .setWindowSize(window_size)
+        .setInfectiousNan(infectious_nan)
+        .setSources(Lists.newArrayList(sources))
+        .setId(id);
   }
 
   @Override
