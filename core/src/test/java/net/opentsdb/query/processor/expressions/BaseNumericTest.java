@@ -44,7 +44,6 @@ public class BaseNumericTest {
   
   protected static Joiner JOINER;
   protected static NumericInterpolatorConfig NUMERIC_CONFIG;
-  protected static ExpressionConfig CONFIG;
   protected static JoinConfig JOIN_CONFIG;
   protected static QueryResult RESULT;
   protected static TSDB TSDB;
@@ -53,6 +52,7 @@ public class BaseNumericTest {
   protected static TimeSeriesId RIGHT_ID;
   
   protected BinaryExpressionNode node;
+  protected ExpressionConfig config;
   protected ExpressionParseNode expression_config;
   
   @SuppressWarnings("unchecked")
@@ -75,13 +75,6 @@ public class BaseNumericTest {
         .setId("join")
         .build();
     
-    CONFIG = ExpressionConfig.newBuilder()
-        .setExpression("a + b + c")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setId("e1")
-        .build();
-    
     CONTEXT = mock(QueryPipelineContext.class);
     when(CONTEXT.tsdb()).thenReturn(TSDB);
     final Registry registry = mock(Registry.class);
@@ -102,19 +95,26 @@ public class BaseNumericTest {
   public void before() throws Exception {
     node = mock(BinaryExpressionNode.class);
     
+    config = ExpressionConfig.newBuilder()
+        .setExpression("a + b + c")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .build();
+    
     expression_config = ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     
     when(node.pipelineContext()).thenReturn(CONTEXT);
     when(node.config()).thenReturn(expression_config);
-    when(node.expressionConfig()).thenReturn(CONFIG);
+    when(node.expressionConfig()).thenReturn(config);
     when(node.joiner()).thenReturn(JOINER);
   }
 }

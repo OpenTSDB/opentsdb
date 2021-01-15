@@ -78,8 +78,7 @@ public class ExpressionNumericSummaryIterator extends
       if (((BinaryExpressionNode) node).config().getLeftType() 
             == OperandType.LITERAL_BOOL ||
          ((BinaryExpressionNode) node).config().getLeftType() 
-            == OperandType.LITERAL_NUMERIC ||
-         ((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+            == OperandType.LITERAL_NUMERIC) {
       }
     } else {
       QueryInterpolatorConfig interpolator_config = 
@@ -149,11 +148,10 @@ public class ExpressionNumericSummaryIterator extends
       if (((BinaryExpressionNode) node).config().getRightType() 
             != OperandType.LITERAL_BOOL &&
           ((BinaryExpressionNode) node).config().getRightType() 
-            != OperandType.LITERAL_NUMERIC &&
-          !((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
-        has_next = false;
-        summaries_available = null;
-        return;
+            != OperandType.LITERAL_NUMERIC) {
+//        has_next = false;
+//        summaries_available = null;
+//        return;
       }
     } else {
       QueryInterpolatorConfig interpolator_config = 

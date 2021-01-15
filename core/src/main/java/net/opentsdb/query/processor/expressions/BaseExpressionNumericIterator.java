@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2019  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may getNot use this file except in compliance with the License.
@@ -65,9 +65,16 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   /** The next timestamp evaluated when returning the next value. */
   protected final TimeStamp next_next_ts = new MillisecondTimeStamp(0);
   
+  /** The op. */
+  protected final ExpressionOp op;
+  
   /** Whether or getNot nan is infectious. */
   protected final boolean infectious_nan;
   
+  /** Whether or not we're negating or noting. */
+  protected final boolean negate_or_not;
+  
+  /** The response value. */
   protected final MutableNumericType value;
   
   /** Whether or getNot agetNother real value is present. True while at least one 
@@ -86,6 +93,8 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     next_ts.setMax();
     this.node = (BinaryExpressionNode) node;
     infectious_nan = this.node.expressionConfig().getInfectiousNan();
+    op = this.node.config().getOperator();
+    negate_or_not = this.node.config().getNegate() || this.node.config().getNot();
     value = new MutableNumericType();
     
     if (sources.get(ExpressionTimeSeries.LEFT_KEY) == null) {
@@ -162,133 +171,86 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   }
 
   /**
-   * Implements a relational comparison of two values. A null on either 
-   * side will null the result. We follow IEEE 754 for NaN behavior.
+   * Implements a relational comparison of two values. We follow IEEE 754 for 
+   * NaN behavior unless infectious NaN is enabled.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left The left operand.
    * @param right The right operand.
-   * @return The {@link #value} or null if either operand was null.
+   * @return The {@link #value}.
    */
   NumericType relation(NumericType left, NumericType right) {
-    if (left == null || right == null) {
-      if (!node.expressionConfig().getSubstituteMissing()) {
-        return null;
-      }
-      if (left == null) {
-        left = ZERO_SUBSTITUTE;
-      }
-      if (right == null) {
-        right = ZERO_SUBSTITUTE;
-      }
+    if (left == null) {
+      left = NAN_SUBSTITUTE;
+    }
+    if (right == null) {
+      right = NAN_SUBSTITUTE;
     }
     
+    boolean result;
     if (left.isInteger() && right.isInteger()) {
-      switch (((ExpressionParseNode) node.config()).getOperator()) {
+      switch (op) {
       case EQ:
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(left.longValue() == right.longValue() ? 0L : 1L);
-        } else {
-          value.set(left.longValue() == right.longValue() ? 1L : 0L);
-        }
+        result = left.longValue() == right.longValue();
         break;
       case NE:
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(left.longValue() != right.longValue() ? 0L : 1L);
-        } else {
-          value.set(left.longValue() != right.longValue() ? 1L : 0L);
-        }
+        result = left.longValue() != right.longValue();
         break;
       case LT:
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(left.longValue() < right.longValue() ? 0L : 1L);
-        } else {
-          value.set(left.longValue() < right.longValue() ? 1L : 0L);
-        }
+        result = left.longValue() < right.longValue();
         break;
       case GT:
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(left.longValue() > right.longValue() ? 0L : 1L);
-        } else {
-          value.set(left.longValue() > right.longValue() ? 1L : 0L);
-        }
+        result = left.longValue() > right.longValue();
         break;
       case LE:
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(left.longValue() <= right.longValue() ? 0L : 1L);
-        } else {
-          value.set(left.longValue() <= right.longValue() ? 1L : 0L);
-        }
+        result = left.longValue() <= right.longValue();
         break;
       case GE:
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(left.longValue() >= right.longValue() ? 0L : 1L); 
-        } else {
-          value.set(left.longValue() >= right.longValue() ? 1L : 0L);          
-        }
+        result = left.longValue() >= right.longValue();
         break;
       default:
         throw new QueryDownstreamException("Relational iterator was "
-            + "told to handle the unexpected operator: " 
-            + ((ExpressionParseNode) node.config()).getOperator());
+            + "told to handle the unexpected operator: " + op);
       }
     } else {
       if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble())) &&
           infectious_nan) {
         value.set(Double.NaN);
+        return value;
       } else {
         // let the ieee 754 standard handle NaNs
-        switch (((ExpressionParseNode) node.config()).getOperator()) {
+        switch (op) {
         case EQ:
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(left.toDouble() == right.toDouble() ? 0L : 1L);
-          } else {
-            value.set(left.toDouble() == right.toDouble() ? 1L : 0L);
-          }
+          result = left.toDouble() == right.toDouble();
           break;
         case NE:
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(left.toDouble() != right.toDouble() ? 0L : 1L);
-          } else {
-            value.set(left.toDouble() != right.toDouble() ? 1L : 0L);
-          }
+          result = left.toDouble() != right.toDouble();
           break;
         case LT:
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(left.toDouble() < right.toDouble() ? 0L : 1L);
-          } else {
-            value.set(left.toDouble() < right.toDouble() ? 1L : 0L);
-          }
+          result = left.toDouble() < right.toDouble();
           break;
         case GT:
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(left.toDouble() > right.toDouble() ? 0L : 1L);
-          } else {
-            value.set(left.toDouble() > right.toDouble() ? 1L : 0L);
-          }
+          result = left.toDouble() > right.toDouble();
           break;
         case LE:
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(left.toDouble() <= right.toDouble() ? 0L : 1L);
-          } else {
-            value.set(left.toDouble() <= right.toDouble() ? 1L : 0L);
-          }
+          result = left.toDouble() <= right.toDouble();
           break;
         case GE:
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(left.toDouble() >= right.toDouble() ? 0L : 1L);
-          } else {
-            value.set(left.toDouble() >= right.toDouble() ? 1L : 0L);
-          }
+          result = left.toDouble() >= right.toDouble();
           break;
         default:
           throw new QueryDownstreamException("Relational iterator was "
-              + "told to handle the unexpected operator: " 
-              + ((ExpressionParseNode) node.config()).getOperator());
+              + "told to handle the unexpected operator: " + op);
         }
       }
+    }
+    
+    if (negate_or_not) {
+      value.set(result ? 0 : 1);
+    } else {
+      value.set(result ? 1 : 0);
     }
     
     return value;
@@ -296,8 +258,8 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
 
   /**
    * Implements a logical comparison of two values, e.g. AND and OR. 
-   * Nulls are treated as false. Non-finite floating point values are 
-   * treated as false except in the case when both are NaN.
+   * Non-finite floating point values are treated as false except in the case 
+   * when both are NaN.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
@@ -307,303 +269,241 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
    * @return The {@link #value}.
    */
   NumericType logical(NumericType left, NumericType right) {
-    if (node.expressionConfig().getSubstituteMissing() && left == null) {
-      left = ZERO_SUBSTITUTE;
+    if (left == null) {
+      left = NAN_SUBSTITUTE;
     }
-    if (node.expressionConfig().getSubstituteMissing() && right == null) {
-      right = ZERO_SUBSTITUTE;
+    if (right == null) {
+      right = NAN_SUBSTITUTE;
     }
     
-    switch (((ExpressionParseNode) node.config()).getOperator()) {
-    case OR:
-      if (left == null) {
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(isTrue(right) ? 0 : 1);
-        } else {
-          value.set(isTrue(right) ? 1 : 0);
-        }
-      } else if (right == null) {
-        if (((ExpressionParseNode) node.config()).getNot()) {
-          value.set(isTrue(left) ? 0 : 1);
-        } else {
-          value.set(isTrue(left) ? 1 : 0);
-        }
+    boolean result;
+    if (left.isInteger() && right.isInteger()) {
+      switch (op) {
+      case OR:
+        result = left.longValue() > 0 || right.longValue() > 0;
+        break;
+      case AND:
+        result = left.longValue() > 0 && right.longValue() > 0;
+        break;
+      default:
+        throw new QueryDownstreamException("Logical iterator was "
+            + "told to handle the unexpected operator: " + op);
+      }
+    } else {
+      if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble())) &&
+          infectious_nan) {
+        value.set(Double.NaN);
+        return value;
       } else {
-        if (!left.isInteger() && !right.isInteger() && 
-            Double.isNaN(left.doubleValue()) && 
-            Double.isNaN(right.doubleValue())) {
-          value.set(((ExpressionParseNode) node.config()).getNot() ? 0L : 1L);
-        } else {
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(isTrue(left) || isTrue(right) ? 0 : 1);
-          } else {
-            value.set(isTrue(left) || isTrue(right) ? 1 : 0);
-          }
+        switch (op) {
+        case OR:
+          result = left.toDouble() > 0 || right.toDouble() > 0;
+          break;
+        case AND:
+          result = left.toDouble() > 0 && right.toDouble() > 0;
+          break;
+        default:
+          throw new QueryDownstreamException("Logical iterator was "
+              + "told to handle the unexpected operator: " + op);
         }
       }
-      break;
-    case AND:
-      if (left == null || right == null) {
-        value.set(((ExpressionParseNode) node.config()).getNot() ? 1L : 0L);
-      } else {
-        if (!left.isInteger() && !right.isInteger() && 
-            Double.isNaN(left.doubleValue()) && 
-            Double.isNaN(right.doubleValue())) {
-          value.set(((ExpressionParseNode) node.config()).getNot() ? 0L : 1L);
-        } else {
-          if (((ExpressionParseNode) node.config()).getNot()) {
-            value.set(isTrue(left) && isTrue(right) ? 0 : 1);
-          } else {
-            value.set(isTrue(left) && isTrue(right) ? 1 : 0);
-          }
-        }
-      }
-      break;
-    default:
-      throw new QueryDownstreamException("Logical iterator was "
-          + "told to handle the unexpected operator: " 
-          + ((ExpressionParseNode) node.config()).getOperator());
+    }
+    
+    if (negate_or_not) {
+      value.set(result ? 0 : 1);
+    } else {
+      value.set(result ? 1 : 0);
     }
     
     return value;
   }
 
   /**
-   * Implements the sum or difference of two values. A null on either side 
-   * will null the result. A NaN in both returns NaN. Non-infectious NaN
-   * will just return the other operand.
+   * Implements the sum or difference of two values. A NaN or null in both 
+   * returns NaN. Non-infectious NaN will just return the other operand.
    * <p>
    * Integer math is used unless a floating point is present in either
-   * operand. getNote that values may overflow.
+   * operand. Note that values may overflow.
    * 
    * TODO - overflow for addition.
    * 
    * @param left The left operand.
    * @param right The right operand.
-   * @return The {@link #value} or null if either operand was null.
+   * @return The {@link #value}.
    */
   NumericType additive(NumericType left, NumericType right) {
-    if (left == null || right == null) {
-      if (!node.expressionConfig().getSubstituteMissing()) {
-        return null;
-      }
-      if (left == null) {
-        left = ZERO_SUBSTITUTE;
-      }
-      if (right == null) {
-        right = ZERO_SUBSTITUTE;
-      }
+    if (left == null) {
+      left = NAN_SUBSTITUTE;
+    }
+    if (right == null) {
+      right = NAN_SUBSTITUTE;
     }
     
     if (left.isInteger() && right.isInteger()) {
       // TOOD - overflow
-      if (((ExpressionParseNode) node.config()).getOperator() == ExpressionOp.SUBTRACT) {
-        if (((ExpressionParseNode) node.config()).getNegate()) {
-          value.set(-(left.longValue() - right.longValue())); 
-        } else {
-          value.set(left.longValue() - right.longValue());  
-        }
+      final long result;
+      if (op == ExpressionOp.SUBTRACT) {
+        result = left.longValue() - right.longValue();
       } else {
-        if (((ExpressionParseNode) node.config()).getNegate()) {
-          value.set(-(left.longValue() + right.longValue()));
-        } else {
-          value.set(left.longValue() + right.longValue());
-        }
+        result = left.longValue() + right.longValue();
       }
+      value.set(negate_or_not ? -result : result);
     } else {
+      double result;
       if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
         if (infectious_nan || 
             (Double.isNaN(left.toDouble()) && Double.isNaN(right.toDouble()))) {
-          value.set(Double.NaN);
+          result = Double.NaN;
         } else if (Double.isNaN(left.toDouble())) {
-          value.set(((ExpressionParseNode) node.config()).getNegate() ? 
-              -right.toDouble() : right.toDouble());
+          result = op == ExpressionOp.SUBTRACT ? -right.toDouble() : right.toDouble();
         } else {
-          value.set(((ExpressionParseNode) node.config()).getNegate() ? 
-              -left.toDouble() : left.toDouble());
+          result = left.toDouble();
         }
       } else {
-        if (((ExpressionParseNode) node.config()).getOperator() == ExpressionOp.SUBTRACT) {
-          if (((ExpressionParseNode) node.config()).getNegate()) {
-            value.set(-(left.toDouble() - right.toDouble())); 
-          } else {
-            value.set(left.toDouble() - right.toDouble());
-          }
+        if (op == ExpressionOp.SUBTRACT) {
+          result = left.toDouble() - right.toDouble();
         } else {
-          if (((ExpressionParseNode) node.config()).getNegate()) {
-            value.set(-(left.toDouble() + right.toDouble())); 
-          } else {
-            value.set(left.toDouble() + right.toDouble());
-          }
+          result = left.toDouble() + right.toDouble();
         }
       }
+      value.set(negate_or_not ? -result : result);
     }
     
     return value;
   }
 
   /**
-   * Implements the quotient of two values. A null on either side will null 
-   * the result. A NaN in both returns NaN. Non-infectious NaN will just 
-   * return the other operand.
+   * Implements the quotient of two values. 
    * <p>
-   * <b>Note</b> A divide-by-zero operation will return 0. Likewise a 
-   * NaN in the numerator or denominator will return a 0 unless both are
-   * NaN or infectious NaN is enabled.
+   * <b>Note</b> A divide-by-zero operation will return NaN. A null on either side 
+   * will null the result. A NaN in both numerator and denominator returns NaN. 
+   * Without infectious NaN set, if the numerator is missing, a 0 is returned 
+   * but if the denominator is missing, we return the numerator.
    * <p>
-   * Integer math is used unless a floating point is present in either
-   * operand OR the quotient would result in a float.
+   * The result is always a double.
    * 
    * @param left The left operand.
    * @param right The right operand.
-   * @return The {@link #value} or null if either operand was null.
+   * @return The {@link #value}.
    */
   NumericType divide(NumericType left, NumericType right) {
-    if (left == null || right == null) {
-      if (!node.expressionConfig().getSubstituteMissing()) {
-        return null;
-      }
-      if (left == null) {
-        left = NAN_SUBSTITUTE;
-      }
-      if (right == null) {
-        right = NAN_SUBSTITUTE;
-      }
+    if (left == null) {
+      left = NAN_SUBSTITUTE;
+    }
+    if (right == null) {
+      right = NAN_SUBSTITUTE;
     }
     
-    if (left.isInteger() && right.isInteger() && 
-        (right.longValue() != 0 && left.longValue() % right.longValue() == 0)) {
-      if (right.longValue() == 0) {
-        value.set(0L);
-      } else {
-        if (((ExpressionParseNode) node.config()).getNegate()) {
-          value.set(-(left.longValue() / right.longValue()));
-        } else {
-          value.set(left.longValue() / right.longValue());
-        }
-      }
+    double l = left.toDouble();
+    double r = right.toDouble();
+    double result;
+    if (r == 0) {
+      result = Double.NaN;
+    } else if (Math.abs(0.0 - r) <= EPSILON) {
+      result = 0;
+    } else if (infectious_nan) {
+      result = l / (r == 0 ? Double.NaN : r);
+    } else if (Double.isNaN(l)) {
+      result = 0;
+    } else if (Double.isNaN(r)) {
+      result = l;
     } else {
-      if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
-        value.set(Double.NaN);
-      } else {
-        if (Math.abs(0.0 - right.toDouble()) <= EPSILON) {
-          value.set(0.0);
-        } else {
-          if (((ExpressionParseNode) node.config()).getNegate()) {
-            value.set(-(left.toDouble() / right.toDouble())); 
-          } else {
-            value.set(left.toDouble() / right.toDouble());
-          }
-        }
-      }
+      result = l / (r == 0 ? Double.NaN : r);
     }
-    
+    value.set(negate_or_not ? -result : result);
     return value;
   }
   
   /**
-   * Implements the product of two values. A null on either side will null 
-   * the result. A NaN in both returns NaN.
-   * <p>
-   * getNote that if a NaN is present in the left or right (but getNot both) then
-   * a 0 is returned.
+   * Implements the product of two values. A NaN in both returns NaN or if 
+   * infectious NaN is enabled. Without infectious NaN the other operand is 
+   * returned.
    * <p>
    * Integer math is used unless a floating point is present in either
-   * operand. getNote that values may overflow.
+   * operand. Note that values may overflow.
    * 
    * TODO - overflow.
    * 
    * @param left The left operand.
    * @param right The right operand.
-   * @return The {@link #value} or null if either operand was null.
+   * @return The {@link #value}.
    */
   NumericType multiply(NumericType left, NumericType right) {
-    if (left == null || right == null) {
-      if (!node.expressionConfig().getSubstituteMissing()) {
-        return null;
-      }
-      if (left == null) {
-        left = NAN_SUBSTITUTE;
-      }
-      if (right == null) {
-        right = NAN_SUBSTITUTE;
-      }
+    if (left == null) {
+      left = NAN_SUBSTITUTE;
+    }
+    if (right == null) {
+      right = NAN_SUBSTITUTE;
     }
     
     if (left.isInteger() && right.isInteger()) {
       // TOOD - overflow
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        value.set(-(left.longValue() * right.longValue())); 
-      } else {
-        value.set(left.longValue() * right.longValue());
-      }
+      long result = left.longValue() * right.longValue();
+      value.set(negate_or_not ? -result : result);
     } else {
-      if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
-        value.set(Double.NaN);
+      double result;
+      if (infectious_nan && 
+          (Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
+        result = Double.NaN;
+      } else if (Double.isNaN(left.toDouble())) {
+        result = right.toDouble();
+      } else if (Double.isNaN(right.toDouble())) {
+        result = left.toDouble();
       } else {
-        if (((ExpressionParseNode) node.config()).getNegate()) {
-          value.set(-(left.toDouble() * right.toDouble())); 
-        } else {
-          value.set(left.toDouble() * right.toDouble());
-        }
+        result = left.toDouble() * right.toDouble();
       }
+      value.set(negate_or_not ? -result : result);
     }
     
     return value;
   }
 
   /**
-   * Implements the modulus of two values. A null on either side will null 
-   * the result. A NaN in both returns NaN.
+   * Implements the modulus of two values.
    * <p>
-   * getNote that if a NaN is present in the left or right (but getNot both) then
-   * a 0 is returned.
+   * <b>Note</b> A divide-by-zero operation will return NaN. A null on either side 
+   * will null the result. A NaN in both numerator and denominator returns NaN. 
+   * Without infectious NaN set, if the numerator or denominator is missing, a 
+   * 0 is returned.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand.
    * 
    * @param left The left operand.
    * @param right The right operand.
-   * @return The {@link #value} or null if either operand was null.
+   * @return The {@link #value}.
    */
   NumericType mod(NumericType left, NumericType right) {
-    if (left == null || right == null) {
-      if (!node.expressionConfig().getSubstituteMissing()) {
-        return null;
-      }
-      if (left == null) {
-        left = ZERO_SUBSTITUTE;
-      }
-      if (right == null) {
-        right = ONE_SUBSTITUTE;
-      }
+    if (left == null) {
+      left = NAN_SUBSTITUTE;
+    }
+    if (right == null) {
+      right = NAN_SUBSTITUTE;
     }
     
     if (left.isInteger() && right.isInteger()) {
       if (right.longValue() == 0) {
-        value.set(0L);
+        value.set(Double.NaN);
       } else {
-        if (((ExpressionParseNode) node.config()).getNegate()) {
-          value.set(-(left.longValue() % right.longValue())); 
-        } else {
-          value.set(left.longValue() % right.longValue());
-        }
+        long result = left.longValue() % right.longValue();
+        value.set(negate_or_not ? -result : result);
       }
     } else {
-      if ((Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
-        if (infectious_nan || 
-            (Double.isNaN(left.toDouble()) && Double.isNaN(right.toDouble()))) {
-          value.set(Double.NaN);
-        } else {
-          value.set(0.0);
-        }
+      double l = left.toDouble();
+      double r = right.toDouble();
+      double result;
+      if (r == 0) {
+        result = Double.NaN;
+      } else if (infectious_nan) {
+        result = l % (r == 0 ? Double.NaN : r);
+      } else if (Double.isNaN(l)) {
+        result = 0;
+      } else if (Double.isNaN(r)) {
+        result = 0;
       } else {
-        if (((ExpressionParseNode) node.config()).getNegate()) {
-          value.set(-(left.toDouble() % right.toDouble())); 
-        } else {
-          value.set(left.toDouble() % right.toDouble());
-        }
+        result = l % (r == 0 ? Double.NaN : r);
       }
+      value.set(negate_or_not ? -result : result);
     }
     
     return value;
