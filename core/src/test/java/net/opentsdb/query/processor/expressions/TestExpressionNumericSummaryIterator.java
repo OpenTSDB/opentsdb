@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2020  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@ package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
@@ -42,6 +41,18 @@ import net.opentsdb.rollup.RollupConfig;
 
 public class TestExpressionNumericSummaryIterator 
     extends BaseNumericSummaryTest {
+  
+  @Before
+  public void beforeLocal() {
+    RollupConfig rollup_config = mock(RollupConfig.class);
+    when(rollup_config.getAggregationIds()).thenReturn(
+        (Map<String, Integer>) ImmutableMap.<String, Integer>builder()
+          .put("sum", 0)
+          .put("count", 2)
+          .put("avg", 5)
+          .build());
+    when(RESULT.rollupConfig()).thenReturn(rollup_config);
+  }
   
   /**
    * Note that all of the arithmetic and logical tests are in the the
@@ -249,135 +260,143 @@ public class TestExpressionNumericSummaryIterator
     assertFalse(iterator.hasNext());
   }
   
-//  @Test
-//  public void fillNaNNonInfectious() throws Exception {
-//    setupData(new double[] { 1.1, -1, 2.66 }, new long[] { 1, -1, 2 }, 
-//              new double[] { 4.5, 10.75, 8.9 }, new long[] { 1, 2, 2 }, false);
-//    
-//    ExpressionNumericSummaryIterator iterator = 
-//        new ExpressionNumericSummaryIterator(node, RESULT, 
-//            (Map) ImmutableMap.builder()
-//              .put(ExpressionTimeSeries.LEFT_KEY, left)
-//              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-//              .build());
-//    assertTrue(iterator.hasNext());
-//    TimeSeriesValue<NumericSummaryType> value = 
-//        (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(1000, value.timestamp().msEpoch());
-//    assertEquals(5.6, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(2, value.value().value(2).longValue());
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(3000, value.timestamp().msEpoch());
-//    assertEquals(10.75, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(5000, value.timestamp().msEpoch());
-//    assertEquals(11.56, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(4, value.value().value(2).longValue());
-//    assertFalse(iterator.hasNext());
-//    
-//    // subtract
-//    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-//        .setLeft("a")
-//        .setLeftType(OperandType.VARIABLE)
-//        .setRight(null)
-//        .setRightType(OperandType.NULL)
-//        .setExpressionOp(ExpressionOp.SUBTRACT)
-//        .setExpressionConfig(CONFIG)
-//        .setId("expression")
-//        .build();
-//    when(node.config()).thenReturn(expression_config);
-//    
-//    iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
-//            (Map) ImmutableMap.builder()
-//              .put(ExpressionTimeSeries.LEFT_KEY, left)
-//              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-//              .build());
-//    assertTrue(iterator.hasNext());
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(1000, value.timestamp().msEpoch());
-//    assertEquals(-3.4, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(0, value.value().value(2).longValue());
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(3000, value.timestamp().msEpoch());
-//    assertEquals(10.75, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(5000, value.timestamp().msEpoch());
-//    assertEquals(-6.24, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(0, value.value().value(2).longValue());
-//    assertFalse(iterator.hasNext());
-//  }
+  @Test
+  public void fillNaNNonInfectious() throws Exception {
+    setupData(new double[] { 1.1, -1, 2.66 }, new long[] { 1, -1, 2 }, 
+              new double[] { 4.5, 10.75, 8.9 }, new long[] { 1, 2, 2 }, false);
+    
+    ExpressionNumericSummaryIterator iterator = 
+        new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericSummaryType> value = 
+        (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(5.6, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).longValue());
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertEquals(10.75, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(11.56, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(4, value.value().value(2).longValue());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(-3.4, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(0, value.value().value(2).longValue());
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertEquals(-10.75, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(-2, value.value().value(2).doubleValue(), 0.001);
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(-6.24, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(0, value.value().value(2).longValue());
+    assertFalse(iterator.hasNext());
+  }
   
-//  @Test
-//  public void fillNaNInfectious() throws Exception {
-//    setupData(new double[] { 1.1, -1, 2.66 }, new long[] { 1, -1, 2 }, 
-//              new double[] { 4.5, 10.75, 8.9 }, new long[] { 1, 2, 2 }, false);
-//    
-//    ExpressionNumericSummaryIterator iterator = 
-//        new ExpressionNumericSummaryIterator(node, RESULT, 
-//            (Map) ImmutableMap.builder()
-//              .put(ExpressionTimeSeries.LEFT_KEY, left)
-//              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-//              .build());
-//    Whitebox.setInternalState(iterator, "infectious_nan", true);
-//    assertTrue(iterator.hasNext());
-//    TimeSeriesValue<NumericSummaryType> value = 
-//        (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(1000, value.timestamp().msEpoch());
-//    assertEquals(5.6, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(2, value.value().value(2).longValue());
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(3000, value.timestamp().msEpoch());
-//    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
-//    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(5000, value.timestamp().msEpoch());
-//    assertEquals(11.56, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(4, value.value().value(2).longValue());
-//    assertFalse(iterator.hasNext());
-//    
-//    // subtract
-//    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-//        .setLeft("a")
-//        .setLeftType(OperandType.VARIABLE)
-//        .setRight(null)
-//        .setRightType(OperandType.NULL)
-//        .setExpressionOp(ExpressionOp.SUBTRACT)
-//        .setExpressionConfig(CONFIG)
-//        .setId("expression")
-//        .build();
-//    when(node.config()).thenReturn(expression_config);
-//    
-//    iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
-//            (Map) ImmutableMap.builder()
-//              .put(ExpressionTimeSeries.LEFT_KEY, left)
-//              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-//              .build());
-//    Whitebox.setInternalState(iterator, "infectious_nan", true);
-//    assertTrue(iterator.hasNext());
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(1000, value.timestamp().msEpoch());
-//    assertEquals(-3.4, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(0, value.value().value(2).longValue());
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(3000, value.timestamp().msEpoch());
-//    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
-//    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
-//    
-//    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
-//    assertEquals(5000, value.timestamp().msEpoch());
-//    assertEquals(-6.24, value.value().value(0).doubleValue(), 0.001);
-//    assertEquals(0, value.value().value(2).longValue());
-//    assertFalse(iterator.hasNext());
-//  }
+  @Test
+  public void fillNaNInfectious() throws Exception {
+    setupData(new double[] { 1.1, -1, 2.66 }, new long[] { 1, -1, 2 }, 
+              new double[] { 4.5, 10.75, 8.9 }, new long[] { 1, 2, 2 }, false);
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setInfectiousNan(true)
+        .setId("e1")
+        .build();
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericSummaryIterator iterator = 
+        new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericSummaryType> value = 
+        (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(5.6, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).longValue());
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(11.56, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(4, value.value().value(2).longValue());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    Whitebox.setInternalState(iterator, "infectious_nan", true);
+    assertTrue(iterator.hasNext());
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(-3.4, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(0, value.value().value(2).longValue());
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(-6.24, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(0, value.value().value(2).longValue());
+    assertFalse(iterator.hasNext());
+  }
   
   @Test
   public void fillNull() throws Exception {
@@ -415,7 +434,8 @@ public class TestExpressionNumericSummaryIterator
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(10.75, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
@@ -448,7 +468,8 @@ public class TestExpressionNumericSummaryIterator
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(-10.75, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(-2, value.value().value(2).doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
@@ -754,40 +775,16 @@ public class TestExpressionNumericSummaryIterator
     assertFalse(iterator.hasNext());
   }
 
-//  @Test
-//  public void nullLeft() throws Exception {
-//    setupData(new long[] { }, new long[] { }, 
-//              new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false);
-//    
-//    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-//        .setLeft(null)
-//        .setLeftType(OperandType.NULL)
-//        .setRight("b")
-//        .setRightType(OperandType.VARIABLE)
-//        .setExpressionOp(ExpressionOp.ADD)
-//        .setExpressionConfig(CONFIG)
-//        .setId("expression")
-//        .build();
-//    when(node.config()).thenReturn(expression_config);
-//    
-//    ExpressionNumericSummaryIterator iterator = 
-//        new ExpressionNumericSummaryIterator(node, RESULT, 
-//            (Map) ImmutableMap.builder()
-//              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-//              .build());
-//    assertFalse(iterator.hasNext());
-//  }
-  
   @Test
-  public void nullLeftSubstitute() throws Exception {
+  public void nullLeftInfectious() throws Exception {
     setupData(new long[] { }, new long[] { }, 
               new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false);
-    
+
     ExpressionConfig cfg = ExpressionConfig.newBuilder()
         .setExpression("a + b")
         .setJoinConfig(JOIN_CONFIG)
         .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
+        .setInfectiousNan(true)
         .setId("e1")
         .build();
     
@@ -812,18 +809,107 @@ public class TestExpressionNumericSummaryIterator
     TimeSeriesValue<NumericSummaryType> value = 
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(4, value.value().value(0).longValue());
-    assertEquals(1, value.value().value(2).longValue());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10, value.value().value(0).longValue());
-    assertEquals(2, value.value().value(2).longValue());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(8, value.value().value(0).longValue());
-    assertEquals(2, value.value().value(2).longValue());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullLeft() throws Exception {
+    setupData(new long[] { }, new long[] { }, 
+              new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, false);
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    ExpressionNumericSummaryIterator iterator = 
+        new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericSummaryType> value = 
+        (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(4, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, value.value().value(2).doubleValue(), 0.001);
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertEquals(10, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(8, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
+  }
+  
+  @Test
+  public void nullRightInfectious() throws Exception {
+    setupData(new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, 
+              new long[] { }, new long[] { }, false);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setInfectiousNan(true)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(CONFIG)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericSummaryIterator iterator = 
+        new ExpressionNumericSummaryIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericSummaryType> value = 
+        (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
+    
+    value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().value(0).doubleValue()));
+    assertTrue(Double.isNaN(value.value().value(2).doubleValue()));
+    assertFalse(iterator.hasNext());
   }
   
   @Test
@@ -847,63 +933,22 @@ public class TestExpressionNumericSummaryIterator
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .build());
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void nullRightSubstitute() throws Exception {
-    setupData(new long[] { 4, 10, 8 }, new long[] { 1, 2, 2 }, 
-              new long[] { }, new long[] { }, false);
-    RollupConfig rollup_config = mock(RollupConfig.class);
-    when(rollup_config.getAggregationIds()).thenReturn(
-        (Map) ImmutableMap.builder()
-          .put("sum", 0)
-          .put("count", 2)
-          .put("avg", 5)
-          .build());
-    when(RESULT.rollupConfig()).thenReturn(rollup_config);
-    
-    ExpressionConfig cfg = ExpressionConfig.newBuilder()
-        .setExpression("a + b")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
-        .setId("e1")
-        .build();
-    
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft("a")
-        .setLeftType(OperandType.VARIABLE)
-        .setRight(null)
-        .setRightType(OperandType.NULL)
-        .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(cfg)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    when(node.expressionConfig()).thenReturn(cfg);
-    
-    ExpressionNumericSummaryIterator iterator = 
-        new ExpressionNumericSummaryIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .build());
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericSummaryType> value = 
         (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(4, value.value().value(0).longValue());
-    assertEquals(1, value.value().value(2).longValue());
+    assertEquals(4, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(1, value.value().value(2).doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10, value.value().value(0).longValue());
-    assertEquals(2, value.value().value(2).longValue());
+    assertEquals(10, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericSummaryType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(8, value.value().value(0).longValue());
-    assertEquals(2, value.value().value(2).longValue());
+    assertEquals(8, value.value().value(0).doubleValue(), 0.001);
+    assertEquals(2, value.value().value(2).doubleValue(), 0.001);
   }
   
 }

@@ -19,7 +19,6 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import net.opentsdb.query.QueryNodeConfig;
 import org.junit.Before;
 import org.junit.BeforeClass;
 

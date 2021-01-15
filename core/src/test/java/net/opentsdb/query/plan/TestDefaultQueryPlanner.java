@@ -2890,33 +2890,16 @@ public class TestDefaultQueryPlanner {
     assertEquals(31, planner.graph().nodes().size());
 
     assertEquals(9, planner.serializationSources().size());
-    QueryResultId source = planner.serializationSources().get(0);
-    assertEquals("q3_m2-smooth", source.nodeID());
-    assertEquals("q3_m2", source.dataSource());
-    source = planner.serializationSources().get(1);
-    assertEquals("q2_m2-smooth", source.nodeID());
-    assertEquals("q2_m2", source.dataSource());
-    source = planner.serializationSources().get(2);
-    assertEquals("q3_e1", source.nodeID());
-    assertEquals("q3_e1", source.dataSource());
-    source = planner.serializationSources().get(3);
-    assertEquals("q2_m1-smooth", source.nodeID());
-    assertEquals("q2_m1", source.dataSource());
-    source = planner.serializationSources().get(4);
-    assertEquals("q1_m1-smooth", source.nodeID());
-    assertEquals("q1_m1", source.dataSource());
-    source = planner.serializationSources().get(5);
-    assertEquals("q1_m2-smooth", source.nodeID());
-    assertEquals("q1_m2", source.dataSource());
-    source = planner.serializationSources().get(6);
-    assertEquals("q3_m1-smooth", source.nodeID());
-    assertEquals("q3_m1", source.dataSource());
-    source = planner.serializationSources().get(7);
-    assertEquals("q1_e1", source.nodeID());
-    assertEquals("q1_e1", source.dataSource());
-    source = planner.serializationSources().get(8);
-    assertEquals("q2_e1", source.nodeID());
-    assertEquals("q2_e1", source.dataSource());
+    List<QueryResultId> sources = planner.serializationSources();
+    assertTrue(sources.contains(new DefaultQueryResultId("q3_m2-smooth", "q3_m2")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q2_m2-smooth", "q2_m2")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q3_e1", "q3_e1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q1_m1-smooth", "q1_m1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q2_m1-smooth", "q2_m1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q3_m1-smooth", "q3_m1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q1_m2-smooth", "q1_m2")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q1_e1", "q1_e1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q2_e1", "q2_e1")));
     
     assertTrue(planner.graph().hasEdgeConnecting(SINK, 
         planner.nodeForId("q1_e1")));

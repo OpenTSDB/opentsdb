@@ -401,7 +401,7 @@ public class TestTernaryNumericArrayIterator extends BaseNumericTest {
         .setRight(rr)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     
@@ -446,7 +446,7 @@ public class TestTernaryNumericArrayIterator extends BaseNumericTest {
         .setRight(rr)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     
@@ -491,7 +491,7 @@ public class TestTernaryNumericArrayIterator extends BaseNumericTest {
         .setRight(rr)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     

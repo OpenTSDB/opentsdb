@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -25,7 +24,6 @@ import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -54,7 +52,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -116,7 +114,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -200,7 +198,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -314,13 +312,21 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
     ((NumericMillisecondShard) right).add(3000, 10.75);
     ((NumericMillisecondShard) right).add(5000, 8.9);
     
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a % b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setInfectiousNan(true)
+        .setId("e1")
+        .build();
+    
+    when(node.expressionConfig()).thenReturn(cfg);
     ExpressionNumericIterator iterator = 
         new ExpressionNumericIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
-    Whitebox.setInternalState(iterator, "infectious_nan", true);
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
@@ -380,7 +386,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
@@ -406,7 +412,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -449,7 +455,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -488,7 +494,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -519,7 +525,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -556,7 +562,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -587,7 +593,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight(false)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -599,58 +605,19 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
   }
 
   @Test
-  public void nullLeft() throws Exception {
-    right = new NumericMillisecondShard(RIGHT_ID, 
-        new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
-    ((NumericMillisecondShard) right).add(1000, 4);
-    ((NumericMillisecondShard) right).add(3000, 10);
-    ((NumericMillisecondShard) right).add(5000, 8);
-    
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft(null)
-        .setLeftType(OperandType.NULL)
-        .setRight("b")
-        .setRightType(OperandType.VARIABLE)
-        .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    
-    ExpressionNumericIterator iterator = 
-        new ExpressionNumericIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-              .build());
-    assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericType> value = 
-        (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(1000, value.timestamp().msEpoch());
-    assertNull(value.value());
-    
-    value = (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(3000, value.timestamp().msEpoch());
-    assertNull(value.value());
-    
-    value = (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(5000, value.timestamp().msEpoch());
-    assertNull(value.value());
-  }
-  
-  @Test
-  public void nullLeftSubstitute() throws Exception {
+  public void nullLeftInfectious() throws Exception {
     right = new NumericMillisecondShard(RIGHT_ID, 
         new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
     ((NumericMillisecondShard) right).add(1000, 4);
@@ -661,7 +628,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setExpression("a % b")
         .setJoinConfig(JOIN_CONFIG)
         .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
+        .setInfectiousNan(true)
         .setId("e1")
         .build();
     
@@ -671,7 +638,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(cfg)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -686,15 +653,102 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
+  }
+  
+  @Test
+  public void nullLeft() throws Exception {
+    right = new NumericMillisecondShard(RIGHT_ID, 
+        new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
+    ((NumericMillisecondShard) right).add(1000, 4);
+    ((NumericMillisecondShard) right).add(3000, 10);
+    ((NumericMillisecondShard) right).add(5000, 8);
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.MOD)
+        .setExpressionConfig(config)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    ExpressionNumericIterator iterator = 
+        new ExpressionNumericIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericType> value = 
+        (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(0, value.value().doubleValue(), 0.001);
+    
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertEquals(0, value.value().doubleValue(), 0.001);
+    
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(0, value.value().doubleValue(), 0.001);
+  }
+  
+  @Test
+  public void nullRightInfectious() throws Exception {
+    left = new NumericMillisecondShard(LEFT_ID, 
+        new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
+    ((NumericMillisecondShard) left).add(1000, 4);
+    ((NumericMillisecondShard) left).add(3000, 10);
+    ((NumericMillisecondShard) left).add(5000, 8);
+
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a % b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setInfectiousNan(true)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.MOD)
+        .setExpressionConfig(config)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericIterator iterator = 
+        new ExpressionNumericIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericType> value = 
+        (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
+    
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
+    
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertTrue(Double.isNaN(value.value().doubleValue()));
   }
   
   @Test
@@ -711,7 +765,7 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -725,63 +779,15 @@ public class TestExpressionNumericIteratorMod extends BaseNumericTest {
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertNull(value.value());
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertNull(value.value());
-  }
-  
-  @Test
-  public void nullRightSubstitute() throws Exception {
-    left = new NumericMillisecondShard(LEFT_ID, 
-        new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
-    ((NumericMillisecondShard) left).add(1000, 4);
-    ((NumericMillisecondShard) left).add(3000, 10);
-    ((NumericMillisecondShard) left).add(5000, 8);
-    
-    ExpressionConfig cfg = ExpressionConfig.newBuilder()
-        .setExpression("a % b")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
-        .setId("e1")
-        .build();
-    
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft("a")
-        .setLeftType(OperandType.VARIABLE)
-        .setRight(null)
-        .setRightType(OperandType.NULL)
-        .setExpressionOp(ExpressionOp.MOD)
-        .setExpressionConfig(CONFIG)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    when(node.expressionConfig()).thenReturn(cfg);
-    
-    ExpressionNumericIterator iterator = 
-        new ExpressionNumericIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .build());
-    assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericType> value = 
-        (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
-    
-    value = (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
-    
-    value = (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(0, value.value().longValue());
+    assertEquals(0, value.value().doubleValue(), 0.001);
   }
   
 }

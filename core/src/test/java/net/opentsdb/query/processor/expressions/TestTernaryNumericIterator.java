@@ -52,7 +52,7 @@ public class TestTernaryNumericIterator extends BaseNumericTest {
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.DIVIDE)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
