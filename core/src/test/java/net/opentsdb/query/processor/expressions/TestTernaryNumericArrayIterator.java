@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2020  The OpenTSDB Authors.
+// Copyright (C) 2020-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,35 @@ public class TestTernaryNumericArrayIterator extends BaseNumericTest {
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void ctorNullCondition() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(5);
+    ((NumericArrayTimeSeries) left).add(2);
+    ((NumericArrayTimeSeries) left).add(8);
+    
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(10);
+    ((NumericArrayTimeSeries) right).add(8);
+    ((NumericArrayTimeSeries) right).add(9);
+    
+    condition = new NumericArrayTimeSeries(mock(TimeSeriesId.class), 
+        new SecondTimeStamp(60));
+    
+    TernaryNumericArrayIterator iterator = 
+        new TernaryNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              //.put(ExpressionTimeSeries.CONDITION_KEY, condition)
               .build());
     assertFalse(iterator.hasNext());
   }
@@ -513,6 +542,80 @@ public class TestTernaryNumericArrayIterator extends BaseNumericTest {
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
     assertArrayEquals(new double[] { 24.5, 42, 42, 24.5 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(4, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  public void emptyLeft() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(10);
+    ((NumericArrayTimeSeries) right).add(8);
+    ((NumericArrayTimeSeries) right).add(9);
+    
+    condition = new NumericArrayTimeSeries(mock(TimeSeriesId.class), 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) condition).add(0);
+    ((NumericArrayTimeSeries) condition).add(1);
+    ((NumericArrayTimeSeries) condition).add(1);
+    ((NumericArrayTimeSeries) condition).add(-1);
+    
+    TernaryNumericArrayIterator iterator = 
+        new TernaryNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .put(ExpressionTimeSeries.CONDITION_KEY, condition)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 4, Double.NaN, Double.NaN, 9 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(4, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void emptyRight() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(5);
+    ((NumericArrayTimeSeries) left).add(2);
+    ((NumericArrayTimeSeries) left).add(8);
+    
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    
+    condition = new NumericArrayTimeSeries(mock(TimeSeriesId.class), 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) condition).add(0);
+    ((NumericArrayTimeSeries) condition).add(1);
+    ((NumericArrayTimeSeries) condition).add(1);
+    ((NumericArrayTimeSeries) condition).add(-1);
+    
+    TernaryNumericArrayIterator iterator = 
+        new TernaryNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .put(ExpressionTimeSeries.CONDITION_KEY, condition)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { Double.NaN, 5, 2, Double.NaN },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());

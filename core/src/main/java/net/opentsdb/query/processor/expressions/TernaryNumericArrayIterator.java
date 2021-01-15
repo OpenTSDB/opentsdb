@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2020  The OpenTSDB Authors.
+//Copyright (C) 2020-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -38,8 +38,11 @@ import net.opentsdb.query.QueryResult;
 public class TernaryNumericArrayIterator extends 
     ExpressionNumericArrayIterator {
   
+  /** The iterator for the condition. */
+  protected final TypedTimeSeriesIterator<?> condition_iterator;
+  
   /** The condition time series. */
-  protected TypedTimeSeriesIterator condition;
+  protected final TimeSeriesValue<NumericArrayType> condition;
   
   /**
    * Default ctor.
@@ -54,6 +57,8 @@ public class TernaryNumericArrayIterator extends
     TimeSeries c = sources.get(ExpressionTimeSeries.CONDITION_KEY);
     if (c == null) {
       // can't do anything
+      condition_iterator = null;
+      condition = null;
       has_next = false;
       return;
     }
@@ -61,11 +66,24 @@ public class TernaryNumericArrayIterator extends
         c.iterator(NumericArrayType.TYPE);
     if (!op.isPresent()) {
       // can't do anything so leave has_next as false.
+      condition_iterator = null;
+      condition = null;
       has_next = false;
       return;
     }
-    condition = op.get();
-    has_next = condition.hasNext();
+    condition_iterator = op.get();
+    if (condition_iterator.hasNext()) {
+      condition = (TimeSeriesValue<NumericArrayType>) condition_iterator.next();
+    } else {
+      condition = null;
+    }
+    
+    if (condition != null && condition.value() != null && 
+        condition.value().end() > condition.value().offset()) {
+      has_next = true;
+    } else {
+      has_next = false;
+    }
     
     if (left == null && left_literal == null) {
       throw new IllegalStateException("Ternary must have a left hand series "
@@ -80,8 +98,6 @@ public class TernaryNumericArrayIterator extends
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
     has_next = false;
-    TimeSeriesValue<NumericArrayType> condition_value = 
-        (TimeSeriesValue<NumericArrayType>) condition.next();
     TimeSeriesValue<NumericArrayType> left_value = 
         left != null ?
         (TimeSeriesValue<NumericArrayType>) left.next() : null;
@@ -89,176 +105,87 @@ public class TernaryNumericArrayIterator extends
         right != null ?
         (TimeSeriesValue<NumericArrayType>) right.next() : null;
     
-    next_ts.update(condition_value.timestamp());
+    // further checks
+    if (left_value != null && (left_value.value() == null || 
+        left_value.value().end() <= left_value.value().offset())) {
+      left_value = null;
+    }
+    if (right_value != null && (right_value.value() == null ||
+        right_value.value().end() <= right_value.value().offset())) {
+      right_value = null;
+    }
+    
+    next_ts.update(condition.timestamp());
     
     // TODO - pools
     if (left_value != null && right_value != null) {
       if (left_value.value().isInteger() && right_value.value().isInteger()) {
-        long_values = new long[condition_value.value().end() - 
-                               condition_value.value().offset()];
+        long_values = new long[condition.value().end() - 
+                               condition.value().offset()];
       } else {
-        double_values = new double[condition_value.value().end() - 
-                                   condition_value.value().offset()];
+        double_values = new double[condition.value().end() - 
+                                   condition.value().offset()];
       }
     } else {
-      long_values = new long[condition_value.value().end() - 
-                             condition_value.value().offset()];
+      long_values = new long[condition.value().end() - 
+                             condition.value().offset()];
     }
     
     int idx = 0;
-    if (condition_value.value().isInteger()) {
-      for (int i = condition_value.value().offset(); 
-              i < condition_value.value().end(); i++) {
-        if (condition_value.value().longArray()[i] > 0) {
-          if (left_value == null) {
-            // literal or fill
-            if (left_literal != null) {
-              if (left_literal.isInteger() && long_values != null) {
-                long_values[idx] = left_literal.longValue();
-              } else {
-                if (double_values == null) {
-                  // copy
-                  double_values = new double[long_values.length];
-                  for (int x = 0; x < idx; x++) {
-                    double_values[x] = long_values[x];
-                  }
-                  long_values = null;
-                }
-                double_values[idx] = left_literal.toDouble();
-              }
+    for (int i = condition.value().offset(); i < condition.value().end(); i++) {
+      final boolean use_left = condition.value().isInteger() ?
+          condition.value().longArray()[i] > 0 :
+            condition.value().doubleArray()[i] > 0;
+      if (use_left) {
+        if (left_value == null) {
+          if (left_literal != null) {
+            if (left_literal.isInteger() && long_values != null) {
+              write(idx, left_literal.longValue());
             } else {
-              // TODO Shouldn't be here?
-              
+              write(idx, left_literal.toDouble());
             }
-          } else if (left_value.value().isInteger() && long_values != null) {
-            long_values[idx] = 
-                left_value.value().longArray()[left_value.value().offset() + idx];
-          } else if (left_value.value().isInteger()) {
-            double_values[idx] = 
-                left_value.value().longArray()[left_value.value().offset() + idx];
           } else {
-            double_values[idx] = 
-                left_value.value().doubleArray()[left_value.value().offset() + idx];
+            write(idx, Double.NaN);
           }
+        } else if (left_value.value().isInteger()) {
+          write(idx, left_value.value().longArray()[left_value.value().offset() + idx]);
         } else {
-          if (right_value == null) {
-            // literal or fill
-            if (right_literal != null) {
-              if (right_literal.isInteger() && long_values != null) {
-                long_values[idx] = right_literal.longValue();
-              } else {
-                if (double_values == null) {
-                  // copy
-                  double_values = new double[long_values.length];
-                  for (int x = 0; x < idx; x++) {
-                    double_values[x] = long_values[x];
-                  }
-                  long_values = null;
-                }
-                double_values[idx] = right_literal.toDouble();
-              }
-            } else {
-              // TODO Shouldn't be here?
-              
-            }
-          } else if (right_value.value().isInteger() && long_values != null) {
-            long_values[idx] = 
-                right_value.value().longArray()[right_value.value().offset() + idx];
-          } else if (right_value.value().isInteger()) {
-            double_values[idx] = 
-                right_value.value().longArray()[right_value.value().offset() + idx];
-          } else {
-            double_values[idx] = 
-                right_value.value().doubleArray()[right_value.value().offset() + idx];
-          }
+          write(idx, left_value.value().doubleArray()[left_value.value().offset() + idx]);
         }
-        idx++;
-      }
-    } else {
-      for (int i = condition_value.value().offset(); 
-              i < condition_value.value().end(); i++) {
-        // TODO - how _should_ we treat nans?
-        if (Double.isFinite(condition_value.value().doubleArray()[i]) && 
-            condition_value.value().doubleArray()[i] > 0) {
-          if (left_value == null) {
-            // literal or fill
-            if (left_literal != null) {
-              if (left_literal.isInteger() && long_values != null) {
-                long_values[idx] = left_literal.longValue();
-              } else {
-                if (double_values == null) {
-                  // copy
-                  double_values = new double[long_values.length];
-                  for (int x = 0; x < idx; x++) {
-                    double_values[x] = long_values[x];
-                  }
-                  long_values = null;
-                }
-                double_values[idx] = left_literal.toDouble();
-              }
+      } else {
+        // right side
+        if (right_value == null) {
+          if (right_literal != null) {
+            if (right_literal.isInteger() && long_values != null) {
+              write(idx, right_literal.longValue());
             } else {
-              // TODO Shouldn't be here?
-              
+              write(idx, right_literal.toDouble());
             }
-          } else if (left_value.value().isInteger() && long_values != null) {
-            long_values[idx] = 
-                left_value.value().longArray()[left_value.value().offset() + idx];
-          } else if (left_value.value().isInteger()) {
-            double_values[idx] = 
-                left_value.value().longArray()[left_value.value().offset() + idx];
           } else {
-            double_values[idx] = 
-                left_value.value().doubleArray()[left_value.value().offset() + idx];
+            write(idx, Double.NaN);
           }
+        } else if (right_value.value().isInteger()) {
+          write(idx, right_value.value().longArray()[right_value.value().offset() + idx]);
         } else {
-          if (right_value == null) {
-            // literal or fill
-            if (right_literal != null) {
-              if (right_literal.isInteger() && long_values != null) {
-                long_values[idx] = right_literal.longValue();
-              } else {
-                if (double_values == null) {
-                  // copy
-                  double_values = new double[long_values.length];
-                  for (int x = 0; x < idx; x++) {
-                    double_values[x] = long_values[x];
-                  }
-                  long_values = null;
-                }
-                double_values[idx] = right_literal.toDouble();
-              }
-            } else {
-              // TODO Shouldn't be here?
-              
-            }
-          } else if (right_value.value().isInteger() && long_values != null) {
-            long_values[idx] = 
-                right_value.value().longArray()[right_value.value().offset() + idx];
-          } else if (right_value.value().isInteger()) {
-            double_values[idx] = 
-                right_value.value().longArray()[right_value.value().offset() + idx];
-          } else {
-            double_values[idx] = 
-                right_value.value().doubleArray()[right_value.value().offset() + idx];
-          }
+          write(idx, right_value.value().doubleArray()[right_value.value().offset() + idx]);
         }
-        idx++;
       }
-    }
+      
+      idx++;
+    } // end loop
     close();
     return this;
   }
 
   @Override
   public void close() {
-    if (condition != null) {
+    if (condition_iterator != null) {
       try {
-        condition.close();
+        condition_iterator.close();
       } catch (IOException e) {
         // don't bother logging.
         e.printStackTrace();
       }
-      condition = null;
     }
     super.close();
   }
@@ -303,4 +230,23 @@ public class TernaryNumericArrayIterator extends
     return double_values;
   }
 
+  void write(final int index, final long value) {
+    if (long_values != null) {
+      long_values[index] = value;
+    } else {
+      double_values[index] = value;
+    }
+  }
+  
+  void write(final int index, final double value) {
+    if (double_values == null) {
+      double_values = new double[long_values.length];
+      for (int x = 0; x < index; x++) {
+        double_values[x] = long_values[x];
+      }
+      long_values = null;
+    }
+    double_values[index] = value;
+  }
+  
 }
