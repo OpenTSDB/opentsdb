@@ -32,6 +32,7 @@
         <include>net.opentsdb:opentsdb-egads</include>
         <include>net.opentsdb:opentsdb-influx</include>
         <include>net.opentsdb:opentsdb-prometheus</include>
+        <include>net.opentsdb:opentsdb-prophet</include>
         <include>net.opentsdb:opentsdb-ultrabrew</include>
       </includes>
       <outputDirectory>lib</outputDirectory>

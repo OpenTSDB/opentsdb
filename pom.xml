@@ -93,6 +93,7 @@
     <module>implementation/http-config</module>
     <module>implementation/elasticsearch</module>
     <module>implementation/prometheus</module>
+    <module>implementation/prophet</module>
     <module>implementation/protobuf</module>
     <module>implementation/tracer-brave</module>
     <module>implementation/redis</module>

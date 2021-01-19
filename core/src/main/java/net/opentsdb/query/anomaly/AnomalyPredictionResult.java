@@ -12,9 +12,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.anomaly.egads;
+package net.opentsdb.query.anomaly;
 
-import java.time.Duration;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
@@ -30,32 +29,38 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryResultId;
 import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Class that stores the predictions as a Result from a model.
  * 
  * @since 3.0
  */
-public class EgadsPredictionResult implements QueryResult, TimeSpecification {
+public class AnomalyPredictionResult implements QueryResult, TimeSpecification {
   private final QueryNode node;
   private final QueryResultId data_source;
   private final TimeStamp start;
   private final TimeStamp end;
+  private final TemporalAmount interval;
+  private final String string_interval;
   private final List<TimeSeries> series;
   private final TypeToken<? extends TimeSeriesId> id_type;
 
-  public EgadsPredictionResult(final QueryNode node, 
-                               final QueryResultId data_source,
-                               final TimeStamp start, 
-                               final TimeStamp end, 
-                               final List<TimeSeries> series,
-                               final TypeToken<? extends TimeSeriesId> id_type) {
+  public AnomalyPredictionResult(final QueryNode node, 
+                                 final QueryResultId data_source,
+                                 final TimeStamp start, 
+                                 final TimeStamp end, 
+                                 final String interval,
+                                 final List<TimeSeries> series,
+                                 final TypeToken<? extends TimeSeriesId> id_type) {
     this.node = node;
     this.data_source = data_source;
     this.start = start;
     this.end = end;
     this.series = series;
     this.id_type = id_type;
+    this.interval = DateTime.parseDuration2(interval);
+    this.string_interval = interval;
   }
   
   @Override
@@ -101,13 +106,12 @@ public class EgadsPredictionResult implements QueryResult, TimeSpecification {
 
   @Override
   public ChronoUnit resolution() {
-    // TODO Auto-generated method stub
-    return null;
+    return ChronoUnit.MINUTES;
   }
 
   @Override
   public RollupConfig rollupConfig() {
-    // TODO Auto-generated method stub
+    // TODO - for larger ranges.
     return null;
   }
 
@@ -134,14 +138,12 @@ public class EgadsPredictionResult implements QueryResult, TimeSpecification {
 
   @Override
   public TemporalAmount interval() {
-    // TODO Auto-generated method stub
-    return Duration.ofSeconds(60);
+    return interval;
   }
 
   @Override
   public String stringInterval() {
-    // TODO Auto-generated method stub
-    return "1m";
+    return string_interval;
   }
 
   @Override

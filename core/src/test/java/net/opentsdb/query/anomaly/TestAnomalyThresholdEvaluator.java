@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.anomaly.egads;
+package net.opentsdb.query.anomaly;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -35,15 +35,13 @@ import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
-import net.opentsdb.query.anomaly.egads.olympicscoring.OlympicScoringConfig;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
-public class TestEgadsThresholdEvaluator {
-  private static OlympicScoringConfig CONFIG;
+public class TestAnomalyThresholdEvaluator {
+  private static MockConfig CONFIG;
   private static NumericInterpolatorConfig INTERPOLATOR;
   private static final int BASE_TIME = 1356998400;
   private static final TimeSeriesId ID = BaseTimeSeriesStringId.newBuilder()
@@ -57,11 +55,7 @@ public class TestEgadsThresholdEvaluator {
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .setDataType(NumericType.TYPE.toString())
         .build();
-    CONFIG = OlympicScoringConfig.newBuilder()
-        .setBaselinePeriod("1h")
-        .setBaselineNumPeriods(3)
-        .setBaselineAggregator("avg")
-        .setBaselineQuery(mock(SemanticQuery.class))
+    CONFIG = MockConfig.newBuilder()
         .setSerializeObserved(true)
         .setSerializeThresholds(true)
         .setSerializeDeltas(true)
@@ -76,11 +70,7 @@ public class TestEgadsThresholdEvaluator {
   
   @Test
   public void ctor() throws Exception {
-    OlympicScoringConfig config = OlympicScoringConfig.newBuilder()
-        .setBaselinePeriod("1h")
-        .setBaselineNumPeriods(3)
-        .setBaselineAggregator("avg")
-        .setBaselineQuery(mock(SemanticQuery.class))
+    MockConfig config = MockConfig.newBuilder()
         .setSerializeObserved(true)
         .setSerializeThresholds(true)
         .setSerializeDeltas(true)
@@ -92,7 +82,7 @@ public class TestEgadsThresholdEvaluator {
         .setId("egads")
         .build();
     
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(config, 42, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(config, 42, 
         mock(TimeSeries.class),
         mock(QueryResult.class),
         new TimeSeries[0],
@@ -105,11 +95,7 @@ public class TestEgadsThresholdEvaluator {
     assertEquals(42, eval.deltas.length);
     assertNull(eval.alerts());
     
-    config = OlympicScoringConfig.newBuilder()
-        .setBaselinePeriod("1h")
-        .setBaselineNumPeriods(3)
-        .setBaselineAggregator("avg")
-        .setBaselineQuery(mock(SemanticQuery.class))
+    config = MockConfig.newBuilder()
         .setLowerThresholdBad(25)
         .setUpperThresholdBad(25)
         .setMode(ExecutionMode.EVALUATE)
@@ -118,7 +104,7 @@ public class TestEgadsThresholdEvaluator {
         .setId("egads")
         .build();
     
-    eval = new EgadsThresholdEvaluator(config, 42, 
+    eval = new AnomalyThresholdEvaluator(config, 42, 
         mock(TimeSeries.class),
         mock(QueryResult.class),
         new TimeSeries[0],
@@ -150,7 +136,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) prediction).add(25);
     
     QueryResult result = mockResult(BASE_TIME, BASE_TIME + 300);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -173,7 +159,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(99);
     ((NumericArrayTimeSeries) source).add(25);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -205,7 +191,7 @@ public class TestEgadsThresholdEvaluator {
     
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 300);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -226,7 +212,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(75);
     ((NumericArrayTimeSeries) source).add(99);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -271,7 +257,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 480);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 10, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 10, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2 },
@@ -298,7 +284,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(1);
     ((NumericArrayTimeSeries) source).add(83);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 10, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 10, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2 },
@@ -360,7 +346,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2, prediction3 },
@@ -395,7 +381,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(108);
     ((NumericArrayTimeSeries) source).add(1);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2, prediction3 },
@@ -451,7 +437,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { null, prediction2, prediction3 },
@@ -509,7 +495,7 @@ public class TestEgadsThresholdEvaluator {
     
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { null, null, prediction3 },
@@ -581,7 +567,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, null, prediction3 },
@@ -628,7 +614,7 @@ public class TestEgadsThresholdEvaluator {
     
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, null, null },
@@ -684,7 +670,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2, null },
@@ -726,7 +712,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) prediction).add(25);
     
     QueryResult result = mockResult(BASE_TIME, BASE_TIME + 300);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -749,7 +735,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(99);
     ((NumericArrayTimeSeries) source).add(25);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -782,7 +768,7 @@ public class TestEgadsThresholdEvaluator {
     
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 300);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -803,7 +789,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(75);
     ((NumericArrayTimeSeries) source).add(99);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 5, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 5, 
         source,
         result,
         new TimeSeries[] { prediction },
@@ -849,7 +835,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 480);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 10, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 10, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2 },
@@ -876,7 +862,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(1);
     ((NumericArrayTimeSeries) source).add(83);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 10, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 10, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2 },
@@ -939,7 +925,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2, prediction3 },
@@ -974,7 +960,7 @@ public class TestEgadsThresholdEvaluator {
     ((NumericArrayTimeSeries) source).add(108);
     ((NumericArrayTimeSeries) source).add(1);
     
-    eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2, prediction3 },
@@ -1031,7 +1017,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { null, prediction2, prediction3 },
@@ -1090,7 +1076,7 @@ public class TestEgadsThresholdEvaluator {
     
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { null, null, prediction3 },
@@ -1163,7 +1149,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result3 = mockResult(BASE_TIME + 600, BASE_TIME + 900);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, null, prediction3 },
@@ -1211,7 +1197,7 @@ public class TestEgadsThresholdEvaluator {
     
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, null, null },
@@ -1268,7 +1254,7 @@ public class TestEgadsThresholdEvaluator {
     QueryResult result = mockResult(BASE_TIME + 120, BASE_TIME + 720);
     QueryResult prediction_result = mockResult(BASE_TIME, BASE_TIME + 300);
     QueryResult prediction_result2 = mockResult(BASE_TIME + 300, BASE_TIME + 600);
-    EgadsThresholdEvaluator eval = new EgadsThresholdEvaluator(CONFIG, 15, 
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(CONFIG, 15, 
         source,
         result,
         new TimeSeries[] { prediction, prediction2, null },
@@ -1293,6 +1279,51 @@ public class TestEgadsThresholdEvaluator {
   
   // TODO - summary tests
   // TODO - eval specific tests
+ 
+  static class MockConfig extends BaseAnomalyConfig {
+
+    protected MockConfig(Builder builder) {
+      super(builder);
+    }
+
+    @Override
+    public boolean pushDown() {
+      return false;
+    }
+
+    @Override
+    public boolean joins() {
+      return false;
+    }
+
+    @Override
+    public Builder toBuilder() {
+      return null;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+      return 0;
+    }
+    
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+    
+    public static class Builder extends BaseAnomalyConfig.Builder<Builder, MockConfig> {
+
+      @Override
+      public MockConfig build() {
+        return new MockConfig(this);
+      }
+
+      @Override
+      public Builder self() {
+        return this;
+      }
+      
+    }
+  }
   
   QueryResult mockResult(final int start, final int end) {
     TimeSpecification spec = mock(TimeSpecification.class);

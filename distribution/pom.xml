@@ -85,6 +85,11 @@
         </dependency>
         <dependency>
           <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-prophet</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
           <artifactId>opentsdb-ultrabrew</artifactId>
           <version>${project.version}</version>
         </dependency>
@@ -133,6 +138,78 @@
                 <imageTags>
                   <imageTag>${project.version}</imageTag>
                   <imageTag>latest</imageTag>
+                </imageTags>
+                <buildArgs>
+                  <projectVersion>${project.version}</projectVersion>
+                </buildArgs>
+                <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
+                <resources>
+                 <resource>
+                   <targetPath>/</targetPath>
+                   <directory>${project.build.directory}</directory>
+                   <include>opentsdb-${project.version}.tar.gz</include>
+                 </resource>
+                 <resource>
+                   <targetPath>/</targetPath>
+                   <directory>${basedir}/src/resources/docker</directory>
+                   <include>*.*</include>
+                 </resource>
+                </resources>
+              </configuration>
+              
+              <executions>
+                <execution>
+                  <id>build-image</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>build</goal>
+                  </goals>
+                </execution>
+                
+                <execution>
+                  <id>tag-image</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>tag</goal>
+                  </goals>
+                  <configuration>
+                    <image>opentsdb:${project.version}</image>
+                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}</newName>
+                  </configuration>
+                </execution>
+                
+                <execution>
+                  <id>push-image</id>
+                  <phase>install</phase>
+                  <goals>
+                    <goal>push</goal>
+                  </goals>
+                  <configuration>
+                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </build>
+      </profile>
+      
+      <profile>
+        <id>docker-prophet</id>
+        <build>
+          <plugins>
+            <plugin>
+              <groupId>com.spotify</groupId>
+              <artifactId>docker-maven-plugin</artifactId>
+              <version>0.4.14</version>
+
+              <configuration>
+                <serverId>docker-hub</serverId>
+                <dockerDirectory>${basedir}/src/resources/docker_prophet</dockerDirectory>
+                <imageName>opentsdb</imageName>
+                <imageTags>
+                  <imageTag>prophet-${project.version}</imageTag>
+                  <imageTag>prophet-latest</imageTag>
                 </imageTags>
                 <buildArgs>
                   <projectVersion>${project.version}</projectVersion>

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.anomaly.egads;
+package net.opentsdb.query.anomaly;
 
 import java.io.IOException;
 import java.time.temporal.ChronoUnit;
@@ -38,7 +38,6 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.anomaly.BaseAnomalyConfig;
 
 /**
  * A class that takes a time series to evaluate and the matching prediction
@@ -51,9 +50,9 @@ import net.opentsdb.query.anomaly.BaseAnomalyConfig;
  * 
  * @since 3.0
  */
-public class EgadsThresholdEvaluator {
+public class AnomalyThresholdEvaluator {
   static final Logger LOG = LoggerFactory.getLogger(
-      EgadsThresholdEvaluator.class);
+      AnomalyThresholdEvaluator.class);
   
   public static final String UPPER_BAD = "upperBad";
   public static final String UPPER_WARN = "upperWarn";
@@ -76,7 +75,7 @@ public class EgadsThresholdEvaluator {
   protected int prediction_index;
   protected long threshold_base;
   
-  public EgadsThresholdEvaluator(final BaseAnomalyConfig config, 
+  public AnomalyThresholdEvaluator(final BaseAnomalyConfig config, 
                                  final int threshold_dps,
                                  final TimeSeries current,
                                  final QueryResult current_result,
@@ -121,6 +120,7 @@ public class EgadsThresholdEvaluator {
     TypedTimeSeriesIterator<? extends TimeSeriesDataType> pred_it = null;
     TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = null;
     try {
+      boolean have_data = false;
       while (prediction_index < predictions.length) {
         if (predictions[prediction_index] == null) {
           prediction_index++;
@@ -133,6 +133,10 @@ public class EgadsThresholdEvaluator {
         final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> pred_op = 
             predictions[prediction_index].iterator(NumericArrayType.TYPE);
         if (!pred_op.isPresent()) {
+          prediction_index++;
+          if (threshold_base == 0) {
+            threshold_base = -1;
+          }
           LOG.warn("No array iterators for prediction at: " + prediction_index);
           continue;
         }
@@ -140,6 +144,10 @@ public class EgadsThresholdEvaluator {
         pred_it = pred_op.get();
         if (!pred_it.hasNext()) {
           LOG.warn("No data in the prediction array at: " + prediction_index);
+          prediction_index++;
+          if (threshold_base == 0) {
+            threshold_base = -1;
+          }
           continue;
         }
         
@@ -158,10 +166,11 @@ public class EgadsThresholdEvaluator {
                   .timeSpecification().start().epoch());
           }
         }
+        have_data = true;
         break;
       }
   
-      if (pred_it == null) {
+      if (!have_data || pred_it == null) {
         LOG.warn("No prediction data.");
         return false;
       }
