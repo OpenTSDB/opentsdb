@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.anomaly.egads;
+package net.opentsdb.query.anomaly;
 
 import java.util.Collection;
 import java.util.Map;
@@ -32,13 +32,13 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
  * A time series class that simply tweaks the ID, adding a suffix string to
  * the metric name and a tag for the given model to the tag set.
  */
-public class EgadsTimeSeries implements TimeSeries {
+public class AnomalyTimeSeries implements TimeSeries {
   public static final String MODEL_TAG_KEY = "_anomalyModel";
   
   protected final TimeSeries source;
   protected final TimeSeriesId id;
   
-  public EgadsTimeSeries(final TimeSeries source, 
+  public AnomalyTimeSeries(final TimeSeries source, 
                          final String suffix, 
                          final String model) {
     this.source = source;

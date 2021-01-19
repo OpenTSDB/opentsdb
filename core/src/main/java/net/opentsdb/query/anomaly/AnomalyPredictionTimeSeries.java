@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.anomaly.egads;
+package net.opentsdb.query.anomaly;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -49,14 +49,14 @@ import net.opentsdb.query.QueryResult;
  * 
  * @since 3.0
  */
-public class EgadsPredictionTimeSeries implements TimeSeries {
+public class AnomalyPredictionTimeSeries implements TimeSeries {
   protected final TimeSeries[] sources;
   protected final TimeSeriesId id;
   protected final TimeStamp timestamp;
   protected final double[] results;
   protected List<AlertValue> alerts;
   
-  public EgadsPredictionTimeSeries(final TimeSeriesId id, 
+  public AnomalyPredictionTimeSeries(final TimeSeriesId id, 
                                    final double[] results, 
                                    final TimeStamp timestamp) {
     this.sources = null;
@@ -65,7 +65,7 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
     this.timestamp = timestamp;
   }
   
-  public EgadsPredictionTimeSeries(final TimeSeries[] sources, 
+  public AnomalyPredictionTimeSeries(final TimeSeries[] sources, 
                                    final QueryResult[] predictions,
                                    final String suffix, 
                                    final String model) {
@@ -133,7 +133,7 @@ public class EgadsPredictionTimeSeries implements TimeSeries {
     if (string_id.tags() != null) {
       tags.putAll(string_id.tags());
     }
-    tags.put(EgadsTimeSeries.MODEL_TAG_KEY, model);
+    tags.put(AnomalyTimeSeries.MODEL_TAG_KEY, model);
     builder.setTags(tags);
     this.id = builder.build();
   }

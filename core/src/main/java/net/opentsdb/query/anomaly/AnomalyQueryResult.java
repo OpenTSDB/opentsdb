@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.anomaly.egads;
+package net.opentsdb.query.anomaly;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -51,14 +51,14 @@ import net.opentsdb.rollup.RollupConfig;
  * 
  * @since 3.0
  */
-public class EgadsResult implements QueryResult {
-  private static final Logger LOG = LoggerFactory.getLogger(EgadsResult.class);
+public class AnomalyQueryResult implements QueryResult {
+  private static final Logger LOG = LoggerFactory.getLogger(AnomalyQueryResult.class);
   
   protected final QueryNode node;
   protected final QueryResult original_result;
   protected final List<TimeSeries> series;
 
-  public EgadsResult(final QueryNode node, 
+  public AnomalyQueryResult(final QueryNode node, 
                      final QueryResult original_result, 
                      final boolean include_observed) {
     this.node = node;
@@ -168,7 +168,7 @@ public class EgadsResult implements QueryResult {
       final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> its =
           Lists.newArrayListWithExpectedSize(1);
       for (final TypeToken<? extends TimeSeriesDataType> type : source.types()) {
-        if (type == NumericArrayType.TYPE) {          
+        if (type == NumericArrayType.TYPE) {
           its.add(new ArrayIterator());
         } else {
           its.add(source.iterator(type).get());
@@ -240,6 +240,7 @@ public class EgadsResult implements QueryResult {
         start_idx = i;
         end_idx = Math.min(x, value.value().end());
         has_next = end_idx > start_idx;
+        System.out.println("[PROPHET] EI: " + end_idx + " SI: " + start_idx);
       }
 
       @Override

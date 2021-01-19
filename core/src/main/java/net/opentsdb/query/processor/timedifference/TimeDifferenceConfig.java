@@ -148,7 +148,7 @@ public class TimeDifferenceConfig extends BaseQueryNodeConfig<
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static final class Builder extends BaseQueryNodeConfig.Builder<Builder, TimeDifferenceConfig> {
 
-    private ChronoUnit resolution;
+    private ChronoUnit resolution = ChronoUnit.SECONDS;
     
     Builder() {
       setType(TimeDifferenceFactory.TYPE);
