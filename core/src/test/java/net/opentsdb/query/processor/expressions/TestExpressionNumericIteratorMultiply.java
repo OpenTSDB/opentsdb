@@ -290,7 +290,7 @@ public class TestExpressionNumericIteratorMultiply extends BaseNumericTest {
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10.75, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
@@ -387,7 +387,7 @@ public class TestExpressionNumericIteratorMultiply extends BaseNumericTest {
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10.75, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
@@ -693,15 +693,15 @@ public class TestExpressionNumericIteratorMultiply extends BaseNumericTest {
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(4, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(8, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
   }
   
   @Test
@@ -753,7 +753,7 @@ public class TestExpressionNumericIteratorMultiply extends BaseNumericTest {
   }
   
   @Test
-  public void nullRightSubstitute() throws Exception {
+  public void nullRightS() throws Exception {
     left = new NumericMillisecondShard(LEFT_ID, 
         new MillisecondTimeStamp(1000), new MillisecondTimeStamp(7000));
     ((NumericMillisecondShard) left).add(1000, 4);
@@ -780,15 +780,15 @@ public class TestExpressionNumericIteratorMultiply extends BaseNumericTest {
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(4, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(8, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
   }
   
 }

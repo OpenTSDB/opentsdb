@@ -259,7 +259,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 4.95, 10.75, 2.66 },
+    assertArrayEquals(new double[] { 4.95, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -584,7 +584,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 4, 10, 8 },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -620,7 +620,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { -4, -10, -8 },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -691,7 +691,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 4, 10, 8 },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -727,7 +727,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { -4, -10, -8 },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());

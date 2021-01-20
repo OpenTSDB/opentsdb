@@ -489,15 +489,15 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     // divide by zero float
     when(literal.isInteger()).thenReturn(false);
@@ -510,15 +510,15 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
   }
 
   @Test
@@ -646,15 +646,15 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertTrue(Double.isNaN(value.value().doubleValue()));
+    assertEquals(0, value.value().doubleValue(), 0.001);
   }
 
   @Test
@@ -820,15 +820,15 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     TimeSeriesValue<NumericType> value = 
         (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1000, value.timestamp().msEpoch());
-    assertEquals(4, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(3000, value.timestamp().msEpoch());
-    assertEquals(10, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
     
     value = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(5000, value.timestamp().msEpoch());
-    assertEquals(8, value.value().doubleValue(), 0.001);
+    assertEquals(0, value.value().doubleValue(), 0.001);
   }
   
 }
