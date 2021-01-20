@@ -115,6 +115,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     }
     
     public void reset(final List<TimeSeries> tsList,
+                      final QueryResult result,
                       final Accumulator accumulator,
                       final int totalTsCount,
                       final int startIndex,
@@ -123,6 +124,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
                       final CountDownLatch doneSignal) {
       start = DateTime.nanoTime();
       this.tsList = tsList;
+      this.result = result;
       this.accumulator = accumulator;
       this.totalTsCount = totalTsCount;
       this.startIndex = startIndex;
@@ -141,6 +143,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
         final int endIndex,
         final NumericArrayAggregator aggregator,
         final CountDownLatch doneSignal) {
+      System.out.println("******* RESET IDX");
       start = DateTime.nanoTime();
       this.tsIndices = tsIndices;
       this.length = length;
@@ -156,6 +159,14 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     @Override
     public void run() {
       try {
+        if (result
+            .source()
+            .pipelineContext()
+            .queryContext()
+            .isClosed()) {
+          return;
+        }
+        
         boolean isBig = predicate.test(this);
         if (isBig) {
           statsCollector.addTime(

@@ -80,6 +80,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -559,6 +560,7 @@ public class TestGroupByNumericArrayIterator {
             .build();
 
     when(context.query()).thenReturn(q);
+    when(context.queryContext()).thenReturn(mock(QueryContext.class));
     DownsampleFactory factory = new DownsampleFactory();
     factory.initialize(TSDB, null);
     Downsample ds = new Downsample(factory, context, dsConfig);
@@ -699,6 +701,7 @@ public class TestGroupByNumericArrayIterator {
     factory.initialize(TSDB, null);
     Downsample ds = new Downsample(factory, context, dsConfig);
     ds.initialize(null);
+    when(context.queryContext()).thenReturn(mock(QueryContext.class));
     QueryResult ds_of_ds_result = mock(QueryResult.class);
     when(ds_of_ds_result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(ds_of_ds_result.timeSpecification()).thenReturn(time_spec);
