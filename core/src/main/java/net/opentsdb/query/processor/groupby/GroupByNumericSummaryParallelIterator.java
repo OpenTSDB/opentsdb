@@ -185,7 +185,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       
       jobs[jobIndex] = groupByFactory.jobPool().claim();
       final GroupByJob job = (GroupByJob) jobs[jobIndex].object();
-      job.reset(sources, combiner, totalTsCount, startIndex, endIndex, null, doneSignal);
+      job.reset(sources, result, combiner, totalTsCount, startIndex, endIndex, null, doneSignal);
       blockingQueue.put(job);
     }
 

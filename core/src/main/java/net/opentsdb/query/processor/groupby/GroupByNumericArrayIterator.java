@@ -65,6 +65,9 @@ import java.util.concurrent.TimeUnit;
  * An iterator for grouping arrays. This should be much faster for numerics than the regular
  * iterative method for arrays, being able to take advantage of the L2 cache.
  *
+ * TODO - don't block the thread with the doneSignal.await() call. Use a 
+ * deferred and handle it asynchronously.
+ *
  * @since 3.0
  */
 public class GroupByNumericArrayIterator
@@ -452,7 +455,7 @@ public class GroupByNumericArrayIterator
 
       jobs[jobIndex] = groupByFactory.jobPool().claim();
       final GroupByJob job = (GroupByJob) jobs[jobIndex].object();
-      job.reset(tsList, this, totalTsCount, startIndex, endIndex, combiner, doneSignal);
+      job.reset(tsList, result, this, totalTsCount, startIndex, endIndex, combiner, doneSignal);
       blockingQueue.put(job);
       has_next = true;
     }

@@ -268,7 +268,6 @@ public class TestGroupByNumericSummaryParallelIterator {
   public void avgGaps() throws Exception {
     setupDataLongs(5, true);
     setupMock("avg");
-    
     GroupByNumericSummaryParallelIterator iterator = 
         new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
@@ -277,7 +276,6 @@ public class TestGroupByNumericSummaryParallelIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      System.out.println(tsv.timestamp().epoch() + "  " + tsv.value().value(5).toDouble());
       assertEquals(ts, tsv.timestamp().epoch());
       if (v % 2 == 0) {
         assertTrue(Double.isNaN(tsv.value().value(5).doubleValue()));
@@ -361,9 +359,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     pipeline_context = mock(QueryPipelineContext.class);
     when(pipeline_context.queryContext()).thenReturn(query_context);
     when(node.pipelineContext()).thenReturn(pipeline_context);
-    final QueryPipelineContext context = mock(QueryPipelineContext.class);
-    when(node.pipelineContext()).thenReturn(context);
-    when(context.tsdb()).thenReturn(TSDB);
+    when(pipeline_context.tsdb()).thenReturn(TSDB);
     when(result.source()).thenReturn(node);
     when(node.factory()).thenReturn(FACTORY);
   }
