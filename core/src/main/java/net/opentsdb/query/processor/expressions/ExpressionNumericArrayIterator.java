@@ -880,10 +880,9 @@ public class ExpressionNumericArrayIterator extends
   /**
    * Implements the quotient of two values. 
    * <p>
-   * <b>Note</b> A divide-by-zero operation will return NaN. A null on either side 
-   * will null the result. A NaN in both numerator and denominator returns NaN. 
-   * Without infectious NaN set, if the numerator is missing, a 0 is returned 
-   * but if the denominator is missing, we return the numerator.
+   * <b>Note</b> With infectious NaN enabled, a divide-by-zero operation will 
+   * return NaN, otherwise it will return 0. Without infection, a NaN in either
+   * operand will return a 0.
    * <p>
    * The result is always a double.
    * 
@@ -905,16 +904,14 @@ public class ExpressionNumericArrayIterator extends
       final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
         right_value.value().doubleArray()[right_idx++];
       final double result;
-      if (right == 0) {
-        result = Double.NaN;
+      if (infectious_nan) {
+        result = left / (right == 0 ? Double.NaN : right);
+      } else if (right == 0) {
+        result = 0;
       } else if (Math.abs(0.0 - right) <= EPSILON) {
         result = 0;
-      } else if (infectious_nan) {
-        result = left / (right == 0 ? Double.NaN : right);
-      } else if (Double.isNaN(left)) {
+      }  else if (Double.isNaN(left) || Double.isNaN(right)) {
         result = 0;
-      } else if (Double.isNaN(right)) {
-        result = left;
       } else {
         result = left / (right == 0 ? Double.NaN : right);
       }
@@ -924,8 +921,8 @@ public class ExpressionNumericArrayIterator extends
   }
   
   /**
-   * Implements the product of two values. A NaN in both returns NaN. 
-   * Non-infectious NaN treats the missing value as a 1.
+   * Implements the product of two values. Non-infectious NaN treats the 
+   * missing value as a 0.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand. getNote that values may overflow.
@@ -965,10 +962,8 @@ public class ExpressionNumericArrayIterator extends
         final double result;
         if (infectious_nan) {
           result = left * right;
-        } else if (Double.isNaN(left)) {
-          result = right;
-        } else if (Double.isNaN(right)) {
-          result = left;
+        } else if (Double.isNaN(left) || Double.isNaN(right)) {
+          result = 0;
         } else {
           result = left * right;
         }
@@ -981,10 +976,9 @@ public class ExpressionNumericArrayIterator extends
   /**
    * Implements the modulus of two values. 
    * <p>
-   * <b>Note</b> A divide-by-zero operation will return NaN. A null on either side 
-   * will null the result. A NaN in both numerator and denominator returns NaN. 
-   * Without infectious NaN set, if the numerator or denominator is missing, a 
-   * 0 is returned.
+   * <b>Note</b> With infectious NaN enabled, a divide-by-zero operation will 
+   * return NaN, otherwise it will return 0. Without infection, a NaN in either
+   * operand will return a 0.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand.
@@ -1025,15 +1019,13 @@ public class ExpressionNumericArrayIterator extends
         final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
           right_value.value().doubleArray()[right_idx++];
         final double result;
-        if (right == 0) {
-          result = Double.NaN;
+        if (infectious_nan) {
+          result = left % (right == 0 ? Double.NaN : right);
+        } else if (right == 0) {
+          result = 0;
         } else if (Math.abs(0.0 - right) <= EPSILON) {
           result = 0;
-        } else if (infectious_nan) {
-          result = left % (right == 0 ? Double.NaN : right);
-        } else if (Double.isNaN(left)) {
-          result = 0;
-        } else if (Double.isNaN(right)) {
+        } else if (Double.isNaN(left) || Double.isNaN(right)) {
           result = 0;
         } else {
           result = left % (right == 0 ? Double.NaN : right);

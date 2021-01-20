@@ -318,7 +318,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 0.244444444444444, 0, Double.NaN },
+    assertArrayEquals(new double[] { 0.244444444444444, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -349,7 +349,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 0.244444444444444, 0, 2.66 },
+    assertArrayEquals(new double[] { 0.244444444444444, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -519,7 +519,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 10.5, 42, 5.25 },
+    assertArrayEquals(new double[] { 10.5, 0, 5.25 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -622,7 +622,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
               .build());
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { Double.NaN, Double.NaN, Double.NaN },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -639,7 +639,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
               .build());
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { Double.NaN, Double.NaN, Double.NaN },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -846,7 +846,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
               .build());
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { Double.NaN, Double.NaN, Double.NaN },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -908,7 +908,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
               .build());
     assertTrue(iterator.hasNext());
     value = (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { Double.NaN, Double.NaN, Double.NaN },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -1039,7 +1039,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 4, 10, 8 },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -1048,7 +1048,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
   }
   
   @Test
-  public void nullRightNEgate() throws Exception {
+  public void nullRightNegate() throws Exception {
     left = new NumericArrayTimeSeries(LEFT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(4);
@@ -1075,7 +1075,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { -4, -10, -8 },
+    assertArrayEquals(new double[] { 0, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());

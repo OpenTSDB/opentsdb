@@ -375,10 +375,9 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   /**
    * Implements the quotient of two values. 
    * <p>
-   * <b>Note</b> A divide-by-zero operation will return NaN. A null on either side 
-   * will null the result. A NaN in both numerator and denominator returns NaN. 
-   * Without infectious NaN set, if the numerator is missing, a 0 is returned 
-   * but if the denominator is missing, we return the numerator.
+   * <b>Note</b> With infectious NaN enabled, a divide-by-zero operation will 
+   * return NaN, otherwise it will return 0. Without infection, a NaN in either
+   * operand will return a 0.
    * <p>
    * The result is always a double.
    * 
@@ -397,16 +396,14 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
     double l = left.toDouble();
     double r = right.toDouble();
     double result;
-    if (r == 0) {
-      result = Double.NaN;
+    if (infectious_nan) {
+      result = l / (r == 0 ? Double.NaN : r);
+    } else if (r == 0) {
+      result = 0;
     } else if (Math.abs(0.0 - r) <= EPSILON) {
       result = 0;
-    } else if (infectious_nan) {
-      result = l / (r == 0 ? Double.NaN : r);
-    } else if (Double.isNaN(l)) {
+    } else if (Double.isNaN(l) || Double.isNaN(r)) {
       result = 0;
-    } else if (Double.isNaN(r)) {
-      result = l;
     } else {
       result = l / (r == 0 ? Double.NaN : r);
     }
@@ -415,9 +412,8 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   }
   
   /**
-   * Implements the product of two values. A NaN in both returns NaN or if 
-   * infectious NaN is enabled. Without infectious NaN the other operand is 
-   * returned.
+   * Implements the product of two values. Non-infectious NaN treats the 
+   * missing value as a 0.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand. Note that values may overflow.
@@ -445,10 +441,8 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       if (infectious_nan && 
           (Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble()))) {
         result = Double.NaN;
-      } else if (Double.isNaN(left.toDouble())) {
-        result = right.toDouble();
-      } else if (Double.isNaN(right.toDouble())) {
-        result = left.toDouble();
+      } else if (Double.isNaN(left.toDouble()) || Double.isNaN(right.toDouble())) {
+        result = 0;
       } else {
         result = left.toDouble() * right.toDouble();
       }
@@ -461,10 +455,9 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
   /**
    * Implements the modulus of two values.
    * <p>
-   * <b>Note</b> A divide-by-zero operation will return NaN. A null on either side 
-   * will null the result. A NaN in both numerator and denominator returns NaN. 
-   * Without infectious NaN set, if the numerator or denominator is missing, a 
-   * 0 is returned.
+   * <b>Note</b> With infectious NaN enabled, a divide-by-zero operation will 
+   * return NaN, otherwise it will return 0. Without infection, a NaN in either
+   * operand will return a 0.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand.
@@ -492,13 +485,11 @@ public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType
       double l = left.toDouble();
       double r = right.toDouble();
       double result;
-      if (r == 0) {
-        result = Double.NaN;
-      } else if (infectious_nan) {
+      if (infectious_nan) {
         result = l % (r == 0 ? Double.NaN : r);
-      } else if (Double.isNaN(l)) {
+      } else if (r == 0) {
         result = 0;
-      } else if (Double.isNaN(r)) {
+      } else if (Double.isNaN(l) || Double.isNaN(r)) {
         result = 0;
       } else {
         result = l % (r == 0 ? Double.NaN : r);
