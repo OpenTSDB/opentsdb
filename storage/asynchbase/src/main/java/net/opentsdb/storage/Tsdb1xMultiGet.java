@@ -609,6 +609,13 @@ public class Tsdb1xMultiGet implements
         return null;
       }
       
+      // TODO - some kind of race here that we need to track down.
+      if (node.pipelineContext() == null || 
+          node.pipelineContext().queryContext() == null ||
+          node.pipelineContext().queryContext().isClosed()) {
+        return null;
+      }
+      
       TimeStamp base_ts = new SecondTimeStamp(0);
       for (final GetResultOrException result : results) {
         if (result.getException() != null) {
