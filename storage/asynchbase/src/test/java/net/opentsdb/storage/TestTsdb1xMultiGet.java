@@ -1266,6 +1266,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     when(node.pipelineContext().queryContext().isClosed())
       .thenReturn(false)
       .thenReturn(false)
+      .thenReturn(false)
       .thenReturn(true);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
