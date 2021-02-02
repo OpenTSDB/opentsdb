@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -742,6 +742,47 @@ public class TestGroupByNumericArrayIterator {
     
     assertEquals(5, JOB_POOL.claim_success);
     assertEquals(59, JOB_POOL.claim_empty_pool);
+  }
+  
+  @Test
+  public void singleSeriesShortcut() throws Exception {
+    source_map = Maps.newHashMapWithExpectedSize(1);
+    source_map.put("a", ts1);
+    
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, source_map, queueThreshold, timeSeriesPerJob, threadCount);
+    assertTrue(iterator.hasNext());
+    
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> v = (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertEquals(1000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(1, v.value().longArray()[0]);
+    assertEquals(5, v.value().longArray()[1]);
+    assertEquals(2, v.value().longArray()[2]);
+    assertEquals(1, v.value().longArray()[3]);
+    
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void singleSeriesRefShortcut() throws Exception {
+    List<TimeSeries> sources = Lists.newArrayList(ts1);
+    when(source_result.timeSeries()).thenReturn(sources);
+    when(result.downstreamResult()).thenReturn(source_result);
+    
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, new int[] { 0 }, 1, queueThreshold, timeSeriesPerJob, threadCount);
+    assertTrue(iterator.hasNext());
+    
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> v = (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertEquals(1000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(1, v.value().longArray()[0]);
+    assertEquals(5, v.value().longArray()[1]);
+    assertEquals(2, v.value().longArray()[2]);
+    assertEquals(1, v.value().longArray()[3]);
+    
+    assertFalse(iterator.hasNext());
   }
   
   class MockSeries implements TimeSeries {
