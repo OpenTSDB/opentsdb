@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2020 The OpenTSDB Authors.
+// Copyright (C) 2020-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.Trace;
+import net.opentsdb.utils.JSON;
 
 /**
  * Static helper to handle an async query. 
@@ -65,10 +66,12 @@ public class AsyncRunner {
 
       @Override
       public void onTimeout(final AsyncEvent event) throws IOException {
-        LOG.error("[" + resource + "] The query has timed out for " + ctx);
+        LOG.error("[" + resource + "] The query has timed out for " + 
+            JSON.serializeToString(ctx.query()));
         GenericExceptionMapper.serialize(
             new QueryExecutionException("The query has exceeded "
-            + "the timeout limit.", 504), event.getAsyncContext().getResponse());
+            + "the timeout limit: " + JSON.serializeToString(ctx.query()), 504), 
+              event.getAsyncContext().getResponse());
         ctx.close();
         event.getAsyncContext().complete();
       }
@@ -134,7 +137,8 @@ public class AsyncRunner {
             query_span.setErrorTags(t)
                        .finish();
           }
-          throw new QueryExecutionException("Unexpected expection", 500, t);
+          throw new QueryExecutionException("Unexpected expection for query " 
+              + JSON.serializeToString(ctx.query()), 500, t);
         }
         
         if (execute_span != null) {
