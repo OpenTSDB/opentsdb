@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020 The OpenTSDB Authors.
+// Copyright (C) 2018-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,7 +59,10 @@ public class RateNumericArrayIterator implements QueryIterator,
   private boolean has_next;
   
   /** The value timestamp. */
-  private TimeStamp timestamp;
+  private final TimeStamp timestamp;
+  
+  /** The value pulled from the source. */
+  private final TimeSeriesValue<NumericArrayType> value;
   
   /** The long or double values. */
   private long[] long_values;
@@ -119,9 +122,20 @@ public class RateNumericArrayIterator implements QueryIterator,
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();
-      has_next = this.source.hasNext();
+      if (source.hasNext()) {
+        value = (TimeSeriesValue<NumericArrayType>) source.next();
+        timestamp = value.timestamp();
+        if (value.value() != null && value.value().end() > value.value().offset()) {
+          has_next = true;
+        }
+      } else {
+        value = null;
+        timestamp = null;
+      }
     } else {
       this.source = null;
+      value = null;
+      timestamp = null;
     }
   }
 
@@ -134,9 +148,6 @@ public class RateNumericArrayIterator implements QueryIterator,
   @Override
   public TimeSeriesValue<?> next() {
     has_next = false;
-    final TimeSeriesValue<NumericArrayType> value = 
-        (TimeSeriesValue<NumericArrayType>) source.next();
-    timestamp = value.timestamp();
     int idx = value.value().offset() + 1;
     int write_idx = 1;
     
