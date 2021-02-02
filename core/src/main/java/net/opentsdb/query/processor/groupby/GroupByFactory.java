@@ -143,7 +143,6 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
         final int endIndex,
         final NumericArrayAggregator aggregator,
         final CountDownLatch doneSignal) {
-      System.out.println("******* RESET IDX");
       start = DateTime.nanoTime();
       this.tsIndices = tsIndices;
       this.length = length;

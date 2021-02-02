@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -197,6 +197,12 @@ public class GroupByNumericArrayIterator
             "No aggregator found of type: " + ((GroupByConfig) node.config()).getAggregator());
       }
 
+      // shortcut
+      if (sources.size() == 1) {
+        accumulate(sources.iterator().next(), aggregator);
+        return;
+      }
+      
       // TODO: Need to check if it makes sense to make this threshold configurable
       final int aggrCount = Math.min(sources.size(), threadCount);
       NumericArrayAggregator[] valuesCombiner = new NumericArrayAggregator[aggrCount];
@@ -303,6 +309,14 @@ public class GroupByNumericArrayIterator
       if (aggregator == null) {
         throw new IllegalArgumentException(
             "No aggregator found of type: " + ((GroupByConfig) node.config()).getAggregator());
+      }
+      
+      // shortcut
+      if (sources_length == 1) {
+        accumulate(
+            ((GroupByResult) result).downstreamResult().timeSeries().get(sources[0]), 
+              aggregator);
+        return;
       }
 
       // TODO: Need to check if it makes sense to make this threshold configurable
