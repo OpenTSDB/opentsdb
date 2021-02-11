@@ -851,16 +851,6 @@ public class Tsdb1xMultiGet implements
       timestamp.update(node.pipelineContext().query().startTime());
     }
     
-    if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
-      if (pair.getKey()) {
-        timestamp.subtract(pair.getValue());
-      } else {
-        timestamp.add(pair.getValue());
-      }
-    }
-    
     if (rollup_index >= 0 && 
         rollup_index < node.rollupIntervals().size()) {
       final Collection<QueryNode> rates = node.pipelineContext()
@@ -890,6 +880,16 @@ public class Tsdb1xMultiGet implements
       // Don't return negative numbers.
       ts = ts > 0L ? ts : 0L;
       timestamp.updateEpoch(ts);
+    }
+    
+    if (source_config.timeShifts() != null) {
+      final Pair<Boolean, TemporalAmount> pair = 
+          source_config.timeShifts();
+      if (pair.getKey()) {
+        timestamp.subtract(pair.getValue());
+      } else {
+        timestamp.add(pair.getValue());
+      }
     }
   }
   
