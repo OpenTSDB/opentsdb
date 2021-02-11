@@ -718,15 +718,6 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     final TimeStamp timestamp = reversed ? 
         node.pipelineContext().query().endTime().getCopy() : 
           node.pipelineContext().query().startTime().getCopy();
-    if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
-      if (pair.getKey()) {
-        timestamp.subtract(pair.getValue());
-      } else {
-        timestamp.add(pair.getValue());
-      }
-    }
     
     if (rollups_enabled && rollup_index >= 0 && 
         rollup_index < node.rollupIntervals().size()) {
@@ -734,12 +725,12 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
           .upstreamOfType(node, Rate.class);
       final RollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
-        return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval) * 1000L);      
+        timestamp.updateEpoch(RollupUtils.getRollupBasetime(
+            (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));
       } else {
-        return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
+        timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
             (reversed ? node.pipelineContext().query().endTime().epoch() : 
-              node.pipelineContext().query().startTime().epoch()), interval) * 1000L);
+              node.pipelineContext().query().startTime().epoch()), interval));
       }
     } else {
       long ts = timestamp.epoch();
@@ -758,7 +749,18 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
       
       // Don't return negative numbers.
       ts = ts > 0L ? ts : 0L;
-      return new MillisecondTimeStamp(ts * 1000);
+      timestamp.updateEpoch(ts);
     }
+    
+    if (source_config.timeShifts() != null) {
+      final Pair<Boolean, TemporalAmount> pair = 
+          source_config.timeShifts();
+      if (pair.getKey()) {
+        timestamp.subtract(pair.getValue());
+      } else {
+        timestamp.add(pair.getValue());
+      }
+    }
+    return timestamp;
   }
 }
