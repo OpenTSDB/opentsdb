@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2021  The OpenTSDB Authors.
+// Copyright (C) 2012-2021  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -119,7 +119,6 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public Bytes.ByteMap<byte[]> getTagUids() {
-        Bytes.ByteMap<byte[]> tagUids = new Bytes.ByteMap<byte[]>();
 
         for (SpanGroup group : spanGroups) {
             tagUids.putAll(group.getTagUids());
