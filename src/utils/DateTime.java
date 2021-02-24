@@ -18,6 +18,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.TimeZone;
 
+import com.google.common.base.Strings;
 import net.opentsdb.core.Tags;
 
 /**
@@ -184,6 +185,10 @@ public class DateTime {
    * @throws IllegalArgumentException if the interval was malformed.
    */
   public static final long parseDuration(final String duration) {
+    if (duration == null || duration.isEmpty()) {
+      throw new IllegalArgumentException("Cannot parse null or empty duration");
+    }
+
     long interval;
     long multiplier;
     double temp;
@@ -614,7 +619,7 @@ public class DateTime {
    * @since 2.3
    */
   public static int unitsToCalendarType(final String units) {
-    if (units == null || units.isEmpty()) {
+    if (Strings.isNullOrEmpty(units)) {
       throw new IllegalArgumentException("Units cannot be null or empty");
     }
     

@@ -43,13 +43,16 @@ public class TestRollupConfig {
   private final static String tsdb_table = "tsdb";
   private final static String rollup_table = "tsdb-rollup-10m";
   private final static String preagg_table = "tsdb-rollup-agg-10m";
+  private final static String rollup_table_1h = "tsdb-rollup-1h";
+  private final static String preagg_table_1h = "tsdb-rollup-agg-1h";
   
   private TSDB tsdb;
   private HBaseClient client;
   private RollupConfig.Builder builder;
   private RollupInterval raw;
   private RollupInterval tenmin;
-  
+  private RollupInterval oneHourWithDelay;
+
   @Before
   public void before() throws Exception {
     tsdb = PowerMockito.mock(TSDB.class);
@@ -70,26 +73,38 @@ public class TestRollupConfig {
         .setInterval("10m")
         .setRowSpan("1d")
         .build();
-    
+
+    oneHourWithDelay = RollupInterval.builder()
+        .setTable(rollup_table_1h)
+        .setPreAggregationTable(preagg_table_1h)
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .setDelaySla("2d")
+        .build();
+
     builder = RollupConfig.builder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addInterval(raw)
-        .addInterval(tenmin);
+        .addInterval(tenmin)
+        .addInterval(oneHourWithDelay);
   }
   
   @Test
   public void ctor() throws Exception {
     RollupConfig config = builder.build();
-    assertEquals(2, config.forward_intervals.size());
+    assertEquals(3, config.forward_intervals.size());
     assertSame(raw, config.forward_intervals.get("1m"));
     assertSame(tenmin, config.forward_intervals.get("10m"));
-    
-    assertEquals(3, config.reverse_intervals.size());
+    assertSame(oneHourWithDelay, config.forward_intervals.get("1h"));
+
+    assertEquals(5, config.reverse_intervals.size());
     assertSame(raw, config.reverse_intervals.get(tsdb_table));
     assertSame(tenmin, config.reverse_intervals.get(rollup_table));
     assertSame(tenmin, config.reverse_intervals.get(preagg_table));
-    
+    assertSame(oneHourWithDelay, config.reverse_intervals.get(rollup_table_1h));
+    assertSame(oneHourWithDelay, config.reverse_intervals.get(preagg_table_1h));
+
     assertEquals(2, config.aggregations_to_ids.size());
     assertEquals(2, config.ids_to_aggregations.size());
     
@@ -102,7 +117,8 @@ public class TestRollupConfig {
     // missing aggregations
     builder = RollupConfig.builder()
         .addInterval(raw)
-        .addInterval(tenmin);
+        .addInterval(tenmin)
+        .addInterval(oneHourWithDelay);
     try {
       builder.build();
       fail("Expected IllegalArgumentException");
@@ -113,7 +129,8 @@ public class TestRollupConfig {
         .addAggregationId("Sum", 1)
         .addAggregationId("Max", 1)
         .addInterval(raw)
-        .addInterval(tenmin);
+        .addInterval(tenmin)
+        .addInterval(oneHourWithDelay);
     try {
       builder.build();
       fail("Expected IllegalArgumentException");
@@ -124,7 +141,8 @@ public class TestRollupConfig {
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 128)
         .addInterval(raw)
-        .addInterval(tenmin);
+        .addInterval(tenmin)
+        .addInterval(oneHourWithDelay);
     try {
       builder.build();
       fail("Expected IllegalArgumentException");
@@ -175,7 +193,8 @@ public class TestRollupConfig {
     
     assertSame(raw, config.getRollupInterval("1m"));
     assertSame(tenmin, config.getRollupInterval("10m"));
-    
+    assertSame(oneHourWithDelay, config.getRollupInterval("1h"));
+
     try {
       config.getRollupInterval("5m");
       fail("Expected NoSuchRollupForIntervalException");
@@ -199,6 +218,8 @@ public class TestRollupConfig {
     assertSame(raw, config.getRollupIntervalForTable(tsdb_table));
     assertSame(tenmin, config.getRollupIntervalForTable(rollup_table));
     assertSame(tenmin, config.getRollupIntervalForTable(preagg_table));
+    assertSame(oneHourWithDelay, config.getRollupIntervalForTable(rollup_table_1h));
+    assertSame(oneHourWithDelay, config.getRollupIntervalForTable(preagg_table_1h));
     
     try {
       config.getRollupIntervalForTable("nosuchtable");
@@ -270,5 +291,7 @@ public class TestRollupConfig {
     verify(client, times(2)).ensureTableExists(tsdb_table.getBytes());
     verify(client, times(1)).ensureTableExists(rollup_table.getBytes());
     verify(client, times(1)).ensureTableExists(preagg_table.getBytes());
+    verify(client, times(1)).ensureTableExists(rollup_table_1h.getBytes());
+    verify(client, times(1)).ensureTableExists(preagg_table_1h.getBytes());
   }
 }

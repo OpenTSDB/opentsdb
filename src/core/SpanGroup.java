@@ -12,14 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
@@ -52,7 +45,7 @@ import net.opentsdb.rollup.RollupQuery;
  * {@link Aggregator}) are given.  This is done by using a special
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
-final class SpanGroup implements DataPoints {
+final class SpanGroup extends AbstractSpanGroup {
   /** Annotations */
   private final ArrayList<Annotation> annotations;
 
@@ -109,7 +102,10 @@ final class SpanGroup implements DataPoints {
   
   /** The TSDB to which we belong, used for resolution */
   private final TSDB tsdb;
-  
+
+  /** The group we belong to */
+  private byte[] group;
+
   /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
@@ -231,7 +227,7 @@ final class SpanGroup implements DataPoints {
             final long query_end,
             final int query_index) {
      this(tsdb, start_time, end_time, spans, rate, rate_options, aggregator, 
-         downsampler, query_start, query_end, query_index, null);
+         downsampler, query_start, query_end, query_index, null, new byte[0]);
   }
   
   /**
@@ -265,7 +261,8 @@ final class SpanGroup implements DataPoints {
             final long query_start,
             final long query_end,
             final int query_index,
-            final RollupQuery rollup_query) {
+            final RollupQuery rollup_query,
+            byte[] group) {
      annotations = new ArrayList<Annotation>();
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
          start_time * 1000 : start_time;
@@ -285,6 +282,7 @@ final class SpanGroup implements DataPoints {
      this.query_index = query_index;
      this.rollup_query = rollup_query;
      this.tsdb = tsdb;
+     this.group = group;
   }
   
   /**
@@ -531,30 +529,20 @@ final class SpanGroup implements DataPoints {
                                   rate, rate_options, rollup_query);
   }
 
-  /**
-   * Finds the {@code i}th data point of this group in {@code O(n)}.
-   * Where {@code n} is the number of data points in this group.
-   */
-  private DataPoint getDataPoint(int i) {
-    if (i < 0) {
-      throw new IndexOutOfBoundsException("negative index: " + i);
-    }
-    final int saved_i = i;
-    final SeekableView it = iterator();
-    DataPoint dp = null;
-    while (it.hasNext() && i >= 0) {
-      dp = it.next();
-      i--;
-    }
-    if (i != -1 || dp == null) {
-      throw new IndexOutOfBoundsException("index " + saved_i
-          + " too large (it's >= " + size() + ") for " + this);
-    }
-    return dp;
-  }
-
   public long timestamp(final int i) {
     return getDataPoint(i).timestamp();
+  }
+
+  /**
+   * Returns the group the spans in here belong to.
+   *
+   * Returns null if the NONE aggregator was requested in the query
+   * Returns an empty array if there were no group bys and they're all in the same group
+   * Returns the group otherwise
+   * @return The group
+   */
+  public byte[] group() {
+    return group;
   }
 
   public boolean isInteger(final int i) {
@@ -585,7 +573,8 @@ final class SpanGroup implements DataPoints {
       + ", aggregator=" + aggregator
       + ", downsampler=" + downsampler
       + ", query_start=" + query_start
-      + ", query_end" + query_end
+      + ", query_end=" + query_end
+      + ", group=" + Arrays.toString(group)
       + ')';
   }
 
@@ -601,6 +590,10 @@ final class SpanGroup implements DataPoints {
   @Override
   public float getPercentile() {
     throw new UnsupportedOperationException("getPercentile not supported");
+  }
+
+  public List<Span> getSpans() {
+    return spans;
   }
   
   /**

@@ -612,6 +612,7 @@ public class Config {
     default_map.put("tsd.rollups.agg_tag_key", "_aggregate");
     default_map.put("tsd.rollups.raw_agg_tag_value", "RAW");
     default_map.put("tsd.rollups.block_derived", "true");
+    default_map.put("tsd.rollups.split_query.enable", "false");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");

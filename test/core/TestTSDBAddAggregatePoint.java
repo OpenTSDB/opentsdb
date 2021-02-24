@@ -84,6 +84,7 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     Whitebox.setInternalState(tsdb, "default_interval", 
         rollup_config.getRollupInterval("1m"));
     Whitebox.setInternalState(tsdb, "rollups_block_derived", true);
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", false);
     Whitebox.setInternalState(tsdb, "agg_tag_key", 
         config.getString("tsd.rollups.agg_tag_key"));
     Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 

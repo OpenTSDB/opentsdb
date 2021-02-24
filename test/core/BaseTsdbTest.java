@@ -31,6 +31,8 @@ import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.Authorization;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -912,6 +914,23 @@ public class BaseTsdbTest {
     note.setDescription(NOTE_DESCRIPTION);
     note.setNotes(NOTE_NOTES);
     note.syncToStorage(tsdb, false).joinUninterruptibly();
+  }
+
+  RollupQuery makeRollupQuery() {
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", true);
+    final RollupInterval oneHourWithDelay = RollupInterval.builder()
+            .setTable("fake-rollup-table")
+            .setPreAggregationTable("fake-preagg-table")
+            .setInterval("1h")
+            .setRowSpan("1d")
+            .setDelaySla("2d")
+            .build();
+    return new RollupQuery(
+            oneHourWithDelay,
+            Aggregators.SUM,
+            3600000,
+            Aggregators.SUM
+    );
   }
 
   /**

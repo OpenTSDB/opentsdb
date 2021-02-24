@@ -61,7 +61,7 @@ import net.opentsdb.utils.DateTime;
 /**
  * Non-synchronized implementation of {@link Query}.
  */
-final class TsdbQuery implements Query {
+final class TsdbQuery extends AbstractQuery {
 
   private static final Logger LOG = LoggerFactory.getLogger(TsdbQuery.class);
 
@@ -98,22 +98,22 @@ final class TsdbQuery implements Query {
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
   private long end_time = UNSET;
-  
+
   /** Whether or not to delete the queried data */
   private boolean delete;
 
   /** ID of the metric being looked up. */
   private byte[] metric;
-  
+
   /** Row key regex to pass to HBase if we have tags or TSUIDs */
   private String regex;
-  
+
   /** Whether or not to enable the fuzzy row filter for Hbase */
   private boolean enable_fuzzy_filter;
-  
+
   /** Whether or not the user wants to use the fuzzy filter */
   private boolean override_fuzzy_filter;
-  
+
   /**
    * Tags by which we must group the results.
    * Each element is a tag ID.
@@ -132,7 +132,7 @@ final class TsdbQuery implements Query {
 
   /** Specifies the various options for rate calculations */
   private RateOptions rate_options;
-  
+
   /** Aggregator function to use. */
   private Aggregator aggregator;
 
@@ -141,55 +141,55 @@ final class TsdbQuery implements Query {
 
   /** Rollup interval and aggregator, null if not applicable. */
   private RollupQuery rollup_query;
-  
+
   /** Map of RollupInterval objects in the order of next best match
    * like 1d, 1h, 10m, 1m, for rollup of 1d. */
   private List<RollupInterval> best_match_rollups;
-  
+
   /** How to use the rollup data */
   private ROLLUP_USAGE rollup_usage = ROLLUP_USAGE.ROLLUP_NOFALLBACK;
-  
-  /** Search the query on pre-aggregated table directly instead of post fetch 
+
+  /** Search the query on pre-aggregated table directly instead of post fetch
    * aggregation. */
   private boolean pre_aggregate;
-  
+
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
-  
+
   /** An index that links this query to the original sub query */
   private int query_index;
-  
+
   /** Tag value filters to apply post scan */
   private List<TagVFilter> filters;
-  
+
   /** An object for storing stats in regarding the query. May be null */
   private QueryStats query_stats;
-  
+
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
-  
+
   private List<Float> percentiles;
-  
+
   private boolean show_histogram_buckets;
-  
+
   /** Set at filter resolution time to determine if we can use multi-gets */
   private boolean use_multi_gets;
 
   /** Set by the user if they want to bypass multi-gets */
   private boolean override_multi_get;
-  
+
   /** Whether or not to use the search plugin for multi-get resolution. */
   private boolean multiget_with_search;
-  
+
   /** Whether or not to fall back on query failure. */
   private boolean search_query_failure;
-  
+
   /** The maximum number of bytes allowed per query. */
   private long max_bytes = 0;
-  
+
   /** The maximum number of data points allowed per query. */
   private long max_data_points = 0;
-  
+
   /**
    * Enum for rollup fallback control.
    * @since 2.4
@@ -199,7 +199,7 @@ final class TsdbQuery implements Query {
     ROLLUP_NOFALLBACK, //Use rollup data, and don't fallback on no data
     ROLLUP_FALLBACK, //Use rollup data and fallback to next best match on data
     ROLLUP_FALLBACK_RAW; //Use rollup data and fallback to raw on no data
-    
+
     /**
      * Parse and transform a string to ROLLUP_USAGE object
      * @param str String to be parsed
@@ -207,7 +207,7 @@ final class TsdbQuery implements Query {
      */
     public static ROLLUP_USAGE parse(String str) {
       ROLLUP_USAGE def = ROLLUP_NOFALLBACK;
-      
+
       if (str != null) {
         try {
           def = ROLLUP_USAGE.valueOf(str.toUpperCase());
@@ -217,10 +217,10 @@ final class TsdbQuery implements Query {
                   + "uses raw data but don't fallback on no data");
         }
       }
-      
+
       return def;
     }
-    
+
     /**
      * Whether to fallback to next best match or raw
      * @return true means fall back else false
@@ -229,7 +229,7 @@ final class TsdbQuery implements Query {
       return this == ROLLUP_FALLBACK || this == ROLLUP_FALLBACK_RAW;
     }
   }
-  
+
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -249,15 +249,15 @@ final class TsdbQuery implements Query {
       return "raw";
     }
   }
-  
-  /** Search the query on pre-aggregated table directly instead of post fetch 
-   * aggregation. 
-   * @since 2.4 
+
+  /** Search the query on pre-aggregated table directly instead of post fetch
+   * aggregation.
+   * @since 2.4
    */
   public boolean isPreAggregate() {
       return this.pre_aggregate;
   }
-  
+
   /**
    * Sets the start time for the query
    * @param timestamp Unix epoch timestamp in seconds or milliseconds
@@ -266,7 +266,7 @@ final class TsdbQuery implements Query {
    */
   @Override
   public void setStartTime(final long timestamp) {
-    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
+    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 &&
         timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
     } else if (end_time != UNSET && timestamp >= getEndTime()) {
@@ -429,10 +429,72 @@ final class TsdbQuery implements Query {
   public void setExplicitTags(final boolean explicit_tags) {
     this.explicit_tags = explicit_tags;
   }
-  
+
+  /**
+   * Splits this query into one query for the part that is covered by the rollup
+   * table (as defined in its SLA) and one to get the data for the remaining time
+   * range from the raw table.
+   * @param query The original TSQuery as parsed
+   * @param index The index of the TSQuery
+   * @param rawQuery A new TsdbQuery instance that will be configured to hit the raw table
+   *                 for the correct time range
+   * @return the deferred analogous to {@link TsdbQuery#configureFromQuery(TSQuery, int)}
+   * @throws IllegalStateException if the query is not eligible or splitting is disabled
+   */
+  public Deferred<Object> split(final TSQuery query, final int index, final TsdbQuery rawQuery) {
+    if (!needsSplitting()) {
+      throw new IllegalStateException("Query is not eligible for splitting" + this.toString());
+    }
+
+    Deferred<Object> rawResolutionDeferred = rawQuery.configureFromQuery(query, index, true);
+
+    long lastRollupTimestampMillis = rollup_query.getLastRollupTimestampSeconds() * 1000L;
+
+    boolean needsRawAndRollupData = QueryUtil.isTimestampAfter(lastRollupTimestampMillis, getStartTime());
+    if (needsRawAndRollupData) {
+      updateRollupSplitTimes(rawQuery, lastRollupTimestampMillis);
+    }
+
+    return rawResolutionDeferred;
+  }
+
+  /**
+   * Updates the timestamp of this query and the corresponding raw part in the case of a split.
+   *
+   * Sets the start and end times for this query so that it hits the rollup table until the given timestamp.
+   * Also updates the passed {@param rawQuery} with the new start time so that it hits the raw table for points from the
+   * given timestamp onwards.
+   *
+   * Makes sure that all timestamps are in milliseconds.
+   *
+   * @param rawQuery        The raw query part
+   * @param splitTimestamp  The timestamp until when rollup data is guaranteed to be available
+   */
+  private void updateRollupSplitTimes(final TsdbQuery rawQuery, long splitTimestamp) {
+    setEndTime(splitTimestamp);
+
+    boolean isStartTimeInSeconds = (getStartTime() & Const.SECOND_MASK) == 0;
+    if (isStartTimeInSeconds) {
+      setStartTime(getStartTime() * 1000L);
+    }
+
+    boolean isRawEndTimeInSeconds = (rawQuery.getEndTime() & Const.SECOND_MASK) == 0;
+    if (isRawEndTimeInSeconds) {
+      rawQuery.setEndTime(rawQuery.getEndTime() * 1000L);
+    }
+
+    rawQuery.setStartTime(splitTimestamp);
+  }
+
   @Override
-  public Deferred<Object> configureFromQuery(final TSQuery query, 
-      final int index) {
+  public Deferred<Object> configureFromQuery(final TSQuery query,
+                                             final int index) {
+    return configureFromQuery(query, index, false);
+  }
+
+
+  public Deferred<Object> configureFromQuery(final TSQuery query,
+      final int index, boolean force_raw) {
     if (query.getQueries() == null || query.getQueries().isEmpty()) {
       throw new IllegalArgumentException("Missing sub queries");
     }
@@ -477,7 +539,7 @@ final class TsdbQuery implements Query {
     percentiles = sub_query.getPercentiles();
     show_histogram_buckets = sub_query.getShowHistogramBuckets();
     
-    if (rollup_usage != ROLLUP_USAGE.ROLLUP_RAW) {
+    if (!force_raw && rollup_usage != ROLLUP_USAGE.ROLLUP_RAW) {
       //Check whether the down sampler is set and rollup is enabled
       transformDownSamplerToRollupQuery(aggregator, sub_query.getDownsample());
     }
@@ -576,7 +638,7 @@ final class TsdbQuery implements Query {
           return deferreds;
         }
       }
-      
+
       // fire off the callback chain by resolving the metric first
       return tsdb.metrics.getIdAsync(sub_query.getMetric())
           .addCallbackDeferring(new MetricCB());
@@ -587,7 +649,7 @@ final class TsdbQuery implements Query {
   public void downsample(final long interval, final Aggregator downsampler,
       final FillPolicy fill_policy) {
     this.downsampler = new DownsamplingSpecification(
-        interval, downsampler,fill_policy);
+        interval, downsampler, fill_policy);
   }
 
   /**
@@ -704,43 +766,11 @@ final class TsdbQuery implements Query {
       }
     }
   }
-  /**
-   * Executes the query.
-   * NOTE: Do not run the same query multiple times. Construct a new query with
-   * the same parameters again if needed
-   * TODO(cl) There are some strange occurrences when unit testing where the end
-   * time, if not set, can change between calls to run()
-   * @return An array of data points with one time series per array value
-   */
-  @Override
-  public DataPoints[] run() throws HBaseException {
-    try {
-      return runAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  @Override
-  public DataPoints[] runHistogram() throws HBaseException {
-    if (!isHistogramQuery()) {
-      throw new RuntimeException("Should never be here");
-    }
-    
-    try {
-      return runHistogramAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
+
   @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
     Deferred<DataPoints[]> result = null;
+
     if (use_multi_gets && override_multi_get) {
       result = this.findSpansWithMultiGetter().addCallback(new GroupByAndAggregateCB());
     } else {
@@ -777,10 +807,45 @@ final class TsdbQuery implements Query {
     if ((this.percentiles != null && this.percentiles.size() > 0) || show_histogram_buckets) {
       return true;
     }
-    
+
     return false;
   }
-  
+
+  @Override
+  public boolean isRollupQuery() {
+    return RollupQuery.isValidQuery(rollup_query);
+  }
+
+  /**
+   * Returns whether this query needs to be split. It does if
+   * - splitting of queries is enabled globally AND
+   * - it can be split (i.e. it's a valid rollups query) AND
+   * - the table it is hitting has an SLA configured that describes the blackout period AND
+   * - the query is actually looking at data from the time beyond the SLA
+   *
+   * @return whether this query needs to be split.
+   * @since 2.4
+   */
+  @Override
+  public boolean needsSplitting() {
+    if (!tsdb.isRollupsSplittingEnabled()) {
+      // Don't split if the global config doesn't allow it
+      return false;
+    }
+
+    if (!isRollupQuery()) {
+      // Don't split if it's hitting the raw table anyway
+      return false;
+    }
+
+    if (rollup_query.getRollupInterval().getMaximumLag() <= 0) {
+      // Don't split if the table doesn't have a maximum lag configured
+      return false;
+    }
+
+    return rollup_query.isInBlackoutPeriod(getEndTime());
+  }
+
   /**
    * Finds all the {@link Span}s that match this query.
    * This is what actually scans the HBase table and loads the data into
@@ -838,8 +903,8 @@ final class TsdbQuery implements Query {
     new TreeMap<byte[], Span>(new SpanCmp(metric_width));
 
     scan_start_time = System.nanoTime();
-    
-    return new MultiGetQuery(tsdb, this, metric, row_key_literals_list, 
+
+    return new MultiGetQuery(tsdb, this, metric, row_key_literals_list,
         getScanStartTimeSeconds(), getScanEndTimeSeconds(),
         tableToBeScanned(), spans, null, 0, rollup_query, query_stats, query_index, 0,
         false, search_query_failure).fetch();
@@ -954,7 +1019,8 @@ final class TsdbQuery implements Query {
               getStartTime(), 
               getEndTime(),
               query_index,
-              rollup_query);
+              rollup_query,
+              null);
           group.add(span);
           groups[i++] = group;
         }
@@ -974,7 +1040,8 @@ final class TsdbQuery implements Query {
                                               getStartTime(), 
                                               getEndTime(),
                                               query_index,
-                                              rollup_query);
+                                              rollup_query,
+                                              new byte[0]);
         if (query_stats != null) {
           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
         }
@@ -1018,6 +1085,11 @@ final class TsdbQuery implements Query {
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
+          // Copy the array because we're going to keep `group' and overwrite
+          // its contents. So we want the collection to have an immutable copy.
+          final byte[] group_copy = new byte[group.length];
+          System.arraycopy(group, 0, group_copy, 0, group.length);
+
           thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
@@ -1025,11 +1097,8 @@ final class TsdbQuery implements Query {
                                    getStartTime(), 
                                    getEndTime(),
                                    query_index,
-                                   rollup_query);
-          // Copy the array because we're going to keep `group' and overwrite
-          // its contents. So we want the collection to have an immutable copy.
-          final byte[] group_copy = new byte[group.length];
-          System.arraycopy(group, 0, group_copy, 0, group.length);
+                                   rollup_query,
+                                   group_copy);
           groups.put(group_copy, thegroup);
         }
         thegroup.add(entry.getValue());
@@ -1395,8 +1464,8 @@ final class TsdbQuery implements Query {
     final Scanner scanner = QueryUtil.getMetricScanner(tsdb, salt_bucket, metric, 
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
-        : (int) getScanEndTimeSeconds(), 
-        tableToBeScanned(), 
+        : (int) getScanEndTimeSeconds(),
+        tableToBeScanned(),
         TSDB.FAMILY());
     if(tsdb.getConfig().use_otsdb_timestamp()) {
       long stTime = (getScanStartTimeSeconds() * 1000);
@@ -1429,7 +1498,7 @@ final class TsdbQuery implements Query {
               new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
                       .getBytes(Const.ASCII_CHARSET))));
           rollup_filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(new byte[] { 
+              new BinaryPrefixComparator(new byte[] {
                   (byte) tsdb.getRollupConfig().getIdForAggregator(
                       rollup_query.getRollupAgg().toString())
               })));
@@ -1441,7 +1510,7 @@ final class TsdbQuery implements Query {
               new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
                   .getBytes(Const.ASCII_CHARSET))));
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(new byte[] { 
+              new BinaryPrefixComparator(new byte[] {
                   (byte) tsdb.getRollupConfig().getIdForAggregator(
                       rollup_query.getRollupAgg().toString())
               })));
@@ -1458,10 +1527,10 @@ final class TsdbQuery implements Query {
                 (byte) tsdb.getRollupConfig().getIdForAggregator("sum")
             })));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
+            new BinaryPrefixComparator(new byte[] {
                 (byte) tsdb.getRollupConfig().getIdForAggregator("count")
             })));
-        
+
         if (existing != null) {
           final List<ScanFilter> combined = new ArrayList<ScanFilter>(2);
           combined.add(existing);
@@ -1476,14 +1545,14 @@ final class TsdbQuery implements Query {
   }
 
   /**
-   * Identify the table to be scanned based on the roll up and pre-aggregate 
+   * Identify the table to be scanned based on the roll up and pre-aggregate
    * query parameters
    * @return table name as byte array
    * @since 2.4
    */
   private byte[] tableToBeScanned() {
     final byte[] tableName;
-    
+
     if (RollupQuery.isValidQuery(rollup_query)) {
       if (pre_aggregate) {
         tableName= rollup_query.getRollupInterval().getGroupbyTable();
@@ -1498,12 +1567,12 @@ final class TsdbQuery implements Query {
     else {
       tableName = tsdb.dataTable();
     }
-    
+
     return tableName;
   }
-  
+
   /** Returns the UNIX timestamp from which we must start scanning.  */
-  private long getScanStartTimeSeconds() {
+  long getScanStartTimeSeconds() {
     // Begin with the raw query start time.
     long start = getStartTime();
 
@@ -1511,15 +1580,15 @@ final class TsdbQuery implements Query {
     if ((start & Const.SECOND_MASK) != 0L) {
       start /= 1000L;
     }
-    
+
     // if we have a rollup query, we have different row key start times so find
     // the base time from which we need to search
     if (rollup_query != null) {
-      long base_time = RollupUtils.getRollupBasetime(start, 
+      long base_time = RollupUtils.getRollupBasetime(start,
           rollup_query.getRollupInterval());
       if (rate) {
         // scan one row back so we can get the first rate value.
-        base_time = RollupUtils.getRollupBasetime(base_time - 1, 
+        base_time = RollupUtils.getRollupBasetime(base_time - 1,
             rollup_query.getRollupInterval());
       }
       return base_time;
@@ -1559,11 +1628,11 @@ final class TsdbQuery implements Query {
         end++;
       }
     }
-    
+
     if (rollup_query != null) {
-      return RollupUtils.getRollupBasetime(end + 
-          (rollup_query.getRollupInterval().getIntervalSeconds() * 
-              rollup_query.getRollupInterval().getIntervals()), 
+      return RollupUtils.getRollupBasetime(end +
+          (rollup_query.getRollupInterval().getIntervalSeconds() *
+              rollup_query.getRollupInterval().getIntervals()),
           rollup_query.getRollupInterval());
     }
 
@@ -1823,6 +1892,14 @@ final class TsdbQuery implements Query {
     }
 
   }
+
+  RateOptions getRateOptions() { return rate_options; }
+  boolean isRate() { return rate; }
+  Aggregator getAggregator() {return aggregator; }
+  DownsamplingSpecification getDownsampler() { return downsampler; }
+  RollupQuery getRollupQuery() { return rollup_query; }
+  int getQueryIndex() { return query_index; }
+
 
   /** Helps unit tests inspect private methods. */
   @VisibleForTesting

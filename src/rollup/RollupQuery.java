@@ -17,6 +17,7 @@ import com.google.common.base.Objects;
 
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Holds information about a rollup interval and rollup aggregator.
@@ -184,5 +185,27 @@ public class RollupQuery {
    */
   public boolean isLowerSamplingRate() {
     return this.rollup_interval.getIntervalSeconds() * 1000 < sample_interval_ms;
+  }
+
+  /**
+   * Looks at the SLA configured for the table to be queried and determines the
+   * timestamp of the latest data point that is guaranteed to be covered by the
+   * table.
+   * @return last timestamp in seconds of the period guaranteed to be covered
+   */
+  public int getLastRollupTimestampSeconds() {
+    return (int) (DateTime.currentTimeMillis()/1000 - getRollupInterval().getMaximumLag());
+  }
+
+  /**
+   * Checks whether the passed timestamp is in the blackout period (between
+   * the latest guaranteed timestamp and now)
+   * @param timestampMillis The timestamp to check in milliseconds
+   * @return whether the timestamp is in the blackout period
+   */
+  public boolean isInBlackoutPeriod(long timestampMillis) {
+    long latestRollupPointTimestamp = DateTime.currentTimeMillis() - getRollupInterval().getMaximumLag()*1000L;
+
+    return timestampMillis > latestRollupPointTimestamp;
   }
 }

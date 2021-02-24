@@ -171,7 +171,23 @@ public interface Query {
    */
   public Deferred<Object> configureFromQuery(final TSQuery query, 
       final int index);
-  
+
+  /**
+   * Prepares a query against HBase by setting up group bys and resolving
+   * strings to UIDs asynchronously. This replaces calls to all of the setters
+   * like the {@link setTimeSeries}, {@link setStartTime}, etc.
+   * Make sure to wait on the deferred return before calling {@link runAsync}.
+   * @param query The main query to fetch the start and end time from
+   * @param index The index of which sub query we're executing
+   * @param force_raw If true, always get the data from the raw table; disables rollups
+   * @throws IllegalArgumentException if the query was missing sub queries or
+   * the index was out of bounds.
+   * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
+   * does not exist. (Bubbles up through the deferred)
+   * @since 2.4
+   */
+  Deferred<Object> configureFromQuery(final TSQuery query, final int index, boolean force_raw);
+
   /**
    * Downsamples the results by specifying a fixed interval between points.
    * <p>
@@ -262,7 +278,19 @@ public interface Query {
    * @return
    */
   public boolean isHistogramQuery();
-  
+
+  /**
+   * @return Whether or not this is a rollup query
+   * @since 2.4
+   */
+  public boolean isRollupQuery();
+
+  /**
+   * @return whether this query needs to be split.
+   * @since 2.4
+   */
+  public boolean needsSplitting();
+
   /**
    * Set the percentile calculation parameters for this query if this is 
    * a histogram query
