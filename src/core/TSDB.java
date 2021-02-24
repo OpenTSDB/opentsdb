@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.hbase.async.RegionLocation;
+import org.hbase.async.HBaseRpc;
 
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
@@ -123,7 +125,18 @@ public final class TSDB {
       return write;
     }
   }
-  
+
+  /** Whether tables are fully available, partially available, or unavailable.
+   *
+   * The order matters, since we do ordinal comparison—lower should mean
+   * less available.
+   */
+  public enum TableAvailability {
+    NONE,
+    PARTIAL,
+    FULL,
+  }
+
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
 
@@ -758,6 +771,145 @@ public final class TSDB {
           config.getString("tsd.storage.hbase.meta_table")));
     }
     return Deferred.group(checks);
+  }
+
+  /* Suffix for queries from availability check below. */
+  private static byte[] PROBE_SUFFIX = {
+    ':', 'A', 's', 'y', 'n', 'c', 'H', 'B', 'a', 's', 'e',
+    '~', 'p', 'r', 'o', 'b', 'e', '~', '<', ';', '_', '<',
+  };
+
+  /**
+   * Get availability status of regions for a table.
+   *
+   * Implemented as separate method so we can override it in unit tests.
+   *
+   * @return Per-region availability.
+   *
+   * @since 2.5
+   */
+  Deferred<ArrayList<Boolean>> getTableRegionAvailability(String table) {
+    final String table_id = config.getString(table);
+    
+    /** Convert result to true. */
+    final class SuccessToBoolCallback implements Callback<Boolean, ArrayList<KeyValue>> {
+      @Override
+      public Boolean call(final ArrayList<KeyValue> o) {
+        LOG.info("Check HBase availability, got success.");
+        return true;
+      }
+    }
+
+    /** Convert error result to false. */
+    final class FailureToBoolCallback implements Callback<Boolean, Exception> {
+      @Override
+      public Boolean call(final Exception e) {
+        LOG.error("Check HBase availability, got error:", e);
+        return false;
+      }
+    }
+
+    final SuccessToBoolCallback successCB = new SuccessToBoolCallback();
+    final FailureToBoolCallback failureCB = new FailureToBoolCallback();
+
+    /** Lookup availability of each region. */
+    final class RegionInfoCallback implements Callback<Deferred<ArrayList<Boolean>>,List<RegionLocation>> {
+      @Override
+      public Deferred<ArrayList<Boolean>> call(final List<RegionLocation> regions) {
+        LOG.info("Availability check got this many regions: " + regions.size());
+        ArrayList<Deferred<Boolean>> available = new ArrayList<Deferred<Boolean>>();
+        for (RegionLocation region : regions) {
+          // Use suffix so we don't hit real data:
+          final byte[] key = region.startKey();
+          final byte[] testKey = new byte[key.length + 64];
+          System.arraycopy(key, 0, testKey, 0, key.length);
+          System.arraycopy(PROBE_SUFFIX, 0,
+                           testKey, testKey.length - PROBE_SUFFIX.length,
+                           PROBE_SUFFIX.length);
+          LOG.debug("Checking region with start key " + testKey + " end key " + region.stopKey());
+          GetRequest probe = new GetRequest(table_id, testKey);
+          // If we don't get a response within 1 second, assume the region is
+          // unavailable.
+          probe.setTimeout(1000);
+          probe.setFailfast(true);
+          available.add(client.get(probe).addCallbacks(successCB, failureCB));
+        }
+        return Deferred.group(available);
+      }
+    }
+
+    return client.locateRegions(config.getString(table))
+      .addCallbackDeferring(new RegionInfoCallback());
+  }
+
+  /**
+   * Check for full or partial data and UID tables availability in HBase.
+   *
+   * @return Status of table availability.
+   *
+   * @since 2.5
+   */
+  public Deferred<TableAvailability> checkNecessaryTablesAvailability() {
+    /** Convert list of booleans (indicating a region being available) into full
+     * (all were available), partial (some were available), none (none were
+     * available).
+     */
+    final class TableAvailabilityCB implements Callback<TableAvailability,ArrayList<Boolean>> {
+      @Override
+      public TableAvailability call(final ArrayList<Boolean> available) {
+        if (available.size() == 0) {
+          return TableAvailability.NONE;
+        }
+        boolean hasAvailable = false;
+        boolean hasUnavailable = false;
+        for (Boolean regionAvailable : available) {
+          if (regionAvailable) {
+            hasAvailable = true;
+          } else {
+            hasUnavailable = true;
+          }
+        }
+        if (hasAvailable && hasUnavailable) {
+          return TableAvailability.PARTIAL;
+        } else if (hasAvailable) {
+          return TableAvailability.FULL;
+        } else {
+          return TableAvailability.NONE;
+        }
+      }
+    }
+
+    /** If getting regions fails, availability is NONE. */
+    final class FailedRegionInfoCallback implements Callback<TableAvailability,Exception> {
+      @Override
+      public TableAvailability call(final Exception e) {
+        LOG.error("Failed to get regions during table availability check", e);
+        return TableAvailability.NONE;
+      }
+    }
+
+    ArrayList<Deferred<TableAvailability>> tables = new ArrayList<Deferred<TableAvailability>>();
+    tables.add(getTableRegionAvailability("tsd.storage.hbase.uid_table")
+               .addCallbacks(new TableAvailabilityCB(), new FailedRegionInfoCallback()));
+    tables.add(getTableRegionAvailability("tsd.storage.hbase.data_table")
+               .addCallbacks(new TableAvailabilityCB(), new FailedRegionInfoCallback()));
+
+    /** Combine availability for two tables by picking the lower of the two. */
+    final class CombineAvailabilityCB implements Callback<TableAvailability,ArrayList<TableAvailability>> {
+      @Override
+      public TableAvailability call(final ArrayList<TableAvailability> availabilities) {
+        assert availabilities.size() == 2;
+        TableAvailability result = TableAvailability.FULL;
+        for (TableAvailability availability: availabilities) {
+          if (availability.ordinal() < result.ordinal()) {
+            result = availability;
+          }
+        }
+        return result;
+      }
+    }
+
+    return Deferred.group(tables).addCallback(new CombineAvailabilityCB());
   }
 
   /** Number of cache hits during lookups involving UIDs. */

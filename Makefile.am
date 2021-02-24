@@ -334,6 +334,7 @@ test_SRC := \
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
 	test/core/TestTSDBAddPoint.java	\
+	test/core/TestTSDBTableAvailability.java	\
 	test/core/TestTsdbQueryDownsample.java	\
 	test/core/TestTsdbQueryDownsampleSalted.java	\
 	test/core/TestTsdbQuery.java	\
@@ -427,6 +428,7 @@ test_SRC := \
 	test/tsd/TestRTPublisher.java	\
 	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestStatsRpc.java \
+	test/tsd/TestStatusRpc.java \
 	test/tsd/TestSuggestRpc.java	\
 	test/tsd/TestTreeRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\

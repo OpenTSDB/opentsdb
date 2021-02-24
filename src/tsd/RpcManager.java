@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import com.google.common.collect.Table;
+import net.opentsdb.core.TSDB.TableAvailability;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -108,6 +110,8 @@ public final class RpcManager {
   private ImmutableMap<String, HttpRpcPlugin> http_plugin_commands;
   /** List of activated RPC plugins */
   private ImmutableList<RpcPlugin> rpc_plugins;
+  /** Status command—we keep a reference so we can explicitly shut it down. */
+  private Status status;
 
   /** The TSDB that owns us. */
   private TSDB tsdb;
@@ -263,10 +267,12 @@ public final class RpcManager {
     final ListAggregators aggregators = new ListAggregators();
     final DropCachesRpc dropcaches = new DropCachesRpc();
     final Version version = new Version();
-    
+    status = new Status();
+
     telnet.put("stats", stats);
     telnet.put("dropcaches", dropcaches);
     telnet.put("version", version);
+    telnet.put("status", status);
     telnet.put("exit", new Exit());
     telnet.put("help", new Help());
     
@@ -283,6 +289,7 @@ public final class RpcManager {
       http.put("api/dropcaches", dropcaches);
       http.put("api/stats", stats);
       http.put("api/version", version);
+      http.put("api/status", status);
     }
     
     final PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
@@ -481,6 +488,8 @@ public final class RpcManager {
    * (think of it as {@code Deferred<Void>}).
    */
   public Deferred<ArrayList<Object>> shutdown() {
+    status.shutdown();
+
     // Clear shared instance.
     INSTANCE.set(null);
 
@@ -637,6 +646,80 @@ public final class RpcManager {
       } else {
         query.sendReply(JSON.serializeToBytes(Aggregators.set()));
       }
+    }
+  }
+
+  /** The "status" command. */
+  static final class Status implements TelnetRpc, HttpRpc {
+    String status = "startup";
+
+    /** Called by RpcManager when it is shutdown. */
+    public void shutdown() {
+      status = "shutting-down";
+    }
+
+    /** Update status, return Deferred that fires when status is updated. */
+    private Deferred<Object> updateStatus(final TSDB tsdb) {
+      // Once we're in shutdown mode the status never changes.
+      if (status == "shutting-down") {
+        return Deferred.fromResult(null);
+      }
+
+      Deferred<TableAvailability> availability = tsdb.checkNecessaryTablesAvailability();
+
+      final class AvailabilityToStatusCB implements Callback<Object,TableAvailability> {
+        @Override
+        public Object call(final TableAvailability availability) {
+          // If we're in startup mode, lack of availability may just be due to
+          // starting up, so don't consider that an error state.
+          if ((status == "startup") && (availability == TableAvailability.NONE)) {
+              return null;
+            }
+
+          if (availability == TableAvailability.FULL) {
+            status = "ok";
+          } else if (availability == TableAvailability.PARTIAL) {
+            status = "partial";
+          } else {
+            status = "error";
+          }
+          return null;
+        }
+      }
+      return availability.addCallback(new AvailabilityToStatusCB());
+    }
+
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
+      final class WriteStatusCB implements Callback<Object,Object> {
+        @Override
+        public Object call(final Object o) {
+          if (chan.isConnected()) {
+            chan.write(status + '\n');
+          }
+          return null;
+        }
+      }
+
+      return updateStatus(tsdb).addCallback(new WriteStatusCB());
+    }
+
+    public void execute(final TSDB tsdb, final HttpQuery query) throws
+      IOException {
+      // only accept GET
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName());
+
+      final class WriteStatusCB implements Callback<Object,Object> {
+        @Override
+        public Object call(final Object o) {
+          final HashMap<String, String> result = new HashMap<String, String>();
+          result.put("status", status);
+          query.sendReply(JSON.serializeToBytes(result));
+          return null;
+        }
+      }
+
+      updateStatus(tsdb).addCallback(new WriteStatusCB());
     }
   }
 
