@@ -86,7 +86,7 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     query.setStartTime(17592186044416L);
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test
   public void setStartTimeEqualtoEndTime() throws Exception {
     query.setEndTime(1356998400L);
     query.setStartTime(1356998400L);
