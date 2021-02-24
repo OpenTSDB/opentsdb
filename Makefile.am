@@ -32,6 +32,8 @@ dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb \
   build-aux/rpm/systemd/opentsdb@.service
 tsdb_SRC := \
+	src/core/AbstractSpanGroup.java \
+	src/core/AbstractQuery.java \
 	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
@@ -48,6 +50,7 @@ tsdb_SRC := \
 	src/core/DownsamplingSpecification.java \
 	src/core/FillingDownsampler.java \
 	src/core/FillPolicy.java \
+	src/core/GroupCallback.java \
 	src/core/Histogram.java	\
 	src/core/HistogramAggregation.java	\
 	src/core/HistogramAggregationIterator.java	\
@@ -81,11 +84,14 @@ tsdb_SRC := \
 	src/core/iRowSeq.java	\
 	src/core/SaltScanner.java	\
 	src/core/SeekableView.java	\
+	src/core/SeekableViewChain.java	\
 	src/core/SimpleHistogram.java	\
 	src/core/SimpleHistogramDataPointAdapter.java	\
 	src/core/SimpleHistogramDecoder.java	\
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
+	src/core/SplitRollupQuery.java  \
+	src/core/SplitRollupSpanGroup.java  \
 	src/core/TSDB.java	\
 	src/core/Tags.java	\
 	src/core/TsdbQuery.java	\
@@ -317,8 +323,11 @@ test_SRC := \
 	test/core/TestRowKey.java	\
 	test/core/TestRowSeq.java	\
 	test/core/TestSaltScanner.java	\
+	test/core/TestSeekableViewChain.java	\
 	test/core/TestSpan.java	\
 	test/core/TestSpanGroup.java	\
+	test/core/TestSplitRollupQuery.java	\
+	test/core/TestSplitRollupSpanGroup.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
 	test/core/TestTSDBAddPoint.java	\
@@ -376,6 +385,7 @@ test_SRC := \
 	test/query/pojo/TestTimeSpan.java	\
 	test/rollup/TestRollupConfig.java	\
 	test/rollup/TestRollupInterval.java	\
+	test/rollup/TestRollupQuery.java	\
 	test/rollup/TestRollupSeq.java	\
 	test/rollup/TestRollupUtils.java	\
 	test/search/TestSearchPlugin.java	\

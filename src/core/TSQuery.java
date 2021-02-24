@@ -240,8 +240,15 @@ public final class TSQuery {
     final List<Deferred<Object>> deferreds =
         new ArrayList<Deferred<Object>>(queries.size());
     for (int i = 0; i < queries.size(); i++) {
-      final Query query = tsdb.newQuery();
-      deferreds.add(query.configureFromQuery(this, i));
+      Query query = tsdb.newQuery();
+      Deferred<Object> resolution = query.configureFromQuery(this, i);
+
+      if (query.needsSplitting() && (query instanceof TsdbQuery)) {
+        query = new SplitRollupQuery(tsdb, (TsdbQuery) query, resolution);
+        resolution = query.configureFromQuery(this, i);
+      }
+      deferreds.add(resolution);
+
       tsdb_queries[i] = query;
     }
     

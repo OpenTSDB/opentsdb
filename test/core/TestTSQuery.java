@@ -17,12 +17,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.stumbleupon.async.Deferred;
 import net.opentsdb.utils.DateTime;
 
 import org.junit.Test;
@@ -32,7 +33,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ TSQuery.class, DateTime.class })
+@PrepareForTest({ TSQuery.class, TsdbQuery.class, TSDB.class, SplitRollupQuery.class, DateTime.class })
 public final class TestTSQuery {
 
   @Test
@@ -632,6 +633,43 @@ public final class TestTSQuery {
   public void testEqualsSame() {
     TSQuery sub1 = getMetricForValidate();
     assertTrue(sub1.equals(sub1));
+  }
+
+  @Test
+  public void testSplitsEligibleRollupQuery() throws Exception {
+    final TSQuery queryUnderTest = getMetricForValidate();
+
+    TSDB tsdb = PowerMockito.mock(TSDB.class);
+    TsdbQuery mockTsdbQuery = PowerMockito.mock(TsdbQuery.class);
+    when(mockTsdbQuery.configureFromQuery(eq(queryUnderTest), anyInt())).thenReturn(Deferred.fromResult(null));
+    when(mockTsdbQuery.needsSplitting()).thenReturn(true);
+    when(tsdb.newQuery()).thenReturn(mockTsdbQuery);
+
+    SplitRollupQuery mockSplitQuery = PowerMockito.mock(SplitRollupQuery.class);
+    when(mockSplitQuery.configureFromQuery(eq(queryUnderTest), anyInt())).thenReturn(Deferred.fromResult(null));
+
+    PowerMockito.whenNew(SplitRollupQuery.class).withAnyArguments().thenReturn(mockSplitQuery);
+
+    queryUnderTest.buildQueriesAsync(tsdb);
+
+    verify(mockSplitQuery).configureFromQuery(queryUnderTest, 0);
+  }
+
+  @Test
+  public void testDoesNotSplitIneligibleRollupQuery() {
+    final TSQuery queryUnderTest = getMetricForValidate();
+
+    TSDB tsdb = PowerMockito.mock(TSDB.class);
+    TsdbQuery mockTsdbQuery = PowerMockito.mock(TsdbQuery.class);
+    when(mockTsdbQuery.configureFromQuery(eq(queryUnderTest), anyInt())).thenReturn(Deferred.fromResult(null));
+    when(mockTsdbQuery.needsSplitting()).thenReturn(false);
+    when(tsdb.newQuery()).thenReturn(mockTsdbQuery);
+
+    SplitRollupQuery mockedSplitQuery = PowerMockito.mock(SplitRollupQuery.class);
+
+    queryUnderTest.buildQueriesAsync(tsdb);
+
+    verifyZeroInteractions(mockedSplitQuery);
   }
   
   /**

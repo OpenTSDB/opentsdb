@@ -82,6 +82,16 @@ public class RollupInterval {
    * also it might be compacted.
    */
   private final boolean is_default_interval;
+
+  /**
+   * The delay SLA for this rollup interval. If a query is asking for data from a
+   * recent enough time interval that might not be available (or partially unavailable)
+   * in the table, the data points will be read from the raw table.
+   */
+  private final String delay_sla;
+
+  /** The delay SLA in seconds */
+  private int max_delay_seconds;
   
   /**
    * Protected ctor used by the builder.
@@ -93,6 +103,7 @@ public class RollupInterval {
     string_interval = builder.interval;
     row_span = builder.rowSpan;
     is_default_interval = builder.defaultInterval;
+    delay_sla = builder.delaySla != null ? builder.delaySla : "";
     
     final String parsed_units = DateTime.getDurationUnits(row_span);
     if (parsed_units.length() > 1) {
@@ -116,7 +127,8 @@ public class RollupInterval {
        .append(", unit_multipier=").append(unit_multiplier)
        .append(", intervals=").append(intervals)
        .append(", interval=").append(interval)
-       .append(", interval_units=").append(interval_units);
+       .append(", interval_units=").append(interval_units)
+       .append(", delay_sla=").append(delay_sla);
     return buf.toString();
   }
 
@@ -133,6 +145,7 @@ public class RollupInterval {
         .putString(string_interval, Const.UTF8_CHARSET)
         .putString(row_span, Const.UTF8_CHARSET)
         .putBoolean(is_default_interval)
+        .putString(delay_sla, Const.UTF8_CHARSET)
         .hash();
   }
   
@@ -152,7 +165,8 @@ public class RollupInterval {
         && Objects.equal(groupby_table_name, interval.groupby_table_name)
         && Objects.equal(row_span, interval.row_span)
         && Objects.equal(string_interval, interval.string_interval)
-        && Objects.equal(is_default_interval, interval.is_default_interval);
+        && Objects.equal(is_default_interval, interval.is_default_interval)
+        && Objects.equal(delay_sla, interval.delay_sla);
   }
   
   /**
@@ -185,14 +199,19 @@ public class RollupInterval {
     }
     
     interval = (int) (DateTime.parseDuration(string_interval) / 1000);
-    if (interval < 1) {
-      throw new IllegalArgumentException("Millisecond intervals are not supported");
-    }
+
     if (interval >= Integer.MAX_VALUE) {
       throw new IllegalArgumentException("Interval is too big: " + interval);
     }
     // The line above will validate for us
     interval_units = string_interval.charAt(string_interval.length() - 1);
+
+    if (delay_sla != null && !delay_sla.isEmpty()) {
+      max_delay_seconds = (int) (DateTime.parseDuration(delay_sla) / 1000);
+      if (max_delay_seconds < 1) {
+        throw new IllegalArgumentException("Milliseconds are not supported as the maximum delay");
+      }
+    }
 
     int num_span = 0;
     switch (units) {
@@ -303,6 +322,15 @@ public class RollupInterval {
   public String getRowSpan() {
     return row_span;
   }
+
+  /**
+   * Rollup tables can have an SLA configured specifying by how much time the
+   * data in the table can be delayed.
+   * @return the maximum delay in seconds for a table as configured.
+   */
+  public int getMaximumLag() {
+    return max_delay_seconds;
+  }
   
   public static Builder builder() {
     return new Builder();
@@ -321,6 +349,8 @@ public class RollupInterval {
     private String rowSpan;
     @JsonProperty
     private boolean defaultInterval;
+    @JsonProperty
+    private String delaySla;
     
     public Builder setTable(final String table) {
       this.table = table;
@@ -344,6 +374,11 @@ public class RollupInterval {
     
     public Builder setDefaultInterval(final boolean defaultInterval) {
       this.defaultInterval = defaultInterval;
+      return this;
+    }
+
+    public Builder setDelaySla(final String delaySla) {
+      this.delaySla = delaySla;
       return this;
     }
     

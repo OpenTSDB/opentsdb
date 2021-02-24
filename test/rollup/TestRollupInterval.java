@@ -31,7 +31,7 @@ public class TestRollupInterval {
   private final static byte[] agg_table = preagg_table.getBytes(CHARSET);
   
   @Test
-  public void ctor1SecondHour() throws Exception {
+  public void ctor1SecondHourNoSla() throws Exception {
     final RollupInterval interval = RollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
@@ -47,16 +47,18 @@ public class TestRollupInterval {
     assertEquals(preagg_table, interval.getPreAggregationTable());
     assertEquals(0, Bytes.memcmp(table, interval.getTemporalTable()));
     assertEquals(0, Bytes.memcmp(agg_table, interval.getGroupbyTable()));
+    assertEquals(0, interval.getMaximumLag());
   }
   
   // test odd boundaries
   @Test
-  public void ctor7SecondHour() throws Exception {
+  public void ctor7SecondHourTwoHoursDelay() throws Exception {
     final RollupInterval interval = RollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("7s")
         .setRowSpan("1h")
+        .setDelaySla("2h")
         .build();
     assertEquals('h', interval.getUnits());
     assertEquals("7s", interval.getInterval());
@@ -67,6 +69,7 @@ public class TestRollupInterval {
     assertEquals(preagg_table, interval.getPreAggregationTable());
     assertEquals(0, Bytes.memcmp(table, interval.getTemporalTable()));
     assertEquals(0, Bytes.memcmp(agg_table, interval.getGroupbyTable()));
+    assertEquals(7200, interval.getMaximumLag());
   }
   
   @Test
@@ -404,7 +407,7 @@ public class TestRollupInterval {
     .build();
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test (expected = IllegalArgumentException.class)
   public void ctorNullInterval() throws Exception {
     RollupInterval.builder()
     .setTable(rollup_table)
@@ -414,7 +417,7 @@ public class TestRollupInterval {
     .build();
   }
   
-  @Test (expected = StringIndexOutOfBoundsException.class)
+  @Test (expected = IllegalArgumentException.class)
   public void ctorEmptyInterval() throws Exception {
     RollupInterval.builder()
     .setTable(rollup_table)

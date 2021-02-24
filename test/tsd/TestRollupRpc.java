@@ -100,7 +100,8 @@ public class TestRollupRpc extends BaseTestPutRpc {
     storage.addTable("tsdb-rollup-agg-1h".getBytes(), families);
     storage.addTable("tsdb-agg".getBytes(), families);
     Whitebox.setInternalState(tsdb, "rollups_block_derived", true);
-    Whitebox.setInternalState(tsdb, "agg_tag_key", 
+    Whitebox.setInternalState(tsdb, "rollups_split_queries", false);
+    Whitebox.setInternalState(tsdb, "agg_tag_key",
         config.getString("tsd.rollups.agg_tag_key"));
     Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
         config.getString("tsd.rollups.raw_agg_tag_value"));
@@ -850,5 +851,4 @@ public class TestRollupRpc extends BaseTestPutRpc {
     validateCounters(0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
     validateSEH(false);
   }
-
 }
