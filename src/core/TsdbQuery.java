@@ -98,22 +98,22 @@ final class TsdbQuery extends AbstractQuery {
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
   private long end_time = UNSET;
-  
+
   /** Whether or not to delete the queried data */
   private boolean delete;
 
   /** ID of the metric being looked up. */
   private byte[] metric;
-  
+
   /** Row key regex to pass to HBase if we have tags or TSUIDs */
   private String regex;
-  
+
   /** Whether or not to enable the fuzzy row filter for Hbase */
   private boolean enable_fuzzy_filter;
-  
+
   /** Whether or not the user wants to use the fuzzy filter */
   private boolean override_fuzzy_filter;
-  
+
   /**
    * Tags by which we must group the results.
    * Each element is a tag ID.
@@ -132,7 +132,7 @@ final class TsdbQuery extends AbstractQuery {
 
   /** Specifies the various options for rate calculations */
   private RateOptions rate_options;
-  
+
   /** Aggregator function to use. */
   private Aggregator aggregator;
 
@@ -141,55 +141,55 @@ final class TsdbQuery extends AbstractQuery {
 
   /** Rollup interval and aggregator, null if not applicable. */
   private RollupQuery rollup_query;
-  
+
   /** Map of RollupInterval objects in the order of next best match
    * like 1d, 1h, 10m, 1m, for rollup of 1d. */
   private List<RollupInterval> best_match_rollups;
-  
+
   /** How to use the rollup data */
   private ROLLUP_USAGE rollup_usage = ROLLUP_USAGE.ROLLUP_NOFALLBACK;
-  
-  /** Search the query on pre-aggregated table directly instead of post fetch 
+
+  /** Search the query on pre-aggregated table directly instead of post fetch
    * aggregation. */
   private boolean pre_aggregate;
-  
+
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
-  
+
   /** An index that links this query to the original sub query */
   private int query_index;
-  
+
   /** Tag value filters to apply post scan */
   private List<TagVFilter> filters;
-  
+
   /** An object for storing stats in regarding the query. May be null */
   private QueryStats query_stats;
-  
+
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
-  
+
   private List<Float> percentiles;
-  
+
   private boolean show_histogram_buckets;
-  
+
   /** Set at filter resolution time to determine if we can use multi-gets */
   private boolean use_multi_gets;
 
   /** Set by the user if they want to bypass multi-gets */
   private boolean override_multi_get;
-  
+
   /** Whether or not to use the search plugin for multi-get resolution. */
   private boolean multiget_with_search;
-  
+
   /** Whether or not to fall back on query failure. */
   private boolean search_query_failure;
-  
+
   /** The maximum number of bytes allowed per query. */
   private long max_bytes = 0;
-  
+
   /** The maximum number of data points allowed per query. */
   private long max_data_points = 0;
-  
+
   /**
    * Enum for rollup fallback control.
    * @since 2.4
@@ -199,7 +199,7 @@ final class TsdbQuery extends AbstractQuery {
     ROLLUP_NOFALLBACK, //Use rollup data, and don't fallback on no data
     ROLLUP_FALLBACK, //Use rollup data and fallback to next best match on data
     ROLLUP_FALLBACK_RAW; //Use rollup data and fallback to raw on no data
-    
+
     /**
      * Parse and transform a string to ROLLUP_USAGE object
      * @param str String to be parsed
@@ -207,7 +207,7 @@ final class TsdbQuery extends AbstractQuery {
      */
     public static ROLLUP_USAGE parse(String str) {
       ROLLUP_USAGE def = ROLLUP_NOFALLBACK;
-      
+
       if (str != null) {
         try {
           def = ROLLUP_USAGE.valueOf(str.toUpperCase());
@@ -217,10 +217,10 @@ final class TsdbQuery extends AbstractQuery {
                   + "uses raw data but don't fallback on no data");
         }
       }
-      
+
       return def;
     }
-    
+
     /**
      * Whether to fallback to next best match or raw
      * @return true means fall back else false
@@ -249,15 +249,15 @@ final class TsdbQuery extends AbstractQuery {
       return "raw";
     }
   }
-  
-  /** Search the query on pre-aggregated table directly instead of post fetch 
-   * aggregation. 
-   * @since 2.4 
+
+  /** Search the query on pre-aggregated table directly instead of post fetch
+   * aggregation.
+   * @since 2.4
    */
   public boolean isPreAggregate() {
       return this.pre_aggregate;
   }
-  
+
   /**
    * Sets the start time for the query
    * @param timestamp Unix epoch timestamp in seconds or milliseconds
@@ -266,7 +266,7 @@ final class TsdbQuery extends AbstractQuery {
    */
   @Override
   public void setStartTime(final long timestamp) {
-    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
+    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 &&
         timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
     } else if (end_time != UNSET && timestamp > getEndTime()) {
@@ -1464,8 +1464,8 @@ final class TsdbQuery extends AbstractQuery {
     final Scanner scanner = QueryUtil.getMetricScanner(tsdb, salt_bucket, metric, 
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
-        : (int) getScanEndTimeSeconds(), 
-        tableToBeScanned(), 
+        : (int) getScanEndTimeSeconds(),
+        tableToBeScanned(),
         TSDB.FAMILY());
     if(tsdb.getConfig().use_otsdb_timestamp()) {
       long stTime = (getScanStartTimeSeconds() * 1000);
@@ -1498,7 +1498,7 @@ final class TsdbQuery extends AbstractQuery {
               new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
                       .getBytes(Const.ASCII_CHARSET))));
           rollup_filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(new byte[] { 
+              new BinaryPrefixComparator(new byte[] {
                   (byte) tsdb.getRollupConfig().getIdForAggregator(
                       rollup_query.getRollupAgg().toString())
               })));
@@ -1510,7 +1510,7 @@ final class TsdbQuery extends AbstractQuery {
               new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
                   .getBytes(Const.ASCII_CHARSET))));
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(new byte[] { 
+              new BinaryPrefixComparator(new byte[] {
                   (byte) tsdb.getRollupConfig().getIdForAggregator(
                       rollup_query.getRollupAgg().toString())
               })));
@@ -1527,10 +1527,10 @@ final class TsdbQuery extends AbstractQuery {
                 (byte) tsdb.getRollupConfig().getIdForAggregator("sum")
             })));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
+            new BinaryPrefixComparator(new byte[] {
                 (byte) tsdb.getRollupConfig().getIdForAggregator("count")
             })));
-        
+
         if (existing != null) {
           final List<ScanFilter> combined = new ArrayList<ScanFilter>(2);
           combined.add(existing);
@@ -1545,14 +1545,14 @@ final class TsdbQuery extends AbstractQuery {
   }
 
   /**
-   * Identify the table to be scanned based on the roll up and pre-aggregate 
+   * Identify the table to be scanned based on the roll up and pre-aggregate
    * query parameters
    * @return table name as byte array
    * @since 2.4
    */
   private byte[] tableToBeScanned() {
     final byte[] tableName;
-    
+
     if (RollupQuery.isValidQuery(rollup_query)) {
       if (pre_aggregate) {
         tableName= rollup_query.getRollupInterval().getGroupbyTable();
@@ -1567,10 +1567,10 @@ final class TsdbQuery extends AbstractQuery {
     else {
       tableName = tsdb.dataTable();
     }
-    
+
     return tableName;
   }
-  
+
   /** Returns the UNIX timestamp from which we must start scanning.  */
   long getScanStartTimeSeconds() {
     // Begin with the raw query start time.
@@ -1580,15 +1580,15 @@ final class TsdbQuery extends AbstractQuery {
     if ((start & Const.SECOND_MASK) != 0L) {
       start /= 1000L;
     }
-    
+
     // if we have a rollup query, we have different row key start times so find
     // the base time from which we need to search
     if (rollup_query != null) {
-      long base_time = RollupUtils.getRollupBasetime(start, 
+      long base_time = RollupUtils.getRollupBasetime(start,
           rollup_query.getRollupInterval());
       if (rate) {
         // scan one row back so we can get the first rate value.
-        base_time = RollupUtils.getRollupBasetime(base_time - 1, 
+        base_time = RollupUtils.getRollupBasetime(base_time - 1,
             rollup_query.getRollupInterval());
       }
       return base_time;
@@ -1627,11 +1627,11 @@ final class TsdbQuery extends AbstractQuery {
         end++;
       }
     }
-    
+
     if (rollup_query != null) {
-      return RollupUtils.getRollupBasetime(end + 
-          (rollup_query.getRollupInterval().getIntervalSeconds() * 
-              rollup_query.getRollupInterval().getIntervals()), 
+      return RollupUtils.getRollupBasetime(end +
+          (rollup_query.getRollupInterval().getIntervalSeconds() *
+              rollup_query.getRollupInterval().getIntervals()),
           rollup_query.getRollupInterval());
     }
 
