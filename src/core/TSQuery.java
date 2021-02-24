@@ -176,9 +176,9 @@ public final class TSQuery {
     } else {
       end_time = System.currentTimeMillis();
     }
-    if (end_time <= start_time) {
+    if (end_time < start_time) {
       throw new IllegalArgumentException(
-          "End time [" + end_time + "] must be greater than the start time ["
+          "End time [" + end_time + "] must be greater than or equal to the start time ["
           + start_time +"]");
     }
     
