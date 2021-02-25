@@ -52,6 +52,9 @@ final class TreeRpc implements HttpRpc {
    */
   @Override
   public void execute(TSDB tsdb, HttpQuery query) throws IOException {
+    // only accept GET/POST
+    RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
     // the uri will be /api/vX/tree/? or /api/tree/?
     final String[] uri = query.explodeAPIPath();
     final String endpoint = uri.length > 1 ? uri[1] : ""; 
@@ -208,11 +211,9 @@ final class TreeRpc implements HttpRpc {
    * @throws BadRequestException if the request was invalid.
    */
   private void handleBranch(TSDB tsdb, HttpQuery query) {
-    if (query.getAPIMethod() != HttpMethod.GET) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
-        "Unsupported HTTP request method");
-    }
-    
+
+    RpcUtil.allowedMethods(query.getAPIMethod(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
     try {
       final int tree_id = parseTreeId(query, false);
       final String branch_hex =

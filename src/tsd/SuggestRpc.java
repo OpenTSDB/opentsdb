@@ -39,14 +39,10 @@ final class SuggestRpc implements HttpRpc {
    */
   public void execute(final TSDB tsdb, final HttpQuery query) 
     throws IOException {
-    
+
     // only accept GET/POST
-    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-          "Method not allowed", "The HTTP method [" + query.method().getName() +
-          "] is not permitted for this endpoint");
-    }
-    
+    RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
     final String type;
     final String q;
     final String max;

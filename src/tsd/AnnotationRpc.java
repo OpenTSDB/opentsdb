@@ -47,7 +47,9 @@ final class AnnotationRpc implements HttpRpc {
    */
   public void execute(final TSDB tsdb, HttpQuery query) throws IOException {
     final HttpMethod method = query.getAPIMethod();
-    
+
+    RpcUtil.allowedMethods(method, HttpMethod.GET.getName(), HttpMethod.POST.getName(), HttpMethod.DELETE.getName(), HttpMethod.PUT.getName());
+
     final String[] uri = query.explodeAPIPath();
     final String endpoint = uri.length > 1 ? uri[1] : "";
     if (endpoint != null && endpoint.toLowerCase().endsWith("bulk")) {
@@ -125,11 +127,6 @@ final class AnnotationRpc implements HttpRpc {
         throw new RuntimeException(e);
       }
       query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
-      
-    } else {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-          "Method not allowed", "The HTTP method [" + method.getName() +
-          "] is not permitted for this endpoint");
     }
   }
   
@@ -141,14 +138,12 @@ final class AnnotationRpc implements HttpRpc {
    * @param query The query to parse and respond to
    */
   void executeBulk(final TSDB tsdb, final HttpMethod method, HttpQuery query) {
+    RpcUtil.allowedMethods(query.method(), HttpMethod.PUT.getName(), HttpMethod.POST.getName(), HttpMethod.DELETE.getName());
+
     if (method == HttpMethod.POST || method == HttpMethod.PUT) {
       executeBulkUpdate(tsdb, method, query);
     } else if (method == HttpMethod.DELETE) {
       executeBulkDelete(tsdb, query);
-    } else {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-          "Method not allowed", "The HTTP method [" + query.method().getName() +
-          "] is not permitted for this endpoint");
     }
   }
   

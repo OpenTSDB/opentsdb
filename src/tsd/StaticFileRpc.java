@@ -15,6 +15,7 @@ package net.opentsdb.tsd;
 import java.io.IOException;
 
 import net.opentsdb.core.TSDB;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 
 /** Implements the "/s" endpoint to serve static files. */
 final class StaticFileRpc implements HttpRpc {
@@ -26,13 +27,18 @@ final class StaticFileRpc implements HttpRpc {
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query)
-    throws IOException {
+    throws BadRequestException, IOException {
+
+    // only accept GET
+    RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName());
+
     final String uri = query.request().getUri();
     if ("/favicon.ico".equals(uri)) {
       query.sendFile(tsdb.getConfig().getDirectoryName("tsd.http.staticroot")
           + "/favicon.ico", 31536000 /*=1yr*/);
       return;
     }
+
     if (uri.length() < 3) {  // Must be at least 3 because of the "/s/".
       throw new BadRequestException("URI too short <code>" + uri + "</code>");
     }
@@ -41,6 +47,7 @@ final class StaticFileRpc implements HttpRpc {
     if (uri.indexOf("..", 3) > 0) {
       throw new BadRequestException("Malformed URI <code>" + uri + "</code>");
     }
+
     final int questionmark = uri.indexOf('?', 3);
     final int pathend = questionmark > 0 ? questionmark : uri.length();
     query.sendFile(tsdb.getConfig().getDirectoryName("tsd.http.staticroot")
