@@ -16,6 +16,8 @@ pom.xml
 */target/*
 *.orig
 *.log
+build-aux/fetchdep.sh
+opentsdb.spec
 
 #for Intellij
 \.idea
@@ -50,3 +52,4 @@ tools/docker/opentsdb.conf
 fat-jar-pom.xml
 src-resources/
 test-resources/
+third_party/**/*.jar

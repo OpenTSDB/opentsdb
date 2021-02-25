@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -454,177 +455,17 @@ final class UidManager {
     } else {
       LOG.info("Running in log only mode");
     }
-    
-    final class Uids {
-      int errors;
-      long maxid;
-      long max_found_id;
-      short width;
-      final HashMap<String, String> id2name = new HashMap<String, String>();
-      final HashMap<String, String> name2id = new HashMap<String, String>();
-
-      void error(final KeyValue kv, final String msg) {
-        error(msg + ".  kv=" + kv);
-      }
-
-      void error(final String msg) {
-        LOG.error(msg);
-        errors++;
-      }
-      
-      /*
-       * Replaces or creates the reverse map in storage and in the local map
-       */
-      void restoreReverseMap(final String kind, final String name, 
-          final String uid) {
-        final PutRequest put = new PutRequest(table, 
-            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, CliUtils.toBytes(kind), 
-            CliUtils.toBytes(name));
-        client.put(put);
-        id2name.put(uid, name);
-        LOG.info("FIX: Restoring " + kind + " reverse mapping: " 
-            + uid + " -> " + name);
-      }
-      
-      /*
-       * Removes the reverse map from storage only
-       */
-      void removeReverseMap(final String kind, final String name, 
-          final String uid) {
-        // clean up meta data too
-        final byte[][] qualifiers = new byte[2][];
-        qualifiers[0] = CliUtils.toBytes(kind); 
-        if (Bytes.equals(CliUtils.METRICS, qualifiers[0])) {
-          qualifiers[1] = CliUtils.METRICS_META;
-        } else if (Bytes.equals(CliUtils.TAGK, qualifiers[0])) {
-          qualifiers[1] = CliUtils.TAGK_META;
-        } else if (Bytes.equals(CliUtils.TAGV, qualifiers[0])) {
-          qualifiers[1] = CliUtils.TAGV_META;
-        }
-        
-        final DeleteRequest delete = new DeleteRequest(table, 
-            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, qualifiers);
-        client.delete(delete);
-        // can't remove from the id2name map as this will be called while looping
-        LOG.info("FIX: Removed " + kind + " reverse mapping: " + uid + " -> "
-            + name);
-      }
-    }
-
     final long start_time = System.nanoTime();
-    final HashMap<String, Uids> name2uids = new HashMap<String, Uids>();
-    final Scanner scanner = client.newScanner(table);
-    scanner.setMaxNumRows(1024);
+    HashMap<String,Uids> name2uids = Uids.loadUids(client, table, LOG, fix,
+                                                   fix_unknowns);
     int kvcount = 0;
-    try {
-      ArrayList<ArrayList<KeyValue>> rows;
-      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
-        for (final ArrayList<KeyValue> row : rows) {
-          for (final KeyValue kv : row) {
-            kvcount++;
-            final byte[] qualifier = kv.qualifier();
-            // TODO - validate meta data in the future, for now skip it
-            if (Bytes.equals(qualifier, TSMeta.META_QUALIFIER()) ||
-                Bytes.equals(qualifier, TSMeta.COUNTER_QUALIFIER()) ||
-                Bytes.equals(qualifier, CliUtils.METRICS_META) ||
-                Bytes.equals(qualifier, CliUtils.TAGK_META) ||
-                Bytes.equals(qualifier, CliUtils.TAGV_META)) {
-              continue;
-            }
-            
-            if (!Bytes.equals(qualifier, CliUtils.METRICS) &&
-                !Bytes.equals(qualifier, CliUtils.TAGK) &&
-                !Bytes.equals(qualifier, CliUtils.TAGV)) {
-              LOG.warn("Unknown qualifier " + UniqueId.uidToString(qualifier) 
-                  + " in row " + UniqueId.uidToString(kv.key()));
-              if (fix && fix_unknowns) {
-                final DeleteRequest delete = new DeleteRequest(table, kv.key(), 
-                    kv.family(), qualifier);
-                client.delete(delete);
-                LOG.info("FIX: Removed unknown qualifier " 
-                  + UniqueId.uidToString(qualifier) 
-                  + " in row " + UniqueId.uidToString(kv.key()));
-              }
-              continue;
-            }
-
-            final String kind = CliUtils.fromBytes(kv.qualifier());
-            Uids uids = name2uids.get(kind);
-            if (uids == null) {
-              uids = new Uids();
-              name2uids.put(kind, uids);
-            }
-            final byte[] key = kv.key();
-            final byte[] family = kv.family();
-            final byte[] value = kv.value();
-            if (Bytes.equals(key, CliUtils.MAXID_ROW)) {
-              if (value.length != 8) {
-                uids.error(kv, "Invalid maximum ID for " + kind
-                           + ": should be on 8 bytes: ");
-                // TODO - a fix would be to find the max used ID for the type 
-                // and store that in the max row.
-              } else {
-                uids.maxid = Bytes.getLong(value);
-                LOG.info("Maximum ID for " + kind + ": " + uids.maxid);
-              }
-            } else {
-              short idwidth = 0;
-              if (Bytes.equals(family, CliUtils.ID_FAMILY)) {
-                idwidth = (short) value.length;
-                final String skey = CliUtils.fromBytes(key);
-                final String svalue = UniqueId.uidToString(value);
-                final long max_found_id;
-                if (Bytes.equals(qualifier, CliUtils.METRICS)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.metrics_width());
-                } else if (Bytes.equals(qualifier, CliUtils.TAGK)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagk_width());
-                } else {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagv_width());
-                }
-                if (uids.max_found_id < max_found_id) {
-                  uids.max_found_id = max_found_id;
-                }
-                final String id = uids.name2id.put(skey, svalue);
-                if (id != null) {
-                  uids.error(kv, "Duplicate forward " + kind + " mapping: "
-                             + skey + " -> " + id
-                             + " and " + skey + " -> " + svalue);
-                }
-              } else if (Bytes.equals(family, CliUtils.NAME_FAMILY)) {
-                final String skey = UniqueId.uidToString(key);
-                final String svalue = CliUtils.fromBytes(value);
-                idwidth = (short) key.length;
-                final String name = uids.id2name.put(skey, svalue);
-                if (name != null) {
-                  uids.error(kv, "Duplicate reverse " + kind + "  mapping: "
-                             + svalue + " -> " + name
-                             + " and " + svalue + " -> " + skey);
-                }
-              }
-              if (uids.width == 0) {
-                uids.width = idwidth;
-              } else if (uids.width != idwidth) {
-                uids.error(kv, "Invalid " + kind + " ID of length " + idwidth
-                           + " (expected: " + uids.width + ')');
-              }
-            }
-          }
-        }
-      }
-    } catch (HBaseException e) {
-      LOG.error("Error while scanning HBase, scanner=" + scanner, e);
-      throw e;
-    } catch (Exception e) {
-      LOG.error("WTF?  Unexpected exception type, scanner=" + scanner, e);
-      throw new AssertionError("Should never happen");
-    }
-
     // Match up all forward mappings with their reverse mappings and vice
     // versa and make sure they agree.
     int errors = 0;
     for (final Map.Entry<String, Uids> entry : name2uids.entrySet()) {
       final String kind = entry.getKey();
       final Uids uids = entry.getValue();
+      kvcount += uids.id2name.size();
 
       // This will be used in the event that we run into an inconsistent forward
       // mapping that could mean a single UID was assigned to different names.
@@ -1036,6 +877,86 @@ final class UidManager {
     
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
     LOG.info("Completed meta data synchronization in [" + 
+        duration + "] seconds");
+    return 0;
+  }
+
+  /**
+   * Runs through the entire data table and delete UIDs that are no longer used
+   * from the UID table.
+   *
+   * The process is as follows:
+   * <ul>
+   * <li>Fetch all known UIDs from the UID table, store as unusedUIDs.</li>
+   * <li>Fetch the max number of Metric UIDs as we'll use those to match
+   * on the data rows</li>
+   * <li>Split the # of UIDs amongst worker threads</li>
+   * <li>Setup a scanner in each thread for the range it will be working on and
+   * start iterating</li>
+   * <li>Fetch the TSUID from the row key</li>
+   * <li>For each unprocessed TSUID, remove the metric, tagk, and tagv UIDs
+   * from unusedUIDs.</li>
+   * <li>When done iterating, any remaining UIDs in unusedUIDS are deleted from
+   * the UID table.</li></ul>
+   * @param tsdb The tsdb to use for processing.
+   * @param table The table name for where data is stored.
+   * @return 0 if completed successfully, something else if it dies
+   */
+  private static int uidGarbageCollect(final TSDB tsdb, final byte[] table) throws Exception {
+    final long start_time = System.currentTimeMillis() / 1000;
+
+    // get current uids:
+    HashMap<String,Uids> unusedUids = Uids.loadUids(tsdb.getClient(), table,
+                                                    LOG, false, false);
+
+    // now figure out how many IDs to divy up between the workers
+    final int workers = Runtime.getRuntime().availableProcessors() * 2;
+    final Set<Integer> processed_tsuids = 
+      Collections.synchronizedSet(new HashSet<Integer>());
+    final ConcurrentHashMap<String, Long> metric_uids = 
+      new ConcurrentHashMap<String, Long>();
+    final ConcurrentHashMap<String, Long> tagk_uids = 
+      new ConcurrentHashMap<String, Long>();
+    final ConcurrentHashMap<String, Long> tagv_uids = 
+      new ConcurrentHashMap<String, Long>();
+
+    // TODO optimize by making this key only, and first key only, and batching,
+    // etc.
+    final List<Scanner> scanners = CliUtils.getDataTableScanners(tsdb, workers);
+    LOG.info("Spooling up [" + scanners.size() + "] worker threads");
+    final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+    int i = 0;
+    for (final Scanner scanner : scanners) {
+      final UidGarbageCollector worker = new UidGarbageCollector(tsdb, scanner, i++,
+                                                                 unusedUids);
+      worker.setName("UID GC Scan #" + i);
+      worker.start();
+      threads.add(worker);
+    }
+
+    for (final Thread thread : threads) {
+      thread.join();
+      LOG.info("Thread [" + thread + "] Finished");
+    }
+    LOG.info("All UID GC Scan  threads have completed");
+
+    // At this point the UidGarbageCollector threads should have deleted all
+    // UIDs that are actually being used. The remaining UIDs are garbage and can
+    // be deleted.
+    final ArrayList<Deferred<Object>> deletes = new ArrayList<Deferred<Object>>();
+    for (final String kind: unusedUids.keySet()) {
+      Uids uids = unusedUids.get(kind);
+      for (final String name: uids.name2id.keySet()) {
+        deletes.add(tsdb.deleteUidAsync(kind, name));
+      }
+    }
+    Deferred.group(deletes).join();
+
+    // make sure buffered data is flushed to storage before exiting
+    tsdb.flush().joinUninterruptibly();
+
+    final long duration = (System.currentTimeMillis() / 1000) - start_time;
+    LOG.info("Completed UID garbage collection in [" + 
         duration + "] seconds");
     return 0;
   }
