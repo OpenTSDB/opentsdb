@@ -3205,7 +3205,32 @@ public class TestDefaultQueryPlanner {
     planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
-  
+
+  @Test
+  public void missingQueryResultIds() throws Exception {
+    // fixed with recursion.
+    String q = "{\"start\":\"1614346980\",\"end\":\"1614348780\",\"mode\":\"SINGLE\",\"executionGraph\":" +
+            "[{\"id\":\"m1\",\"type\":\"TimeSeriesDataSource\",\"metric\":{\"metric\":\"sys.cpu.user\",\"type\":" +
+            "\"MetricLiteral\"}},{\"id\":\"m1_downsample\",\"type\":\"Downsample\",\"sources\":[\"m1\"],\"start\":" +
+            "\"1614346980\",\"end\":\"1614348780\",\"interval\":\"1m\",\"timezone\":\"UTC\",\"aggregator\":\"avg\"," +
+            "\"fill\":true,\"runAll\":false,\"originalInterval\":\"1m\",\"processAsArrays\":true,\"infectiousNan\":" +
+            "false,\"interpolatorConfigs\":[{\"fillPolicy\":\"nan\",\"realFillPolicy\":\"NONE\",\"dataType\":" +
+            "\"numeric\"}]},{\"id\":\"m1_groupby\",\"type\":\"GroupBy\",\"sources\":[\"m1_downsample\"]," +
+            "\"aggregator\":\"sum\",\"infectiousNan\":false,\"tagKeys\":[],\"mergeIds\":false,\"fullMerge\":false," +
+            "\"interpolatorConfigs\":[{\"fillPolicy\":\"nan\",\"realFillPolicy\":\"NONE\",\"dataType\":\"numeric\"}]}]}";
+    SemanticQuery query = SemanticQuery.parse(TSDB, JSON.getMapper().readTree(q)).build();
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner =
+            new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(1, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertEquals(4, planner.graph().nodes().size());
+
+    assertEquals(1, planner.serializationSources().size());
+  }
+
   private SerdesOptions serdesConfigs(final List<String> filter) {
     final SerdesOptions config = mock(SerdesOptions.class);
     when(config.getFilter()).thenReturn(filter);
