@@ -1017,8 +1017,9 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
             LOG.debug("Instantiating raw table scanner: " + scanner);
           }
           
-          final Tsdb1xScanner scnr = (Tsdb1xScanner) node.parent().tsdb()
-              .getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE).claim().object();            
+//          final Tsdb1xScanner scnr = (Tsdb1xScanner) node.parent().tsdb()
+//              .getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE).claim().object();
+          final Tsdb1xScanner scnr = new Tsdb1xScanner();
           scnr.reset(this, scanner, i, null);
           array[i] = scnr;
         }
