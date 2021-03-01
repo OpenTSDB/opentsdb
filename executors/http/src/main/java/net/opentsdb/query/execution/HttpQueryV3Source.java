@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.0
  */
-public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
+public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(
       HttpQueryV3Source.class);
   
@@ -78,6 +78,9 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
   
   /** The URL endpoint. */
   private final String endpoint;
+
+  private Exception exception;
+  private QueryResult result;
   
   /**
    * Default ctor.
@@ -214,15 +217,21 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
       try {
         final Exception ex = new RejectedExecutionException(
             "Failed to generate request", e);
-        sendUpstream(ex);
+        exception = ex;
+        context.tsdb().getQueryThreadPool().submit(this);
+        //sendUpstream(ex);
       } catch (IllegalStateException ex) {
         LOG.error("Unexpected state halting execution with a failed "
             + "conversion: " + this);
-        sendUpstream(ex);
+        exception = ex;
+        context.tsdb().getQueryThreadPool().submit(this);
+        //sendUpstream(ex);
       } catch (Exception ex) {
         LOG.error("Unexpected exception halting execution with a failed "
             + "conversion: " + this);
-        sendUpstream(ex);
+        exception = ex;
+        context.tsdb().getQueryThreadPool().submit(this);
+        //sendUpstream(ex);
       }
       return;
     }
@@ -244,8 +253,10 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
         }
         try {
           final Exception e = new QueryExecutionCanceled(
-              "Query was canceled: " + host + endpoint, 400, 0); 
-          sendUpstream(e);
+              "Query was canceled: " + host + endpoint, 400, 0);
+          exception = e;
+          context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
+          //sendUpstream(e);
         } catch (Exception e) {
           LOG.warn("Exception thrown when calling deferred on cancel: " 
               + this, e);
@@ -277,11 +288,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               if (e instanceof RemoteQueryExecutionException) {
                 if (!((BaseHttpExecutorFactory) factory).retriable(
                     response.getStatusLine().getStatusCode())) {
-                  sendUpstream(BadQueryResult.newBuilder()
-                      .setNode(HttpQueryV3Source.this)
-                      .setException(e)
-                      .setDataSource(config.resultIds().get(0))
-                      .build());
+                  result = BadQueryResult.newBuilder()
+                          .setNode(HttpQueryV3Source.this)
+                          .setException(e)
+                          .setDataSource(config.resultIds().get(0))
+                          .build();
+                  context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
                   return;
                 } else if (previous_ex != null && 
                     previous_ex.getStatusCode() == 
@@ -291,11 +303,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   // in this case we've tried up to two hosts and got the same
                   // error so it could be either a query issue or a node issue
                   // so we don't need to bother.
-                  sendUpstream(BadQueryResult.newBuilder()
+                  result = BadQueryResult.newBuilder()
                       .setNode(HttpQueryV3Source.this)
                       .setException(e)
                       .setDataSource(config.resultIds().get(0))
-                      .build());
+                      .build();
+                  context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
                   return;
                 }
                 previous_ex = (RemoteQueryExecutionException) e;
@@ -328,24 +341,26 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                   try {
                     DefaultSharedHttpClient.parseResponse(response, 0, host);
                   } catch (RemoteQueryExecutionException rqee) {
-                    sendUpstream(BadQueryResult.newBuilder()
+                    result = BadQueryResult.newBuilder()
                         .setNode(HttpQueryV3Source.this)
                         .setException(rqee)
                         //.setDataSource(config.getId())
-                        .build());
+                        .build();
+                    context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
                     return;
                   }
                 }
               }
             }
             
-            sendUpstream(BadQueryResult.newBuilder()
+            result = BadQueryResult.newBuilder()
                 .setNode(HttpQueryV3Source.this)
                 .setException(new QueryExecutionException("Unexpected exception: " 
                     + EntityUtils.toString(response.getEntity()), 
                     response.getStatusLine().getStatusCode()))
                 //.setDataSource(config.getId())
-                .build());
+                .build();
+            context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
             return;
           }
           
@@ -358,12 +373,13 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
           if (results == null) {
             // could be an error, parse it.
             LOG.error("No JSON results from: " + json);
-            sendUpstream(BadQueryResult.newBuilder()
+            result = BadQueryResult.newBuilder()
                 .setNode(HttpQueryV3Source.this)
                 .setException(new QueryExecutionException(
                     "No JSON results from: " + json, 500))
                 //.setDataSource(config.getId())
-                .build());
+                .build();
+            context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
           } else {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Successful response from [" + host + endpoint + "] after " 
@@ -406,11 +422,14 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 context.queryContext().stats().incrementRawTimeSeriesCount(
                     series_result.timeSeries().size());
               }
-              sendUpstream(series_result);
+              HttpQueryV3Source.this.result = series_result;
+              context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
               sent++;
             }
             if (sent == 0) {
-              sendUpstream(new HttpQueryV3Result(HttpQueryV3Source.this, null, null));
+              HttpQueryV3Source.this.result = new HttpQueryV3Result(
+                      HttpQueryV3Source.this, null, null);
+              context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
             }
           }
         } catch (Throwable t) {
@@ -431,11 +450,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 context.queryContext().logTrace(HttpQueryV3Source.this, 
                     "Original content: " + response + " => " + content);
               }
-              sendUpstream(BadQueryResult.newBuilder()
+              HttpQueryV3Source.this.result = BadQueryResult.newBuilder()
                   .setNode(HttpQueryV3Source.this)
                   .setException(t)
                   //.setDataSource(config.getId())
-                  .build());
+                  .build();
+              context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
                   + this, ex);
@@ -452,11 +472,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
                 context.queryContext().logTrace(HttpQueryV3Source.this, 
                     "Original content: " + response + " => " + content);
               }
-              sendUpstream(BadQueryResult.newBuilder()
+              HttpQueryV3Source.this.result = BadQueryResult.newBuilder()
                   .setNode(HttpQueryV3Source.this)
                   .setException(ex)
                   .setDataSource(config.resultIds().get(0))
-                  .build());
+                  .build();
+              context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
             } catch (Exception ex) {
               LOG.warn("Unexpected exception when handling exception: " 
                   + this, ex);
@@ -496,11 +517,12 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
               "Error sending query to [" + host + endpoint + "] after " 
               + DateTime.msFromNanoDiff(DateTime.nanoTime(), start) + "ms: " 
                   + e.getMessage());
-          sendUpstream(BadQueryResult.newBuilder()
+          HttpQueryV3Source.this.result = BadQueryResult.newBuilder()
               .setNode(HttpQueryV3Source.this)
               .setException(e)
               .setDataSource(config.resultIds().get(0))
-              .build());
+              .build();
+          context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
         } catch (Throwable t) {
           LOG.error("Unexpected exception processing query", t);
           sendUpstream(BadQueryResult.newBuilder()
@@ -540,5 +562,13 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode {
     // TODO Auto-generated method stub
     return null;
   }
-  
+
+  @Override
+  public void run() {
+    if (result != null) {
+      sendUpstream(result);
+    } else {
+      sendUpstream(exception);
+    }
+  }
 }

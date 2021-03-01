@@ -64,6 +64,7 @@ public class DefaultSharedHttpClient extends BaseTSDBPlugin
   public static final String SECRET_CERT_KEY = "tls.secret.cert";
   public static final String SECRET_KEY_KEY = "tls.secret.key";
   public static final String INTERVAL_KEY = "tls.interval";
+  public static final String IO_THREADS_KEY = "io.threads";
   
   public static final String TYPE = "SharedHttpClient";
   
@@ -75,6 +76,7 @@ public class DefaultSharedHttpClient extends BaseTSDBPlugin
     this.tsdb = tsdb;
     this.id = id;
     registerConfigs(tsdb);
+    final int io_threads = tsdb.getConfig().getInt(getConfigKey(IO_THREADS_KEY));
     if (!Strings.isNullOrEmpty(tsdb.getConfig().getString(getConfigKey(TYPE_KEY)))) {
       RefreshingSSLContext ctx = RefreshingSSLContext.newBuilder()
           .setType(SourceType.valueOf(tsdb.getConfig().getString(getConfigKey(TYPE_KEY))))
@@ -92,7 +94,10 @@ public class DefaultSharedHttpClient extends BaseTSDBPlugin
       client = HttpAsyncClients.custom()
           .setSSLContext(ctx.context())
           .setDefaultIOReactorConfig(IOReactorConfig.custom()
-              .setIoThreadCount(8).build())
+              .setSoKeepAlive(true)
+              .setSoReuseAddress(true)
+              .setIoThreadCount(io_threads)
+              .build())
           .setMaxConnTotal(200)
           .setMaxConnPerRoute(25)
           .build();
@@ -100,7 +105,10 @@ public class DefaultSharedHttpClient extends BaseTSDBPlugin
       // TODO - configs!
       client = HttpAsyncClients.custom()
         .setDefaultIOReactorConfig(IOReactorConfig.custom()
-            .setIoThreadCount(8).build())
+            .setSoKeepAlive(true)
+            .setSoReuseAddress(true)
+            .setIoThreadCount(io_threads)
+            .build())
         .setMaxConnTotal(200)
         .setMaxConnPerRoute(25)
         .build();
@@ -255,6 +263,11 @@ public class DefaultSharedHttpClient extends BaseTSDBPlugin
     if (!tsdb.getConfig().hasProperty(getConfigKey(INTERVAL_KEY))) {
       tsdb.getConfig().register(getConfigKey(INTERVAL_KEY), 300000, false, 
           "The number of milliseconds to wait between refreshes.");
+    }
+    if (!tsdb.getConfig().hasProperty(getConfigKey(IO_THREADS_KEY))) {
+      tsdb.getConfig().register(getConfigKey(IO_THREADS_KEY),
+              Runtime.getRuntime().availableProcessors(), false,
+              "How many IO threads to spin up for the async HTTP call responses.");
     }
   }
 
