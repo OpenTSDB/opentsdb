@@ -399,44 +399,44 @@ public class Tsdb1xMultiGet implements
   
   @Override
   public void close() {
-    if (outstanding.get() > 0) {
-      if (close_attempts.incrementAndGet() < 100) {
-        node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
-            this, 100, TimeUnit.MILLISECONDS);
-        if (LOG.isTraceEnabled()) {
-          LOG.trace("Waiting on calls to finish before returning to the pool: " 
-              + close_attempts.get());
-        }
-        return;
-      }
-    }
-    node = null;
-    source_config = null;
+//    if (outstanding.get() > 0) {
+//      if (close_attempts.incrementAndGet() < 100) {
+//        node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
+//            this, 100, TimeUnit.MILLISECONDS);
+//        if (LOG.isTraceEnabled()) {
+//          LOG.trace("Waiting on calls to finish before returning to the pool: "
+//              + close_attempts.get());
+//        }
+//        return;
+//      }
+//    }
+//    node = null;
+//    source_config = null;
     tsuids = null;
     filter = null;
     tables.clear();
     current_result = null;
-    timestamp.updateEpoch(-1);
-    end_timestamp.updateEpoch(-1);
-    all_batches_sent.set(false);
-    has_failed.set(false);
-    close_attempts.set(0);
-    child = null;
-    outstanding.set(0);
-    tsuid_idx = -1;
-    if (sets != null) {
-      for (int i = 0; i < sets.length(); i++) {
-        final Tsdb1xPartialTimeSeriesSet set = sets.get(i);
-        if (set != null) {
-          try {
-            set.close();
-          } catch (Exception e) {
-            LOG.error("Failed to close out set", e);
-          }
-          sets.set(i, null);
-        }
-      }
-    }
+//    timestamp.updateEpoch(-1);
+//    end_timestamp.updateEpoch(-1);
+//    all_batches_sent.set(false);
+//    has_failed.set(false);
+//    close_attempts.set(0);
+//    child = null;
+//    outstanding.set(0);
+//    tsuid_idx = -1;
+//    if (sets != null) {
+//      for (int i = 0; i < sets.length(); i++) {
+//        final Tsdb1xPartialTimeSeriesSet set = sets.get(i);
+//        if (set != null) {
+//          try {
+//            set.close();
+//          } catch (Exception e) {
+//            LOG.error("Failed to close out set", e);
+//          }
+//          sets.set(i, null);
+//        }
+//      }
+//    }
     release();
   }
   
@@ -610,7 +610,8 @@ public class Tsdb1xMultiGet implements
       }
       
       // TODO - some kind of race here that we need to track down.
-      if (node.pipelineContext() == null || 
+      if (node == null ||
+          node.pipelineContext() == null ||
           node.pipelineContext().queryContext() == null ||
           node.pipelineContext().queryContext().isClosed()) {
         return null;
