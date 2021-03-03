@@ -163,6 +163,7 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
             .pipelineContext()
             .queryContext()
             .isClosed()) {
+          doneSignal.countDown();
           return;
         }
         
