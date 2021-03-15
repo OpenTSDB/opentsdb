@@ -501,7 +501,34 @@ public class TestRateNumericArrayIterator {
     
     assertFalse(it.hasNext());
   }
-  
+
+  @Test
+  public void runAll() {
+    setSource(new MutableNumericValue(new SecondTimeStamp(0L), 40));
+
+    config = (RateConfig) RateConfig.newBuilder()
+            .setInterval("1s")
+            .setId("foo")
+            .build();
+
+    setupMock();
+    when(time_spec.start()).thenReturn(new MillisecondTimeStamp(BASE_TIME));
+    when(time_spec.end()).thenReturn(new MillisecondTimeStamp(BASE_TIME + (60 * 5 * 1000)));
+    when(time_spec.interval()).thenReturn(null);
+    RateNumericArrayIterator it = new RateNumericArrayIterator(node, result,
+            Lists.newArrayList(source));
+
+    assertTrue(it.hasNext());
+    TimeSeriesValue<NumericArrayType> value =
+            (TimeSeriesValue<NumericArrayType>) it.next();
+
+    // TODO - fix it up to ask for the previous interval as well for runall.
+    assertArrayEquals(new double[] { Double.NaN },
+            value.value().doubleArray(), 0.001);
+
+    assertFalse(it.hasNext());
+  }
+
   private void setupMock() {
     node = mock(QueryNode.class);
     result = mock(QueryResult.class);
