@@ -37,6 +37,9 @@ import java.util.Optional;
  * Iterator that generates rates from a sequence of adjacent data points.
  * 
  * TODO - proper interval conversion. May not work for > 1hr
+ *
+ * TODO - handle run-all where we ask for the interval previous. For now it will
+ * always return a NaN.
  * 
  * @since 3.0
  */
@@ -208,9 +211,16 @@ public class RateNumericArrayIterator implements QueryIterator,
     }
     
     // calculate the denom
-    double denom = 
-        (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * TO_NANOS /
-        (double) config.duration().toNanos();
+    double denom;
+    if (result.timeSpecification().interval() == null) {
+      // run_all
+      denom = result.timeSpecification().end().epoch() - result.timeSpecification().start().epoch();
+      denom *= TO_NANOS;
+      denom += result.timeSpecification().end().nanos() - result.timeSpecification().start().nanos();
+    } else {
+      denom = (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * TO_NANOS /
+              (double) config.duration().toNanos();
+    }
     double delta;
     if (value.value().isInteger()) {
       long[] source = value.value().longArray();

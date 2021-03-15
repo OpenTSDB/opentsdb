@@ -206,7 +206,8 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
               spec_start = result.timeSpecification().start();
             }
 
-            if (result.timeSpecification().end().compare(Op.GT, end)) {
+            if (result.timeSpecification().end().compare(Op.GT, end) &&
+                result.timeSpecification().interval() != null) {
               spec_end = end.getCopy();
               int interval = DateTime.getDurationInterval(
                   result.timeSpecification().stringInterval());
