@@ -139,7 +139,6 @@ final class FsckOptions {
   public boolean deleteBadValues() {
     return delete_bad_values;
   }
-
   
   /** @return Remove rows with invalid keys */
   public boolean deleteBadRows() {
@@ -162,7 +161,6 @@ final class FsckOptions {
     this.fix = fix;
   }
   
-
   /** @param compact Whether or not to compact rows while processing. Can cause 
    * compaction without the --fix flag. Will skip rows with duplicate data 
    * points unless --last-write-wins is also specified or set in the config 
@@ -176,27 +174,23 @@ final class FsckOptions {
     this.resolve_dupes = fix_dupes;
   }
   
-
   /** @param last_write_wins Accept data points with the most recent timestamp when duplicates 
    * are found */
   public void setLastWriteWins(final boolean last_write_wins) {
     this.last_write_wins = last_write_wins;
   }
   
-
   /** @param delete_orphans Whether or not to delete rows where the UIDs failed to resolve 
    * to a name */
   public void setDeleteOrphans(final boolean delete_orphans) {
     this.delete_orphans = delete_orphans;
   }
   
-
   /** @param delete_unknown_columns Delete columns that aren't recognized */
   public void setDeleteUnknownColumns(final boolean delete_unknown_columns) {
     this.delete_unknown_columns = delete_unknown_columns;
   }
   
-
   /** @param delete_bad_values Remove data points with bad values */
   public void setDeleteBadValues(final boolean delete_bad_values) {
     this.delete_bad_values = delete_bad_values;
