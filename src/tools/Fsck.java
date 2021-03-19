@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2014-2021  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -32,6 +32,7 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -46,6 +47,8 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -363,6 +366,7 @@ final class Fsck {
       final long base_time = Bytes.getUnsignedInt(row.get(0).key(),
           Const.SALT_WIDTH() + TSDB.metrics_width());
 
+      NextKV:
       for (final KeyValue kv : row) {
         kvs_processed.getAndIncrement();
         // these are not final as they may be modified when fixing is enabled
@@ -385,8 +389,8 @@ final class Fsck {
           continue;
         }
 
-        // All data point columns have an even number of bytes, so if we find
-        // one that has an odd length, it could be an OpenTSDB object or it
+        // Almost all data point columns have an even number of bytes, so if we 
+        // find one that has an odd length, it could be an OpenTSDB object or it
         // could be junk that made it into the table.
         if (qual.length % 2 != 0) {
           // If this test fails, the column is not a TSDB object such as an
@@ -413,6 +417,7 @@ final class Fsck {
           // or interface.
           // TODO - perform validation of the annotation
           if (qual[0] == Annotation.PREFIX()) {
+            // TODO - don't increment if we have a rollup instead!
             annotations.getAndIncrement();
             continue;
           } else if (qual[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
@@ -427,6 +432,106 @@ final class Fsck {
               LOG.error("Unexpected exception processing append data point: " + kv, e);
             }
             continue;
+          } else if (tsdb.getRollupConfig() != null) {
+            // it could be a rollup with numeric prefix. Maybe possibly.
+            int agg_id = qual[0];
+            String aggregation = tsdb.getRollupConfig().getAggregatorForId(agg_id);
+            if (!Strings.isNullOrEmpty(aggregation)) {
+              StringBuilder buffer = null;
+              boolean marked_value_as_bad = false;
+              boolean marked_value_as_good = false;
+              for (RollupInterval interval : tsdb.getRollupConfig().getIntervals()) {
+                long offset = RollupUtils.getOffsetFromRollupQualifier(qual, 1, interval);
+                if (offset < 0 || offset >= interval.getIntervals()) {
+                  // definitely not a rollup for this interval.
+                  continue;
+                }
+                
+                // TODO - need to set the table if we add full support for walking
+                // the rollup tables too.
+                boolean wrong_table = !Bytes.equals(tsdb.dataTable(), interval.getTemporalTable());
+                long timestamp = RollupUtils.getTimestampFromRollupQualifier(qual, base_time, interval, 1);
+                short len = Internal.getValueLengthFromQualifier(qual, 1);
+                len++;
+                short flags = Internal.getFlagsFromQualifier(qual, 1);
+                String err = null;
+                try {
+                  if (Internal.isFloat(qual, 1)) {
+                    Internal.extractFloatingPointValue(value, 0, (byte) flags);
+                  } else {
+                    Internal.extractIntegerValue(value, 0, (byte) flags);
+                  }
+                  if (!marked_value_as_good) {
+                    valid_datapoints.incrementAndGet();
+                    marked_value_as_good = true;
+                  }
+                } catch (IllegalDataException e) {
+                  if (!marked_value_as_bad) {
+                    bad_values.incrementAndGet();
+                    marked_value_as_bad = true;
+                  }
+                  err = e.getMessage();
+                }
+                
+                // now see if something was wrong
+                boolean early_ts = timestamp / 1000 < base_time;
+                boolean late_ts = (timestamp / 1000) >= 
+                    base_time + (interval.getIntervals() * interval.getIntervalSeconds());
+                
+                if (err == null && !wrong_table && !early_ts && !late_ts) {
+                  // good rollup
+                  valid_datapoints.incrementAndGet();
+                  continue NextKV;
+                }
+                
+                if (buffer == null) {
+                  buffer = new StringBuilder();
+                }
+                if (buffer.length() > 0) {
+                  buffer.append("\n");
+                }
+                buffer.append("\tPossible rollup");
+                if (wrong_table) {
+                    buffer.append(" in the wrong table [")
+                    .append(tsdb.dataTable())
+                    .append("]");
+                }
+                buffer.append(" Agg=")
+                      .append(aggregation)
+                      .append(" Interval=")
+                      .append(interval)
+                      .append(" Offset=")
+                      .append(offset);
+                if (early_ts) {
+                  buffer.append(" Timestamp (")
+                        .append(timestamp)
+                        .append(") earlier than row timestamps (")
+                        .append(base_time)
+                        .append(")");
+                } else if (late_ts) {
+                  buffer.append(" Timestamp (")
+                        .append(timestamp)
+                        .append(") later than next row timestamps (")
+                        .append(base_time + 
+                            (interval.getIntervals() * interval.getIntervalSeconds()))
+                        .append(")");
+                } else {
+                  buffer.append(" Timestamp=")
+                        .append(timestamp);
+                }
+                buffer.append("  ");
+                parseUnknownDP(value, 0, len, buffer);
+                buffer.append("\n\t\t")
+                      .append(kv);
+              }
+              
+              if (buffer != null) {
+                LOG.warn(buffer.toString());
+                continue;
+              }
+            }
+            // otherwise fall through, not a rollup that's configured on this 
+            // system.
           }
           LOG.warn("Found an object possibly from a future version of OpenTSDB\n\t"
               + kv);
@@ -1184,6 +1289,38 @@ final class Fsck {
       public String toString() {
         return compacted ? cell.toString() : kv.toString();
       }
+    }
+  }
+  
+  private static void parseUnknownDP(final byte[] values, 
+                                     final int offset, 
+                                     final int length, 
+                                     final StringBuilder buffer) {
+    if (length == 1) {
+      buffer.append((int) values[offset])
+            .append(" 1b integer");
+    } else if (length == 2) {
+      buffer.append(Bytes.getShort(values, offset))
+            .append(" 2b integer");
+    } else if (length == 4) {
+      int val = Bytes.getInt(values, offset);
+      buffer.append(val)
+            .append(" 4b integer || ")
+            .append(Float.intBitsToFloat(val))
+            .append(" 4b float");
+    } else if (length == 8) {
+      long val = Bytes.getLong(values, offset);
+      buffer.append(val)
+            .append(" 8b long || ")
+            .append(Double.longBitsToDouble(val))
+            .append(" 8b double");
+    } else {
+      buffer.append("[")
+            // TODO - ugly copy creating garbage. Could walk and print.
+            .append(Arrays.toString(Arrays.copyOfRange(values, offset, length)))
+            .append("] ")
+            .append(length)
+            .append("b unknown");
     }
   }
 
