@@ -108,7 +108,8 @@ public class TimeShiftNumericArrayIterator implements AggregatingQueryIterator,
   public void next(final Aggregator aggregator) {
     if (iterator instanceof AggregatingTypedTimeSeriesIterator) {
       ((AggregatingTypedTimeSeriesIterator) iterator).next(aggregator);
+    } else {
+      throw new UnsupportedOperationException("TODO!");
     }
-    throw new UnsupportedOperationException("TODO!");
   }
 }
