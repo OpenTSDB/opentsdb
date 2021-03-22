@@ -17,6 +17,7 @@ package net.opentsdb.utils;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -161,7 +162,21 @@ public class Config {
    * @throws IOException Thrown if unable to read or parse the file
    */
   public Config(final String file) throws IOException {
-    loadConfig(file);
+    try (FileInputStream file_input_stream = new FileInputStream(file)) {
+      loadConfig(file_input_stream);
+      config_location = file;
+    }
+    setDefaults();
+  }
+  
+  /**
+   * Constructor that initializes default values and attempts to load the properties
+   * from the {@link InputStream}
+   * @param input_stream Contents of the configuration file
+   * @throws IOException Thrown if unable to read or parse the {@link InputStream}
+   */
+  public Config(InputStream input_stream) throws IOException {
+    loadConfig(input_stream);
     setDefaults();
   }
 
@@ -633,7 +648,9 @@ public class Config {
    */
   protected void loadConfig() throws IOException {
     if (config_location != null && !config_location.isEmpty()) {
-      loadConfig(config_location);
+      try (FileInputStream fileInputStream = new FileInputStream(config_location)) {
+        loadConfig(fileInputStream);
+      }
       return;
     }
 
@@ -679,31 +696,20 @@ public class Config {
 
     LOG.info("No configuration found, will use defaults");
   }
-
+  
   /**
-   * Attempts to load the configuration from the given location
-   * @param file Path to the file to load
-   * @throws IOException Thrown if there was an issue reading the file
-   * @throws FileNotFoundException Thrown if the config file was not found
+   * Attempts to load the configurations from the given {@link InputStream}
+   * @param input_stream Contents of the configuration file
+   * @throws IOException Thrown if there was an issue loading the {@link InputStream}
    */
-  protected void loadConfig(final String file) throws IOException {
-    FileInputStream file_stream = null;
-    try {
-      file_stream = new FileInputStream(file);
+  protected void loadConfig(final InputStream input_stream) throws IOException {
       final Properties props = new Properties();
-      props.load(file_stream);
-
+      props.load(input_stream);
+      
       // load the hash map
       loadHashMap(props);
-
-      // no exceptions thrown, so save the valid path and exit
-      LOG.info("Successfully loaded configuration file: " + file);
-      config_location = file;
-    } finally {
-      if (file_stream != null) {
-        file_stream.close();
-      }
-    }
+      
+      LOG.info("Successfully loaded configurations");
   }
 
   /**
