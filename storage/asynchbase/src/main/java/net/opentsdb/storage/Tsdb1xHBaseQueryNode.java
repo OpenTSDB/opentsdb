@@ -49,6 +49,7 @@ import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -207,6 +208,11 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
     push = parent.dynamicBoolean(Tsdb1xHBaseDataStore.ENABLE_PUSH_KEY);
   }
 
+  @Override
+  public QueryNodeFactory factory() {
+    return null;
+  }
+  
   @Override
   public QueryNodeConfig config() {
     return config;
