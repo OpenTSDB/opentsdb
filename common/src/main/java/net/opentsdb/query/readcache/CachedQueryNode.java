@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryResultId;
@@ -196,6 +197,11 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
 
   public QueryNode originalNode() {
     return original_node;
+  }
+
+  @Override
+  public QueryNodeFactory factory() {
+    return original_node.factory();
   }
   
 }
