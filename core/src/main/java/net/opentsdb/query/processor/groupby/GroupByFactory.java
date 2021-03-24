@@ -13,17 +13,13 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
@@ -35,22 +31,16 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.pools.ArrayObjectPool;
-import net.opentsdb.pools.BaseObjectPoolAllocator;
-import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.DoubleArrayPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.pools.ObjectPoolConfig;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
-import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.TSDBQueryQueue;
 
 import org.slf4j.Logger;
@@ -86,120 +76,11 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
   private BigSmallLinkedBlockingQueue<GroupByJob> queue;
   private int threadCount;
   private Thread[] threads;
-  
-  public interface Accumulator {
-    public void accumulate(final TimeSeries source,
-                           final NumericArrayAggregator aggregator);
+
+  public interface GroupByJob extends Runnable {
+    public int totalTsCount();
   }
-  
-  public static class GroupByJob implements Runnable {
-    protected final Predicate<GroupByJob> predicate;
-    protected final StatsCollector statsCollector;
-    
-    protected long start;
-    protected List<TimeSeries> tsList;
-    protected int[] tsIndices;
-    protected int length;
-    protected QueryResult result;
-    protected Accumulator accumulator;
-    protected int totalTsCount;
-    protected int startIndex;
-    protected int endIndex;
-    protected NumericArrayAggregator aggregator;
-    protected CountDownLatch doneSignal;
-    
-    public GroupByJob(final Predicate<GroupByJob> predicate, 
-                      final StatsCollector statsCollector) {
-      this.predicate = predicate;
-      this.statsCollector = statsCollector;
-    }
-    
-    public void reset(final List<TimeSeries> tsList,
-                      final QueryResult result,
-                      final Accumulator accumulator,
-                      final int totalTsCount,
-                      final int startIndex,
-                      final int endIndex,
-                      final NumericArrayAggregator aggregator,
-                      final CountDownLatch doneSignal) {
-      start = DateTime.nanoTime();
-      this.tsList = tsList;
-      this.result = result;
-      this.accumulator = accumulator;
-      this.totalTsCount = totalTsCount;
-      this.startIndex = startIndex;
-      this.endIndex = endIndex;
-      this.aggregator = aggregator;
-      this.doneSignal = doneSignal;
-    }
-    
-    public void reset(
-        final int[] tsIndices,
-        final int length,
-        final QueryResult result,
-        final Accumulator accumulator,
-        final int totalTsCount,
-        final int startIndex,
-        final int endIndex,
-        final NumericArrayAggregator aggregator,
-        final CountDownLatch doneSignal) {
-      start = DateTime.nanoTime();
-      this.tsIndices = tsIndices;
-      this.length = length;
-      this.result = result;
-      this.accumulator = accumulator;
-      this.totalTsCount = totalTsCount;
-      this.startIndex = startIndex;
-      this.endIndex = endIndex;
-      this.aggregator = aggregator;
-      this.doneSignal = doneSignal;
-    }
-    
-    @Override
-    public void run() {
-      try {
-        if (result
-            .source()
-            .pipelineContext()
-            .queryContext()
-            .isClosed()) {
-          doneSignal.countDown();
-          return;
-        }
-        
-        boolean isBig = predicate.test(this);
-        if (isBig) {
-          statsCollector.addTime(
-              "groupby.queue.big.wait.time", DateTime.nanoTime() - start, 
-              ChronoUnit.NANOS);
-        } else {
-          statsCollector.addTime(
-              "groupby.queue.small.wait.time", DateTime.nanoTime() - start, 
-              ChronoUnit.NANOS);
-        }
-        
-        if (tsIndices != null && length != 0) {
-          for (int i = startIndex; i < endIndex; i++) {
-            if (i >= length) {
-              break;
-            }
-            final TimeSeries series = result.timeSeries().get(tsIndices[i]);
-            accumulator.accumulate(series, aggregator);
-            series.close();
-          }
-        } else {
-          for (int i = startIndex; i < endIndex; i++) {
-            accumulator.accumulate(tsList.get(i), aggregator);
-          }
-        }
-      } catch (Throwable t) {
-        LOG.error("Failed to accumulate data", t);
-      }
-      doneSignal.countDown();
-    }
-    
-  }
-  
+
   /**
    * Default ctor. Registers the numeric iterator.
    */
@@ -252,10 +133,10 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     
     // look up the configuration object every time for hot deployment
     bigJobPredicate =
-        groupByJob -> groupByJob.totalTsCount > 
+        groupByJob -> groupByJob.totalTsCount() > 
         configuration.getInt(GROUPBY_QUEUE_THRESHOLD_KEY);
 
-    queue = new BigSmallLinkedBlockingQueue<>(bigJobPredicate);
+    queue = new BigSmallLinkedBlockingQueue<>(tsdb, "groupby", bigJobPredicate);
     threadCount = configuration.getInt(GROUPBY_THREAD_COUNT_KEY);
     threads = new Thread[threadCount];
 
@@ -451,18 +332,6 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
     
   }
 
-  protected ObjectPool jobPool() {
-    if (job_pool == null) {
-      synchronized (this) {
-        if (job_pool == null) {
-          job_pool = (ObjectPool) 
-              tsdb.getRegistry().getObjectPool(GroupByJobPool.TYPE);
-        }
-      }
-    }
-    return job_pool;
-  }
-  
   protected TSDBQueryQueue<GroupByJob> getQueue() {
     return queue;
   }
@@ -482,64 +351,5 @@ public class GroupByFactory extends BaseQueryNodeFactory<GroupByConfig, GroupBy>
   ArrayObjectPool doublePool() {
     return double_pool;
   }
-  
-  public static class GroupByJobPool extends BaseObjectPoolAllocator {
-    public static final String TYPE = "GroupByJob";
-    public final TypeToken<?> type_token = TypeToken.of(GroupByJob.class);
-    private TSDB tsdb;
-    private Predicate<GroupByJob> predicate;
-    
-    @Override
-    public Object allocate() {
-      if (predicate == null) {
-        synchronized (this) {
-          if (predicate == null) {
-            final GroupByFactory factory = 
-                (GroupByFactory) tsdb.getRegistry().getQueryNodeFactory(GroupByFactory.TYPE);
-            if (factory == null) {
-              throw new IllegalStateException("No group by factory?!?");
-            }
-            predicate = factory.predicate();
-          }
-        }
-      }
-      return new GroupByJob(predicate, tsdb.getStatsCollector());
-    }
 
-    @Override
-    public TypeToken<?> dataType() {
-      return type_token;
-    }
-
-    @Override
-    public String type() {
-      return TYPE;
-    }
-
-    @Override
-    public Deferred<Object> initialize(final TSDB tsdb, final String id) {
-      this.tsdb = tsdb;
-      if (Strings.isNullOrEmpty(id)) {
-        this.id = TYPE;
-      } else {
-        this.id = id;
-      }
-      
-      registerConfigs(tsdb.getConfig(), TYPE);
-      
-      final ObjectPoolConfig config = DefaultObjectPoolConfig.newBuilder()
-          .setAllocator(this)
-          .setInitialCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
-          .setMaxCount(tsdb.getConfig().getInt(configKey(COUNT_KEY, TYPE)))
-          .setId(this.id)
-          .build();
-      try {
-        createAndRegisterPool(tsdb, config, TYPE);
-        return Deferred.fromResult(null);
-      } catch (Exception e) {
-        return Deferred.fromError(e);
-      }
-    }
-    
-  }
 }
