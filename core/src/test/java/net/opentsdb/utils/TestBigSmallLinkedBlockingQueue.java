@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
+import io.netty.util.HashedWheelTimer;
+import net.opentsdb.core.TSDB;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.concurrent.Semaphore;
@@ -22,12 +25,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TestBigSmallLinkedBlockingQueue {
 
+  private static TSDB tsdb;
+
+  @BeforeClass
+  public static void before() throws Exception {
+    tsdb = mock(TSDB.class);
+    when(tsdb.getMaintenanceTimer()).thenReturn(mock(HashedWheelTimer.class));
+  }
+
   @Test
   public void testSmallJob() throws InterruptedException {
-    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>((i) -> i > 10);
+    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>(tsdb, "foo", (i) -> i > 10);
 
     q.put(5);
     assertEquals(1, q.size());
@@ -44,7 +57,7 @@ public class TestBigSmallLinkedBlockingQueue {
 
   @Test
   public void testBigJob() throws InterruptedException {
-    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>((i) -> i > 10);
+    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>(tsdb, "foo", (i) -> i > 10);
 
     q.put(15);
     assertEquals(1, q.size());
@@ -63,7 +76,7 @@ public class TestBigSmallLinkedBlockingQueue {
 
   @Test
   public void testBigAndSmallJobs() throws InterruptedException {
-    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>((i) -> i > 10);
+    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>(tsdb, "foo", (i) -> i > 10);
     q.put(11);
     q.put(12);
     q.put(13);
@@ -89,7 +102,7 @@ public class TestBigSmallLinkedBlockingQueue {
 
   @Test
   public void testReadsAreBlockedWhenQueueIsEmpty() throws InterruptedException {
-    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>((i) -> i > 10);
+    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>(tsdb, "foo", (i) -> i > 10);
 
     final AtomicBoolean readStarted = new AtomicBoolean(false);
     final AtomicInteger readCount = new AtomicInteger(0);
@@ -138,7 +151,7 @@ public class TestBigSmallLinkedBlockingQueue {
   @Test
   public void testHighConcurrency() throws InterruptedException {
 
-    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>((i) -> i > 10);
+    BigSmallLinkedBlockingQueue<Integer> q = new BigSmallLinkedBlockingQueue<>(tsdb, "foo", (i) -> i > 10);
 
     Semaphore semaphore = new Semaphore(0);
     final AtomicInteger v1 = new AtomicInteger();

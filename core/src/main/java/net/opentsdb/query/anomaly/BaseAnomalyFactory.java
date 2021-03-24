@@ -194,7 +194,7 @@ public abstract class BaseAnomalyFactory<C extends BaseAnomalyConfig, N extends 
     bigJobPredicate =
         prediction -> prediction.jobThreshold() > 
         tsdb.getConfig().getInt(threshold_key);
-    queue = new BigSmallLinkedBlockingQueue<>(bigJobPredicate);
+    queue = new BigSmallLinkedBlockingQueue<>(tsdb, "anomalyQueue", bigJobPredicate);
     threadCount = tsdb.getConfig().getInt(getConfigKey(THREAD_COUNT_KEY));
     threads = new Thread[threadCount];
     LOG.info(

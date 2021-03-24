@@ -76,6 +76,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
     boolean use_refs = node.pipelineContext().tsdb().getConfig()
         .getBoolean(GroupByFactory.GROUPBY_USE_REFS);
     this.sourceProcessInParallel = next.processInParallel();
+    LOG.info("PROCESS IN PARALLEL: " + this.sourceProcessInParallel);
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
@@ -204,6 +205,7 @@ public class GroupByResult extends BaseWrappedQueryResult {
       throw new RuntimeException("Unhandled time series ID type: " + next.idType());
     }
     results = Lists.newArrayList(groups.valueCollection());
+    LOG.info("GROUPS: " + results.size());
   }
   
   @Override

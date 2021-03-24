@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,35 +25,28 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
-import net.opentsdb.exceptions.QueryDownstreamException;
-import net.opentsdb.pools.PooledObject;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.groupby.GroupByFactory.Accumulator;
-import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.TSDBQueryQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * TODO - longs!
@@ -76,7 +69,8 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   enum AggEnum {
     sum, zimsum, count, min, mimmin, max, mimmax, last, avg;
   }
-  
+
+  private final QueryNode node;
   private final int intervals;
   private final long interval_in_seconds;
   private final TemporalAmount interval;
@@ -89,9 +83,9 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
   private int idx;
   private final TimeStamp ts;
   private final GroupByResult result;
-  private StatsCollector statsCollector;
+  private final int threadCount;
   private GroupByFactory groupByFactory;
-  private TSDBQueryQueue<GroupByFactory.GroupByJob> blockingQueue;
+  private BigSmallLinkedBlockingQueue<GroupByFactory.GroupByJob> blockingQueue;
   private int queueThreshold;
 
   /**
@@ -125,17 +119,16 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       final int timeSeriesPerJob,
       final int threadCount) {
     expected_summary = -1;
-    
+    this.node = node;
     // TODO
     expect_sums_and_counts = false;
 
     this.result = (GroupByResult) result;
 
     TSDB tsdb = node.pipelineContext().tsdb();
-    this.statsCollector = tsdb.getStatsCollector();
 
     this.groupByFactory = (GroupByFactory) ((GroupBy) node).factory();
-    this.blockingQueue = groupByFactory.getQueue();
+    this.blockingQueue = (BigSmallLinkedBlockingQueue<GroupByFactory.GroupByJob>) groupByFactory.getQueue();
     this.queueThreshold = queueThreshold;
     this.timeSeriesPerJob = timeSeriesPerJob;
 
@@ -151,91 +144,174 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
     agg = AggEnum.valueOf(((GroupByConfig) node.config()).getAggregator().toLowerCase());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     dp = new MutableNumericSummaryValue();
-    final int jobCount = Math.min(sources.size(), threadCount);
-    accumulators = new Acc[jobCount];
+    this.threadCount = threadCount;
+
+    // CASE 1 - A single series in our group.
+    if (sources.size() == 1) {
+      accumulators = new Acc[] { new Acc(0) };
+      accumulate(sources);
+      return;
+    }
+
+    // CASE 2 - The source feeding us is not able to be accessed in parallel.
+    // it _SHOULD_ be but may not be.
+    if (!this.result.isSourceProcessInParallel()) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Accumulate in sequence, source size {}", sources.size());
+      }
+      accumulators = new Acc[] { new Acc(0) };
+      accumulate(sources);
+      return;
+    }
+
+    // CASE 3 - We can parallelize so we'll break this up into jobs.
+    int job_count = (int) Math.ceil((double) sources.size() / (double) timeSeriesPerJob);
+    final int aggrCount = Math.min(job_count, threadCount);
+    accumulators = new Acc[aggrCount];
     for (int i = 0; i < accumulators.length; i++) {
       accumulators[i] = new Acc(i);
     }
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Accumulate in parallel, source size {}", sources.size());
+    }
+    tsdb.getStatsCollector().setGauge(GroupByNumericArrayIterator.THREADS_USED, aggrCount);
     if (sources instanceof List) {
-      accumulateInParallel((List) sources);
+      accumulateInParallel(aggrCount, (List) sources);
     } else {
-      accumulateInParallel(sources);
+      accumulateInParallel(aggrCount, Lists.newArrayList(sources));
     }
   }
 
-  private void accumulateInParallel(final List<TimeSeries> sources) {
-
+  private void accumulateInParallel(final int jobs, final List<TimeSeries> sources) {
+    final long overall_start = DateTime.nanoTime();
     final int tsCount = sources.size();
-    final int jobCount = (int) Math.ceil((double) tsCount / timeSeriesPerJob);
-
-    final int totalTsCount = this.result.timeSeries().size();
-    
-    final PooledObject[] jobs = new PooledObject[jobCount];
+    final int jobCount = Math.min(threadCount, jobs);
     final CountDownLatch doneSignal = new CountDownLatch(jobCount);
-    for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
-      Acc combiner = accumulators[jobIndex % accumulators.length];
-      final int startIndex = jobIndex * timeSeriesPerJob; // inclusive
-      final int endIndex; // exclusive
-      if (jobIndex == jobCount - 1) {
-        // last job
-        endIndex = tsCount;
-      } else {
-        endIndex = startIndex + timeSeriesPerJob;
+    final int totalTsCount = this.result.timeSeries().size();
+    final AtomicInteger total_jobs = new AtomicInteger();
+
+    class GB implements GroupByFactory.GroupByJob {
+      int aggIndex;
+      int startIndex;
+      int endIndex;
+      long timerStart = DateTime.nanoTime();
+      int jobs;
+
+      GB(int aggIndex, int startIndex, int endIndex) {
+        this.aggIndex = aggIndex;
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
       }
-      
-      jobs[jobIndex] = groupByFactory.jobPool().claim();
-      final GroupByJob job = (GroupByJob) jobs[jobIndex].object();
-      job.reset(sources, result, combiner, totalTsCount, startIndex, endIndex, null, doneSignal);
-      blockingQueue.put(job);
+
+      @Override
+      public void run() {
+        try {
+          ++jobs;
+          boolean big_queue = groupByFactory.predicate().test(this);
+          if (big_queue) {
+            blockingQueue.recordBigQueueWaitTime(timerStart);
+          } else {
+            blockingQueue.recordSmallQueueWaitTime(timerStart);
+          }
+
+          int end = Math.min(startIndex + timeSeriesPerJob, endIndex);
+          for (; startIndex < end; startIndex++) {
+            // AGG
+            try {
+              final TimeSeries source = sources.get(startIndex);
+              if (source == null) {
+                node.onError(new IllegalArgumentException("Null time series are not " +
+                        "allowed in the sources."));
+                return;
+              }
+
+              accumulators[aggIndex].accumulate(source);
+            } catch (Throwable t) {
+              LOG.error("Unable to accumulate for a timeseries", t);
+              node.onError(new QueryExecutionException(t.getMessage(), 0, t));
+            }
+          }
+
+          startIndex = end;
+          if (startIndex < endIndex) {
+            timerStart = DateTime.nanoTime();
+            blockingQueue.put(this);
+          } else {
+            total_jobs.addAndGet(jobs);
+            doneSignal.countDown();
+          }
+        } catch (Throwable t) {
+          LOG.error("Failure in Group by job.", t);
+          doneSignal.countDown();
+        }
+      }
+
+      @Override
+      public int totalTsCount() {
+        return tsCount;
+      }
+
     }
 
-    if (blockingQueue instanceof BigSmallLinkedBlockingQueue) {
-      statsCollector.setGauge("groupby.queue.big.job", 
-          ((BigSmallLinkedBlockingQueue) blockingQueue).bigQSize());
-      statsCollector.setGauge("groupby.queue.small.job", 
-          ((BigSmallLinkedBlockingQueue) blockingQueue).smallQSize());
-    }
-    statsCollector.setGauge("groupby.timeseries.count", totalTsCount);
+    // Here we want to balance the number of threads we eat up vs the amount of
+    // work to do. So if we have 8 threads total and 3 jobs, just use the 3.
+    // But if we have 16 jobs, we'll wind up creating 8 and let each job schedule
+    // the next run after it hits timeSeriesPerJob to allow other jobs to
+    // squeak through.
+    if (jobCount < threadCount) {
+      for (int i = 0; i < jobCount; i++) {
+        final int startIndex = i * timeSeriesPerJob; // inclusive
+        final int endIndex; // exclusive
+        if (i == jobCount - 1) {
+          // last job
+          endIndex = tsCount;
+        } else {
+          endIndex = startIndex + timeSeriesPerJob;
+        }
 
+        GB job = new GB(i, startIndex, endIndex);
+        blockingQueue.put(job);
+      }
+    } else {
+      int startIndex = 0;
+      int perJob = tsCount / threadCount;
+      for (int i = 0; i < jobCount; i++) {
+        final int endIndex;
+        if (i + 1 == jobCount) {
+          // last one
+          endIndex = tsCount;
+        } else {
+          endIndex = startIndex + perJob;
+        }
+        GB job = new GB(i, startIndex, endIndex);
+        blockingQueue.put(job);
+        startIndex += perJob;
+      }
+    }
     try {
       doneSignal.await();
     } catch (InterruptedException e) {
       LOG.error("GroupBy Summary interrupted", e);
     }
 
-    // release the jobs.
-    for (int i = 0; i < jobs.length; i++) {
-      jobs[i].release();
-    }
-    
     combine();
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Parallel GB and Downsample time for {} timeseries is {} ms", tsCount,
+              DateTime.msFromNanoDiff(DateTime.nanoTime(), overall_start));
+    }
+
+    node.pipelineContext().tsdb().getStatsCollector().setGauge(GroupByNumericArrayIterator.TIME_SERIES_COUNT, totalTsCount);
+    node.pipelineContext().tsdb().getStatsCollector().incrementCounter(GroupByNumericArrayIterator.JOBS, total_jobs.get());
+    node.pipelineContext().tsdb().getStatsCollector().addTime(GroupByNumericArrayIterator.TIME_TAKEN,
+            DateTime.nanoTime() - overall_start, ChronoUnit.NANOS);
   }
 
-  private void accumulateInParallel(Collection<TimeSeries> sources) {
-    List<Future<Void>> futures = new ArrayList<>(sources.size());
-    int i = 0;
-    for (final TimeSeries source : sources) {
-      int index = (i++) % GroupByNumericArrayIterator.NUM_THREADS;
-      final ExecutorService executorService = GroupByNumericArrayIterator.executorService;
-
-      Future<Void> future =
-          executorService.submit(
-              () -> {
-                accumulators[index].accumulate(source, null);
-                return null;
-              });
-
-      futures.add(future);
-    }
-
-    for (i = 0; i < futures.size(); i++) {
-      try {
-        futures.get(i).get(); // get will block until the future is done
-      } catch (InterruptedException e) {
-        throw new QueryDownstreamException(e.getMessage(), e);
-      } catch (ExecutionException e) {
-        throw new QueryDownstreamException(e.getMessage(), e);
-      }
+  private void accumulate(final Collection<TimeSeries> sources) {
+    Iterator<TimeSeries> iterator = sources.iterator();
+    while (iterator.hasNext()) {
+      TimeSeries series = iterator.next();
+      accumulators[0].accumulate(series);
     }
 
     combine();
@@ -283,7 +359,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       if (!accumulators[i].had_data) {
         continue;
       }
-      
+
       had_data = true;
       switch (agg) {
       case sum:
@@ -344,7 +420,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
           counts[x] += accumulators[i].counts[x];
         }
       }
-      
+
       accumulators[i] = null; // GC me please!
     }
     
@@ -368,42 +444,40 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
       results = null;
     }
   }
-  
-  class Acc implements Accumulator {
+
+  class Acc {
     final int index;
     double[] accumulator;
     long[] counts;
     boolean had_data;
-    
+
     Acc(final int index) {
       this.index = index;
       accumulator = new double[intervals];
       Arrays.fill(accumulator, Double.POSITIVE_INFINITY);
-      
+
       // TODO - nan fill
       if (expect_sums_and_counts || agg == AggEnum.avg) {
         counts = new long[intervals];
       }
     }
-    
-    @Override
-    public void accumulate(final TimeSeries source,
-                           final NumericArrayAggregator aggregator) {
-      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op = 
+
+    public void accumulate(final TimeSeries source) {
+      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op =
           source.iterator(NumericSummaryType.TYPE);
       if (!op.isPresent()) {
         return;
       }
-      
+
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = op.get();
       NumericType v;
       while (iterator.hasNext()) {
-        final TimeSeriesValue<NumericSummaryType> value = 
+        final TimeSeriesValue<NumericSummaryType> value =
             (TimeSeriesValue<NumericSummaryType>) iterator.next();
         if (value.value() == null) {
           continue;
         }
-        
+
         final int bucket = (int) ((value.timestamp().epoch() - start_epoch) / interval_in_seconds);
         if (expect_sums_and_counts) {
           // TODO - no hardcody!
@@ -415,7 +489,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
               }
               continue;
             }
-            
+
             accumulator[bucket] += v.toDouble();
           }
           // TODO - no hardcody
@@ -428,13 +502,13 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
           if (expected_summary < 0) {
             expected_summary = value.value().summariesAvailable().iterator().next();
           }
-          
+
           v = value.value().value(expected_summary);
           if (v != null) {
             if (Double.isNaN(v.toDouble()) && !infectious_nan) {
               continue;
             }
-            
+
             switch (agg) {
             case sum:
             case zimsum:
@@ -487,7 +561,7 @@ public class GroupByNumericSummaryParallelIterator implements QueryIterator {
         }
       }
     }
-    
+
   }
   
 }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2020  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
 import org.junit.Test;
 
@@ -39,6 +40,7 @@ public class TestGroupByFactory {
     TSDB tsdb = mock(TSDB.class);
     when(tsdb.getRegistry()).thenReturn(mock(Registry.class));
     when(tsdb.getConfig()).thenReturn(configuration);
+    when(tsdb.getMaintenanceTimer()).thenReturn(mock(HashedWheelTimer.class));
     factory.initialize(tsdb, null).join(1);
     assertEquals(GroupByFactory.TYPE, factory.id());
   }
