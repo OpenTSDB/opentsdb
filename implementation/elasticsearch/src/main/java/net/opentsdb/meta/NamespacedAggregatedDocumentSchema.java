@@ -336,7 +336,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       }
 
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Running Meta Query: " + metaQuery.toString());
+        LOG.trace("Running Meta Query: " + OBJECT_MAPPER.writeValueAsString(metaQuery));
       }
 
       return client.runQuery(metaQuery, queryPipelineContext, child)
