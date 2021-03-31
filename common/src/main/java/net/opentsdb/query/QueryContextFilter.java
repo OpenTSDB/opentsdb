@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import java.util.Map;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.meta.MetaQuery;
 
 /**
  * The interface for a filter plugin that can modify or block a query coming
@@ -39,5 +40,16 @@ public interface QueryContextFilter extends TSDBPlugin {
   public TimeSeriesQuery filter(final TimeSeriesQuery query, 
                                 final AuthState auth_state, 
                                 final Map<String, String> headers);
-  
+
+  /**
+   * Filters the given query throwing an exception if it's not allowed.
+   * @param query The non-null query.
+   * @param auth_state The caller's auth state.
+   * @param headers An optional map of headers.
+   * @return The same query or unaltered, a modified query if filtered, or
+   * throws an exception if something is not allowed.
+   */
+  public MetaQuery filter(final MetaQuery query,
+                          final AuthState auth_state,
+                          final Map<String, String> headers);
 }

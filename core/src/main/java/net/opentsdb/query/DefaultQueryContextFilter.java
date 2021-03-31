@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 
+import net.opentsdb.meta.MetaQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,6 +158,14 @@ public class DefaultQueryContextFilter extends BaseTSDBPlugin
     builder = filterMetrics(builder, query);
     builder = filterCacheMode(builder, query);
     return builder != null ? builder.build() : query;
+  }
+
+  @Override
+  public MetaQuery filter(final MetaQuery query,
+                          final AuthState auth_state,
+                          final Map<String, String> headers) {
+    // NO-OP for now.
+    return query;
   }
 
   @Override
