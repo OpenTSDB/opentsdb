@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,28 +59,34 @@ public class ServletSink implements QuerySink, SerdesCallback {
   
   /** The sink config. */
   private final ServletSinkConfig config;
-  
+
   /** The serializer. */
   private final TimeSeriesSerdes serdes;
-  
+
+  /** Optional TEE plugin. */
+  private final ServletSinkTee tee_plugin;
+
   /** TEMP - This sucks but we need to figure out proper async writes. */
   private final ByteArrayOutputStream stream;
-  
+
   /** Used to tell us if we've written data to the caller or not. */
   private final AtomicBoolean serialized;
-  
+
   /** The query sink callback. Only one allowed. */
   private QuerySinkCallback callback;
-  
+
+
   /**
    * Default ctor.
    * @param context The non-null context.
    * @param config The non-null config.
    */
   public ServletSink(final QueryContext context, 
-                     final ServletSinkConfig config) {
+                     final ServletSinkConfig config,
+                     final ServletSinkTee tee_plugin) {
     this.context = context;
     this.config = config;
+    this.tee_plugin = tee_plugin;
     serialized = new AtomicBoolean();
     
     final SerdesFactory factory = context.tsdb().getRegistry()
@@ -146,8 +152,13 @@ public class ServletSink implements QuerySink, SerdesCallback {
       config.async().complete();
       logComplete();
     }
+
     if (LOG.isDebugEnabled()) {
       LOG.debug("Yay, all done!");
+    }
+
+    if (tee_plugin != null) {
+      tee_plugin.send(context, stream);
     }
   }
 
