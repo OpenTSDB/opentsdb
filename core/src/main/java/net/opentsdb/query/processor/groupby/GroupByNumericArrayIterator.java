@@ -319,6 +319,10 @@ public class GroupByNumericArrayIterator
       @Override
       public void run() {
         try {
+          if (node.pipelineContext().queryContext().isClosed()) {
+            return;
+          }
+
           ++jobs;
           boolean big_queue = groupByFactory.predicate().test(this);
           if (big_queue) {
