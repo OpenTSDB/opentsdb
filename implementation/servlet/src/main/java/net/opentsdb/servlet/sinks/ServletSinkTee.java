@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.servlet.sinks;
 
+import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 
 import java.io.ByteArrayOutputStream;
@@ -27,8 +28,13 @@ import java.io.ByteArrayOutputStream;
  *
  * @since 3.0
  */
-public interface ServletSinkTee {
+public interface ServletSinkTee extends TSDBPlugin {
 
+  /**
+   * Forwards the stream to another destination.
+   * @param context The non-null context.
+   * @param stream The non-null stream.
+   */
   public void send(final QueryContext context, final ByteArrayOutputStream stream);
 
 }
