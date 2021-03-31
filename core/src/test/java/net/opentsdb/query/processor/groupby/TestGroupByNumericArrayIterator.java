@@ -164,6 +164,8 @@ public class TestGroupByNumericArrayIterator {
     when(result.isSourceProcessInParallel()).thenReturn(true);
     when(time_spec.start()).thenReturn(new MillisecondTimeStamp(1000));
     when(tsdb.getStatsCollector()).thenReturn(statsCollector);
+    QueryContext ctx = mock(QueryContext.class);
+    when(context.queryContext()).thenReturn(ctx);
 
     ts1 = new NumericArrayTimeSeries(
         BaseTimeSeriesStringId.newBuilder()

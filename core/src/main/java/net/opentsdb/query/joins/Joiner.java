@@ -115,7 +115,6 @@ public class Joiner {
    * @param results A non-null and non-empty list of results.
    * @param left_key A non-null and non-empty left join key.
    * @param right_key A non-null and non-empty right join key.
-   * @param use_alias Whether or not to use the alias when fetching the key.
    * @return An iterator with pairs of left and right joined time series
    * if the join was successful. The iterator may be empty if all series
    * were rejected.
