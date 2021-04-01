@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.servlet.sinks;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
 
@@ -37,4 +38,15 @@ public interface ServletSinkTee extends TSDBPlugin {
    */
   public void send(final QueryContext context, final ByteArrayOutputStream stream);
 
+  /**
+   * Forwards results for a raw type to another destination.
+   * @param type The type of query. Just an ordinal for now
+   * @param query_hash The query hash.
+   * @param auth_state The optional auth state.
+   * @param output The non-null output to stream.
+   */
+  public void send(final int type,
+                   final long query_hash,
+                   final AuthState auth_state,
+                   final byte[] output);
 }
