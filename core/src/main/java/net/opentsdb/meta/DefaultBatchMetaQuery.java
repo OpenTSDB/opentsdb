@@ -20,6 +20,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Strings;
 
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -72,6 +77,7 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
   private TimeStamp start;
   private TimeStamp end;
   private List<MetaQuery> meta_query;
+  private HashCode cached_hash;
 
   protected DefaultBatchMetaQuery(final Builder builder) {
     from = builder.from;
@@ -148,6 +154,28 @@ public class DefaultBatchMetaQuery implements BatchMetaQuery {
   @Override
   public String source() {
     return source;
+  }
+
+  @Override
+  public HashCode buildHashCode() {
+    if (cached_hash == null) {
+      final Hasher hc = Const.HASH_FUNCTION().newHasher()
+              .putString(Strings.nullToEmpty(namespace), Const.UTF8_CHARSET)
+              .putInt(from)
+              .putInt(to)
+              .putString(Strings.nullToEmpty(aggregation_field), Const.UTF8_CHARSET)
+              .putInt(type.ordinal());
+      final List<HashCode> hashes = Lists.newArrayList();
+      hashes.add(hc.hash());
+      if (filters != null) {
+        hashes.add(filters.buildHashCode());
+      }
+      for (int i = 0; i < meta_query.size(); i++) {
+        hashes.add(meta_query.get(i).buildHashCode());
+      }
+      cached_hash = Hashing.combineOrdered(hashes);
+    }
+    return cached_hash;
   }
 
   public static Builder newBuilder() {
