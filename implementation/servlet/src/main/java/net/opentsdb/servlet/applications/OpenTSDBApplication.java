@@ -81,7 +81,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       register(JMXResource.class);
       register(RegistryRpc.class);
       register(GenericExceptionMapper.class);
-      register(MetaRpc.class);
+      register(new MetaRpc(tsdb));
       register(new QueryExecutionExceptionMapper(false, 1024));
       
       // load any configured resource plugins.

@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -33,6 +34,7 @@ import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.servlet.sinks.ServletSinkTee;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.stats.Trace;
@@ -65,7 +67,23 @@ public class MetaRpc {
     private static final Logger LOG = LoggerFactory.getLogger(MetaRpc.class);
     private final String NAME = "name";
     private final String COUNT = "count";
-    
+
+    private ServletSinkTee sink_tee;
+
+    public MetaRpc(final TSDB tsdb) {
+      if (!tsdb.getConfig().hasProperty("meta.rpc.tee")) {
+        tsdb.getConfig().register("meta.rpc.tee", null, false, "An optional tee plugin for meta queries.");
+      }
+
+      final String tee_id = tsdb.getConfig().getString("meta.rpc.tee");
+      if (!Strings.isNullOrEmpty(tee_id)) {
+        sink_tee = tsdb.getRegistry().getPlugin(ServletSinkTee.class, tee_id);
+        if (sink_tee == null) {
+          throw new IllegalArgumentException("No tee plugin found for " + tee_id);
+        }
+      }
+    }
+
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
