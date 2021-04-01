@@ -316,6 +316,10 @@ public class MetaRpc {
           if (timer != null) {
             timer.stop("endpoint", "meta");
           }
+
+          if (sink_tee != null) {
+            sink_tee.send(3, query.buildHashCode().asLong(), auth_state, data);
+          }
         } catch (Throwable t) {
             LOG.error("Unexpected exception triggering query.", t);
             GenericExceptionMapper.serialize(t, response);
