@@ -18,7 +18,7 @@ import java.util.Map;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDBPlugin;
-import net.opentsdb.meta.MetaQuery;
+import net.opentsdb.meta.BatchMetaQuery;
 
 /**
  * The interface for a filter plugin that can modify or block a query coming
@@ -49,7 +49,7 @@ public interface QueryContextFilter extends TSDBPlugin {
    * @return The same query or unaltered, a modified query if filtered, or
    * throws an exception if something is not allowed.
    */
-  public MetaQuery filter(final MetaQuery query,
-                          final AuthState auth_state,
-                          final Map<String, String> headers);
+  public BatchMetaQuery filter(final BatchMetaQuery query,
+                               final AuthState auth_state,
+                               final Map<String, String> headers);
 }

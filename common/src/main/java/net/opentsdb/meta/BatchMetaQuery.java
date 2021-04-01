@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import com.google.common.hash.HashCode;
 import net.opentsdb.data.TimeStamp;
 
 import java.util.ArrayList;
@@ -56,7 +57,9 @@ public interface BatchMetaQuery {
 
   public List<MetaQuery> meta_query = new ArrayList<>();
 
-  String source();
+  public String source();
+
+  public HashCode buildHashCode();
 
   /**
    * Builder through which the query is parsed and parameters are set

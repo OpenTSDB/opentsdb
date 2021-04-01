@@ -22,6 +22,7 @@ import net.opentsdb.auth.AuthState;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.meta.MetaQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,9 +108,9 @@ public class ChainedQueryContextFilter extends BaseTSDBPlugin
   }
 
   @Override
-  public MetaQuery filter(MetaQuery query,
-                          final AuthState auth_state,
-                          final Map<String, String> headers) {
+  public BatchMetaQuery filter(BatchMetaQuery query,
+                               final AuthState auth_state,
+                               final Map<String, String> headers) {
     for (int i = 0; i < chain.size(); i++) {
       query = chain.get(i).filter(query, auth_state, headers);
     }

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import com.google.common.hash.HashCode;
 import net.opentsdb.query.filter.QueryFilter;
 
 /**
@@ -28,6 +29,8 @@ public interface MetaQuery {
   public QueryFilter getFilter();
 
   public String getId();
+
+  public HashCode buildHashCode();
   
   /**
    * Builder through which the query is parsed and parameters are set
