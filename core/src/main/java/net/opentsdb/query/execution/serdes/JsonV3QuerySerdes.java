@@ -75,10 +75,12 @@ import java.io.OutputStream;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -240,7 +242,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           int idx = 0;
           AtomicInteger ai = new AtomicInteger(0);
           AtomicBoolean wasStatus = new AtomicBoolean(false);
-          StringBuilder namespace = new StringBuilder();
+          Set<String> namespaceSet = new HashSet<>();
 
           if (result.processInParallel()) {
             List<TimeSeries> tss = result.timeSeries();
@@ -275,7 +277,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   if (pair.getValue().types().contains(StatusType.TYPE)
                       && pair.getValue().id() instanceof BaseTimeSeriesStringId) {
                     BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) pair.getValue().id();
-                    namespace.append(bid.namespace());
+                    namespaceSet.add(bid.namespace());
                     wasStatus.getAndSet(true);
                   }
                 })).get();
@@ -301,7 +303,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                   result);
               if (series.types().contains(StatusType.TYPE) && series.id() instanceof BaseTimeSeriesStringId) {
                 BaseTimeSeriesStringId bid = (BaseTimeSeriesStringId) series.id();
-                namespace.append(bid.namespace());
+                namespaceSet.add(bid.namespace());
                 wasStatus.getAndSet(true);
               }
             }
@@ -309,8 +311,12 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
           // end of the data array
           json.writeEndArray();
 
-          if(wasStatus.get() && namespace.length() != 0) {
-            json.writeStringField(NAMESPACE, namespace.toString());
+          if(wasStatus.get() && !namespaceSet.isEmpty()) {
+            if(namespaceSet.size() == 1) {
+              json.writeStringField(NAMESPACE, namespaceSet.iterator().next());
+            } else {
+              json.writeStringField(NAMESPACE, namespaceSet.toString());
+            }
           }
 
           if (result instanceof AbstractQueryPipelineContext.StatusGroupResultWrapper) {
