@@ -168,8 +168,7 @@ public class GroupByTimeSeries implements TimeSeries {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
-    Logger LOG = LoggerFactory.getLogger("foo");
-    LOG.info("ASKING FOR: " + type);
+
     iterators_returned = true;
     if (!types.contains(type)) {
       return Optional.empty();
@@ -194,14 +193,12 @@ public class GroupByTimeSeries implements TimeSeries {
     final Collection<TypeToken<? extends TimeSeriesDataType>> types = types(); // calc the union
     final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithCapacity(types.size());
-    Logger LOG = LoggerFactory.getLogger("foo");
+
     for (final TypeToken<? extends TimeSeriesDataType> type : types) {
       if (sources != null) {
-        LOG.info("COL: returning old sources");
         iterators.add(((ProcessorFactory) node.factory())
             .newTypedIterator(type, node, result, sources));
       } else {
-        LOG.info("NEW array sources,yay!");
         iterators.add(((GroupByFactory) node.factory())
             .newTypedIterator(type, node, result, source_refs, sources_idx));
       }
