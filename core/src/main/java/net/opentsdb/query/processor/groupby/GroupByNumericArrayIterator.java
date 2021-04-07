@@ -171,17 +171,20 @@ public class GroupByNumericArrayIterator
   
   void process() {
     TSDB tsdb = node.pipelineContext().tsdb();
-    final NumericArrayAggregatorFactory factory = tsdb.getRegistry().getPlugin(NumericArrayAggregatorFactory.class,
-        ((GroupByConfig) node.config()).getAggregator());
+    final NumericArrayAggregatorFactory factory = tsdb.getRegistry()
+            .getPlugin(NumericArrayAggregatorFactory.class,
+              ((GroupByConfig) node.config()).getAggregator());
     if (factory == null) {
       throw new IllegalArgumentException(
-          "No aggregator factory found of type: " + ((GroupByConfig) node.config()).getAggregator());
+          "No aggregator factory found of type: "
+                  + ((GroupByConfig) node.config()).getAggregator());
     }
 
     int size;
     DownsampleConfig downsampleConfig = ((GroupBy) node).getDownsampleConfig();
     if (null == downsampleConfig) {
-      TemporalAmount temporalAmount = this.result.downstreamResult().timeSpecification().interval();
+      TemporalAmount temporalAmount = this.result.downstreamResult()
+              .timeSpecification().interval();
       TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
       int intervals = 0;
       while (ts.compare(Op.LT, node.pipelineContext().query().endTime())) {
@@ -467,10 +470,12 @@ public class GroupByNumericArrayIterator
             DateTime.nanoTime() - overall_start, ChronoUnit.NANOS);
   }
 
-  public void accumulate(final TimeSeries source, final NumericArrayAggregator aggregator) {
+  public void accumulate(final TimeSeries source,
+                         final NumericArrayAggregator aggregator) {
     try {
       if (source == null) {
-        throw new IllegalArgumentException("Null time series are not " + "allowed in the sources.");
+        throw new IllegalArgumentException("Null time series are not "
+                + "allowed in the sources.");
       }
 
       final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional = source

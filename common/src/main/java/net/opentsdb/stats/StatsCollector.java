@@ -75,12 +75,11 @@ public interface StatsCollector extends TSDBPlugin {
   public StatsTimer startTimer(final String metric, final ChronoUnit units);
   
   /**
-   * Similar to {@link #startTimer(String, boolean)} but used when the duration
+   * Similar to {@link #startTimer(String, ChronoUnit)} but used when the duration
    * has already been measured and we can't track the start and end times.
    * @param metric The non-null and non-empty metric name.
    * @param duration The numeric duration.
    * @param units The units of the duration.
-   * @param histo Whether or not to track the latency in a histogram.
    * @param tags An optional set of tag key, value, key, value pairs.
    */
   public void addTime(final String metric, 
