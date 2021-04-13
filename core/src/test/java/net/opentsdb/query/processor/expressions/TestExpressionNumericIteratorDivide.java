@@ -92,6 +92,36 @@ public class TestExpressionNumericIteratorDivide extends BaseNumericTest {
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(.25, value.value().doubleValue(), 0.001);
     assertFalse(iterator.hasNext());
+
+    // divide w/ same operand
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+            .setLeft("a")
+            .setLeftType(OperandType.VARIABLE)
+            .setRight("a")
+            .setRightType(OperandType.VARIABLE)
+            .setExpressionOp(ExpressionOp.DIVIDE)
+            .setExpressionConfig(config)
+            .setId("expression")
+            .build();
+    when(node.config()).thenReturn(expression_config);
+
+    iterator = new ExpressionNumericIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                    .put(ExpressionTimeSeries.LEFT_KEY, left)
+                    .build());
+    assertTrue(iterator.hasNext());
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(1.0, value.value().doubleValue(), 0.001);
+
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertEquals(1.0, value.value().doubleValue(), 0.001);
+
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(1.0, value.value().doubleValue(), 0.001);
+    assertFalse(iterator.hasNext());
   }
   
   @Test

@@ -142,9 +142,14 @@ public class ExpressionNumericArrayIterator extends
           right_value.value().end() - right_value.value().offset(),
             left_literal);
     } else if (right == null) {
-      right_value = new LiteralArray(
-          left_value.value().end() - left_value.value().offset(),
-            right_literal);
+      ExpressionParseNode config = node.config();
+      if (config.left.equals(config.right)) {
+        right_value = left_value;
+      } else {
+        right_value = new LiteralArray(
+                left_value.value().end() - left_value.value().offset(),
+                right_literal);
+      }
     }
     next_ts.update(left != null ? left_value.timestamp() : right_value.timestamp());
 

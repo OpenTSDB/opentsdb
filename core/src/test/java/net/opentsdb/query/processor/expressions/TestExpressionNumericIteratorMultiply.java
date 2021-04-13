@@ -92,6 +92,36 @@ public class TestExpressionNumericIteratorMultiply extends BaseNumericTest {
     assertEquals(5000, value.timestamp().msEpoch());
     assertEquals(16, value.value().longValue());
     assertFalse(iterator.hasNext());
+
+    // multiply w/ same operand
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+            .setLeft("a")
+            .setLeftType(OperandType.VARIABLE)
+            .setRight("a")
+            .setRightType(OperandType.VARIABLE)
+            .setExpressionOp(ExpressionOp.MULTIPLY)
+            .setExpressionConfig(config)
+            .setId("expression")
+            .build();
+    when(node.config()).thenReturn(expression_config);
+
+    iterator = new ExpressionNumericIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                    .put(ExpressionTimeSeries.LEFT_KEY, left)
+                    .build());
+    assertTrue(iterator.hasNext());
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(1000, value.timestamp().msEpoch());
+    assertEquals(1, value.value().longValue());
+
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(3000, value.timestamp().msEpoch());
+    assertEquals(25, value.value().longValue());
+
+    value = (TimeSeriesValue<NumericType>) iterator.next();
+    assertEquals(5000, value.timestamp().msEpoch());
+    assertEquals(4, value.value().longValue());
+    assertFalse(iterator.hasNext());
   }
   
   @Test
