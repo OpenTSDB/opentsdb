@@ -82,8 +82,8 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
-    
-    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+
+    iterator = new ExpressionNumericArrayIterator(node, RESULT,
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -92,6 +92,31 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
     assertArrayEquals(new long[] { -3, -5, -6 },
         value.value().longArray());
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+
+    // subtract w/ same operand
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+            .setLeft("a")
+            .setLeftType(OperandType.VARIABLE)
+            .setRight("a")
+            .setRightType(OperandType.VARIABLE)
+            .setExpressionOp(ExpressionOp.SUBTRACT)
+            .setExpressionConfig(config)
+            .setId("expression")
+            .build();
+    when(node.config()).thenReturn(expression_config);
+
+    iterator = new ExpressionNumericArrayIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                    .put(ExpressionTimeSeries.LEFT_KEY, left)
+                    .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new long[] { 0, 0, 0 },
+            value.value().longArray());
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());

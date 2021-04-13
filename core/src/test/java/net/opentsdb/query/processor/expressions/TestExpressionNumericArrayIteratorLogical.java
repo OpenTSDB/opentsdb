@@ -112,6 +112,31 @@ public class TestExpressionNumericArrayIteratorLogical extends BaseNumericTest {
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
+
+    // AND w/ same operand
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+            .setLeft("a")
+            .setLeftType(OperandType.VARIABLE)
+            .setRight("a")
+            .setRightType(OperandType.VARIABLE)
+            .setExpressionOp(ExpressionOp.AND)
+            .setExpressionConfig(config)
+            .setId("expression")
+            .build();
+    when(node.config()).thenReturn(expression_config);
+
+    iterator = new ExpressionNumericArrayIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                    .put(ExpressionTimeSeries.LEFT_KEY, left)
+                    .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new long[] { 1, 0, 1 },
+            value.value().longArray());
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
   }
 
   @Test

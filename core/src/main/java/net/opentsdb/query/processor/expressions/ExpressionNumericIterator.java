@@ -168,7 +168,14 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       }
     } else {
       left = left_interpolator.next(next_ts).value();
-      right = right_literal;
+
+      ExpressionParseNode config = node.config();
+      // check if left and right have same operand
+      if(config.left.equals(config.right)) {
+          right = left;
+      } else {
+        right = right_literal;
+      }
       
       if (left_interpolator.hasNext()) {
         has_next = true;
