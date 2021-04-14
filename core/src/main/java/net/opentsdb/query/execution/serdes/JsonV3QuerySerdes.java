@@ -83,6 +83,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -280,7 +281,7 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
                     namespaceSet.add(bid.namespace());
                     wasStatus.getAndSet(true);
                   }
-                })).get();
+                })).get(2, TimeUnit.MINUTES);
 
             idx = 0;
             for (final String set : sets) {

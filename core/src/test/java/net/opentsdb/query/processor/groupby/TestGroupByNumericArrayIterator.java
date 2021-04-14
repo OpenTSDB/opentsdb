@@ -23,7 +23,9 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -52,6 +54,7 @@ import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.MockBigSmallLinkedBlockingQueue;
 
+import net.opentsdb.utils.UnitTestException;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -219,10 +222,8 @@ public class TestGroupByNumericArrayIterator {
     when(node.config()).thenReturn(config);
     when(registry.getPlugin(any(Class.class), anyString()))
       .thenReturn(null);
-    try {
-      new GroupByNumericArrayIterator(node, result, source_map.values(), queueThreshold, timeSeriesPerJob, threadCount);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    new GroupByNumericArrayIterator(node, result, source_map.values(), queueThreshold, timeSeriesPerJob, threadCount);
+    verify(node, times(1)).onError(any(IllegalArgumentException.class));
   }
 
   @Test
@@ -730,7 +731,200 @@ public class TestGroupByNumericArrayIterator {
     assertArrayEquals(expected, v.value().longArray());
     assertFalse(iterator.hasNext());
   }
-  
+
+  @Test
+  public void testAccumulationInParallelManyJobsOneFailed() {
+    DownsampleConfig dsConfig =
+            DownsampleConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setId("foo")
+                    .setInterval("1s")
+                    .setRunAll(true)
+                    .setStart(Long.toString(BASE_TIME / 1000))
+                    .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+                    .addInterpolatorConfig(numeric_config)
+                    .setRunAll(false)
+                    .build();
+
+    SemanticQuery q =
+            SemanticQuery.newBuilder()
+                    .setMode(QueryMode.SINGLE)
+                    .setStart(Long.toString(BASE_TIME / 1000))
+                    .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+                    .setExecutionGraph(Collections.emptyList())
+                    .build();
+
+    when(context.query()).thenReturn(q);
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.initialize(TSDB, null);
+    Downsample ds = new Downsample(factory, context, dsConfig);
+    ds.initialize(null);
+    when(context.queryContext()).thenReturn(mock(QueryContext.class));
+    QueryResult ds_of_ds_result = mock(QueryResult.class);
+    when(ds_of_ds_result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
+    when(ds_of_ds_result.timeSpecification()).thenReturn(time_spec);
+    Downsample.DownsampleResult dsResult = ds.new DownsampleResult(ds_of_ds_result);
+    when(result.downstreamResult()).thenReturn(dsResult);
+    when(dsResult.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new MillisecondTimeStamp(BASE_TIME));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(1));
+
+    List<TimeSeries> series = Lists.newArrayList();
+    for (int i = 0; i < 1024; i++) {
+      TimeSeries ts = new NumericArrayTimeSeries(
+              BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+              new MillisecondTimeStamp(BASE_TIME));
+
+      for (int x = 0; x < 10; x++) {
+        ((NumericArrayTimeSeries) ts).add(1);
+      }
+
+      if (i == 128) {
+       TimeSeries mockTs = mock(Downsample.DownsampleResult.DownsampleTimeSeries.class);
+       when(mockTs.iterator(NumericArrayType.TYPE)).thenThrow(new UnitTestException());
+       series.add(mockTs);
+      } else {
+        series.add(dsResult.new DownsampleTimeSeries(ts));
+      }
+    }
+
+    when(this.result.isSourceProcessInParallel()).thenReturn(true);
+    when(node.getDownsampleConfig()).thenReturn(dsConfig);
+
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(
+            node, this.result, series, queueThreshold, 16, threadCount);
+    assertTrue(iterator.hasNext());
+    // there is data but it's wrong.
+    verify(node, times(1)).onError(any(UnitTestException.class));
+  }
+
+  @Test
+  public void testAccumulationInParallelManyJobsOneNull() {
+    DownsampleConfig dsConfig =
+            DownsampleConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setId("foo")
+                    .setInterval("1s")
+                    .setRunAll(true)
+                    .setStart(Long.toString(BASE_TIME / 1000))
+                    .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+                    .addInterpolatorConfig(numeric_config)
+                    .setRunAll(false)
+                    .build();
+
+    SemanticQuery q =
+            SemanticQuery.newBuilder()
+                    .setMode(QueryMode.SINGLE)
+                    .setStart(Long.toString(BASE_TIME / 1000))
+                    .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+                    .setExecutionGraph(Collections.emptyList())
+                    .build();
+
+    when(context.query()).thenReturn(q);
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.initialize(TSDB, null);
+    Downsample ds = new Downsample(factory, context, dsConfig);
+    ds.initialize(null);
+    when(context.queryContext()).thenReturn(mock(QueryContext.class));
+    QueryResult ds_of_ds_result = mock(QueryResult.class);
+    when(ds_of_ds_result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
+    when(ds_of_ds_result.timeSpecification()).thenReturn(time_spec);
+    Downsample.DownsampleResult dsResult = ds.new DownsampleResult(ds_of_ds_result);
+    when(result.downstreamResult()).thenReturn(dsResult);
+    when(dsResult.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new MillisecondTimeStamp(BASE_TIME));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(1));
+
+    List<TimeSeries> series = Lists.newArrayList();
+    for (int i = 0; i < 1024; i++) {
+      TimeSeries ts = new NumericArrayTimeSeries(
+              BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+              new MillisecondTimeStamp(BASE_TIME));
+
+      for (int x = 0; x < 10; x++) {
+        ((NumericArrayTimeSeries) ts).add(1);
+      }
+
+      if (i == 128) {
+        series.add(null);
+      } else {
+        series.add(dsResult.new DownsampleTimeSeries(ts));
+      }
+    }
+
+    when(this.result.isSourceProcessInParallel()).thenReturn(true);
+    when(node.getDownsampleConfig()).thenReturn(dsConfig);
+
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(
+            node, this.result, series, queueThreshold, 16, threadCount);
+    assertFalse(iterator.hasNext());
+    // there is data but it's wrong.
+    verify(node, times(1)).onError(any(UnitTestException.class));
+  }
+
+  @Test
+  public void testAccumulationInParallelManyJobsQueryClosed() {
+    DownsampleConfig dsConfig =
+            DownsampleConfig.newBuilder()
+                    .setAggregator("sum")
+                    .setId("foo")
+                    .setInterval("1s")
+                    .setRunAll(true)
+                    .setStart(Long.toString(BASE_TIME / 1000))
+                    .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+                    .addInterpolatorConfig(numeric_config)
+                    .setRunAll(false)
+                    .build();
+
+    SemanticQuery q =
+            SemanticQuery.newBuilder()
+                    .setMode(QueryMode.SINGLE)
+                    .setStart(Long.toString(BASE_TIME / 1000))
+                    .setEnd(Long.toString((BASE_TIME / 1000) + 10))
+                    .setExecutionGraph(Collections.emptyList())
+                    .build();
+
+    when(context.query()).thenReturn(q);
+    DownsampleFactory factory = new DownsampleFactory();
+    factory.initialize(TSDB, null);
+    Downsample ds = new Downsample(factory, context, dsConfig);
+    ds.initialize(null);
+    QueryContext ctx = mock(QueryContext.class);
+    when(context.queryContext()).thenReturn(ctx);
+    QueryResult ds_of_ds_result = mock(QueryResult.class);
+    when(ds_of_ds_result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
+    when(ds_of_ds_result.timeSpecification()).thenReturn(time_spec);
+    Downsample.DownsampleResult dsResult = ds.new DownsampleResult(ds_of_ds_result);
+    when(result.downstreamResult()).thenReturn(dsResult);
+    when(dsResult.timeSpecification()).thenReturn(time_spec);
+    when(time_spec.start()).thenReturn(new MillisecondTimeStamp(BASE_TIME));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(1));
+
+    when(ctx.isClosed()).thenReturn(false)
+                        .thenReturn(false)
+                        .thenReturn(false)
+                        .thenReturn(true);
+    List<TimeSeries> series = Lists.newArrayList();
+    for (int i = 0; i < 1024; i++) {
+      TimeSeries ts = new NumericArrayTimeSeries(
+              BaseTimeSeriesStringId.newBuilder().setMetric("a").build(),
+              new MillisecondTimeStamp(BASE_TIME));
+
+      for (int x = 0; x < 10; x++) {
+        ((NumericArrayTimeSeries) ts).add(1);
+      }
+      series.add(dsResult.new DownsampleTimeSeries(ts));
+    }
+
+    when(this.result.isSourceProcessInParallel()).thenReturn(true);
+    when(node.getDownsampleConfig()).thenReturn(dsConfig);
+
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(
+            node, this.result, series, queueThreshold, 16, threadCount);
+    assertTrue(iterator.hasNext());
+    // there is data but it's wrong.
+  }
+
   @Test
   public void singleSeriesShortcut() throws Exception {
     source_map = Maps.newHashMapWithExpectedSize(1);
