@@ -141,7 +141,7 @@ public class GroupByTimeSeries implements TimeSeries {
     }
     // TODO - pool
     if (source_refs == null) {
-      source_refs = new int[16];
+      source_refs = new int[8];
     } else if (sources_idx + 1 >= source_refs.length) {
       source_refs = Arrays.copyOf(source_refs, source_refs.length * 2);
     }

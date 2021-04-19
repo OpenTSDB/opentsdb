@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,8 +37,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -46,11 +49,14 @@ import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.pools.MockObjectPool;
 import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.MockBigSmallLinkedBlockingQueue;
 
@@ -435,7 +441,7 @@ public class TestGroupByNumericArrayIterator {
   }
   
   @Test
-  public void itearateFillNonInfectiousNans() throws Exception {
+  public void iterateFillNonInfectiousNans() throws Exception {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
@@ -480,7 +486,7 @@ public class TestGroupByNumericArrayIterator {
   }
   
   @Test
-  public void itearateFillInfectiousNan() throws Exception {
+  public void iterateFillInfectiousNan() throws Exception {
     numeric_config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
@@ -650,8 +656,6 @@ public class TestGroupByNumericArrayIterator {
 
     iterator =
         new GroupByNumericArrayIterator(node, this.result, source_map, queueThreshold, timeSeriesPerJob, threadCount);
-    assertTrue(iterator.hasNext());
-
     assertTrue(iterator.hasNext());
     v = (TimeSeriesValue<NumericArrayType>) iterator.next();
     assertEquals(1000, v.timestamp().msEpoch());
@@ -951,7 +955,8 @@ public class TestGroupByNumericArrayIterator {
     when(source_result.timeSeries()).thenReturn(sources);
     when(result.downstreamResult()).thenReturn(source_result);
     
-    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(node, result, new int[] { 0 }, 1, queueThreshold, timeSeriesPerJob, threadCount);
+    GroupByNumericArrayIterator iterator =
+            new GroupByNumericArrayIterator(node, result, new int[] { 0 }, 1, queueThreshold, timeSeriesPerJob, threadCount);
     assertTrue(iterator.hasNext());
     
     assertTrue(iterator.hasNext());
@@ -965,7 +970,23 @@ public class TestGroupByNumericArrayIterator {
     
     assertFalse(iterator.hasNext());
   }
-  
+
+  @Test
+  public void testAccumulationInParallelRefs() throws Exception {
+    source_result = new MockRefResult(16);
+    when(result.downstreamResult()).thenReturn(source_result);
+    int[] refs = new int[] { 3, 6, 8, 9 };
+
+    GroupByNumericArrayIterator iterator = new GroupByNumericArrayIterator(
+            node, this.result, refs, refs.length, queueThreshold, timeSeriesPerJob, threadCount);
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> v = (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertEquals(1000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    System.out.println(Arrays.toString(v.value().longArray()));
+    assertArrayEquals(new long[] { 30, 30, 30, 30, 30 }, v.value().longArray());
+  }
+
   class MockSeries implements TimeSeries {
 
     @Override
@@ -994,5 +1015,82 @@ public class TestGroupByNumericArrayIterator {
     @Override
     public void close() { }
     
+  }
+
+  class MockRefResult implements QueryResult {
+    List<TimeSeries> ts;
+    MockRefResult(int count) {
+      ts = Lists.newArrayList();
+      for (int i = 0; i < count; i++) {
+        NumericArrayTimeSeries nats = new NumericArrayTimeSeries(
+                BaseTimeSeriesStringId.newBuilder()
+                        .setMetric("a")
+                        .build(), new MillisecondTimeStamp(1000));
+        for (int x = 0; x < 5; x++) {
+          nats.add(i + 1);
+        }
+        ts.add(nats);
+      }
+    }
+
+    @Override
+    public TimeSpecification timeSpecification() {
+      return time_spec;
+    }
+
+    @Override
+    public List<TimeSeries> timeSeries() {
+      return ts;
+    }
+
+    @Override
+    public String error() {
+      return null;
+    }
+
+    @Override
+    public Throwable exception() {
+      return null;
+    }
+
+    @Override
+    public long sequenceId() {
+      return 0;
+    }
+
+    @Override
+    public QueryNode source() {
+      return node;
+    }
+
+    @Override
+    public QueryResultId dataSource() {
+      return null;
+    }
+
+    @Override
+    public TypeToken<? extends TimeSeriesId> idType() {
+      return Const.TS_STRING_ID;
+    }
+
+    @Override
+    public ChronoUnit resolution() {
+      return null;
+    }
+
+    @Override
+    public RollupConfig rollupConfig() {
+      return null;
+    }
+
+    @Override
+    public void close() {
+
+    }
+
+    @Override
+    public boolean processInParallel() {
+      return true;
+    }
   }
 }
