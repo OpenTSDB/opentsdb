@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -347,7 +348,7 @@ public class GroupByNumericArrayIterator
             // AGG
             try {
               final TimeSeries source = sources != null ? sources.get(startIndex) :
-                result.downstreamResult().timeSeries().get(startIndex);
+                result.downstreamResult().timeSeries().get(arraySources[startIndex]);
               if (source == null) {
                 exception.compareAndSet(null, new IllegalArgumentException(
                         "Null time series are not allowed in the sources."));
