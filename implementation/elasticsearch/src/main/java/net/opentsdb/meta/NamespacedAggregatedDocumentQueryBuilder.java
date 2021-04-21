@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.sun.org.apache.xpath.internal.operations.Bool;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.ChainFilter;
@@ -210,6 +211,11 @@ public class NamespacedAggregatedDocumentQueryBuilder {
   FilterBuilder getTagValueFilter(final TagValueFilter filter, final boolean nested) {
     if (filter instanceof TagValueLiteralOrFilter) {
       // handles the range filter as well.
+      try {
+        filter.initialize(null).join();
+      } catch (Exception e) {
+        throw new QueryExecutionException("Unable to initialize plugin", -1);
+      }
       final List<String> lower_case = Lists.newArrayListWithCapacity(
           ((TagValueLiteralOrFilter) filter).literals().size());
       for (final String tag : ((TagValueLiteralOrFilter) filter).literals()) {
