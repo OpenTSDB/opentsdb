@@ -38,6 +38,7 @@ import net.opentsdb.query.filter.*;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 import org.elasticsearch.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -336,7 +337,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
       }
 
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Running Meta Query: " + OBJECT_MAPPER.writeValueAsString(metaQuery));
+        LOG.trace("Running Meta Query: " + metaQuery.toString());
       }
 
       return client.runQuery(metaQuery, queryPipelineContext, child)
