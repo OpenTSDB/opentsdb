@@ -13,15 +13,7 @@
    <name>opentsdb-egads</name>
    <description>Anomaly detection using the EGADs library.</description>
    <packaging>jar</packaging>
-   
-   <repositories>
-     <repository>
-       <id>bintray-yahoo-maven</id>
-       <name>bintray</name>
-       <url>http://yahoo.bintray.com/maven</url>
-     </repository>
-   </repositories>
-   
+
    <dependencyManagement>
       <dependencies>
          <dependency>
@@ -49,7 +41,7 @@
          <dependency>
            <groupId>com.yahoo.egads</groupId>
            <artifactId>egads</artifactId>
-           <version>0.4.1</version>
+           <version>0.4.4</version>
          </dependency>
          <dependency>
            <groupId>org.slf4j</groupId>
