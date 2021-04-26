@@ -219,8 +219,6 @@ public class GroupByTimeSeries implements TimeSeries {
 //        }
 //      }
 //    }
-    Logger LOG = LoggerFactory.getLogger("foo");
-    LOG.info("TYPES: " + types);
     return types;
   }
 
