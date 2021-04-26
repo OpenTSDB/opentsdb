@@ -13,15 +13,7 @@
    <name>opentsdb-ultrabrew</name>
    <description>Metrics reporting using the Ultrabrew library.</description>
    <packaging>jar</packaging>
-   
-   <repositories>
-     <repository>
-       <id>bintray-ultrabrew-maven</id>
-       <name>bintray</name>
-       <url>https://dl.bintray.com/ultrabrew/m2</url>
-     </repository>
-   </repositories>
-   
+
    <dependencyManagement>
       <dependencies>
          <dependency>
@@ -49,12 +41,12 @@
          <dependency>
            <groupId>io.ultrabrew.metrics</groupId>
            <artifactId>metrics-reporter-influxdb</artifactId>
-           <version>0.7.0</version>
+           <version>0.8.0</version>
          </dependency>
          <dependency>
            <groupId>io.ultrabrew.metrics</groupId>
            <artifactId>metrics-reporter-opentsdb</artifactId>
-           <version>0.7.0</version>
+           <version>0.8.0</version>
          </dependency>
       </dependencies>
    </dependencyManagement>
