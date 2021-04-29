@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.hbase.async.AppendRequest;
+import org.hbase.async.CallQueueTooBigException;
 import org.hbase.async.ClientStats;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.PleaseThrottleException;
@@ -413,7 +414,8 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       public WriteStatus call(final Exception ex) throws Exception {
         // TODO log?
         if (ex instanceof PleaseThrottleException ||
-            ex instanceof RecoverableException) {
+            ex instanceof RecoverableException ||
+            ex instanceof CallQueueTooBigException) {
           if (child != null) {
             child.setErrorTags(ex)
                  .finish();
@@ -451,6 +453,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
                 + ioe.state());
           }
         }
+
         // TODO - handle different types
         long base_time = datum.value().timestamp().epoch();
         base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
@@ -493,8 +496,8 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   public Deferred<List<WriteStatus>> write(final AuthState state,
                                            final TimeSeriesSharedTagsAndTimeData data, 
                                            final Span span) {
-    // TODO Auto-generated method stub
-    return null;
+    return Deferred.fromError(new UnsupportedOperationException(
+            "TODO - Need to implement this."));
   }
   
   @Override
@@ -506,8 +509,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   }
   
   public Deferred<Object> shutdown() {
-    // TODO - implement
-    return Deferred.fromResult(null);
+    return Deferred.fromResult(client.shutdown());
   }
   
   /**
