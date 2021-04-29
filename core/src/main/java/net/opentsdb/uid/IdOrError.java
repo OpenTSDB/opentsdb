@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -112,7 +112,6 @@ public interface IdOrError {
   /**
    * Wraps the rejection in the interface.
    * @param message A non-null and non-empty error string.
-   * @param t An optional exception.
    * @return The wrapped ID.
    * @throws IllegalArgumentException if the string was null or empty.
    */
@@ -194,4 +193,29 @@ public interface IdOrError {
       
     };
   }
+
+  /**
+   * A static instance returned when retry-on-assignment is enabled.
+   */
+  public static final IdOrError ASSIGNMENT_RETRY = new IdOrError() {
+    @Override
+    public byte[] id() {
+      return null;
+    }
+
+    @Override
+    public String error() {
+      return "Retry the value due to assignment.";
+    }
+
+    @Override
+    public WriteState state() {
+      return WriteState.RETRY;
+    }
+
+    @Override
+    public Throwable exception() {
+      return null;
+    }
+  };
 }
