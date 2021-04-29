@@ -116,9 +116,9 @@ public class PromQLResource extends BaseTSDBPlugin implements ServletResource {
   private Response handleQuery(final ServletConfig servlet_config, 
                                final HttpServletRequest request)
       throws IOException, InterruptedException, ExecutionException {
-    
+
     final String promql;
-    String[] params = request.getParameterValues("params");
+    String[] params = request.getParameterValues("q");
     if (params != null && params.length > 0 && !Strings.isNullOrEmpty(params[0])) {
       promql = params[0];
     } else {
