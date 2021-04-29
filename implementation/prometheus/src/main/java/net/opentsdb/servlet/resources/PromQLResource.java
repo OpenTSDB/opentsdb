@@ -99,7 +99,6 @@ public class PromQLResource extends BaseTSDBPlugin implements ServletResource {
   }
   
   @POST
-  @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public Response post(final @Context ServletConfig servlet_config, 
                        final @Context HttpServletRequest request) throws Exception {
@@ -119,9 +118,9 @@ public class PromQLResource extends BaseTSDBPlugin implements ServletResource {
       throws IOException, InterruptedException, ExecutionException {
     
     final String promql;
-    String temp = request.getHeader("query"); 
-    if (!Strings.isNullOrEmpty(temp)) {
-      promql = temp;
+    String[] params = request.getParameterValues("params");
+    if (params != null && params.length > 0 && !Strings.isNullOrEmpty(params[0])) {
+      promql = params[0];
     } else {
       final StringBuilder buffer = new StringBuilder();
       final char[] char_buf = new char[1024];
@@ -215,10 +214,14 @@ public class PromQLResource extends BaseTSDBPlugin implements ServletResource {
     }
     
     // extract query params
-    final String start = request.getHeader("start");
-    final String end = request.getHeader("end");
-    final String step = request.getHeader("step");
-    final String timeout = request.getHeader("timeout");
+    params = request.getParameterValues("start");
+    final String start = params != null && params.length > 0 ? params[0] : null;
+    params = request.getParameterValues("end");
+    final String end = params != null && params.length > 0 ? params[0] : null;
+    params = request.getParameterValues("step");
+    final String step = params != null && params.length > 0 ? params[0] : null;
+    params = request.getParameterValues("timeout");
+    final String timeout = params != null && params.length > 0 ? params[0] : null;
 
     final SemanticQuery query = new PromQLParser(promql,
                                                  start,
@@ -245,8 +248,9 @@ public class PromQLResource extends BaseTSDBPlugin implements ServletResource {
           .build();
     }
     
-    long query_timeout = (long) servlet_config.getServletContext()
+    int async_timeout = (Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE);
+    long query_timeout = async_timeout;
     final AsyncContext async = request.startAsync();
     if (!Strings.isNullOrEmpty(timeout)) {
       try {

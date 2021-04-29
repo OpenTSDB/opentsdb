@@ -164,6 +164,15 @@ public class TestPromQLParser {
   }
 
   @Test
+  public void dottedAndHashedMetric() throws Exception {
+    String promql = "ns.my-app.storage.flusher.segmentsFlushed.lastValue[5m]";
+    PromQLParser parser = new PromQLParser(promql, start, end, step);
+    SemanticQuery query = parser.parse().build();
+    assertEquals("ns.my-app.storage.flusher.segmentsFlushed.lastValue",
+            ((TimeSeriesDataSourceConfig) query.getExecutionGraph().get(0)).getMetric().getMetric());
+  }
+
+  @Test
   public void range() throws Exception {
     String promql = "http_request_duration_seconds_sum[5m]";
     PromQLParser parser = new PromQLParser(promql, start, end, step);
