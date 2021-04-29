@@ -91,7 +91,7 @@ public interface UniqueIdStore {
    * @param names A non-null and non-empty list of strings.
    * @param id A non-null ID for logging and abuse prevention purposes.   
    * @param span An optional tracing span.
-   * @return A deferred resolving to IdOrError objectss reflecting if 
+   * @return A deferred resolving to IdOrError objects reflecting if
    * the resolution/creation was successful or not.
    * @throws IllegalArgumentException if the type was null or the string
    * was null or empty.
