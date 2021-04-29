@@ -159,7 +159,7 @@ TIME_RANGE
 DURATION: [0-9]+ ('s' | 'm' | 'h' | 'd' | 'w' | 'y');
 
 /* NOTE The addition of the period (and in the future other chars) */ 
-METRIC_NAME: [a-zA-Z_:\.] [a-zA-Z0-9_:\.]*;
-LABEL_NAME:  [a-zA-Z_\.] [a-zA-Z0-9_\.]*;
+METRIC_NAME: [a-zA-Z_:\.-] [a-zA-Z0-9_:\.-]*;
+LABEL_NAME:  [a-zA-Z_\.-] [a-zA-Z0-9_\.-]*;
 
 WS: [\r\t\n ]+ -> skip;
