@@ -273,7 +273,7 @@ public class UTBase {
    * Mocks out both UIDs, writing them to storage.
    * @param type The type.
    * @param name The name.
-   * @param inal The id.
+   * @param id The id.
    */
   static void bothUIDs(final UniqueIdType type, 
                        final String name, 

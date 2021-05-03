@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,11 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Lists;
+import net.opentsdb.data.LowLevelMetricData;
+import net.opentsdb.data.TimeSeriesDatumStringId;
+import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.CallQueueTooBigException;
 import org.hbase.async.ClientStats;
@@ -138,6 +145,8 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   
   private ClientStatsWrapper client_stats;
   private Map<String, RegionClientStatsWrapper> region_client_stats;
+  private ThreadLocal<MutableNumericValue> tl_numeric_types =
+          ThreadLocal.withInitial(() -> new MutableNumericValue());
   
   public Tsdb1xHBaseDataStore(final Tsdb1xHBaseFactory factory,
                               final String id,
@@ -496,16 +505,431 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   public Deferred<List<WriteStatus>> write(final AuthState state,
                                            final TimeSeriesSharedTagsAndTimeData data, 
                                            final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException(
-            "TODO - Need to implement this."));
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".write")
+              .start();
+    } else {
+      child = null;
+    }
+
+    final Iterator<TimeSeriesDatum> iterator = data.iterator();
+    if (!iterator.hasNext()) {
+      if (child != null) {
+        child.finish();
+      }
+      return Deferred.fromResult(Collections.emptyList());
+    }
+
+    long temp_time = data.timestamp().epoch();
+    temp_time = temp_time - (temp_time % Schema.MAX_RAW_TIMESPAN);
+    final int base_timestamp = (int) temp_time;
+
+    final List<WriteStatus> statuses = Lists.newArrayListWithExpectedSize(data.size());
+    for (int i = 0; i < data.size(); i++) {
+      statuses.add(null);
+    }
+    final TimeSeriesDatum datum = iterator.next();
+
+    class GroupCB implements Callback<List<WriteStatus>, ArrayList<Void>> {
+      @Override
+      public List<WriteStatus> call(ArrayList<Void> arg) throws Exception {
+        return statuses;
+      }
+    }
+
+    class WriteCB implements Callback<Void, WriteStatus> {
+      final int index;
+
+      WriteCB(final int index) {
+        this.index = index;
+      }
+
+      @Override
+      public Void call(final WriteStatus status) throws Exception {
+        statuses.set(index, status);
+        return null;
+      }
+    }
+
+    class ErrorCB implements Callback<Void, Exception> {
+      final int index;
+
+      ErrorCB(final int index) {
+        this.index = index;
+      }
+
+      @Override
+      public Void call(final Exception ex) throws Exception {
+        statuses.set(index, WriteStatus.error(ex.getMessage(), ex));
+        return null;
+      }
+    }
+
+    class MetricCB implements Callback<Deferred<Void>, IdOrError> {
+      final int index;
+      final IdOrError tag_ioe;
+      final TimeSeriesDatum datum;
+
+      MetricCB(final int index, final TimeSeriesDatum datum, final IdOrError tag_ioe) {
+        this.index = index;
+        this.datum = datum;
+        this.tag_ioe = tag_ioe;
+      }
+
+      @Override
+      public Deferred<Void> call(final IdOrError metric_ioe) throws Exception {
+        switch (metric_ioe.state()) {
+          case RETRY:
+            statuses.set(index, WriteStatus.RETRY);
+            return null;
+          case REJECTED:
+            statuses.set(index, WriteStatus.REJECTED);
+            return null;
+          case ERROR:
+            statuses.set(index, WriteStatus.error(metric_ioe.error(),
+                    metric_ioe.exception()));
+            return null;
+        }
+
+        // TODO - someday, re-use arrays
+        boolean has_salt = schema.saltBuckets() > 0 && schema.saltWidth() > 0;
+        final int len = (has_salt ? schema.saltWidth() : 0) +
+                metric_ioe.id().length +
+                Schema.TIMESTAMP_BYTES +
+                tag_ioe.id().length;
+        final byte[] key = new byte[len];
+        int index = has_salt ? 1 : 0;
+        System.arraycopy(metric_ioe.id(), 0, key, 0, schema.metricWidth());
+        index += schema.metricWidth();
+        index += Schema.TIMESTAMP_BYTES;
+        System.arraycopy(tag_ioe.id(), 0, key, index, tag_ioe.id().length);
+        schema.setBaseTime(key, base_timestamp);
+        if (has_salt) {
+          schema.prefixKeyWithSalt(key);
+        }
+
+        Pair<byte[], byte[]> pair = schema.encode(datum.value(),
+                enable_appends || enable_appends_coproc, (int) base_timestamp, null);
+
+        if (enable_appends) {
+          return client.append(new AppendRequest(data_table, key,
+                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
+                  .addCallback(new WriteCB(this.index))
+                  .addErrback(new ErrorCB((this.index)));
+        } else {
+          // same for co-proc and puts. The encode method figures out
+          // the qualifier and values.
+          return client.put(new PutRequest(data_table, key,
+                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
+                  .addCallback(new WriteCB(this.index))
+                  .addErrback(new ErrorCB((this.index)));
+        }
+      }
+    }
+
+    class TagCB implements Callback<Deferred<List<WriteStatus>>, IdOrError> {
+      @Override
+      public Deferred<List<WriteStatus>> call(final IdOrError tag_ioe) throws Exception {
+        WriteStatus status = null;
+        switch (tag_ioe.state()) {
+          case RETRY:
+            status = WriteStatus.retry(tag_ioe.error());
+            break;
+          case REJECTED:
+            status = WriteStatus.rejected(tag_ioe.error());
+            break;
+          case ERROR:
+            status = WriteStatus.error(tag_ioe.error(), tag_ioe.exception());
+            break;
+          case OK:
+            break;
+          default:
+            throw new StorageException("Unexpected resolution state: "
+                    + tag_ioe.state());
+        }
+
+        if (status != null) {
+          for (int i = 0; i < data.size(); i++) {
+            statuses.set(i, status);
+          }
+          return Deferred.fromResult(statuses);
+        }
+
+        // good so we have a tag set!
+        final List<Deferred<Void>> deferreds =
+                Lists.newArrayListWithCapacity(data.size());
+        deferreds.add(schema.createRowMetric(state,
+                (TimeSeriesDatumStringId) datum.id(), child)
+          .addCallbackDeferring(new MetricCB(0, datum, tag_ioe))
+          .addErrback(new ErrorCB(0)));
+        int index = 1;
+        while (iterator.hasNext()) {
+          TimeSeriesDatum seriesDatum = iterator.next();
+          deferreds.add(schema.createRowMetric(state,
+                  (TimeSeriesDatumStringId) seriesDatum.id(), span)
+                  .addCallbackDeferring(new MetricCB(index, seriesDatum, tag_ioe))
+                  .addErrback(new ErrorCB((index++))));
+        }
+        return Deferred.group(deferreds).addCallback(new GroupCB());
+      }
+    }
+
+    return schema.createRowTags(state,
+            ((TimeSeriesDatumStringId) datum.id()).metric(),
+            ((TimeSeriesDatumStringId) datum.id()).tags(),
+            span)
+            .addCallbackDeferring(new TagCB());
   }
   
   @Override
   public Deferred<List<WriteStatus>> write(final AuthState state,
                                            final LowLevelTimeSeriesData data,
                                            final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException(
-        "TODO - Need to implement this."));
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".write")
+              .start();
+    } else {
+      child = null;
+    }
+
+    if (!(data instanceof LowLevelMetricData)) {
+      if (child != null) {
+        child.finish();
+      }
+      return Deferred.fromError(new UnsupportedOperationException(
+              "Not supporting instances of " + data.getClass() + " at this time."));
+    }
+
+    if (!data.advance()) {
+      if (child != null) {
+        child.finish();
+      }
+      return Deferred.fromResult(Collections.emptyList());
+    }
+
+    long temp_time = data.timestamp().epoch();
+    temp_time = temp_time - (temp_time % Schema.MAX_RAW_TIMESPAN);
+    final int base_timestamp = (int) temp_time;
+
+    final List<WriteStatus> statuses = Lists.newArrayList();
+
+    // TODO - it's possible the data will NOT have shared tags. Handle that case.
+    final Map<String, String> tags = Maps.newHashMap();
+    while (data.advanceTagPair()) {
+      String tag_key = new String(data.tagsBuffer(),
+              data.tagKeyStart(), data.tagKeyLength(), Const.UTF8_CHARSET);
+      String tag_value = new String(data.tagsBuffer(),
+              data.tagValueStart(), data.tagValueLength(), Const.UTF8_CHARSET);
+      tags.put(tag_key, tag_value);
+    }
+
+    class GroupCB implements Callback<List<WriteStatus>, ArrayList<Void>> {
+      @Override
+      public List<WriteStatus> call(ArrayList<Void> arg) throws Exception {
+        return statuses;
+      }
+    }
+
+    class WriteCB implements Callback<Void, WriteStatus> {
+      final int index;
+
+      WriteCB(final int index) {
+        this.index = index;
+      }
+
+      @Override
+      public Void call(final WriteStatus status) throws Exception {
+        statuses.set(index, status);
+        return null;
+      }
+    }
+
+    class ErrorCB implements Callback<Void, Exception> {
+      final int index;
+
+      ErrorCB(final int index) {
+        this.index = index;
+      }
+
+      @Override
+      public Void call(final Exception ex) throws Exception {
+        statuses.set(index, WriteStatus.error(ex.getMessage(), ex));
+        return null;
+      }
+    }
+
+    class MetricCB implements Callback<Deferred<Void>, IdOrError> {
+      final int index;
+      boolean is_int;
+      long long_value;
+      double double_value;
+      final IdOrError tag_ioe;
+
+      MetricCB(final int index, long value, final IdOrError tag_ioe) {
+        this.index = index;
+        this.is_int = true;
+        long_value = value;
+        this.tag_ioe = tag_ioe;
+      }
+
+      MetricCB(final int index, double value, final IdOrError tag_ioe) {
+        this.index = index;
+        this.is_int = false;
+        double_value = value;
+        this.tag_ioe = tag_ioe;
+      }
+
+      @Override
+      public Deferred<Void> call(final IdOrError metric_ioe) throws Exception {
+        switch (metric_ioe.state()) {
+          case RETRY:
+            statuses.set(index, WriteStatus.RETRY);
+            return null;
+          case REJECTED:
+            statuses.set(index, WriteStatus.REJECTED);
+            return null;
+          case ERROR:
+            statuses.set(index, WriteStatus.error(metric_ioe.error(),
+                    metric_ioe.exception()));
+            return null;
+        }
+
+        // TODO - someday, re-use arrays
+        boolean has_salt = schema.saltBuckets() > 0 && schema.saltWidth() > 0;
+        final int len = (has_salt ? schema.saltWidth() : 0) +
+                metric_ioe.id().length +
+                Schema.TIMESTAMP_BYTES +
+                tag_ioe.id().length;
+        final byte[] key = new byte[len];
+        int index = has_salt ? 1 : 0;
+        System.arraycopy(metric_ioe.id(), 0, key, 0, schema.metricWidth());
+        index += schema.metricWidth();
+        index += Schema.TIMESTAMP_BYTES;
+        System.arraycopy(tag_ioe.id(), 0, key, index, tag_ioe.id().length);
+        schema.setBaseTime(key, base_timestamp);
+        if (has_salt) {
+          schema.prefixKeyWithSalt(key);
+        }
+
+        MutableNumericValue mutable = tl_numeric_types.get();
+        if (is_int) {
+          mutable.reset(data.timestamp(), long_value);
+        } else {
+          mutable.reset(data.timestamp(), double_value);
+        }
+        Pair<byte[], byte[]> pair = schema.encode(mutable,
+                        enable_appends || enable_appends_coproc, (int) base_timestamp, null);
+
+        if (enable_appends) {
+          return client.append(new AppendRequest(data_table, key,
+                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
+                  .addCallback(new WriteCB(this.index));
+        } else {
+          // same for co-proc and puts. The encode method figures out
+          // the qualifier and values.
+          return client.put(new PutRequest(data_table, key,
+                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
+                  .addCallback(new WriteCB(this.index));
+        }
+      }
+    }
+
+    class TagCB implements Callback<Deferred<List<WriteStatus>>, IdOrError> {
+      @Override
+      public Deferred<List<WriteStatus>> call(final IdOrError tag_ioe) throws Exception {
+        WriteStatus status = null;
+        switch (tag_ioe.state()) {
+          case RETRY:
+            status = WriteStatus.retry(tag_ioe.error());
+            break;
+          case REJECTED:
+            status = WriteStatus.rejected(tag_ioe.error());
+            break;
+          case ERROR:
+            status = WriteStatus.error(tag_ioe.error(), tag_ioe.exception());
+            break;
+          case OK:
+            break;
+          default:
+            throw new StorageException("Unexpected resolution state: "
+                    + tag_ioe.state());
+        }
+
+        if (status != null) {
+          statuses.add(status);
+          while (data.advance()) {
+            statuses.add(status);
+          }
+          return Deferred.fromResult(statuses);
+        }
+
+        // good so we have a tag set!
+        final List<Deferred<Void>> deferreds = Lists.newArrayList();
+        statuses.add(null);
+        Deferred deferred = schema.createRowMetric(state,
+                new String(((LowLevelMetricData) data).metricBuffer(),
+                        ((LowLevelMetricData) data).metricStart(),
+                        ((LowLevelMetricData) data).metricLength(),
+                        Const.UTF8_CHARSET),
+                tags,
+                child);
+        switch (((LowLevelMetricData) data).valueFormat()) {
+          case DOUBLE:
+            deferred.addCallbackDeferring(new MetricCB(0,
+                    ((LowLevelMetricData) data).doubleValue(), tag_ioe));
+            break;
+          case FLOAT:
+            deferred.addCallbackDeferring(new MetricCB(0,
+                    ((LowLevelMetricData) data).floatValue(), tag_ioe));
+          case INTEGER:
+            deferred.addCallbackDeferring(new MetricCB(0,
+                    ((LowLevelMetricData) data).longValue(), tag_ioe));
+        }
+        deferreds.add(deferred.addErrback(new ErrorCB(0)));
+        int index = 1;
+        while (data.advance()) {
+          synchronized (statuses) {
+            statuses.add(null);
+          }
+          deferred = schema.createRowMetric(state,
+                  new String(((LowLevelMetricData) data).metricBuffer(),
+                          ((LowLevelMetricData) data).metricStart(),
+                          ((LowLevelMetricData) data).metricLength(),
+                          Const.UTF8_CHARSET),
+                  tags,
+                  child);
+          switch (((LowLevelMetricData) data).valueFormat()) {
+            case DOUBLE:
+              deferred.addCallbackDeferring(new MetricCB(index,
+                      ((LowLevelMetricData) data).doubleValue(), tag_ioe));
+              break;
+            case FLOAT:
+              deferred.addCallbackDeferring(new MetricCB(index,
+                      ((LowLevelMetricData) data).floatValue(), tag_ioe));
+            case INTEGER:
+              deferred.addCallbackDeferring(new MetricCB(index,
+                      ((LowLevelMetricData) data).longValue(), tag_ioe));
+          }
+          deferreds.add(deferred.addErrback(new ErrorCB(index++)));
+        }
+        return Deferred.group(deferreds).addCallback(new GroupCB());
+      }
+    }
+
+    return schema.createRowTags(state,
+            new String(((LowLevelMetricData) data).metricBuffer(),
+                    ((LowLevelMetricData) data).metricStart(),
+                    ((LowLevelMetricData) data).metricLength(),
+                    Const.UTF8_CHARSET),
+            tags,
+            span)
+            .addCallbackDeferring(new TagCB());
   }
   
   public Deferred<Object> shutdown() {
@@ -603,7 +1027,50 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
     }
   }
-  
+
+  class SuccessCB implements Callback<WriteStatus, Object> {
+    final Span child;
+
+    SuccessCB(final Span child) {
+      this.child = child;
+    }
+
+    @Override
+    public WriteStatus call(final Object ignored) throws Exception {
+      if (child != null) {
+        child.setSuccessTags().finish();
+      }
+      return WriteStatus.OK;
+    }
+  }
+
+  class WriteErrorCB implements Callback<WriteStatus, Exception> {
+    final Span child;
+
+    WriteErrorCB(final Span child) {
+      this.child = child;
+    }
+
+    @Override
+    public WriteStatus call(final Exception ex) throws Exception {
+      // TODO log?
+      if (ex instanceof PleaseThrottleException ||
+              ex instanceof RecoverableException ||
+              ex instanceof CallQueueTooBigException) {
+        if (child != null) {
+          child.setErrorTags(ex)
+                  .finish();
+        }
+        return WriteStatus.retry("Please retry at a later time.");
+      }
+      if (child != null) {
+        child.setErrorTags(ex)
+                .finish();
+      }
+      return WriteStatus.error(ex.getMessage(), ex);
+    }
+  }
+
   class ClientStatsWrapper {
     private long num_connections_created;
     private long root_lookups;
