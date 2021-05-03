@@ -760,9 +760,9 @@ public class TestNumericCodec {
     
     // milliseconds
     value = new MutableNumericValue(
-        new MillisecondTimeStamp(1262304000000L), 42);
+        new MillisecondTimeStamp(1262304000001L), 42);
     encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { -16, 0, 0, 0 }, encoded.getKey());
+    assertArrayEquals(new byte[] { -16, 0, 0, 64 }, encoded.getKey());
     assertArrayEquals(new byte[] { 42 }, encoded.getValue());
     
     value = new MutableNumericValue(
@@ -787,9 +787,9 @@ public class TestNumericCodec {
     assertArrayEquals(new byte[] { 0, 11, 66, 42, 0, 0 }, encoded.getValue());
     
     value = new MutableNumericValue(
-        new MillisecondTimeStamp(1262304000000L), 42);
+        new MillisecondTimeStamp(1262304000001L), 42);
     encoded = codec.encode(value, true, 1262304000, null);
     assertArrayEquals(NumericCodec.APPEND_QUALIFIER, encoded.getKey());
-    assertArrayEquals(new byte[] { -16, 0, 0, 0, 42 }, encoded.getValue());
+    assertArrayEquals(new byte[] { -16, 0, 0, 64, 42 }, encoded.getValue());
   }
 }
