@@ -28,6 +28,7 @@ import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Pair;
 
@@ -76,7 +77,7 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class NumericCodec implements Codec {
+public class NumericCodec extends BaseCodec {
 
   /** Mask to select the size of a value from the qualifier.  */
   public static final short LENGTH_MASK = 0x7;
@@ -147,7 +148,14 @@ public class NumericCodec implements Codec {
     MILLIS,
     SECONDS
   }
-  
+
+  NumericCodec() {
+    values = new byte[1][];
+    qualifiers = new byte[1][];
+    valueLengths = new int[1];
+    qualifierLengths = new int[1];
+  }
+
   @Override
   public TypeToken<? extends TimeSeriesDataType> type() {
     return NumericType.TYPE;
@@ -163,26 +171,23 @@ public class NumericCodec implements Codec {
   public RowSeq newRowSeq(final long base_time) {
     return new NumericRowSeq(base_time);
   }
-  
-  @SuppressWarnings("unchecked")
+
   @Override
-  public Pair<byte[], byte[]> encode(
-      final TimeSeriesValue<? extends TimeSeriesDataType> value,
-      final boolean append_format,
-      final int base_time,
-      final RollupInterval rollup_interval) {
-    
-    final byte[] v;
+  public WriteStatus encode(
+          final TimeSeriesValue<? extends TimeSeriesDataType> value,
+          final boolean append_format,
+          final int base_time,
+          final RollupInterval rollup_interval) {
     final boolean is_float;
     if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
-        v = vleEncodeLong(((TimeSeriesValue<NumericType>) value).value().longValue());
-        is_float = false;
+      values[0] = vleEncodeLong(((TimeSeriesValue<NumericType>) value).value().longValue());
+      is_float = false;
     } else {
       final double d = ((TimeSeriesValue<NumericType>) value).value().doubleValue();
       if ((float) d == d) {
-        v = Bytes.fromInt(Float.floatToIntBits((float) d));
+        values[0] = Bytes.fromInt(Float.floatToIntBits((float) d));
       } else {
-        v = Bytes.fromLong(Double.doubleToRawLongBits(d));
+        values[0] = Bytes.fromLong(Double.doubleToRawLongBits(d));
       }
       is_float = true;
     }
@@ -192,35 +197,42 @@ public class NumericCodec implements Codec {
     final long offset;
     final OffsetResolution resolution;
     switch (value.timestamp().units()) {
-    case SECONDS:
-      offset = value.timestamp().epoch() - (long) base_time;
-      resolution = OffsetResolution.SECONDS;
-      break;
-    case MILLIS:
-      offset = value.timestamp().msEpoch() - (long) (base_time * 1000L);
-      resolution = OffsetResolution.MILLIS;
-      break;
-    default:
-      // TODO - nanos.
-      throw new IllegalStateException("Unsupported resolution: " 
-          + value.timestamp().units());
-    }
-    if (append_format) {
-      return new Pair<byte[], byte[]>(APPEND_QUALIFIER, 
-          encodeAppendValue(resolution, offset, v, is_float));
-    } else {
-      short flag = (short) ((is_float ? FLAG_FLOAT : (short) 0) | (short) (v.length - 1));
-      switch (resolution) {
       case SECONDS:
-        return new Pair<byte[], byte[]>(buildSecondQualifier(offset, flag), v);
+        offset = value.timestamp().epoch() - (long) base_time;
+        resolution = OffsetResolution.SECONDS;
+        break;
       case MILLIS:
-        return new Pair<byte[], byte[]>(buildMsQualifier(offset, flag), v);
+        offset = value.timestamp().msEpoch() - (long) (base_time * 1000L);
+        resolution = OffsetResolution.MILLIS;
+        break;
       default:
         // TODO - nanos.
-        throw new IllegalStateException("Unsupported resolution: " 
-            + value.timestamp().units());
+        return WriteStatus.error("Unsupported resolution: "
+                + value.timestamp().units(), null);
+    }
+
+    if (append_format) {
+      qualifiers[0] = APPEND_QUALIFIER;
+      values[0] = encodeAppendValue(resolution, offset, values[0], is_float);
+    } else {
+      short flag = (short) ((is_float ? FLAG_FLOAT : (short) 0) | (short) (values[0].length - 1));
+      switch (resolution) {
+        case SECONDS:
+          qualifiers[0] = buildSecondQualifier(offset, flag);
+          break;
+        case MILLIS:
+          qualifiers[0] = buildMsQualifier(offset, flag);
+          break;
+        default:
+          // TODO - nanos.
+          return WriteStatus.error("Unsupported resolution: "
+                  + value.timestamp().units(), null);
       }
     }
+
+    qualifierLengths[0] = qualifiers[0].length;
+    valueLengths[0] = values[0].length;
+    return WriteStatus.OK;
   }
   
   /**
@@ -444,7 +456,7 @@ public class NumericCodec implements Codec {
   }
   
   /**
-   * Applies the {@link #VALUE_LENGTH_MASK} to the flags and returns the
+   * Applies the VALUE_LENGTH_MASK to the flags and returns the
    * length of the value in bytes (from 1 to 8).
    * @param flags The value flags to apply the mask to.
    * @return The length of encoded value in bytes.
@@ -492,7 +504,7 @@ public class NumericCodec implements Codec {
   
   /**
    * Extracts the value of a cell containing a data point.
-   * @param value The contents of a cell in HBase.
+   * @param values The contents of a cell in HBase.
    * @param value_idx The offset inside {@code values} at which the value
    * starts.
    * @param flags The flags for this value.
@@ -516,7 +528,7 @@ public class NumericCodec implements Codec {
   
   /**
    * Extracts the value of a cell containing a data point.
-   * @param value The contents of a cell in HBase.
+   * @param values The contents of a cell in HBase.
    * @param value_idx The offset inside {@code values} at which the value
    * starts.
    * @param flags The flags for this value.

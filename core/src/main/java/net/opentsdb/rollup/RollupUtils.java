@@ -148,12 +148,13 @@ public final class RollupUtils {
   }
 
   /**
-   * Builds a rollup column qualifier, prepending the appender as a string
-   * then the offeset on 2 bytes for the interval after a colon with the last
-   * four bits reserved for the length and type flags. I.e.
-   * {@code <agg>:<offset(flag)> 
-   *   n  :  2 bytes }
-   * @param timestamp The data point timestamp
+   * Builds a rollup column qualifier, prepending the append function as a single
+   * byte id based on the rollup config. The remaining two bytes encode the
+   * offset within the given interval while the last four bits are reserved for
+   * the length and type flags similar to a raw value. I.e.
+   * {@code <agg><offset(flag)>
+   *   n  2 bytes }
+   * @param timestamp The data point timestamp in unix epoch seconds.
    * @param flags The length and type (float || int) flags for the value
    * @param aggregator_id The numeric ID of the aggregator the value maps to.
    * @param interval The RollupInterval object with data about the interval
@@ -170,12 +171,13 @@ public final class RollupUtils {
   }
   
   /**
-   * Builds a rollup column qualifier, prepending the appender as a string
-   * then the offeset on 2 bytes for the interval after a colon with the last
-   * four bits reserved for the length and type flags. I.e.
-   * {@code <agg>:<offset(flag)>
-   *   n  :  2 bytes }
-   * @param timestamp The data point timestamp
+   * Builds a rollup column qualifier, prepending the append function as a single
+   * byte id based on the rollup config. The remaining two bytes encode the
+   * offset within the given interval while the last four bits are reserved for
+   * the length and type flags similar to a raw value. I.e.
+   * {@code <agg><offset(flag)>
+   *   n  2 bytes }
+   * @param timestamp The data point timestamp in unix epoch seconds.
    * @param basetime The base timestamp to calculate the offset from 
    * @param flags The length and type (float || int) flags for the value
    * @param aggregator_id The numeric ID of the aggregator the value maps to.
@@ -190,7 +192,6 @@ public final class RollupUtils {
                                             final int aggregator_id,
                                             final RollupInterval interval) {
     final byte[] qualifier = new byte[3];
-
     final int time_seconds = (int) ((timestamp & Const.SECOND_MASK) != 0 ?
             timestamp / 1000 : timestamp);
 

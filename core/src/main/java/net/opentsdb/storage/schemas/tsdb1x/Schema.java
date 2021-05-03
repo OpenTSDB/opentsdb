@@ -128,6 +128,7 @@ public class Schema implements WritableTimeSeriesDataStore {
   protected final Map<TypeToken<?>, ObjectPool> pool_cache;
   
   protected Map<TypeToken<?>, Codec> codecs;
+  protected Map<TypeToken<?>, ThreadLocal<Codec>> encoders;
   
   protected MetaDataStorageSchema meta_schema;
   
@@ -135,9 +136,6 @@ public class Schema implements WritableTimeSeriesDataStore {
   
   protected SchemaFactory factory;
 
-  protected ThreadLocal<MetricAndTagsDatumID> tags_id_wrappers =
-          ThreadLocal.withInitial(() -> new MetricAndTagsDatumID());
-  
   public Schema(final SchemaFactory factory, final TSDB tsdb, final String id) {
     this.factory = factory;
     this.tsdb = tsdb;
@@ -256,7 +254,12 @@ public class Schema implements WritableTimeSeriesDataStore {
     codecs = Maps.newHashMapWithExpectedSize(2);
     codecs.put(NumericType.TYPE, new NumericCodec());
     codecs.put(NumericSummaryType.TYPE, new NumericSummaryCodec());
-    
+
+    encoders = Maps.newHashMapWithExpectedSize(2);
+    encoders.put(NumericType.TYPE, ThreadLocal.withInitial(() -> new NumericCodec()));
+    encoders.put(NumericSummaryType.TYPE,
+            ThreadLocal.withInitial(() -> new NumericSummaryCodec()));
+
     meta_schema = tsdb.getRegistry()
         .getDefaultPlugin(MetaDataStorageSchema.class);
     
@@ -842,7 +845,7 @@ public class Schema implements WritableTimeSeriesDataStore {
 
     }
 
-    final MetricAndTagsDatumID id_wrapper = tags_id_wrappers.get();
+    final MetricAndTagsDatumID id_wrapper = new MetricAndTagsDatumID();
     // TODO - for other types that have a tag set but maybe not a metric.
     id_wrapper.metric = metric;
     id_wrapper.tags = tags;
@@ -1104,7 +1107,7 @@ public class Schema implements WritableTimeSeriesDataStore {
       child = null;
     }
 
-    MetricAndTagsDatumID id = tags_id_wrappers.get();
+    MetricAndTagsDatumID id = new MetricAndTagsDatumID();
     id.metric = metric;
     id.tags = tags;
     return uid_store.getOrCreateId(auth, UniqueIdType.METRIC,
@@ -1112,33 +1115,19 @@ public class Schema implements WritableTimeSeriesDataStore {
   }
 
   /**
-   * Encodes the given value into a qualifier and value to send to the
-   * key/value column store using the type of the value and the codecs
-   * configured for this schema.  
-   * 
-   * @param value A non-null value to encode.
-   * @param append_format Whether or not to generate the append format.
-   * @param base_time The base time in Unix epoch seconds.
-   * @param rollup_interval An optional rollup interval.
-   * @return A pair where the key is the qualifier and the value is the 
-   * column value if a codec was found, null if no codec was found.
+   * Looks for the proper encoder and returns a THREAD LOCAL version of that
+   * encoder if found.
+   * @param type The non-null type to look for.
+   * @return A THREAD LOCAL encoder if found, null if not.
    */
-  public Pair<byte[], byte[]> encode(
-      final TimeSeriesValue<? extends TimeSeriesDataType> value,
-      final boolean append_format,
-      final int base_time,
-      final RollupInterval rollup_interval) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value cannot be null.");
-    }
-
-    final Codec codec = codecs.get(value.type());
-    if (codec == null) {
+  public Codec getEncoder(TypeToken<? extends TimeSeriesDataType> type) {
+    final ThreadLocal<Codec> codecs = encoders.get(type);
+    if (codecs == null) {
       return null;
     }
-    return codec.encode(value, append_format, base_time, rollup_interval);
+    return codecs.get();
   }
-  
+
   /** @return The meta schema if implemented and assigned, null if not. */
   public MetaDataStorageSchema metaSchema() {
     return meta_schema;
