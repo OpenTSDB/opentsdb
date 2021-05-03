@@ -185,7 +185,9 @@ public class MillisecondTimeStamp implements TimeStamp {
 
   @Override
   public ChronoUnit units() {
-    return ChronoUnit.MILLIS;
+    return (timestamp % 1000 != 0) ?
+            ChronoUnit.MILLIS :
+            ChronoUnit.SECONDS;
   }
   
   @Override

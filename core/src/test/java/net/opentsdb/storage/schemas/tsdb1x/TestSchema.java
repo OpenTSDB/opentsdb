@@ -31,7 +31,9 @@ import static org.mockito.Mockito.when;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import com.google.common.collect.Maps;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
@@ -1060,7 +1062,7 @@ public class TestSchema extends SchemaBase {
   }
   
   @Test
-  public void createRowKeyErors() throws Exception {
+  public void createRowKeyRejected() throws Exception {
     resetConfig();
     Schema schema = schema();
     
@@ -1108,7 +1110,97 @@ public class TestSchema extends SchemaBase {
     assertNull(ioe.id());
     assertEquals(WriteState.REJECTED, ioe.state());
   }
-  
+
+  @Test
+  public void createRowTagsSuccess() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowTags(null,
+            METRIC_STRING, tags,null).join();
+    byte[] expected = com.google.common.primitives.Bytes.concat(
+            TAGK_BYTES, TAGV_BYTES, TAGK_B_BYTES, TAGV_B_BYTES);
+    assertEquals(WriteState.OK, ioe.state());
+    assertArrayEquals(expected, ioe.id());
+  }
+
+  @Test
+  public void createRowTagsRejected() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put("unassigned", TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowTags(null,
+            METRIC_STRING, tags,null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+
+    tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, "unassigned");
+    ioe = schema.createRowTags(null,
+            METRIC_STRING, tags,null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+  }
+
+  @Test
+  public void createRowMetricIdSuccess() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    IdOrError ioe = schema.createRowMetric(null, id, null).join();
+    assertEquals(WriteState.OK, ioe.state());
+    assertArrayEquals(METRIC_BYTES, ioe.id());
+  }
+
+  @Test
+  public void createRowMetricIdRejected() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric("unassigned")
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    IdOrError ioe = schema.createRowMetric(null, id, null).join();
+    assertEquals(WriteState.REJECTED, ioe.state());
+  }
+
+  @Test
+  public void createRowMetricStringsSuccess() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowMetric(null, METRIC_STRING, tags,null).join();
+    assertEquals(WriteState.OK, ioe.state());
+    assertArrayEquals(METRIC_BYTES, ioe.id());
+  }
+
+  @Test
+  public void createRowMetricStringsRejected() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowMetric(null, "unassigned", tags,null).join();
+    assertEquals(WriteState.REJECTED, ioe.state());
+  }
+
   @Test
   public void encode() throws Exception {
     resetConfig();

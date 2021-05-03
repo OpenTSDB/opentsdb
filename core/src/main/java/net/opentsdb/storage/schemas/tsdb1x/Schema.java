@@ -40,6 +40,8 @@ import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesDatum;
+import net.opentsdb.data.TimeSeriesDatumId;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
@@ -132,6 +134,9 @@ public class Schema implements WritableTimeSeriesDataStore {
   protected DatumIdValidator id_validator;
   
   protected SchemaFactory factory;
+
+  protected ThreadLocal<MetricAndTagsDatumID> tags_id_wrappers =
+          ThreadLocal.withInitial(() -> new MetricAndTagsDatumID());
   
   public Schema(final SchemaFactory factory, final TSDB tsdb, final String id) {
     this.factory = factory;
@@ -714,7 +719,143 @@ public class Schema implements WritableTimeSeriesDataStore {
 //    }
 //    return codec.newRowSeq(base_time);
   }
-  
+
+  /**
+   * Gets or creates just the tags for a row key given a low level interface to
+   * a time series buffer that is already advanced to the proper tag set. The
+   * {@link IdOrError#id()} field will contain the byte array of tag key and
+   * value combos to use in the row key.
+   *
+   * @param auth A non-null auth object for authorization.
+   * @param metric The non-null metric for logging.
+   * @param tags The non-null tags to encode.
+   * @param span An optional tracing span.
+   * @return A deferred resolving to an IdOrError object or an exception
+   *         if something went pear shaped.
+   */
+  public Deferred<IdOrError> createRowTags(final AuthState auth,
+                                           final String metric,
+                                           final Map<String, String> tags,
+                                           final Span span) {
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".createRowTags")
+              .start();
+    } else {
+      child = null;
+    }
+
+    // TODO - inefficient but tested.
+    final List<String> tagk_strings =
+            Lists.newArrayListWithCapacity(tags.size());
+    final List<String> tagv_strings =
+            Lists.newArrayListWithCapacity(tags.size());
+    final List<IdOrError> tagk_results =
+            Lists.newArrayListWithCapacity(tags.size());
+    final List<IdOrError> tagv_results =
+            Lists.newArrayListWithCapacity(tags.size());
+    for (Entry<String, String> entry : tags.entrySet()) {
+      tagk_strings.add(entry.getKey());
+      tagv_strings.add(entry.getValue());
+    }
+
+    class GroupCB implements Callback<IdOrError, ArrayList<Object>> {
+
+      @Override
+      public IdOrError call(final ArrayList<Object> ignored) throws Exception {
+        // needs to be sorted on the tag keys
+        final ByteMap<byte[]> map = new ByteMap<byte[]>();
+
+        WriteState state = WriteState.OK;
+        String error = null;
+        for (int i = 0; i < tagk_results.size(); i++) {
+          final IdOrError tagk = tagk_results.get(i);
+          final IdOrError tagv = tagv_results.get(i);
+
+          if (tagk.id() != null && tagv.id() != null) {
+            // good pair!
+            if (state == WriteState.OK) {
+              map.put(tagk.id(), tagv.id());
+            }
+          } else {
+            if (tagk.state().ordinal() >= state.ordinal()) {
+              state = tagk.state();
+              error = tagk.error();
+            }
+            if (tagv.state().ordinal() >= state.ordinal()) {
+              state = tagv.state();
+              error = tagv.error();
+            }
+          }
+        }
+
+        if (state != WriteState.OK) {
+          if (child != null) {
+            child.setErrorTags()
+                    .setTag("state", state.toString())
+                    .setTag("message", error)
+                    .finish();
+          }
+          switch (state) {
+            case RETRY:
+              return IdOrError.wrapRetry(error);
+            case REJECTED:
+              return IdOrError.wrapRejected(error);
+            default:
+              return IdOrError.wrapError(error);
+          }
+        }
+
+        // assume correct sizes
+        int idx = 0;
+        byte[] tags = new byte[(map.size() * tagk_width) +
+                (map.size() * tagv_width)];
+        for (final Entry<byte[], byte[]> entry : map.entrySet()) {
+          System.arraycopy(entry.getKey(), 0, tags, idx, tagk_width);
+          idx += tagk_width;
+          System.arraycopy( entry.getValue(), 0, tags, idx, tagv_width);
+          idx += tagv_width;
+        }
+
+        return IdOrError.wrapId(tags);
+      }
+
+    }
+
+    class TagKCB implements Callback<Object, List<IdOrError>> {
+
+      @Override
+      public Object call(final List<IdOrError> results) throws Exception {
+        tagk_results.addAll(results);
+        return null;
+      }
+
+    }
+
+    class TagVCB implements Callback<Object, List<IdOrError>> {
+
+      @Override
+      public Object call(final List<IdOrError> results) throws Exception {
+        tagv_results.addAll(results);
+        return null;
+      }
+
+    }
+
+    final MetricAndTagsDatumID id_wrapper = tags_id_wrappers.get();
+    // TODO - for other types that have a tag set but maybe not a metric.
+    id_wrapper.metric = metric;
+    id_wrapper.tags = tags;
+    final List<Deferred<Object>> deferreds = Lists.newArrayListWithCapacity(2);
+    deferreds.add(uid_store.getOrCreateIds(auth, UniqueIdType.TAGK,
+            tagk_strings, id_wrapper, child)
+            .addCallback(new TagKCB()));
+    deferreds.add(uid_store.getOrCreateIds(auth, UniqueIdType.TAGV,
+            tagv_strings, id_wrapper, child)
+            .addCallback(new TagVCB()));
+    return Deferred.group(deferreds).addBoth(new GroupCB());
+  }
+
   /**
    * Generates the row key for a given datum, incorporating the optional
    * salt, the timestamp, metric and tags as per the original OpenTSDB
@@ -774,14 +915,14 @@ public class Schema implements WritableTimeSeriesDataStore {
     }
     
     // TODO - If summary we may need to add tags to the ID.
-    
-    final List<String> tagk_strings = 
+
+    final List<String> tagk_strings =
         Lists.newArrayListWithExpectedSize(tags_size);
-    final List<String> tagv_strings = 
+    final List<String> tagv_strings =
         Lists.newArrayListWithExpectedSize(tags_size);
-    final List<IdOrError> tagk_results = 
+    final List<IdOrError> tagk_results =
         Lists.newArrayListWithExpectedSize(tags_size);
-    final List<IdOrError> tagv_results = 
+    final List<IdOrError> tagv_results =
         Lists.newArrayListWithExpectedSize(tags_size);
     final List<Deferred<Object>> deferreds = 
         Lists.newArrayListWithExpectedSize(2);
@@ -918,7 +1059,58 @@ public class Schema implements WritableTimeSeriesDataStore {
         ((TimeSeriesDatumStringId) datum.id()).metric(), datum.id(), child)
           .addCallbackDeferring(new MetricCB());
   }
-  
+
+  /**
+   * Gets or creates the UID for the given metric in the Id.
+   * @param auth A non-null auth object for authorization.
+   * @param id The non-null ID with the metric set.
+   * @param span An optional tracing span.
+   * @return A deferred resolving to an IdOrError object or an exception
+   *         if something went pear shaped.
+   */
+  public Deferred<IdOrError> createRowMetric(final AuthState auth,
+                                             final TimeSeriesDatumStringId id,
+                                             final Span span) {
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".createRowKey")
+              .start();
+    } else {
+      child = null;
+    }
+
+    return uid_store.getOrCreateId(auth, UniqueIdType.METRIC,
+            id.metric(), id, child);
+  }
+
+  /**
+   * Gets or creates the UID for the given metric.
+   * @param auth A non-null auth object for authorization.
+   * @param metric The non-null metric to get or assign the UID for.
+   * @param tags The non-null tag map for filtering and validation.
+   * @param span An optional tracing span.
+   * @return A deferred resolving to an IdOrError object or an exception
+   *         if something went pear shaped.
+   */
+  public Deferred<IdOrError> createRowMetric(final AuthState auth,
+                                             final String metric,
+                                             final Map<String, String> tags,
+                                             final Span span) {
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".createRowKey")
+              .start();
+    } else {
+      child = null;
+    }
+
+    MetricAndTagsDatumID id = tags_id_wrappers.get();
+    id.metric = metric;
+    id.tags = tags;
+    return uid_store.getOrCreateId(auth, UniqueIdType.METRIC,
+            metric, id, child);
+  }
+
   /**
    * Encodes the given value into a qualifier and value to send to the
    * key/value column store using the type of the value and the codecs
@@ -939,7 +1131,7 @@ public class Schema implements WritableTimeSeriesDataStore {
     if (value == null) {
       throw new IllegalArgumentException("Value cannot be null.");
     }
-    
+
     final Codec codec = codecs.get(value.type());
     if (codec == null) {
       return null;
@@ -1285,5 +1477,40 @@ public class Schema implements WritableTimeSeriesDataStore {
         type_pool.claim().object();
     series.reset(base_timestamp, id_hash, array_pool, set, interval);
     return series;
+  }
+
+  class MetricAndTagsDatumID implements TimeSeriesDatumStringId {
+    String metric;
+    Map<String, String> tags;
+
+    @Override
+    public TypeToken<? extends TimeSeriesId> type() {
+      return Const.TS_STRING_ID;
+    }
+
+    @Override
+    public long buildHashCode() {
+      throw new UnsupportedOperationException("TODO");
+    }
+
+    @Override
+    public String namespace() {
+      return null;
+    }
+
+    @Override
+    public String metric() {
+      return metric;
+    }
+
+    @Override
+    public Map<String, String> tags() {
+      return tags;
+    }
+
+    @Override
+    public int compareTo(TimeSeriesDatumId o) {
+      throw new UnsupportedOperationException("TODO");
+    }
   }
 }

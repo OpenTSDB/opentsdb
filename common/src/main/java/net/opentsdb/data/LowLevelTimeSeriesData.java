@@ -112,14 +112,14 @@ public interface LowLevelTimeSeriesData extends Closeable {
   public boolean advanceTagPair();
 
   /** @return The offset into the {@link #tagsBuffer()} for the current tag key
-   * when using the {@link advanceTagPair} method of iterating. */
+   * when using the {@link #advanceTagPair} method of iterating. */
   public int tagKeyStart();
   
   /** @return The length of the current tag key in bytes. */
   public int tagKeyLength();
   
   /** @return The offset into the {@link #tagsBuffer()} for the current tag value
-   * when using the {@link advanceTagPair} method of iterating. */
+   * when using the {@link #advanceTagPair} method of iterating. */
   public int tagValueStart();
   
   /** @return the length of the current tag value in bytes. */

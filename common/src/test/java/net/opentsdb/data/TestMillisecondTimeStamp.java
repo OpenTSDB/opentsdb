@@ -40,14 +40,14 @@ public class TestMillisecondTimeStamp {
     assertEquals(1000, ts.msEpoch());
     assertEquals(1, ts.epoch());
     assertEquals(0, ts.nanos());
-    assertEquals(ChronoUnit.MILLIS, ts.units());
+    assertEquals(ChronoUnit.SECONDS, ts.units());
     assertEquals(ZoneId.of("UTC"), ts.timezone());
     
     ts = new MillisecondTimeStamp(-1000);
     assertEquals(-1000, ts.msEpoch());
     assertEquals(-1, ts.epoch());
     assertEquals(0, ts.nanos());
-    assertEquals(ChronoUnit.MILLIS, ts.units());
+    assertEquals(ChronoUnit.SECONDS, ts.units());
     
     ts = new MillisecondTimeStamp(1050);
     assertEquals(1050, ts.msEpoch());
@@ -662,5 +662,11 @@ public class TestMillisecondTimeStamp {
     ts2 = new ZonedNanoTimeStamp(1000L, ZoneId.of("UTC"));
     assertTrue(ts.equals(ts2));
   }
-  
+
+  @Test
+  public void units() throws Exception {
+    assertEquals(ChronoUnit.SECONDS, new MillisecondTimeStamp(1620017897000L).units());
+    assertEquals(ChronoUnit.MILLIS, new MillisecondTimeStamp(1620017897152L).units());
+  }
+
 }
