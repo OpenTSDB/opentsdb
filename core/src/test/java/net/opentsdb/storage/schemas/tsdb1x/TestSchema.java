@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
@@ -1202,29 +1204,38 @@ public class TestSchema extends SchemaBase {
   }
 
   @Test
-  public void encode() throws Exception {
+  public void getEncoder() throws Exception {
     resetConfig();
     Schema schema = schema();
-    
-    MutableNumericValue value = 
-        new MutableNumericValue(new SecondTimeStamp(1262304000), 42);
-    Pair<byte[], byte[]> qv = schema.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 0 }, qv.getKey());
-    assertArrayEquals(new byte[] { 42 }, qv.getValue());
-    
-    qv = schema.encode(value, true, 1262304000, null);
-    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, qv.getKey());
-    assertArrayEquals(new byte[] { 0, 0, 42 }, qv.getValue());
-    
-    TimeSeriesValue no_codec = mock(TimeSeriesValue.class);
-    when(no_codec.type()).thenReturn(TypeToken.of(String.class));
-    assertNull(schema.encode(no_codec, true, 1262304000, null));
-    
-    try {
-      schema.encode(null, false, 1262304000, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertTrue(schema.getEncoder(NumericType.TYPE) instanceof NumericCodec);
+    assertTrue(schema.getEncoder(NumericSummaryType.TYPE) instanceof NumericSummaryCodec);
+    assertNull(schema.getEncoder(AnnotationType.TYPE));
   }
+
+//  @Test
+//  public void encode() throws Exception {
+//    resetConfig();
+//    Schema schema = schema();
+//
+//    MutableNumericValue value =
+//        new MutableNumericValue(new SecondTimeStamp(1262304000), 42);
+//    Pair<byte[], byte[]> qv = schema.encode(value, false, 1262304000, null);
+//    assertArrayEquals(new byte[] { 0, 0 }, qv.getKey());
+//    assertArrayEquals(new byte[] { 42 }, qv.getValue());
+//
+//    qv = schema.encode(value, true, 1262304000, null);
+//    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, qv.getKey());
+//    assertArrayEquals(new byte[] { 0, 0, 42 }, qv.getValue());
+//
+//    TimeSeriesValue no_codec = mock(TimeSeriesValue.class);
+//    when(no_codec.type()).thenReturn(TypeToken.of(String.class));
+//    assertNull(schema.encode(no_codec, true, 1262304000, null));
+//
+//    try {
+//      schema.encode(null, false, 1262304000, null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//  }
 
   @Test
   public void newSeries() throws Exception {

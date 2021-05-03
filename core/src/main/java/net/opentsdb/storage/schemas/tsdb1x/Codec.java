@@ -19,6 +19,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.utils.Pair;
 
 /**
@@ -58,12 +59,20 @@ public interface Codec {
    * @param append_format Whether or not to generate the append format.
    * @param base_time The base time in Unix epoch seconds.
    * @param rollup_interval An optional rollup interval.
-   * @return A non-null pair where the key is the qualifier and the value
-   * is the column value.
+   * @return A non-null write state to describe if the encoding was successful
+   * or not.
    */
-  public Pair<byte[], byte[]> encode(
+  public WriteStatus encode(
       final TimeSeriesValue<? extends TimeSeriesDataType> value,
       final boolean append_format,
       final int base_time,
       final RollupInterval rollup_interval);
+
+  public void reset();
+  public int encodedValues();
+  public byte[][] qualifiers();
+  public byte[][] values();
+  public int[] qualifierLengths();
+  public int[] valueLengths();
+
 }

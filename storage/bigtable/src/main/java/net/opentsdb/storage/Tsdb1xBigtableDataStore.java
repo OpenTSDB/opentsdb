@@ -17,6 +17,7 @@ package net.opentsdb.storage;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,6 +60,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
+import net.opentsdb.storage.schemas.tsdb1x.Codec;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
 import net.opentsdb.uid.IdOrError;
@@ -339,8 +341,16 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
         // TODO - handle different types
         long base_time = datum.value().timestamp().epoch();
         base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
-        Pair<byte[], byte[]> pair = schema.encode(datum.value(), 
-            enable_appends, (int) base_time, null);
+        final Codec codec = schema.getEncoder(datum.value().type());
+        if (codec == null) {
+          return Deferred.fromResult(WriteStatus.error("No codec for type: "
+                  + datum.value().type(), null));
+        }
+        WriteStatus status = codec.encode(datum.value(),
+                enable_appends, (int) base_time, null);
+        if (status.state() != WriteStatus.WriteState.OK) {
+          return Deferred.fromResult(status);
+        }
         
         if (enable_appends) {
           final ReadModifyWriteRowRequest append_request = 
@@ -349,8 +359,12 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
                 .setRowKey(UnsafeByteOperations.unsafeWrap(ioe.id()))
                 .addRules(ReadModifyWriteRule.newBuilder()
                     .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
-                    .setColumnQualifier(UnsafeByteOperations.unsafeWrap(pair.getKey()))
-                    .setAppendValue(UnsafeByteOperations.unsafeWrap(pair.getValue())))
+                    .setColumnQualifier(UnsafeByteOperations.unsafeWrap(
+                            Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0])
+                    ))
+                    .setAppendValue(UnsafeByteOperations.unsafeWrap(
+                            Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])
+                    )))
                 .build();
           
           final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
@@ -399,8 +413,12 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
                 .addMutations(Mutation.newBuilder()
                     .setSetCell(SetCell.newBuilder()
                         .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
-                        .setColumnQualifier(UnsafeByteOperations.unsafeWrap(pair.getKey()))
-                        .setValue(UnsafeByteOperations.unsafeWrap(pair.getValue()))
+                        .setColumnQualifier(UnsafeByteOperations.unsafeWrap(
+                                Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0])
+                        ))
+                        .setValue(UnsafeByteOperations.unsafeWrap(
+                                Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])
+                        ))
                         .setTimestampMicros(-1)))
                 .build();
           

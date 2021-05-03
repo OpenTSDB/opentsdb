@@ -15,6 +15,7 @@
 package net.opentsdb.storage;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -28,6 +29,7 @@ import net.opentsdb.data.LowLevelMetricData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.storage.schemas.tsdb1x.Codec;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.CallQueueTooBigException;
 import org.hbase.async.ClientStats;
@@ -466,18 +468,32 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
         // TODO - handle different types
         long base_time = datum.value().timestamp().epoch();
         base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
-        Pair<byte[], byte[]> pair = schema.encode(datum.value(), 
+        final Codec codec = schema.getEncoder(datum.value().type());
+        if (codec == null) {
+          return Deferred.fromResult(WriteStatus.error("No codec for type: "
+                  + datum.value().type(), null));
+        }
+        WriteStatus status = codec.encode(datum.value(),
             enable_appends || enable_appends_coproc, (int) base_time, null);
+        if (status.state() != WriteStatus.WriteState.OK) {
+          return Deferred.fromResult(status);
+        }
         
         if (enable_appends) {
+          // TODO - Copying the arrays sucks! We have to for now though as the
+          // asynchbase client can req-ueue the RPCs so we'd lose thread locality.
           return client.append(new AppendRequest(data_table,ioe.id(), 
-              DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  DATA_FAMILY,
+                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
               .addCallbacks(new SuccessCB(), new WriteErrorCB());
         } else {
           // same for co-proc and puts. The encode method figures out
           // the qualifier and values.
           return client.put(new PutRequest(data_table, ioe.id(), 
-              DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  DATA_FAMILY,
+                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
               .addCallbacks(new SuccessCB(), new WriteErrorCB());
         }
       }
@@ -609,12 +625,24 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
           schema.prefixKeyWithSalt(key);
         }
 
-        Pair<byte[], byte[]> pair = schema.encode(datum.value(),
+        final Codec codec = schema.getEncoder(datum.value().value().type());
+        if (codec == null) {
+          statuses.set(this.index, WriteStatus.error("No codec for type: "
+                  + datum.value().value().type(), null));
+          return null;
+        }
+        WriteStatus status = codec.encode(datum.value(),
                 enable_appends || enable_appends_coproc, (int) base_timestamp, null);
+        if (status.state() != WriteStatus.WriteState.OK) {
+          statuses.set(this.index, status);
+          return null;
+        }
 
         if (enable_appends) {
           return client.append(new AppendRequest(data_table, key,
-                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  DATA_FAMILY,
+                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
                   .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
                   .addCallback(new WriteCB(this.index))
                   .addErrback(new ErrorCB((this.index)));
@@ -622,7 +650,9 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
           // same for co-proc and puts. The encode method figures out
           // the qualifier and values.
           return client.put(new PutRequest(data_table, key,
-                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  DATA_FAMILY,
+                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
                   .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
                   .addCallback(new WriteCB(this.index))
                   .addErrback(new ErrorCB((this.index)));
@@ -821,19 +851,34 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
         } else {
           mutable.reset(data.timestamp(), double_value);
         }
-        Pair<byte[], byte[]> pair = schema.encode(mutable,
-                        enable_appends || enable_appends_coproc, (int) base_timestamp, null);
+
+        final Codec codec = schema.getEncoder(mutable.value().type());
+        if (codec == null) {
+          statuses.set(this.index, WriteStatus.error("No codec for type: "
+                  + mutable.value().type(), null));
+          return null;
+        }
+        WriteStatus status = codec.encode(mutable,
+                enable_appends || enable_appends_coproc, (int) base_timestamp, null);
+        if (status.state() != WriteStatus.WriteState.OK) {
+          statuses.set(this.index, status);
+          return null;
+        }
 
         if (enable_appends) {
           return client.append(new AppendRequest(data_table, key,
-                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  DATA_FAMILY,
+                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
                   .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
                   .addCallback(new WriteCB(this.index));
         } else {
           // same for co-proc and puts. The encode method figures out
           // the qualifier and values.
           return client.put(new PutRequest(data_table, key,
-                  DATA_FAMILY, pair.getKey(), pair.getValue()))
+                  DATA_FAMILY,
+                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
                   .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
                   .addCallback(new WriteCB(this.index));
         }
