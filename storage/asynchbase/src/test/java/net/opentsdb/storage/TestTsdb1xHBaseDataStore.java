@@ -34,6 +34,9 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.MutableRollupDatum;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.UnitTestException;
 import org.hbase.async.HBaseClient;
@@ -62,6 +65,7 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
 import net.opentsdb.uid.UniqueIdStore;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -85,6 +89,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     when(factory.tsdb()).thenReturn(tsdb);
     PowerMockito.whenNew(HBaseClient.class).withAnyArguments().thenReturn(client);
     storage.flushStorage("tsdb".getBytes(Const.ASCII_US_CHARSET));
+    when(schema_factory.rollupConfig()).thenReturn(null);
   }
   
   @Test
@@ -369,6 +374,141 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
             store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
             new byte[] { 0, 0 },
             storage.getCurrentTimestamp() - 1));
+  }
+
+  @Test
+  public void writeDatumRollup() throws Exception {
+    storage.flushStorage("tsdb-rollup-1h".getBytes(StandardCharsets.UTF_8));
+    when(schema_factory.rollupConfig()).thenReturn(HOURLY_INTERVAL.rollupConfig());
+
+    MutableRollupDatum value = new MutableRollupDatum();
+    value.setId(BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build());
+    value.resetTimestamp(new SecondTimeStamp(1262304000));
+    value.resetValue(0, 42);
+    value.resetValue(1, 60);
+    value.resetValue(2, 5);
+    value.resetValue(3, 0);
+    value.setInterval("1h");
+
+    Tsdb1xHBaseDataStore store =
+            new Tsdb1xHBaseDataStore(factory, "UT", schema);
+    Whitebox.setInternalState(store, "use_dp_timestamp", false);
+    WriteStatus state = store.write(null, value, null).join();
+
+    assertEquals(WriteState.OK, state.state());
+    byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 42 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0, 0, 0 }));
+    assertArrayEquals(new byte[] { 60 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1, 0, 0 }));
+    assertArrayEquals(new byte[] { 5 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 2, 0, 0 }));
+    assertArrayEquals(new byte[] { 0 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 3, 0, 0 }));
+
+    // appends
+    Whitebox.setInternalState(store, "write_appends", true);
+    state = store.write(null, value, null).join();
+    assertEquals(WriteState.OK, state.state());
+    assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0 }));
+    assertArrayEquals(new byte[] { 0, 0, 60 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1 }));
+    assertArrayEquals(new byte[] { 0, 0, 5 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 2 }));
+    assertArrayEquals(new byte[] { 0, 0, 0 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 3 }));
+  }
+
+  @Test
+  public void writeSharedDataRollup() throws Exception {
+    storage.flushStorage("tsdb-rollup-1h".getBytes(StandardCharsets.UTF_8));
+    when(schema_factory.rollupConfig()).thenReturn(HOURLY_INTERVAL.rollupConfig());
+
+    TimeStamp ts = new SecondTimeStamp(1262304000);
+    MutableRollupDatum value = new MutableRollupDatum();
+    value.setId(BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build());
+    value.resetTimestamp(ts);
+    value.resetValue(0, 42);
+    value.resetValue(1, 60);
+    value.setInterval("1h");
+
+    List<TimeSeriesDatum> data = Lists.newArrayList();
+    data.add(value);
+
+    value = new MutableRollupDatum();
+    value.setId(BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_B_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build());
+    value.resetTimestamp(ts);
+    value.resetValue(0, 24);
+    value.resetValue(1, 30);
+    value.setInterval("1h");
+    data.add(value);
+
+    TimeSeriesSharedTagsAndTimeData shared =
+            TimeSeriesSharedTagsAndTimeData.fromCollection(data);
+    Tsdb1xHBaseDataStore store =
+            new Tsdb1xHBaseDataStore(factory, "UT", schema);
+    Whitebox.setInternalState(store, "use_dp_timestamp", false);
+    List<WriteStatus> statuses = store.write(null, shared, null).join();
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+
+    byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 42 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0, 0, 0 }));
+    assertArrayEquals(new byte[] { 60 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1, 0, 0 }));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 24 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0, 0, 0 }));
+    assertArrayEquals(new byte[] { 30 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1, 0, 0 }));
+
+    // appends
+    Whitebox.setInternalState(store, "write_appends", true);
+    statuses = store.write(null, shared, null).join();
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+
+    row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0 }));
+    assertArrayEquals(new byte[] { 0, 0, 60 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1 }));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 24 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0 }));
+    assertArrayEquals(new byte[] { 0, 0, 30 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1 }));
   }
 
   MockLowLevelMetricData lowLevel(TimeSeriesDatum... data) {

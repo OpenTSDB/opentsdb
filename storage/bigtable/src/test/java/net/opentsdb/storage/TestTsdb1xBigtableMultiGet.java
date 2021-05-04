@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.rollup.RollupInterval;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -263,7 +264,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setId("m1")
         .build();
     when(node.rollupIntervals())
-      .thenReturn(Lists.<DefaultRollupInterval>newArrayList(DefaultRollupInterval.builder()
+      .thenReturn(Lists.<RollupInterval>newArrayList(DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
@@ -1370,7 +1371,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   
   void setMultiRollupQuery(final boolean reversed) throws Exception {
     when(node.rollupIntervals())
-      .thenReturn(Lists.<DefaultRollupInterval>newArrayList(DefaultRollupInterval.builder()
+      .thenReturn(Lists.<RollupInterval>newArrayList(DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")

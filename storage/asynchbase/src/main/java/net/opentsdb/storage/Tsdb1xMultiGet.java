@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.CompareFilter;
 import org.hbase.async.FilterList;
@@ -347,7 +348,7 @@ public class Tsdb1xMultiGet implements
     }
     
     if (rollup_index >= 0) {
-      for (final DefaultRollupInterval interval : node.rollupIntervals()) {
+      for (final RollupInterval interval : node.rollupIntervals()) {
         if (pre_aggregate) {
           tables.add(interval.getGroupbyTable());
         } else {
@@ -822,7 +823,7 @@ public class Tsdb1xMultiGet implements
   @VisibleForTesting
   void incrementTimestamp() {
     if (rollup_index >= 0) {
-      final DefaultRollupInterval interval =
+      final RollupInterval interval =
           node.rollupIntervals().get(rollup_index);
       if (reversed) {
         timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -855,7 +856,7 @@ public class Tsdb1xMultiGet implements
         rollup_index < node.rollupIntervals().size()) {
       final Collection<QueryNode> rates = node.pipelineContext()
           .upstreamOfType(node, Rate.class);
-      final DefaultRollupInterval interval = node.rollupIntervals().get(0);
+      final RollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
         timestamp.updateEpoch(RollupUtils.getRollupBasetime(
             (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));     
@@ -961,7 +962,7 @@ public class Tsdb1xMultiGet implements
       if (!node.pipelineContext().hasId(hash, Const.TS_BYTE_ID)) {
         node.pipelineContext().addId(hash, new TSUID(tsuid, node.schema()));
       }
-      final DefaultRollupInterval interval = rollup_index >= 0 ?
+      final RollupInterval interval = rollup_index >= 0 ?
           node.rollupIntervals().get(rollup_index) : null;
       
       Tsdb1xPartialTimeSeriesSet set = getSet(index);
@@ -1087,7 +1088,7 @@ public class Tsdb1xMultiGet implements
     start_ts.update(timestamp);
     // snap end
     if (rollup_index >= 0) {
-      final DefaultRollupInterval rollup_interval = node.rollupIntervals().get(rollup_index);
+      final RollupInterval rollup_interval = node.rollupIntervals().get(rollup_index);
       interval = rollup_interval.getIntervalSeconds() * 
           rollup_interval.getIntervals();
       end_timestamp.updateEpoch(RollupUtils.getRollupBasetime(

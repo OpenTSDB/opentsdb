@@ -94,7 +94,7 @@ public final class RollupUtils {
    * has an unsupported span
    */
   public static int getRollupBasetime(final long timestamp, 
-                                      final DefaultRollupInterval interval) {
+                                      final RollupInterval interval) {
     if (timestamp < 0) {
       throw new IllegalArgumentException("Not supporting negative "
           + "timestamps at this time: " + timestamp);
@@ -165,7 +165,7 @@ public final class RollupUtils {
   public static byte[] buildRollupQualifier(final long timestamp,
                                             final short flags,
                                             final int aggregator_id,
-                                            final DefaultRollupInterval interval) {
+                                            final RollupInterval interval) {
     return buildRollupQualifier(timestamp, 
         getRollupBasetime(timestamp, interval), flags, aggregator_id, interval);
   }
@@ -190,7 +190,7 @@ public final class RollupUtils {
                                             final int basetime,
                                             final short flags,
                                             final int aggregator_id,
-                                            final DefaultRollupInterval interval) {
+                                            final RollupInterval interval) {
     final byte[] qualifier = new byte[3];
     final int time_seconds = (int) ((timestamp & Const.SECOND_MASK) != 0 ?
             timestamp / 1000 : timestamp);
@@ -296,7 +296,7 @@ public final class RollupUtils {
   public static byte[] buildAppendRollupValue(final long timestamp,
                                               final int basetime,
                                               final short flags,
-                                              final DefaultRollupInterval interval,
+                                              final RollupInterval interval,
                                               final byte[] value) {
     final int time_seconds = (int) ((timestamp & Const.SECOND_MASK) != 0 ?
     timestamp / 1000 : timestamp);
@@ -327,9 +327,9 @@ public final class RollupUtils {
    * @return The absolute timestamp in milliseconds
    */
   public static long getTimestampFromRollupQualifier(final byte[] qualifier, 
-                  final long base_time, 
-                  final DefaultRollupInterval interval,
-                  final int offset) {
+                                                     final long base_time,
+                                                     final RollupInterval interval,
+                                                     final int offset) {
     return (base_time * 1000) + 
             getOffsetFromRollupQualifier(qualifier, offset, interval);
   }
@@ -341,9 +341,9 @@ public final class RollupUtils {
    * @param interval  The RollupInterval object with data about the interval
    * @return The absolute timestamp in milliseconds
    */
-  public static long getTimestampFromRollupQualifier(final int qualifier, 
-      final long base_time, 
-      final DefaultRollupInterval interval) {
+  public static long getTimestampFromRollupQualifier(final int qualifier,
+                                                     final long base_time,
+                                                     final RollupInterval interval) {
     return (base_time * 1000) + getOffsetFromRollupQualifier(qualifier, interval);
   }
 
@@ -356,8 +356,8 @@ public final class RollupUtils {
    * @return The offset in milliseconds from the base time
    */
   public static long getOffsetFromRollupQualifier(final byte[] qualifier, 
-                  final int byte_offset, 
-                  final DefaultRollupInterval interval) {
+                                                  final int byte_offset,
+                                                  final RollupInterval interval) {
     
     long offset = 0;
     
@@ -380,7 +380,7 @@ public final class RollupUtils {
    * @return The offset in milliseconds from the base time
    */
   public static long getOffsetFromRollupQualifier(final int qualifier, 
-      final DefaultRollupInterval interval) {
+                                                  final RollupInterval interval) {
 
     long offset = 0;
     if ((qualifier & Const.MS_FLAG) == Const.MS_FLAG) {

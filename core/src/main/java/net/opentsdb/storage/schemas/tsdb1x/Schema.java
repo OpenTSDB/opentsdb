@@ -57,6 +57,8 @@ import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
@@ -672,8 +674,8 @@ public class Schema implements WritableTimeSeriesDataStore {
     }
   }
   
-  public DefaultRollupConfig rollupConfig() {
-    return factory.rollup_config;
+  public RollupConfig rollupConfig() {
+    return factory.rollupConfig();
   }
   
   /**
@@ -1415,7 +1417,7 @@ public class Schema implements WritableTimeSeriesDataStore {
       final TimeStamp base_timestamp, 
       final long id_hash, 
       final PartialTimeSeriesSet set,
-      final DefaultRollupInterval interval) {
+      final RollupInterval interval) {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }

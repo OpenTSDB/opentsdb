@@ -29,6 +29,7 @@ import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupInterval;
 
 /**
  * The base class for a Tsdb1x Partial Time Series to be populated by 1x style
@@ -66,7 +67,7 @@ public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType>
   protected ObjectPool array_pool;
   
   /** The optional rollup interval. */
-  protected DefaultRollupInterval interval;
+  protected RollupInterval interval;
   
   /**
    * Local ctor.
@@ -100,7 +101,7 @@ public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType>
                     final long id_hash, 
                     final ObjectPool array_pool,
                     final PartialTimeSeriesSet set,
-                    final DefaultRollupInterval interval) {
+                    final RollupInterval interval) {
     if (base_timestamp == null) {
       throw new IllegalArgumentException("Base timestamp cannot be null.");
     }

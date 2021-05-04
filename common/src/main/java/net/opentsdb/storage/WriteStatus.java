@@ -24,6 +24,10 @@ import com.google.common.base.Strings;
  */
 public interface WriteStatus {
 
+  static final String OK_STRING = "state=OK";
+  static final String RETRY_STRING = "state=OK";
+  static final String REJECTED_STRING = "state=REJECTED";
+
   /**
    * An enum used by callers to determine whether or not the write was
    * successful.
@@ -152,6 +156,18 @@ public interface WriteStatus {
       public Throwable exception() {
         return t;
       }
+
+      @Override
+      public String toString() {
+        return new StringBuilder()
+                .append("state=")
+                .append(state())
+                .append(", message='")
+                .append(message)
+                .append("', exception=")
+                .append(t)
+                .toString();
+      }
       
     };
   }
@@ -173,6 +189,11 @@ public interface WriteStatus {
     public Throwable exception() {
       return null;
     }
+
+    @Override
+    public String toString() {
+      return OK_STRING;
+    }
     
   };
 
@@ -192,7 +213,12 @@ public interface WriteStatus {
     public Throwable exception() {
       return null;
     }
-    
+
+    @Override
+    public String toString() {
+      return REJECTED_STRING;
+    }
+
   };
   
   public static final WriteStatus RETRY = new WriteStatus() {
@@ -211,7 +237,12 @@ public interface WriteStatus {
     public Throwable exception() {
       return null;
     }
-    
+
+    @Override
+    public String toString() {
+      return RETRY_STRING;
+    }
+
   };
   
 }

@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -299,7 +300,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     
     if (rollups_enabled) {
       tables = Lists.newArrayListWithCapacity(node.rollupIntervals().size() + 1);
-      for (final DefaultRollupInterval interval : node.rollupIntervals()) {
+      for (final RollupInterval interval : node.rollupIntervals()) {
         if (pre_aggregate) {
           tables.add(node.parent().tableNamer().toTableNameStr(
               new String(interval.getGroupbyTable(), Const.ASCII_US_CHARSET))
@@ -666,7 +667,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
   void incrementTimestamp() {
     if (rollups_enabled) {
       if (rollup_index == 0) {
-        final DefaultRollupInterval interval =
+        final RollupInterval interval =
             node.rollupIntervals().get(rollup_index);
         if (reversed) {
           timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -686,7 +687,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
           fallback_timestamp.add(Duration.of(
               (reversed ? - 1 : 1), ChronoUnit.HOURS));
         } else {
-          final DefaultRollupInterval interval =
+          final RollupInterval interval =
               node.rollupIntervals().get(rollup_index);
           if (reversed) {
             fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -722,7 +723,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
         rollup_index < node.rollupIntervals().size()) {
       final Collection<QueryNode> rates = node.pipelineContext()
           .upstreamOfType(node, Rate.class);
-      final DefaultRollupInterval interval = node.rollupIntervals().get(0);
+      final RollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
         timestamp.updateEpoch(RollupUtils.getRollupBasetime(
             (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));

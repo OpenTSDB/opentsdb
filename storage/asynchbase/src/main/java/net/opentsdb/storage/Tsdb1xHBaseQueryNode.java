@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.HBaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,7 +136,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
   protected final AtomicBoolean sent_data;
 
   /** Rollup intervals matching the query downsampler if applicable. */
-  protected List<DefaultRollupInterval> rollup_intervals;
+  protected List<RollupInterval> rollup_intervals;
   
   /** When we start fetching data. */
   protected long fetch_start;
@@ -364,7 +365,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
       rollup_intervals = Lists.newArrayListWithExpectedSize(
           rollupIntervals.size());
       for (final String interval : rollupIntervals) {
-        final DefaultRollupInterval ri = parent.schema().rollupConfig()
+        final RollupInterval ri = parent.schema().rollupConfig()
             .getRollupInterval(interval);
         if (ri != null) {
           rollup_intervals.add(ri);
@@ -505,7 +506,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
   }
   
   /** @return A list of applicable rollup intervals. May be null. */
-  List<DefaultRollupInterval> rollupIntervals() {
+  List<RollupInterval> rollupIntervals() {
     return rollup_intervals;
   }
   

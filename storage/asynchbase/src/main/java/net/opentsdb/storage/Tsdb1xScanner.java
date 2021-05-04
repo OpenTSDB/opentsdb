@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -110,7 +111,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   private int idx;
   
   /** An optional rollup interval. */
-  private DefaultRollupInterval rollup_interval;
+  private RollupInterval rollup_interval;
   
   /** The current state of this scanner. */
   private State state;
@@ -169,7 +170,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   public void reset(final Tsdb1xScanners owner, 
                     final Scanner scanner, 
                     final int idx,
-                    final DefaultRollupInterval rollup_interval) {
+                    final RollupInterval rollup_interval) {
     if (owner == null) {
       throw new IllegalArgumentException("Owner cannot be null.");
     }
