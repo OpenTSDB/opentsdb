@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.collect.Lists;
 import net.opentsdb.data.LowLevelMetricData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.storage.schemas.tsdb1x.BaseTsdb1xDataStore;
@@ -117,6 +118,7 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
   public static final String ENABLE_APPENDS_KEY = "tsd.storage.enable_appends";
   public static final String ENABLE_COPROC_APPENDS_KEY = "tsd.storage.enable_appends_coproc";
   public static final String ENABLE_PUSH_KEY = "tsd.storage.enable_push";
+  public static final String ENABLE_DP_TIMESTAMP = "tsd.storage.use_otsdb_timestamp";
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ISO_8859_CHARSET);
@@ -135,11 +137,10 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
   
   /** Name of the table where meta data is stored. */
   private final byte[] meta_table;
-  
+
   private ClientStatsWrapper client_stats;
   private Map<String, RegionClientStatsWrapper> region_client_stats;
 
-  
   public Tsdb1xHBaseDataStore(final Tsdb1xHBaseFactory factory,
                               final String id,
                               final Schema schema) {
@@ -306,6 +307,10 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
         config.register(ENABLE_PUSH_KEY, false, false,
             "TODO");
       }
+      if (!config.hasProperty(ENABLE_DP_TIMESTAMP)) {
+        config.register(ENABLE_DP_TIMESTAMP, true, false,
+            "TODO");
+      }
     }
     
     /** Copy all configs, then we'll override with node specific entries. */
@@ -354,7 +359,8 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
     
     write_appends = config.getBoolean(ENABLE_APPENDS_KEY);
     encode_as_appends = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
-    
+    use_dp_timestamp = config.getBoolean(ENABLE_DP_TIMESTAMP);
+
     // TODO - shared client!
     client = new HBaseClient(async_config);
     
@@ -484,12 +490,14 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
   protected Deferred<WriteStatus> write(final byte[] key,
                                         final byte[] qualifier,
                                         final byte[] value,
+                                        final TimeStamp timestamp,
                                         final Span span) {
     return client.put(new PutRequest(data_table,
             key,
             DATA_FAMILY,
             qualifier,
-            value))
+            value,
+            use_dp_timestamp ? timestamp.msEpoch() : Long.MAX_VALUE))
             .addCallbacks(new SuccessCB(span), new WriteErrorCB(span));
   }
 
@@ -497,6 +505,7 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
   protected Deferred<WriteStatus> writeAppend(final byte[] key,
                                               final byte[] qualifier,
                                               final byte[] value,
+                                              final TimeStamp timestamp,
                                               final Span span) {
     return client.append(new AppendRequest(data_table,
             key,

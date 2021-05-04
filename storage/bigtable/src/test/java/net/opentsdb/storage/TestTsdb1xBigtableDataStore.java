@@ -308,6 +308,37 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
     assertEquals(WriteState.OK, statuses.get(1).state());
   }
 
+  @Test
+  public void writeWithDPTimestamp() throws Exception {
+    MutableNumericValue value =
+            new MutableNumericValue(new SecondTimeStamp(1262304000), 42);
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+
+    Tsdb1xBigtableDataStore store =
+            new Tsdb1xBigtableDataStore(factory, "UT", schema);
+    WriteStatus state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
+    assertEquals(WriteState.OK, state.state());
+    byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 42 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 },
+            1262304000_000_000L));
+
+    // now with timestamp
+    value.resetValue(24);
+    Whitebox.setInternalState(store, "use_dp_timestamp", false);
+    state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
+    assertEquals(WriteState.OK, state.state());
+    row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 24 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 },
+            storage.getCurrentTimestamp() - 1));
+  }
+
   MockLowLevelMetricData lowLevel(TimeSeriesDatum... data) {
     MockLowLevelMetricData low_level = new MockLowLevelMetricData();
     for (int i = 0; i < data.length; i++) {
