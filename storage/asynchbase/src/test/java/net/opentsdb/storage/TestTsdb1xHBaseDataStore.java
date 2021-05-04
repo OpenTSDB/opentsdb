@@ -118,15 +118,15 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
         new byte[] { 0, 0 }));
 
     // appends
-    Whitebox.setInternalState(store, "enable_appends", true);
+    Whitebox.setInternalState(store, "write_appends", true);
     state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
     assertEquals(WriteState.OK, state.state());
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
         store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY, 
         NumericCodec.APPEND_QUALIFIER));
     
-    Whitebox.setInternalState(store, "enable_appends", false);
-    Whitebox.setInternalState(store, "enable_appends_coproc", true);
+    Whitebox.setInternalState(store, "write_appends", false);
+    Whitebox.setInternalState(store, "encode_as_appends", true);
     value.resetValue(1);
     state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
     assertEquals(WriteState.OK, state.state());
@@ -188,7 +188,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
             new byte[] { 0, 0 }));
 
     // appends
-    Whitebox.setInternalState(store, "enable_appends", true);
+    Whitebox.setInternalState(store, "write_appends", true);
     statuses = store.write(null, shared, null).join();
     assertEquals(2, statuses.size());
     assertEquals(WriteState.OK, statuses.get(0).state());
@@ -204,8 +204,8 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
             store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
             NumericCodec.APPEND_QUALIFIER));
 
-    Whitebox.setInternalState(store, "enable_appends", false);
-    Whitebox.setInternalState(store, "enable_appends_coproc", true);
+    Whitebox.setInternalState(store, "write_appends", false);
+    Whitebox.setInternalState(store, "encode_as_appends", true);
     ((MutableNumericValue) data.get(0).value()).resetValue(1);
     ((MutableNumericValue) data.get(1).value()).resetValue(2);
 
@@ -283,7 +283,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
 
     // appends
     data = lowLevel(datum_1, datum_2);
-    Whitebox.setInternalState(store, "enable_appends", true);
+    Whitebox.setInternalState(store, "write_appends", true);
     statuses = store.write(null, data, null).join();
     assertEquals(2, statuses.size());
     assertEquals(WriteState.OK, statuses.get(0).state());
@@ -300,8 +300,8 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
             NumericCodec.APPEND_QUALIFIER));
 
     data = lowLevel(datum_1, datum_2);
-    Whitebox.setInternalState(store, "enable_appends", false);
-    Whitebox.setInternalState(store, "enable_appends_coproc", true);
+    Whitebox.setInternalState(store, "write_appends", false);
+    Whitebox.setInternalState(store, "encode_as_appends", true);
     ((MutableNumericValue) datum_1.value()).resetValue(1);
     ((MutableNumericValue) datum_2.value()).resetValue(2);
 

@@ -18,6 +18,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -27,9 +28,16 @@ import static org.mockito.Mockito.when;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import net.opentsdb.data.MockLowLevelMetricData;
+import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
+import net.opentsdb.data.TimeStamp;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,10 +73,10 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
   private Tsdb1xBigtableFactory factory;
   
   @Before
-  public void before() throws Exception {
+  public void beforeLocal() throws Exception {
     factory = mock(Tsdb1xBigtableFactory.class);
     when(factory.tsdb()).thenReturn(tsdb);
-    storage.flushStorage("tsdb".getBytes(Const.ASCII_US_CHARSET));
+    storage.flushStorage(MockBigtable.DATA_TABLE);
     Tsdb1xBigtableDataStore.registerConfigs(ID, tsdb);
     
     tsdb.config.override(Tsdb1xBigtableDataStore.getConfigKey(ID, 
@@ -115,32 +123,31 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
   
   @Test
   public void write() throws Exception {
-    storage.flushStorage(MockBigtable.DATA_TABLE);
-    MutableNumericValue value = 
+    MutableNumericValue value =
         new MutableNumericValue(new SecondTimeStamp(1262304000), 42);
     TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
         .setMetric(METRIC_STRING)
         .addTags(TAGK_STRING, TAGV_STRING)
         .build();
-    
-    Tsdb1xBigtableDataStore store = 
+
+    Tsdb1xBigtableDataStore store =
         new Tsdb1xBigtableDataStore(factory, ID, schema);
     WriteStatus state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
     assertEquals(WriteState.OK, state.state());
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
-        MockBigtable.DATA_TABLE, row_key, Tsdb1xBigtableDataStore.DATA_FAMILY, 
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
         new byte[] { 0, 0 }));
-    
+
     // appends
-    Whitebox.setInternalState(store, "enable_appends", true);
+    Whitebox.setInternalState(store, "write_appends", true);
     state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
     assertEquals(WriteState.OK, state.state());
 
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
-        store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY, 
+        store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
         NumericCodec.APPEND_QUALIFIER));
-    
+
     // bad metric
     id = BaseTimeSeriesDatumStringId.newBuilder()
         .setMetric(METRIC_STRING_EX)
@@ -148,5 +155,164 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
         .build();
     state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
     assertEquals(WriteState.ERROR, state.state());
+  }
+
+  @Test
+  public void writeSharedData() throws Exception {
+    TimeStamp ts = new SecondTimeStamp(1262304000);
+    Map<String, String> tags = ImmutableMap.<String, String>builder()
+            .put(TAGK_STRING, TAGV_STRING)
+            .build();
+
+    MutableNumericValue dp = new MutableNumericValue(ts, 42);
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+
+    List<TimeSeriesDatum> data = Lists.newArrayList();
+    data.add(TimeSeriesDatum.wrap(id, dp));
+
+    dp = new MutableNumericValue(ts, 24);
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_B_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    data.add(TimeSeriesDatum.wrap(id, dp));
+
+    TimeSeriesSharedTagsAndTimeData shared =
+            TimeSeriesSharedTagsAndTimeData.fromCollection(data);
+    Tsdb1xBigtableDataStore store =
+            new Tsdb1xBigtableDataStore(factory, "UT", schema);
+    List<WriteStatus> statuses = store.write(null, shared, null).join();
+
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+
+    byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 42 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 }));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 24 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 }));
+
+    // appends
+    Whitebox.setInternalState(store, "write_appends", true);
+    statuses = store.write(null, shared, null).join();
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+
+    row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            NumericCodec.APPEND_QUALIFIER));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 24 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            NumericCodec.APPEND_QUALIFIER));
+
+    // one error
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING_EX)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    dp = new MutableNumericValue(ts, 8);
+    data.set(0, TimeSeriesDatum.wrap(id, dp));
+    shared =
+            TimeSeriesSharedTagsAndTimeData.fromCollection(data);
+
+    statuses = store.write(null, shared, null).join();
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.ERROR, statuses.get(0).state());
+    assertTrue(statuses.get(0).exception() instanceof StorageException);
+    assertEquals(WriteState.OK, statuses.get(1).state());
+  }
+
+  @Test
+  public void writeLowLevel() throws Exception {
+    TimeStamp ts = new SecondTimeStamp(1262304000);
+    Map<String, String> tags = ImmutableMap.<String, String>builder()
+            .put(TAGK_STRING, TAGV_STRING)
+            .build();
+
+    MutableNumericValue dp = new MutableNumericValue(ts, 42);
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    TimeSeriesDatum datum_1 = TimeSeriesDatum.wrap(id, dp);
+
+    dp = new MutableNumericValue(ts, 24);
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_B_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    TimeSeriesDatum datum_2 = TimeSeriesDatum.wrap(id, dp);
+
+    MockLowLevelMetricData data = lowLevel(datum_1, datum_2);
+    Tsdb1xBigtableDataStore store =
+            new Tsdb1xBigtableDataStore(factory, "UT", schema);
+    List<WriteStatus> statuses = store.write(null, data, null).join();
+
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+
+    byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 42 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 }));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 24 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 }));
+
+    // appends
+    data = lowLevel(datum_1, datum_2);
+    Whitebox.setInternalState(store, "write_appends", true);
+    statuses = store.write(null, data, null).join();
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+
+    row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            NumericCodec.APPEND_QUALIFIER));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 24 }, storage.getColumn(
+            store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
+            NumericCodec.APPEND_QUALIFIER));
+
+    // one error
+    id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING_EX)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    dp = new MutableNumericValue(ts, 8);
+    datum_1 = TimeSeriesDatum.wrap(id, dp);
+    data = lowLevel(datum_1, datum_2);
+
+    statuses = store.write(null, data, null).join();
+    assertEquals(2, statuses.size());
+    assertEquals(WriteState.ERROR, statuses.get(0).state());
+    assertTrue(statuses.get(0).exception() instanceof StorageException);
+    assertEquals(WriteState.OK, statuses.get(1).state());
+  }
+
+  MockLowLevelMetricData lowLevel(TimeSeriesDatum... data) {
+    MockLowLevelMetricData low_level = new MockLowLevelMetricData();
+    for (int i = 0; i < data.length; i++) {
+      low_level.add(data[i]);
+    }
+    return low_level;
   }
 }

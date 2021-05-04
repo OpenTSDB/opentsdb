@@ -29,6 +29,7 @@ import net.opentsdb.data.LowLevelMetricData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.storage.schemas.tsdb1x.BaseTsdb1xDataStore;
 import net.opentsdb.storage.schemas.tsdb1x.Codec;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.CallQueueTooBigException;
@@ -72,7 +73,7 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
+public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xHBaseDataStore.class);
   
@@ -119,17 +120,10 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ISO_8859_CHARSET);
-  
-  private final TSDB tsdb;
-  private final String id;
-  
+
   /** The AsyncHBase client. */
   private HBaseClient client;
-  
-  private Schema schema;
-  
-  private final Tsdb1xUniqueIdStore uid_store;
-  
+
   /** Name of the table in which timeseries are stored.  */
   private final byte[] data_table;
   
@@ -142,20 +136,14 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   /** Name of the table where meta data is stored. */
   private final byte[] meta_table;
   
-  private final boolean enable_appends;
-  private final boolean enable_appends_coproc;
-  
   private ClientStatsWrapper client_stats;
   private Map<String, RegionClientStatsWrapper> region_client_stats;
-  private ThreadLocal<MutableNumericValue> tl_numeric_types =
-          ThreadLocal.withInitial(() -> new MutableNumericValue());
+
   
   public Tsdb1xHBaseDataStore(final Tsdb1xHBaseFactory factory,
                               final String id,
                               final Schema schema) {
-    this.tsdb = factory.tsdb();
-    this.id = id;
-    this.schema = schema;
+    super(id, factory.tsdb(), schema);
     
     client_stats = new ClientStatsWrapper();
     region_client_stats = Maps.newHashMap();
@@ -364,8 +352,8 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       LOG.debug("AsyncHBase Config: " + async_config.dumpConfiguration());
     }
     
-    enable_appends = config.getBoolean(ENABLE_APPENDS_KEY);
-    enable_appends_coproc = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
+    write_appends = config.getBoolean(ENABLE_APPENDS_KEY);
+    encode_as_appends = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
     
     // TODO - shared client!
     client = new HBaseClient(async_config);
@@ -375,7 +363,12 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
     uid_store = new Tsdb1xUniqueIdStore(this);
     tsdb.getRegistry().registerSharedObject(Strings.isNullOrEmpty(id) ? 
         "default_uidstore" : id + "_uidstore", uid_store);
-    
+
+    // TODO - have to call them all out.
+    retryExceptions = Sets.newHashSet(
+            PleaseThrottleException.class,
+            CallQueueTooBigException.class
+    );
     // start the stats timer.
     tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
   }
@@ -390,593 +383,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
                            final TimeSeriesDataSourceConfig config) {
     return new Tsdb1xHBaseQueryNode(this, context, config);
   }
-  
-  @Override
-  public Deferred<WriteStatus> write(final AuthState state, 
-                                     final TimeSeriesDatum datum,
-                                     final Span span) {
-    // TODO - other types
-    if (datum.value().type() != NumericType.TYPE) {
-      return Deferred.fromResult(WriteStatus.rejected(
-          "Not handling this type yet: " + datum.value().type()));
-    }
-    
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-          .start();
-    } else {
-      child = null;
-    }
-    // no need to validate here, schema does it.
-    
-    class SuccessCB implements Callback<WriteStatus, Object> {
-      @Override
-      public WriteStatus call(final Object ignored) throws Exception {
-        if (child != null) {
-          child.setSuccessTags().finish();
-        }
-        return WriteStatus.OK;
-      }
-    }
-    
-    class WriteErrorCB implements Callback<WriteStatus, Exception> {
-      @Override
-      public WriteStatus call(final Exception ex) throws Exception {
-        // TODO log?
-        if (ex instanceof PleaseThrottleException ||
-            ex instanceof RecoverableException ||
-            ex instanceof CallQueueTooBigException) {
-          if (child != null) {
-            child.setErrorTags(ex)
-                 .finish();
-          }
-          return WriteStatus.retry("Please retry at a later time.");
-        }
-        if (child != null) {
-          child.setErrorTags(ex)
-               .finish();
-        }
-        return WriteStatus.error(ex.getMessage(), ex);
-      }
-    }
-    
-    class RowKeyCB implements Callback<Deferred<WriteStatus>, IdOrError> {
 
-      @Override
-      public Deferred<WriteStatus> call(final IdOrError ioe) throws Exception {
-        if (ioe.id() == null) {
-          if (child != null) {
-            child.setErrorTags(ioe.exception())
-                 .setTag("state", ioe.state().toString())
-                 .setTag("message", ioe.error())
-                 .finish();
-          }
-          switch (ioe.state()) {
-          case RETRY:
-            return Deferred.fromResult(WriteStatus.retry(ioe.error()));
-          case REJECTED:
-            return Deferred.fromResult(WriteStatus.rejected(ioe.error()));
-          case ERROR:
-            return Deferred.fromResult(WriteStatus.error(ioe.error(), ioe.exception()));
-          default:
-            throw new StorageException("Unexpected resolution state: " 
-                + ioe.state());
-          }
-        }
-
-        // TODO - handle different types
-        long base_time = datum.value().timestamp().epoch();
-        base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
-        final Codec codec = schema.getEncoder(datum.value().type());
-        if (codec == null) {
-          return Deferred.fromResult(WriteStatus.error("No codec for type: "
-                  + datum.value().type(), null));
-        }
-        WriteStatus status = codec.encode(datum.value(),
-            enable_appends || enable_appends_coproc, (int) base_time, null);
-        if (status.state() != WriteStatus.WriteState.OK) {
-          return Deferred.fromResult(status);
-        }
-        
-        if (enable_appends) {
-          // TODO - Copying the arrays sucks! We have to for now though as the
-          // asynchbase client can req-ueue the RPCs so we'd lose thread locality.
-          return client.append(new AppendRequest(data_table,ioe.id(), 
-                  DATA_FAMILY,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-              .addCallbacks(new SuccessCB(), new WriteErrorCB());
-        } else {
-          // same for co-proc and puts. The encode method figures out
-          // the qualifier and values.
-          return client.put(new PutRequest(data_table, ioe.id(), 
-                  DATA_FAMILY,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-              .addCallbacks(new SuccessCB(), new WriteErrorCB());
-        }
-      }
-      
-    }
-    
-    class ErrorCB implements Callback<WriteStatus, Exception> {
-      @Override
-      public WriteStatus call(final Exception ex) throws Exception {
-        return WriteStatus.error(ex.getMessage(), ex);
-      }
-    }
-    
-    try {
-      return schema.createRowKey(state, datum, null, child)
-          .addCallbackDeferring(new RowKeyCB())
-          .addErrback(new ErrorCB());
-    } catch (Exception e) {
-      // TODO - log
-      return Deferred.fromResult(WriteStatus.error(e.getMessage(), e));
-    }
-  }
-
-  @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final TimeSeriesSharedTagsAndTimeData data, 
-                                           final Span span) {
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-              .start();
-    } else {
-      child = null;
-    }
-
-    final Iterator<TimeSeriesDatum> iterator = data.iterator();
-    if (!iterator.hasNext()) {
-      if (child != null) {
-        child.finish();
-      }
-      return Deferred.fromResult(Collections.emptyList());
-    }
-
-    long temp_time = data.timestamp().epoch();
-    temp_time = temp_time - (temp_time % Schema.MAX_RAW_TIMESPAN);
-    final int base_timestamp = (int) temp_time;
-
-    final List<WriteStatus> statuses = Lists.newArrayListWithExpectedSize(data.size());
-    for (int i = 0; i < data.size(); i++) {
-      statuses.add(null);
-    }
-    final TimeSeriesDatum datum = iterator.next();
-
-    class GroupCB implements Callback<List<WriteStatus>, ArrayList<Void>> {
-      @Override
-      public List<WriteStatus> call(ArrayList<Void> arg) throws Exception {
-        return statuses;
-      }
-    }
-
-    class WriteCB implements Callback<Void, WriteStatus> {
-      final int index;
-
-      WriteCB(final int index) {
-        this.index = index;
-      }
-
-      @Override
-      public Void call(final WriteStatus status) throws Exception {
-        statuses.set(index, status);
-        return null;
-      }
-    }
-
-    class ErrorCB implements Callback<Void, Exception> {
-      final int index;
-
-      ErrorCB(final int index) {
-        this.index = index;
-      }
-
-      @Override
-      public Void call(final Exception ex) throws Exception {
-        statuses.set(index, WriteStatus.error(ex.getMessage(), ex));
-        return null;
-      }
-    }
-
-    class MetricCB implements Callback<Deferred<Void>, IdOrError> {
-      final int index;
-      final IdOrError tag_ioe;
-      final TimeSeriesDatum datum;
-
-      MetricCB(final int index, final TimeSeriesDatum datum, final IdOrError tag_ioe) {
-        this.index = index;
-        this.datum = datum;
-        this.tag_ioe = tag_ioe;
-      }
-
-      @Override
-      public Deferred<Void> call(final IdOrError metric_ioe) throws Exception {
-        switch (metric_ioe.state()) {
-          case RETRY:
-            statuses.set(index, WriteStatus.RETRY);
-            return null;
-          case REJECTED:
-            statuses.set(index, WriteStatus.REJECTED);
-            return null;
-          case ERROR:
-            statuses.set(index, WriteStatus.error(metric_ioe.error(),
-                    metric_ioe.exception()));
-            return null;
-        }
-
-        // TODO - someday, re-use arrays
-        boolean has_salt = schema.saltBuckets() > 0 && schema.saltWidth() > 0;
-        final int len = (has_salt ? schema.saltWidth() : 0) +
-                metric_ioe.id().length +
-                Schema.TIMESTAMP_BYTES +
-                tag_ioe.id().length;
-        final byte[] key = new byte[len];
-        int index = has_salt ? 1 : 0;
-        System.arraycopy(metric_ioe.id(), 0, key, 0, schema.metricWidth());
-        index += schema.metricWidth();
-        index += Schema.TIMESTAMP_BYTES;
-        System.arraycopy(tag_ioe.id(), 0, key, index, tag_ioe.id().length);
-        schema.setBaseTime(key, base_timestamp);
-        if (has_salt) {
-          schema.prefixKeyWithSalt(key);
-        }
-
-        final Codec codec = schema.getEncoder(datum.value().value().type());
-        if (codec == null) {
-          statuses.set(this.index, WriteStatus.error("No codec for type: "
-                  + datum.value().value().type(), null));
-          return null;
-        }
-        WriteStatus status = codec.encode(datum.value(),
-                enable_appends || enable_appends_coproc, (int) base_timestamp, null);
-        if (status.state() != WriteStatus.WriteState.OK) {
-          statuses.set(this.index, status);
-          return null;
-        }
-
-        if (enable_appends) {
-          return client.append(new AppendRequest(data_table, key,
-                  DATA_FAMILY,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
-                  .addCallback(new WriteCB(this.index))
-                  .addErrback(new ErrorCB((this.index)));
-        } else {
-          // same for co-proc and puts. The encode method figures out
-          // the qualifier and values.
-          return client.put(new PutRequest(data_table, key,
-                  DATA_FAMILY,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
-                  .addCallback(new WriteCB(this.index))
-                  .addErrback(new ErrorCB((this.index)));
-        }
-      }
-    }
-
-    class TagCB implements Callback<Deferred<List<WriteStatus>>, IdOrError> {
-      @Override
-      public Deferred<List<WriteStatus>> call(final IdOrError tag_ioe) throws Exception {
-        WriteStatus status = null;
-        switch (tag_ioe.state()) {
-          case RETRY:
-            status = WriteStatus.retry(tag_ioe.error());
-            break;
-          case REJECTED:
-            status = WriteStatus.rejected(tag_ioe.error());
-            break;
-          case ERROR:
-            status = WriteStatus.error(tag_ioe.error(), tag_ioe.exception());
-            break;
-          case OK:
-            break;
-          default:
-            throw new StorageException("Unexpected resolution state: "
-                    + tag_ioe.state());
-        }
-
-        if (status != null) {
-          for (int i = 0; i < data.size(); i++) {
-            statuses.set(i, status);
-          }
-          return Deferred.fromResult(statuses);
-        }
-
-        // good so we have a tag set!
-        final List<Deferred<Void>> deferreds =
-                Lists.newArrayListWithCapacity(data.size());
-        deferreds.add(schema.createRowMetric(state,
-                (TimeSeriesDatumStringId) datum.id(), child)
-          .addCallbackDeferring(new MetricCB(0, datum, tag_ioe))
-          .addErrback(new ErrorCB(0)));
-        int index = 1;
-        while (iterator.hasNext()) {
-          TimeSeriesDatum seriesDatum = iterator.next();
-          deferreds.add(schema.createRowMetric(state,
-                  (TimeSeriesDatumStringId) seriesDatum.id(), span)
-                  .addCallbackDeferring(new MetricCB(index, seriesDatum, tag_ioe))
-                  .addErrback(new ErrorCB((index++))));
-        }
-        return Deferred.group(deferreds).addCallback(new GroupCB());
-      }
-    }
-
-    return schema.createRowTags(state,
-            ((TimeSeriesDatumStringId) datum.id()).metric(),
-            ((TimeSeriesDatumStringId) datum.id()).tags(),
-            span)
-            .addCallbackDeferring(new TagCB());
-  }
-  
-  @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final LowLevelTimeSeriesData data,
-                                           final Span span) {
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-              .start();
-    } else {
-      child = null;
-    }
-
-    if (!(data instanceof LowLevelMetricData)) {
-      if (child != null) {
-        child.finish();
-      }
-      return Deferred.fromError(new UnsupportedOperationException(
-              "Not supporting instances of " + data.getClass() + " at this time."));
-    }
-
-    if (!data.advance()) {
-      if (child != null) {
-        child.finish();
-      }
-      return Deferred.fromResult(Collections.emptyList());
-    }
-
-    long temp_time = data.timestamp().epoch();
-    temp_time = temp_time - (temp_time % Schema.MAX_RAW_TIMESPAN);
-    final int base_timestamp = (int) temp_time;
-
-    final List<WriteStatus> statuses = Lists.newArrayList();
-
-    // TODO - it's possible the data will NOT have shared tags. Handle that case.
-    final Map<String, String> tags = Maps.newHashMap();
-    while (data.advanceTagPair()) {
-      String tag_key = new String(data.tagsBuffer(),
-              data.tagKeyStart(), data.tagKeyLength(), Const.UTF8_CHARSET);
-      String tag_value = new String(data.tagsBuffer(),
-              data.tagValueStart(), data.tagValueLength(), Const.UTF8_CHARSET);
-      tags.put(tag_key, tag_value);
-    }
-
-    class GroupCB implements Callback<List<WriteStatus>, ArrayList<Void>> {
-      @Override
-      public List<WriteStatus> call(ArrayList<Void> arg) throws Exception {
-        return statuses;
-      }
-    }
-
-    class WriteCB implements Callback<Void, WriteStatus> {
-      final int index;
-
-      WriteCB(final int index) {
-        this.index = index;
-      }
-
-      @Override
-      public Void call(final WriteStatus status) throws Exception {
-        statuses.set(index, status);
-        return null;
-      }
-    }
-
-    class ErrorCB implements Callback<Void, Exception> {
-      final int index;
-
-      ErrorCB(final int index) {
-        this.index = index;
-      }
-
-      @Override
-      public Void call(final Exception ex) throws Exception {
-        statuses.set(index, WriteStatus.error(ex.getMessage(), ex));
-        return null;
-      }
-    }
-
-    class MetricCB implements Callback<Deferred<Void>, IdOrError> {
-      final int index;
-      boolean is_int;
-      long long_value;
-      double double_value;
-      final IdOrError tag_ioe;
-
-      MetricCB(final int index, long value, final IdOrError tag_ioe) {
-        this.index = index;
-        this.is_int = true;
-        long_value = value;
-        this.tag_ioe = tag_ioe;
-      }
-
-      MetricCB(final int index, double value, final IdOrError tag_ioe) {
-        this.index = index;
-        this.is_int = false;
-        double_value = value;
-        this.tag_ioe = tag_ioe;
-      }
-
-      @Override
-      public Deferred<Void> call(final IdOrError metric_ioe) throws Exception {
-        switch (metric_ioe.state()) {
-          case RETRY:
-            statuses.set(index, WriteStatus.RETRY);
-            return null;
-          case REJECTED:
-            statuses.set(index, WriteStatus.REJECTED);
-            return null;
-          case ERROR:
-            statuses.set(index, WriteStatus.error(metric_ioe.error(),
-                    metric_ioe.exception()));
-            return null;
-        }
-
-        // TODO - someday, re-use arrays
-        boolean has_salt = schema.saltBuckets() > 0 && schema.saltWidth() > 0;
-        final int len = (has_salt ? schema.saltWidth() : 0) +
-                metric_ioe.id().length +
-                Schema.TIMESTAMP_BYTES +
-                tag_ioe.id().length;
-        final byte[] key = new byte[len];
-        int index = has_salt ? 1 : 0;
-        System.arraycopy(metric_ioe.id(), 0, key, 0, schema.metricWidth());
-        index += schema.metricWidth();
-        index += Schema.TIMESTAMP_BYTES;
-        System.arraycopy(tag_ioe.id(), 0, key, index, tag_ioe.id().length);
-        schema.setBaseTime(key, base_timestamp);
-        if (has_salt) {
-          schema.prefixKeyWithSalt(key);
-        }
-
-        MutableNumericValue mutable = tl_numeric_types.get();
-        if (is_int) {
-          mutable.reset(data.timestamp(), long_value);
-        } else {
-          mutable.reset(data.timestamp(), double_value);
-        }
-
-        final Codec codec = schema.getEncoder(mutable.value().type());
-        if (codec == null) {
-          statuses.set(this.index, WriteStatus.error("No codec for type: "
-                  + mutable.value().type(), null));
-          return null;
-        }
-        WriteStatus status = codec.encode(mutable,
-                enable_appends || enable_appends_coproc, (int) base_timestamp, null);
-        if (status.state() != WriteStatus.WriteState.OK) {
-          statuses.set(this.index, status);
-          return null;
-        }
-
-        if (enable_appends) {
-          return client.append(new AppendRequest(data_table, key,
-                  DATA_FAMILY,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
-                  .addCallback(new WriteCB(this.index));
-        } else {
-          // same for co-proc and puts. The encode method figures out
-          // the qualifier and values.
-          return client.put(new PutRequest(data_table, key,
-                  DATA_FAMILY,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child))
-                  .addCallback(new WriteCB(this.index));
-        }
-      }
-    }
-
-    class TagCB implements Callback<Deferred<List<WriteStatus>>, IdOrError> {
-      @Override
-      public Deferred<List<WriteStatus>> call(final IdOrError tag_ioe) throws Exception {
-        WriteStatus status = null;
-        switch (tag_ioe.state()) {
-          case RETRY:
-            status = WriteStatus.retry(tag_ioe.error());
-            break;
-          case REJECTED:
-            status = WriteStatus.rejected(tag_ioe.error());
-            break;
-          case ERROR:
-            status = WriteStatus.error(tag_ioe.error(), tag_ioe.exception());
-            break;
-          case OK:
-            break;
-          default:
-            throw new StorageException("Unexpected resolution state: "
-                    + tag_ioe.state());
-        }
-
-        if (status != null) {
-          statuses.add(status);
-          while (data.advance()) {
-            statuses.add(status);
-          }
-          return Deferred.fromResult(statuses);
-        }
-
-        // good so we have a tag set!
-        final List<Deferred<Void>> deferreds = Lists.newArrayList();
-        statuses.add(null);
-        Deferred deferred = schema.createRowMetric(state,
-                new String(((LowLevelMetricData) data).metricBuffer(),
-                        ((LowLevelMetricData) data).metricStart(),
-                        ((LowLevelMetricData) data).metricLength(),
-                        Const.UTF8_CHARSET),
-                tags,
-                child);
-        switch (((LowLevelMetricData) data).valueFormat()) {
-          case DOUBLE:
-            deferred.addCallbackDeferring(new MetricCB(0,
-                    ((LowLevelMetricData) data).doubleValue(), tag_ioe));
-            break;
-          case FLOAT:
-            deferred.addCallbackDeferring(new MetricCB(0,
-                    ((LowLevelMetricData) data).floatValue(), tag_ioe));
-          case INTEGER:
-            deferred.addCallbackDeferring(new MetricCB(0,
-                    ((LowLevelMetricData) data).longValue(), tag_ioe));
-        }
-        deferreds.add(deferred.addErrback(new ErrorCB(0)));
-        int index = 1;
-        while (data.advance()) {
-          synchronized (statuses) {
-            statuses.add(null);
-          }
-          deferred = schema.createRowMetric(state,
-                  new String(((LowLevelMetricData) data).metricBuffer(),
-                          ((LowLevelMetricData) data).metricStart(),
-                          ((LowLevelMetricData) data).metricLength(),
-                          Const.UTF8_CHARSET),
-                  tags,
-                  child);
-          switch (((LowLevelMetricData) data).valueFormat()) {
-            case DOUBLE:
-              deferred.addCallbackDeferring(new MetricCB(index,
-                      ((LowLevelMetricData) data).doubleValue(), tag_ioe));
-              break;
-            case FLOAT:
-              deferred.addCallbackDeferring(new MetricCB(index,
-                      ((LowLevelMetricData) data).floatValue(), tag_ioe));
-            case INTEGER:
-              deferred.addCallbackDeferring(new MetricCB(index,
-                      ((LowLevelMetricData) data).longValue(), tag_ioe));
-          }
-          deferreds.add(deferred.addErrback(new ErrorCB(index++)));
-        }
-        return Deferred.group(deferreds).addCallback(new GroupCB());
-      }
-    }
-
-    return schema.createRowTags(state,
-            new String(((LowLevelMetricData) data).metricBuffer(),
-                    ((LowLevelMetricData) data).metricStart(),
-                    ((LowLevelMetricData) data).metricLength(),
-                    Const.UTF8_CHARSET),
-            tags,
-            span)
-            .addCallbackDeferring(new TagCB());
-  }
-  
   public Deferred<Object> shutdown() {
     return Deferred.fromResult(client.shutdown());
   }
@@ -1073,47 +480,30 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
     }
   }
 
-  class SuccessCB implements Callback<WriteStatus, Object> {
-    final Span child;
-
-    SuccessCB(final Span child) {
-      this.child = child;
-    }
-
-    @Override
-    public WriteStatus call(final Object ignored) throws Exception {
-      if (child != null) {
-        child.setSuccessTags().finish();
-      }
-      return WriteStatus.OK;
-    }
+  @Override
+  protected Deferred<WriteStatus> write(final byte[] key,
+                                        final byte[] qualifier,
+                                        final byte[] value,
+                                        final Span span) {
+    return client.put(new PutRequest(data_table,
+            key,
+            DATA_FAMILY,
+            qualifier,
+            value))
+            .addCallbacks(new SuccessCB(span), new WriteErrorCB(span));
   }
 
-  class WriteErrorCB implements Callback<WriteStatus, Exception> {
-    final Span child;
-
-    WriteErrorCB(final Span child) {
-      this.child = child;
-    }
-
-    @Override
-    public WriteStatus call(final Exception ex) throws Exception {
-      // TODO log?
-      if (ex instanceof PleaseThrottleException ||
-              ex instanceof RecoverableException ||
-              ex instanceof CallQueueTooBigException) {
-        if (child != null) {
-          child.setErrorTags(ex)
-                  .finish();
-        }
-        return WriteStatus.retry("Please retry at a later time.");
-      }
-      if (child != null) {
-        child.setErrorTags(ex)
-                .finish();
-      }
-      return WriteStatus.error(ex.getMessage(), ex);
-    }
+  @Override
+  protected Deferred<WriteStatus> writeAppend(final byte[] key,
+                                              final byte[] qualifier,
+                                              final byte[] value,
+                                              final Span span) {
+    return client.append(new AppendRequest(data_table,
+            key,
+            DATA_FAMILY,
+            qualifier,
+            value))
+            .addCallbacks(new SuccessCB(span), new WriteErrorCB(span));
   }
 
   class ClientStatsWrapper {

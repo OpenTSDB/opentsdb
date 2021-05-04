@@ -16,9 +16,6 @@ package net.opentsdb.storage;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,32 +37,22 @@ import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.UnsafeByteOperations;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred; 
 
-import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.LowLevelTimeSeriesData;
-import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.schemas.tsdb1x.Codec;
+import net.opentsdb.storage.schemas.tsdb1x.BaseTsdb1xDataStore;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
-import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
-import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.UniqueIdStore;
-import net.opentsdb.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of the OpenTSDB 1x schema on Google's hosted
@@ -75,8 +62,10 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
-  
+public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
+  private static final Logger LOG = LoggerFactory.getLogger(
+          Tsdb1xBigtableDataStore.class);
+
   /** Config keys */
   public static final String CONFIG_PREFIX = "google.bigtable.";
   public static final String DATA_TABLE_KEY = "data_table";
@@ -113,13 +102,7 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
 
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ISO_8859_CHARSET);
-  
-  /** The TSDB we belong to. */
-  protected final TSDB tsdb;
-  
-  /** The name of this client. */
-  protected final String id;
-  
+
   /** The namer for tables that converts basic HBase style names to 
    * bigtable names with the project and instance ID. */
   protected final BigtableInstanceName table_namer;
@@ -132,19 +115,10 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
   
   /** The executor response pool. */
   protected ExecutorService pool;
-  
-  /** The Tsdb1x Schema. */
-  protected Schema schema;
-  
-  /** Whether or not to enable appends. */
-  private final boolean enable_appends;
-  
+
   /** A buffer for mutations like in AsyncHBase. */
   private final BulkMutation mutation_buffer;
-  
-  /** The UID store. */
-  protected final Tsdb1xBigtableUniqueIdStore uid_store;
-  
+
   /** Name of the table in which timeseries are stored.  */
   protected final byte[] data_table;
   
@@ -160,9 +134,7 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
   Tsdb1xBigtableDataStore(final Tsdb1xBigtableFactory factory,
                           final String id,
                           final Schema schema) {
-    this.tsdb = factory.tsdb();
-    this.id = id;
-    this.schema = schema;
+    super(id, factory.tsdb(), schema);
     pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
     registerConfigs(id, tsdb);
     
@@ -183,7 +155,7 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
     meta_table = (table_namer.toTableNameStr(
         config.getString(getConfigKey(id, META_TABLE_KEY))))
           .getBytes(Const.ISO_8859_CHARSET);
-    enable_appends = config.getBoolean(ENABLE_APPENDS_KEY);
+    write_appends = config.getBoolean(ENABLE_APPENDS_KEY);
     
     try {
       final CredentialOptions creds = CredentialOptions.jsonCredentials(
@@ -297,231 +269,129 @@ public class Tsdb1xBigtableDataStore implements Tsdb1xDataStore {
   }
 
   @Override
-  public Deferred<WriteStatus> write(final AuthState state, 
-                                     final TimeSeriesDatum datum,
-                                     final Span span) {
-    // TODO - other types
-    if (datum.value().type() != NumericType.TYPE) {
-      return Deferred.fromResult(WriteStatus.rejected(
-          "Not handling this type yet: " + datum.value().type()));
-    }
-    
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-          .start();
-    } else {
-      child = null;
-    }
-    // no need to validate here, schema does it.
-    
-    class RowKeyCB implements Callback<Deferred<WriteStatus>, IdOrError> {
-
-      @Override
-      public Deferred<WriteStatus> call(final IdOrError ioe) throws Exception {
-        if (ioe.id() == null) {
-          if (child != null) {
-            child.setErrorTags(ioe.exception())
-                 .setTag("state", ioe.state().toString())
-                 .setTag("message", ioe.error())
-                 .finish();
-          }
-          switch (ioe.state()) {
-          case RETRY:
-            return Deferred.fromResult(WriteStatus.retry(ioe.error()));
-          case REJECTED:
-            return Deferred.fromResult(WriteStatus.rejected(ioe.error()));
-          case ERROR:
-            return Deferred.fromResult(WriteStatus.error(ioe.error(), ioe.exception()));
-          default:
-            throw new StorageException("Unexpected resolution state: " 
-                + ioe.state());
-          }
-        }
-        // TODO - handle different types
-        long base_time = datum.value().timestamp().epoch();
-        base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
-        final Codec codec = schema.getEncoder(datum.value().type());
-        if (codec == null) {
-          return Deferred.fromResult(WriteStatus.error("No codec for type: "
-                  + datum.value().type(), null));
-        }
-        WriteStatus status = codec.encode(datum.value(),
-                enable_appends, (int) base_time, null);
-        if (status.state() != WriteStatus.WriteState.OK) {
-          return Deferred.fromResult(status);
-        }
-        
-        if (enable_appends) {
-          final ReadModifyWriteRowRequest append_request = 
-              ReadModifyWriteRowRequest.newBuilder()
-                .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
-                .setRowKey(UnsafeByteOperations.unsafeWrap(ioe.id()))
-                .addRules(ReadModifyWriteRule.newBuilder()
+  protected Deferred<WriteStatus> write(final byte[] key,
+                                        final byte[] qualifier,
+                                        final byte[] value,
+                                        final Span span) {
+    final MutateRowRequest mutate_row_request =
+        MutateRowRequest.newBuilder()
+          .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
+          .setRowKey(UnsafeByteOperations.unsafeWrap(key))
+          .addMutations(Mutation.newBuilder()
+                .setSetCell(SetCell.newBuilder()
                     .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
-                    .setColumnQualifier(UnsafeByteOperations.unsafeWrap(
-                            Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0])
-                    ))
-                    .setAppendValue(UnsafeByteOperations.unsafeWrap(
-                            Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])
-                    )))
+                    .setColumnQualifier(UnsafeByteOperations.unsafeWrap(qualifier))
+                    .setValue(UnsafeByteOperations.unsafeWrap(value))
+                    .setTimestampMicros(-1)))
                 .build();
-          
-          final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
-          class AppendCB implements FutureCallback<ReadModifyWriteRowResponse> {
 
-            @Override
-            public void onSuccess(
-                final ReadModifyWriteRowResponse result) {
-              if (child != null) {
-                child.setSuccessTags().finish();
-              }
-              deferred.callback(WriteStatus.OK);
-            }
+    final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
+    class PutCB implements FutureCallback<MutateRowResponse> {
 
-            @Override
-            public void onFailure(final Throwable t) {
-              // TODO log?
-              // TODO - how do we retry?
-//              if (ex instanceof PleaseThrottleException ||
-//                  ex instanceof RecoverableException) {
-//                if (child != null) {
-//                  child.setErrorTags(ex)
-//                       .finish();
-//                }
-//                return WriteStatus.retry("Please retry at a later time.");
-//              }
-              if (child != null) {
-                child.setErrorTags(t)
-                     .finish();
-              }
-              deferred.callback(WriteStatus.error(t.getMessage(), t));
-            }
-            
-          }
-          
-          Futures.addCallback(
-              executor.readModifyWriteRowAsync(append_request), 
-              new AppendCB(), 
-              pool);
-          return deferred;
-        } else {
-          final MutateRowRequest mutate_row_request = 
-              MutateRowRequest.newBuilder()
-                .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
-                .setRowKey(UnsafeByteOperations.unsafeWrap(ioe.id()))
-                .addMutations(Mutation.newBuilder()
-                    .setSetCell(SetCell.newBuilder()
-                        .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
-                        .setColumnQualifier(UnsafeByteOperations.unsafeWrap(
-                                Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0])
-                        ))
-                        .setValue(UnsafeByteOperations.unsafeWrap(
-                                Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])
-                        ))
-                        .setTimestampMicros(-1)))
-                .build();
-          
-          final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
-          class PutCB implements FutureCallback<MutateRowResponse> {
-
-            @Override
-            public void onSuccess(final MutateRowResponse result) {
-              if (child != null) {
-                child.setSuccessTags().finish();
-              }
-              deferred.callback(WriteStatus.OK);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-           // TODO log?
-              // TODO - how do we retry?
-//              if (ex instanceof PleaseThrottleException ||
-//                  ex instanceof RecoverableException) {
-//                if (child != null) {
-//                  child.setErrorTags(ex)
-//                       .finish();
-//                }
-//                return WriteStatus.retry("Please retry at a later time.");
-//              }
-              if (child != null) {
-                child.setErrorTags(t)
-                     .finish();
-              }
-              deferred.callback(WriteStatus.error(t.getMessage(), t));
-            }
-            
-          }
-          
-          try {
-            Futures.addCallback(
-                mutation_buffer.add(mutate_row_request),
-                new PutCB(), 
-                pool);
-          return deferred;
-          } catch (Throwable t) {
-            t.printStackTrace();
-            throw t;
-          }
+      @Override
+      public void onSuccess(final MutateRowResponse result) {
+        if (span != null) {
+          span.setSuccessTags().finish();
         }
+        deferred.callback(WriteStatus.OK);
       }
-      
-    }
-    
-    class ErrorCB implements Callback<WriteStatus, Exception> {
+
       @Override
-      public WriteStatus call(final Exception ex) throws Exception {
-        return WriteStatus.error(ex.getMessage(), ex);
+      public void onFailure(Throwable t) {
+        // TODO log?
+        // TODO - how do we retry?
+//              if (ex instanceof PleaseThrottleException ||
+//                  ex instanceof RecoverableException) {
+//                if (child != null) {
+//                  child.setErrorTags(ex)
+//                       .finish();
+//                }
+//                return WriteStatus.retry("Please retry at a later time.");
+//              }
+        if (span != null) {
+          span.setErrorTags(t)
+                  .finish();
+        }
+        deferred.callback(WriteStatus.error(t.getMessage(), t));
       }
+
     }
-    
+
     try {
-      return schema.createRowKey(state, datum, null, child)
-          .addCallbackDeferring(new RowKeyCB())
-          .addErrback(new ErrorCB());
-    } catch (Exception e) {
-      // TODO - log
-      return Deferred.fromResult(WriteStatus.error(e.getMessage(), e));
+      Futures.addCallback(
+              mutation_buffer.add(mutate_row_request),
+              new PutCB(),
+              pool);
+      return deferred;
+    } catch (Throwable t) {
+      LOG.error("Unexpected exception", t);
+      throw t;
     }
   }
 
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final TimeSeriesSharedTagsAndTimeData data, 
-                                           final Span span) {
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-          .start();
-    } else {
-      child = null;
-    }
-    
-    final List<Deferred<WriteStatus>> deferreds = 
-        Lists.newArrayListWithExpectedSize(data.size());
-    for (final TimeSeriesDatum datum : data) {
-      deferreds.add(write(state, datum, child));
-    }
-    
-    class GroupCB implements Callback<List<WriteStatus>, ArrayList<WriteStatus>> {
+  protected Deferred<WriteStatus> writeAppend(final byte[] key,
+                                              final byte[] qualifier,
+                                              final byte[] value,
+                                              final Span span) {
+    final ReadModifyWriteRowRequest append_request =
+        ReadModifyWriteRowRequest.newBuilder()
+            .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
+            .setRowKey(UnsafeByteOperations.unsafeWrap(key))
+            .addRules(ReadModifyWriteRule.newBuilder()
+                .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
+                .setColumnQualifier(UnsafeByteOperations.unsafeWrap(qualifier))
+                .setAppendValue(UnsafeByteOperations.unsafeWrap(value)))
+            .build();
+
+    final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
+    class AppendCB implements FutureCallback<ReadModifyWriteRowResponse> {
+
       @Override
-      public List<WriteStatus> call(final ArrayList<WriteStatus> results)
-          throws Exception {
-        return results;
+      public void onSuccess(
+              final ReadModifyWriteRowResponse result) {
+        if (span != null) {
+          span.setSuccessTags().finish();
+        }
+        deferred.callback(WriteStatus.OK);
       }
+
+      @Override
+      public void onFailure(final Throwable t) {
+        // TODO log?
+        // TODO - how do we retry?
+//              if (ex instanceof PleaseThrottleException ||
+//                  ex instanceof RecoverableException) {
+//                if (child != null) {
+//                  child.setErrorTags(ex)
+//                       .finish();
+//                }
+//                return WriteStatus.retry("Please retry at a later time.");
+//              }
+        if (span != null) {
+          span.setErrorTags(t)
+                  .finish();
+        }
+        deferred.callback(WriteStatus.error(t.getMessage(), t));
+      }
+
     }
-    return Deferred.groupInOrder(deferreds).addCallback(new GroupCB());
+
+    try {
+      Futures.addCallback(
+              executor.readModifyWriteRowAsync(append_request),
+              new AppendCB(),
+              pool);
+      return deferred;
+    } catch (InterruptedException e) {
+      LOG.error("Interrupted", e);
+      return Deferred.fromError(e);
+    } catch (Throwable t) {
+      LOG.error("Unexpected exception", t);
+      throw t;
+    }
   }
 
-  @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final LowLevelTimeSeriesData data,
-                                           final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException(
-        "TODO - Need to implement this."));
-  }
-  
   /**
    * Prepends the {@link #CONFIG_PREFIX} and the current data store ID to
    * the given suffix.
