@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018 The OpenTSDB Authors.
+// Copyright (C) 2015-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ import net.opentsdb.utils.DateTime;
  * are validated.
  * @since 2.4
  */
-@JsonDeserialize(builder = RollupInterval.Builder.class)
-public class RollupInterval {
+@JsonDeserialize(builder = DefaultRollupInterval.Builder.class)
+public class DefaultRollupInterval implements RollupInterval {
   /** Static intervals */
   private static final int MAX_SECONDS_IN_HOUR = 60 * 60;
   private static final int MAX_SECONDS_IN_DAY = 60 * 60 * 24;
@@ -92,7 +92,7 @@ public class RollupInterval {
    * Protected ctor used by the builder.
    * @param builder The non-null builder to load from.
    */
-  protected RollupInterval(final Builder builder) {
+  protected DefaultRollupInterval(final Builder builder) {
     temporal_table_name = builder.table;
     groupby_table_name = builder.preAggregationTable;
     string_interval = builder.interval;
@@ -147,13 +147,13 @@ public class RollupInterval {
     if (obj == null) {
       return false;
     }
-    if (!(obj instanceof RollupInterval)) {
+    if (!(obj instanceof DefaultRollupInterval)) {
       return false;
     }
     if (obj == this) {
       return true;
     }
-    final RollupInterval interval = (RollupInterval)obj;
+    final DefaultRollupInterval interval = (DefaultRollupInterval)obj;
     return Objects.equal(temporal_table_name, interval.temporal_table_name) 
         && Objects.equal(groupby_table_name, interval.groupby_table_name)
         && Objects.equal(row_span, interval.row_span)
@@ -237,75 +237,62 @@ public class RollupInterval {
     }
   }
   
-  /** @return the string name of the temporal rollup table */
+  @Override
   public String getTable() {
     return temporal_table_name;
   }
-  
-  /** @return the temporal rollup table name as a byte array */
-  @JsonIgnore
+
+  @Override
   public byte[] getTemporalTable() {
     return temporal_table;
   }
-  
-  /** @return the string name of the group by rollup table */
+
+  @Override
   public String getPreAggregationTable() {
     return groupby_table_name;
   }
-  
-  /** @return the group by table name as a byte array */
-  @JsonIgnore
+
+  @Override
   public byte[] getGroupbyTable() {
     return groupby_table;
   }
 
-  /** @return the configured interval as a string */
+  @Override
   public String getInterval() {
     return string_interval;
   }
 
-  /** @return the character describing the span of this interval */
-  @JsonIgnore
+  @Override
   public char getUnits() {
     return units;
   }
-  
-  /** @return the unit multiplier */
-  @JsonIgnore
+
+  @Override
   public int getUnitMultiplier() {
     return unit_multiplier;
   }
 
-  /** @return the interval units character */
-  @JsonIgnore
+  @Override
   public char getIntervalUnits() {
     return interval_units;
   }
 
-  /** @return the interval for this span in seconds */
-  @JsonIgnore
+  @Override
   public int getIntervalSeconds() {
     return interval;
   }
 
-  /** @return the count of intervals in this span */
-  @JsonIgnore
+  @Override
   public int getIntervals() {
     return intervals;
   }
 
-  /**
-   * Is it the default roll up interval that need to be written to default 
-   * tsdb data table. So if true, which means the raw cell column qualifier 
-   * is not encoded with the aggregate function and the cell might have been
-   * compacted
-   * @return true if it is default rollup interval
-   */
+  @Override
   public boolean isDefaultInterval() {
     return is_default_interval;
   }
 
-  /** @return The width of each row as an interval string. */
+  @Override
   public String getRowSpan() {
     return row_span;
   }
@@ -314,9 +301,9 @@ public class RollupInterval {
   public void setConfig(final DefaultRollupConfig config) {
     this.config = config;
   }
-  
-  /** @return The rollup config this interval belongs to. */
-  public DefaultRollupConfig rollupConfig() {
+
+  @Override
+  public RollupConfig rollupConfig() {
     return config;
   }
   
@@ -363,8 +350,8 @@ public class RollupInterval {
       return this;
     }
     
-    public RollupInterval build() {
-      return new RollupInterval(this);
+    public DefaultRollupInterval build() {
+      return new DefaultRollupInterval(this);
     }
   }
 }

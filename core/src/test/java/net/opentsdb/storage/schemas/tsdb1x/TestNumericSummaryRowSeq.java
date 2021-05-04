@@ -39,10 +39,8 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
-import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
-import net.opentsdb.storage.schemas.tsdb1x.NumericSummaryRowSeq;
 
 public class TestNumericSummaryRowSeq {
   private static final long BASE_TIME = 1514764800;
@@ -52,14 +50,14 @@ public class TestNumericSummaryRowSeq {
   private final static byte PREFIX = (byte) 0;
   
   private static DefaultRollupConfig CONFIG;
-  private static RollupInterval RAW;
-  private static RollupInterval TENMIN;
+  private static DefaultRollupInterval RAW;
+  private static DefaultRollupInterval TENMIN;
   
   private TSDB tsdb;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
-    RAW = RollupInterval.builder()
+    RAW = DefaultRollupInterval.builder()
         .setTable(TSDB_TABLE)
         .setPreAggregationTable(TSDB_TABLE)
         .setInterval("1m")
@@ -67,7 +65,7 @@ public class TestNumericSummaryRowSeq {
         .setDefaultInterval(true)
         .build();
     
-    TENMIN = RollupInterval.builder()
+    TENMIN = DefaultRollupInterval.builder()
         .setTable(ROLLUP_TABLE)
         .setPreAggregationTable(PREAGG_TABLE)
         .setInterval("10m")
@@ -110,7 +108,7 @@ public class TestNumericSummaryRowSeq {
     } catch (IllegalArgumentException e) { }
     
     try {
-      new NumericSummaryRowSeq(BASE_TIME, mock(RollupInterval.class));
+      new NumericSummaryRowSeq(BASE_TIME, mock(DefaultRollupInterval.class));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -1172,7 +1170,7 @@ public class TestNumericSummaryRowSeq {
     return expected;
   }
 
-  byte[] buildStringQualifier(int offset, short flags, int type, RollupInterval interval) {
+  byte[] buildStringQualifier(int offset, short flags, int type, DefaultRollupInterval interval) {
     byte[] qualifier = RollupUtils.buildRollupQualifier(BASE_TIME + offset, flags, type, interval);
     String name = CONFIG.getAggregatorForId(type);
     if (Strings.isNullOrEmpty(name)) {
@@ -1188,7 +1186,7 @@ public class TestNumericSummaryRowSeq {
   
   private static byte[] getAppendValue(final long timestamp, 
                                        final long value, 
-                                       final RollupInterval interval) {
+                                       final DefaultRollupInterval interval) {
     final byte[] val = NumericCodec.vleEncodeLong(value);
     final short flags = (short) (val.length - 1);  // Just the length.
     return RollupUtils.buildAppendRollupValue(timestamp, flags, interval, val);
@@ -1196,7 +1194,7 @@ public class TestNumericSummaryRowSeq {
   
   private static byte[] getAppendValue(final long timestamp, 
                                        final double value, 
-                                       final RollupInterval interval) {
+                                       final DefaultRollupInterval interval) {
     //final int base_time = RollupUtils.getRollupBasetime(timestamp, interval);
     final byte[] val = net.opentsdb.utils.Bytes.fromLong(Double.doubleToRawLongBits(value));
     final short flags = (short) ((short) (val.length - 1) | NumericCodec.FLAG_FLOAT); 

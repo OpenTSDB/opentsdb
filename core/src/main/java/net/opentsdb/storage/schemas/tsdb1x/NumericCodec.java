@@ -17,20 +17,17 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.util.Arrays;
 
 import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Pair;
 
 /**
  * TODO - doc me and finish me
@@ -177,7 +174,7 @@ public class NumericCodec extends BaseCodec {
           final TimeSeriesValue<? extends TimeSeriesDataType> value,
           final boolean append_format,
           final int base_time,
-          final RollupInterval rollup_interval) {
+          final DefaultRollupInterval rollup_interval) {
     final boolean is_float;
     if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
       values[0] = vleEncodeLong(((TimeSeriesValue<NumericType>) value).value().longValue());

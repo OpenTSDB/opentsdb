@@ -20,11 +20,10 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Pair;
 
 /**
  * A codec for handling TSDB 2.x rollup data points.
@@ -62,7 +61,7 @@ public class NumericSummaryCodec extends BaseCodec {
           final TimeSeriesValue<? extends TimeSeriesDataType> value,
           final boolean append_format,
           final int base_time,
-          final RollupInterval rollup_interval) {
+          final DefaultRollupInterval rollup_interval) {
     if (value.type() != NumericSummaryType.TYPE) {
       // TODO - metrics and log
       return WriteStatus.REJECTED;

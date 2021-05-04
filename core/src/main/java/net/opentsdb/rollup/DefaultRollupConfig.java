@@ -63,10 +63,10 @@ public class DefaultRollupConfig implements RollupConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultRollupConfig.class);
   
   /** The interval to interval map where keys are things like "10m" or "1d"*/
-  protected final Map<String, RollupInterval> forward_intervals;
+  protected final Map<String, DefaultRollupInterval> forward_intervals;
   
   /** The table name to interval map for queries */
-  protected final Map<String, RollupInterval> reverse_intervals;
+  protected final Map<String, DefaultRollupInterval> reverse_intervals;
   
   /** The map of IDs to aggregators for use at query time. */
   protected final Map<Integer, String> ids_to_aggregations;
@@ -98,7 +98,7 @@ public class DefaultRollupConfig implements RollupConfig {
     intervals = Lists.newArrayListWithExpectedSize(builder.intervals.size());
     
     int defaults = 0;
-    for (final RollupInterval config_interval : builder.intervals) {
+    for (final DefaultRollupInterval config_interval : builder.intervals) {
       if (forward_intervals.containsKey(config_interval.getInterval())) {
         throw new IllegalArgumentException(
             "Only one interval of each type can be configured: " + 
@@ -139,7 +139,7 @@ public class DefaultRollupConfig implements RollupConfig {
     
     // funky way to sort
     Map<Long, String> ordered = Maps.newTreeMap(Collections.reverseOrder());
-    for (final RollupInterval interval : builder.intervals) {
+    for (final DefaultRollupInterval interval : builder.intervals) {
       ordered.put(DateTime.parseDuration(interval.getInterval()), interval.getInterval());
     }
     for (final Entry<Long, String> entry : ordered.entrySet()) {
@@ -156,11 +156,11 @@ public class DefaultRollupConfig implements RollupConfig {
    * @throws IllegalArgumentException if the interval is null or empty
    * @throws NoSuchRollupForIntervalException if the interval was not configured
    */
-  public RollupInterval getRollupInterval(final String interval) {
+  public DefaultRollupInterval getRollupInterval(final String interval) {
     if (interval == null || interval.isEmpty()) {
       throw new IllegalArgumentException("Interval cannot be null or empty");
     }
-    final RollupInterval rollup = forward_intervals.get(interval);
+    final DefaultRollupInterval rollup = forward_intervals.get(interval);
     if (rollup == null) {
       throw new NoSuchRollupForIntervalException(interval);
     }
@@ -181,8 +181,8 @@ public class DefaultRollupConfig implements RollupConfig {
    * @throws IllegalArgumentException if the interval is null or empty
    * @throws NoSuchRollupForIntervalException if the interval was not configured
    */
-  public List<RollupInterval> getRollupIntervals(final long interval, 
-                                                 final String str_interval) {
+  public List<DefaultRollupInterval> getRollupIntervals(final long interval,
+                                                        final String str_interval) {
     return getRollupIntervals(interval, str_interval, false);
   }
   
@@ -202,19 +202,19 @@ public class DefaultRollupConfig implements RollupConfig {
    * @throws IllegalArgumentException if the interval is null or empty
    * @throws NoSuchRollupForIntervalException if the interval was not configured
    */
-  public List<RollupInterval> getRollupIntervals(final long interval, 
-                                                 final String str_interval,
-                                                 final boolean skip_default) {
+  public List<DefaultRollupInterval> getRollupIntervals(final long interval,
+                                                        final String str_interval,
+                                                        final boolean skip_default) {
     
     if (interval <= 0) {
       throw new IllegalArgumentException("Interval cannot be null or empty");
     }
     
-    final Map<Long, RollupInterval> rollups = 
-        new TreeMap<Long, RollupInterval>(Collections.reverseOrder());
+    final Map<Long, DefaultRollupInterval> rollups =
+        new TreeMap<Long, DefaultRollupInterval>(Collections.reverseOrder());
     boolean right_match = false;
     
-    for (RollupInterval rollup: forward_intervals.values()) {
+    for (DefaultRollupInterval rollup: forward_intervals.values()) {
       if (rollup.getIntervalSeconds() == interval) {
         if (rollup.isDefaultInterval() && skip_default) {
           right_match = true;
@@ -239,8 +239,8 @@ public class DefaultRollupConfig implements RollupConfig {
       throw new NoSuchRollupForIntervalException(str_interval);
     }
     
-    List<RollupInterval> best_matches = 
-            new ArrayList<RollupInterval>(rollups.values());
+    List<DefaultRollupInterval> best_matches =
+            new ArrayList<DefaultRollupInterval>(rollups.values());
     
     if (!right_match) {
       LOG.warn("No such rollup interval found, " + str_interval + ". So falling "
@@ -260,11 +260,11 @@ public class DefaultRollupConfig implements RollupConfig {
    * @throws NoSuchRollupForTableException if the interval was not configured
    * for the given table
    */
-  public RollupInterval getRollupIntervalForTable(final String table) {
+  public DefaultRollupInterval getRollupIntervalForTable(final String table) {
     if (table == null || table.isEmpty()) {
       throw new IllegalArgumentException("The table name cannot be null or empty");
     }
-    final RollupInterval rollup = reverse_intervals.get(table);
+    final DefaultRollupInterval rollup = reverse_intervals.get(table);
     if (rollup == null) {
       throw new NoSuchRollupForTableException(table);
     }
@@ -300,12 +300,12 @@ public class DefaultRollupConfig implements RollupConfig {
   
   /** @return an unmodifiable map of the rollups for printing and debugging */
   @JsonIgnore
-  public Map<String, RollupInterval> getRollups() {
+  public Map<String, DefaultRollupInterval> getRollups() {
     return Collections.unmodifiableMap(forward_intervals);
   }
   
   /** @return The immutable list of rollup intervals for serialization. */
-  public List<RollupInterval> getRollupIntervals() {
+  public List<DefaultRollupInterval> getRollupIntervals() {
     return Lists.newArrayList(forward_intervals.values());
   }
   
@@ -316,13 +316,13 @@ public class DefaultRollupConfig implements RollupConfig {
   
   @Override
   public List<String> getPossibleIntervals(final String interval) {
-    final List<RollupInterval> intervals = getRollupIntervals(
+    final List<DefaultRollupInterval> intervals = getRollupIntervals(
         DateTime.parseDuration(interval) / 1000, interval, true);
     if (intervals == null || intervals.isEmpty()) {
       return Collections.emptyList();
     }
     final List<String> results = Lists.newArrayListWithExpectedSize(intervals.size());
-    for (final RollupInterval ri : intervals) {
+    for (final DefaultRollupInterval ri : intervals) {
       results.add(ri.getInterval());
     }
     return results;
@@ -351,16 +351,7 @@ public class DefaultRollupConfig implements RollupConfig {
     return id;
   }
   
-  /**
-   * Converts the old 2.x style qualifiers from {@code sum:<offset>} to 
-   * the assigned ID. 
-   * @param qualifier A non-null qualifier of at least 6 bytes.
-   * @return The mapped ID if configured or IllegalArgumentException if 
-   * the mapping wasn't found.
-   * @throws IllegalArgumentException if the qualifier as null, less than
-   * 6 bytes or the aggregation was not assigned an ID.
-   * @throws IllegalDataException if the aggregation was unrecognized.
-   */
+  @Override
   public int getIdForAggregator(final byte[] qualifier) {
     if (qualifier == null || qualifier.length < 6) {
       throw new IllegalArgumentException("Qualifier can't be null or "
@@ -385,15 +376,7 @@ public class DefaultRollupConfig implements RollupConfig {
         + Bytes.pretty(qualifier));
   }
   
-  /**
-   * Returns the index of the time offset in the qualifier given an
-   * older 2.x style rollup of the form {@code sum:<offset>}.
-   * @param qualifier A non-null qualifier of at least 6 bytes.
-   * @return A 0 based index in the array when the offset begins.
-   * @throws IllegalArgumentException if the qualifier as null or less 
-   * than 6 bytes
-   * @throws IllegalDataException if the aggregation was unrecognized.
-   */
+  @Override
   public int getOffsetStartFromQualifier(final byte[] qualifier) {
     if (qualifier == null || qualifier.length < 6) {
       throw new IllegalArgumentException("Qualifier can't be null or "
@@ -449,7 +432,7 @@ public class DefaultRollupConfig implements RollupConfig {
     @JsonProperty
     private Map<String, Integer> aggregationIds;
     @JsonProperty
-    private List<RollupInterval> intervals;
+    private List<DefaultRollupInterval> intervals;
     
     public Builder setAggregationIds(final Map<String, Integer> aggregationIds) {
       this.aggregationIds = aggregationIds;
@@ -465,13 +448,13 @@ public class DefaultRollupConfig implements RollupConfig {
       return this;
     }
     
-    public Builder setIntervals(final List<RollupInterval> intervals) {
+    public Builder setIntervals(final List<DefaultRollupInterval> intervals) {
       this.intervals = intervals;
       return this;
     }
     
     @JsonIgnore
-    public Builder addInterval(final RollupInterval interval) {
+    public Builder addInterval(final DefaultRollupInterval interval) {
       if (intervals == null) {
         intervals = Lists.newArrayList();
       }
@@ -480,7 +463,7 @@ public class DefaultRollupConfig implements RollupConfig {
     }
     
     @JsonIgnore
-    public Builder addInterval(final RollupInterval.Builder interval) {
+    public Builder addInterval(final DefaultRollupInterval.Builder interval) {
       if (intervals == null) {
         intervals = Lists.newArrayList();
       }

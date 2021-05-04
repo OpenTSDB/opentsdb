@@ -33,7 +33,7 @@ import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -252,13 +252,13 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setId("m1")
         .build();
     when(node.rollupIntervals())
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+      .thenReturn(Lists.<DefaultRollupInterval>newArrayList(DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
           .setRowSpan("1d")
           .build(),
-        RollupInterval.builder()
+        DefaultRollupInterval.builder()
           .setInterval("30m")
           .setTable("tsdb-30m")
           .setPreAggregationTable("tsdb-agg-30m")
@@ -577,7 +577,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(8)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(8)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -591,7 +591,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertFalse(mget.all_batches_sent.get());
     assertEquals(State.EXCEPTION, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, never()).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   
@@ -643,7 +643,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(8)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(8)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -694,7 +694,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(8)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(8)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -735,7 +735,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, never()).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -773,7 +773,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(6)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(6)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -863,7 +863,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(6)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(6)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -953,7 +953,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(6)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(6)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
 
   @Test
@@ -1016,7 +1016,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, times(64)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(64)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -1074,7 +1074,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, never()).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -1111,7 +1111,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, never()).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -1151,7 +1151,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     }
     assertFalse(mget.all_batches_sent.get());
     assertEquals(State.EXCEPTION, mget.state());
-    verify(result, times(28)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(28)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
     verify(node, never()).onError(any(UnitTestException.class));
     verify(result, times(1)).setException(any(UnitTestException.class));
   }
@@ -1205,7 +1205,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, never()).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -1257,7 +1257,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    verify(result, never()).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, never()).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -1291,7 +1291,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     assertFalse(mget.all_batches_sent.get());
     assertEquals(State.EXCEPTION, mget.state());
-    verify(result, times(4)).decode(any(ArrayList.class), any(RollupInterval.class));
+    verify(result, times(4)).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
   
   @Test
@@ -1335,7 +1335,7 @@ public class TestTsdb1xMultiGet extends UTBase {
   }
   
   void setMultiRollupQuery(final boolean reversed, final int start) throws Exception {
-    List<RollupInterval> intervals = Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+    List<DefaultRollupInterval> intervals = Lists.<DefaultRollupInterval>newArrayList(DefaultRollupInterval.builder()
         .setInterval("1h")
         .setTable("tsdb-rollup-1h")
         .setPreAggregationTable("tsdb-rollup-1h")
@@ -1346,7 +1346,7 @@ public class TestTsdb1xMultiGet extends UTBase {
         .addAggregationId("count", 1)
         .setIntervals(intervals)
         .build();
-    for (final RollupInterval interval : intervals) {
+    for (final DefaultRollupInterval interval : intervals) {
       interval.setConfig(rollup_config);
     }
     when(node.rollupIntervals())

@@ -55,7 +55,7 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
@@ -110,7 +110,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   private int idx;
   
   /** An optional rollup interval. */
-  private RollupInterval rollup_interval;
+  private DefaultRollupInterval rollup_interval;
   
   /** The current state of this scanner. */
   private State state;
@@ -169,7 +169,7 @@ public class Tsdb1xScanner implements CloseablePooledObject {
   public void reset(final Tsdb1xScanners owner, 
                     final Scanner scanner, 
                     final int idx,
-                    final RollupInterval rollup_interval) {
+                    final DefaultRollupInterval rollup_interval) {
     if (owner == null) {
       throw new IllegalArgumentException("Owner cannot be null.");
     }

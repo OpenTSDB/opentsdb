@@ -61,7 +61,7 @@ import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.processor.rate.Rate;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -582,7 +582,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
    * @return A non-null and non-empty byte array.
    */
   byte[] setStartKey(final byte[] metric, 
-                     final RollupInterval rollup_interval,
+                     final DefaultRollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
     final long start = computeStartTimestamp(rollup_interval);
     final byte[] start_key;
@@ -604,7 +604,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
    * @param rollup_interval An optional rollup interval.
    * @return The last timestamp in seconds.
    */
-  long computeStartTimestamp(final RollupInterval rollup_interval) {
+  long computeStartTimestamp(final DefaultRollupInterval rollup_interval) {
     long start;
     if (source_config.timeShifts() == null) {
       start = node.pipelineContext().query().startTime().epoch();
@@ -659,7 +659,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
    * @param rollup_interval An optional rollup interval.
    * @return A non-null and non-empty byte array.
    */
-  byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
+  byte[] setStopKey(final byte[] metric, final DefaultRollupInterval rollup_interval) {
     final long end = computeStopTimestamp(rollup_interval);
     final byte[] end_key = new byte[node.schema().saltWidth() + 
                                     node.schema().metricWidth() +
@@ -675,7 +675,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
    * @param rollup_interval An optional rollup interval.
    * @return The last timestamp in seconds.
    */
-  long computeStopTimestamp(final RollupInterval rollup_interval) {
+  long computeStopTimestamp(final DefaultRollupInterval rollup_interval) {
     long end;
     if (source_config.timeShifts() == null) {
       end = node.pipelineContext().query().endTime().epoch();
@@ -917,7 +917,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         for (int i = 0; i < node.rollupIntervals().size(); i++) {
-          final RollupInterval interval = node.rollupIntervals().get(idx);
+          final DefaultRollupInterval interval = node.rollupIntervals().get(idx);
           final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
               node.schema().saltBuckets() : 1];
           scanners.add(array);
@@ -1050,7 +1050,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
    * @param interval An optional rollup interval.
    * @param scanners_index The current inde that needs setting up.
    */
-  void setupSets(final RollupInterval interval, 
+  void setupSets(final DefaultRollupInterval interval,
                  final int scanners_index) {
     final long start_epoch = computeStartTimestamp(interval);
     final long end_epoch = computeStopTimestamp(interval);

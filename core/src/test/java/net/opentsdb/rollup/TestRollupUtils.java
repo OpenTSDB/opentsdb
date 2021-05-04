@@ -28,25 +28,25 @@ public class TestRollupUtils {
   private static final String temporal_table = "tsdb-rollup-10m";
   private static final String groupby_table = "tsdb-rollup-agg-10m";
   
-  private RollupInterval hour_interval;
-  private RollupInterval tenmin_oneday;
-  private RollupInterval month_interval;
+  private DefaultRollupInterval hour_interval;
+  private DefaultRollupInterval tenmin_oneday;
+  private DefaultRollupInterval month_interval;
   
   @Before
   public void before() {
-    hour_interval = RollupInterval.builder()
+    hour_interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("1s")
         .setRowSpan("1h")
         .build();
-    tenmin_oneday = RollupInterval.builder()
+    tenmin_oneday = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
         .setRowSpan("1d")
         .build();
-    month_interval = RollupInterval.builder()
+    month_interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("1h")
@@ -99,7 +99,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetime6HourSecondsTop() throws Exception {
     // Thu, 06 Jun 2013 12:00:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
@@ -111,7 +111,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetime6HourSecondsMid() throws Exception {
     // Thu, 06 Jun 2013 15:00:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
@@ -123,7 +123,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetime6HourSecondsEnd() throws Exception {
     // Thu, 06 Jun 2013 23:59:59 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
@@ -135,7 +135,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetime2HourSecondsTop() throws Exception {
     // Thu, 06 Jun 2013 12:00:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
@@ -147,7 +147,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetime2HourSecondsMid() throws Exception {
     // Thu, 06 Jun 2013 13:01:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
@@ -159,7 +159,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetime2HourSecondsEnd() throws Exception {
     // Thu, 06 Jun 2013 13:59:59 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
@@ -314,7 +314,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeYearSecondsTop() throws Exception {
     // Tue, 01 Jan 2013 00:00:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("24h")
@@ -327,7 +327,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeYearMilliSecondsTop() throws Exception {
     // Tue, 01 Jan 2013 00:00:00.154 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("24h")
@@ -340,7 +340,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeYearSecondsMid() throws Exception {
     // Thu, 06 Jun 2013 15:35:25 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("24h")
@@ -353,7 +353,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeYearMilliSecondsMid() throws Exception {
     // Thu, 06 Jun 2013 15:35:25.154 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("24h")
@@ -366,7 +366,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeYearSecondsEnd() throws Exception {
     // Tue, 31 Dec 2013 23:59:59 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("24h")
@@ -379,7 +379,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeYearMilliSecondsEnd() throws Exception {
     // Tue, 31 Dec 2013 23:59:59.999 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("24h")
@@ -398,7 +398,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeDayZero() throws Exception {
     // Thu, 01 Jan 1970 00:00:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("10m")
@@ -410,7 +410,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeMonthZero() throws Exception {
     // Thu, 01 Jan 1970 00:00:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("1h")
@@ -422,7 +422,7 @@ public class TestRollupUtils {
   @Test
   public void getRollupBasetimeYearZero() throws Exception {
     // Thu, 01 Jan 1970 00:00:00 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("24h")
@@ -447,7 +447,7 @@ public class TestRollupUtils {
   @Test (expected = IllegalArgumentException.class)
   public void getRollupBasetimeBadSpan() throws Exception {
     // Tue, 31 Dec 2013 23:59:59.999 GMT
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("1s")
@@ -508,7 +508,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier30SecondInHourTop() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("30s")
@@ -529,7 +529,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier30SecondInHourMid() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("30s")
@@ -550,7 +550,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier30SecondInHourEnd() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("30s")
@@ -571,7 +571,7 @@ public class TestRollupUtils {
   
   @Test (expected = IllegalArgumentException.class)
   public void buildRollupQualifier30SecondInHourOver() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("30s")
@@ -585,7 +585,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier1MinuteInHourTop() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("1m")
@@ -606,7 +606,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier1MinuteInHourMid() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("1m")
@@ -627,7 +627,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier1MinuteInHourEnd() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("1m")
@@ -648,7 +648,7 @@ public class TestRollupUtils {
   
   @Test (expected = IllegalArgumentException.class)
   public void buildRollupQualifier1MinuteInHourOver() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("30s")
@@ -662,7 +662,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier15MinutesInDayTop() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("15m")
@@ -683,7 +683,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier15MinutesInDayMid() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("15m")
@@ -704,7 +704,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier15MinutesInDayEnd() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("15m")
@@ -725,7 +725,7 @@ public class TestRollupUtils {
   
   @Test (expected = IllegalArgumentException.class)
   public void buildRollupQualifier15MinutesInDayOver() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("15m")
@@ -739,7 +739,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier60MinutesInDayTop() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("60m")
@@ -760,7 +760,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier60MinutesInDayMid() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("60m")
@@ -781,7 +781,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier60MinutesInDayEnd() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("60m")
@@ -802,7 +802,7 @@ public class TestRollupUtils {
   
   @Test (expected = IllegalArgumentException.class)
   public void buildRollupQualifier60MinutesInDayOver() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("60m")
@@ -816,7 +816,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier3HoursInMonthTop() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("3h")
@@ -837,7 +837,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier3HoursInMonthMid() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("3h")
@@ -858,7 +858,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier3HoursInMonthEnd() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("3h")
@@ -880,7 +880,7 @@ public class TestRollupUtils {
   // NOTE this guy won't overflow since we max our monthlies on 31 days.
   @Test
   public void buildRollupQualifier3HoursInMonthOver30Days() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("3h")
@@ -902,7 +902,7 @@ public class TestRollupUtils {
   // Still only overflows 3 days later
   @Test (expected = IllegalArgumentException.class)
   public void buildRollupQualifier3HoursInMonthOver() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("3h")
@@ -916,7 +916,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier6HoursInYearTop() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("6h")
@@ -937,7 +937,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier6HoursInYearMid() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("6h")
@@ -958,7 +958,7 @@ public class TestRollupUtils {
   
   @Test
   public void buildRollupQualifier6HoursInYearEnd() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("6h")
@@ -980,7 +980,7 @@ public class TestRollupUtils {
   // overflows since our max years are a little larger
   @Test (expected = IllegalArgumentException.class)
   public void buildRollupQualifier6HoursInYearOver() {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(temporal_table)
         .setPreAggregationTable(groupby_table)
         .setInterval("6h")

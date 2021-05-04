@@ -38,14 +38,13 @@ import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
-import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.rate.Rate;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -300,7 +299,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     
     if (rollups_enabled) {
       tables = Lists.newArrayListWithCapacity(node.rollupIntervals().size() + 1);
-      for (final RollupInterval interval : node.rollupIntervals()) {
+      for (final DefaultRollupInterval interval : node.rollupIntervals()) {
         if (pre_aggregate) {
           tables.add(node.parent().tableNamer().toTableNameStr(
               new String(interval.getGroupbyTable(), Const.ASCII_US_CHARSET))
@@ -667,7 +666,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
   void incrementTimestamp() {
     if (rollups_enabled) {
       if (rollup_index == 0) {
-        final RollupInterval interval = 
+        final DefaultRollupInterval interval =
             node.rollupIntervals().get(rollup_index);
         if (reversed) {
           timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -687,7 +686,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
           fallback_timestamp.add(Duration.of(
               (reversed ? - 1 : 1), ChronoUnit.HOURS));
         } else {
-          final RollupInterval interval = 
+          final DefaultRollupInterval interval =
               node.rollupIntervals().get(rollup_index);
           if (reversed) {
             fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -723,7 +722,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
         rollup_index < node.rollupIntervals().size()) {
       final Collection<QueryNode> rates = node.pipelineContext()
           .upstreamOfType(node, Rate.class);
-      final RollupInterval interval = node.rollupIntervals().get(0);
+      final DefaultRollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
         timestamp.updateEpoch(RollupUtils.getRollupBasetime(
             (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));

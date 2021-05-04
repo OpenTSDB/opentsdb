@@ -37,7 +37,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
@@ -171,7 +171,7 @@ public class UTBase {
   protected static Tsdb1xHBaseDataStore data_store;
   protected static UniqueIdFactory uid_factory;
   protected static UniqueIdStore uid_store;
-  protected static RollupInterval HOURLY_INTERVAL;
+  protected static DefaultRollupInterval HOURLY_INTERVAL;
   
   protected static Schema schema;
   protected static SchemaFactory schema_factory;
@@ -222,7 +222,7 @@ public class UTBase {
     schema = spy(new Schema(schema_factory, tsdb, null));
     when(data_store.schema()).thenReturn(schema);
     
-    HOURLY_INTERVAL = RollupInterval.builder()
+    HOURLY_INTERVAL = DefaultRollupInterval.builder()
         .setInterval("1h")
         .setRowSpan("1d")
         .setTable(new String(ROLLUP_TABLE))

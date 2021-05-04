@@ -40,12 +40,12 @@ public class TestRollupConfig {
   private final static String preagg_table = "tsdb-rollup-agg-10m";
   
   private DefaultRollupConfig.Builder builder;
-  private RollupInterval raw;
-  private RollupInterval tenmin;
+  private DefaultRollupInterval raw;
+  private DefaultRollupInterval tenmin;
   
   @Before
   public void before() throws Exception {
-    raw = RollupInterval.builder()
+    raw = DefaultRollupInterval.builder()
         .setTable(tsdb_table)
         .setPreAggregationTable(tsdb_table)
         .setInterval("1m")
@@ -53,7 +53,7 @@ public class TestRollupConfig {
         .setDefaultInterval(true)
         .build();
     
-    tenmin = RollupInterval.builder()
+    tenmin = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("10m")
@@ -148,7 +148,7 @@ public class TestRollupConfig {
     } catch (IllegalArgumentException e) { }
     
     // two defaults
-    tenmin = RollupInterval.builder()
+    tenmin = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("10m")
@@ -218,7 +218,7 @@ public class TestRollupConfig {
   public void getRollupIntervals() throws Exception {
     DefaultRollupConfig config = builder.build();
     
-    List<RollupInterval> intervals = config.getRollupIntervals(60, "1m");
+    List<DefaultRollupInterval> intervals = config.getRollupIntervals(60, "1m");
     assertEquals(1, intervals.size());
     assertSame(raw, intervals.get(0));
     

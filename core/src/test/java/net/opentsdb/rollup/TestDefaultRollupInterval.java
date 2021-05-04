@@ -28,7 +28,7 @@ import org.junit.Test;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 
-public class TestRollupInterval {
+public class TestDefaultRollupInterval {
   private final static Charset CHARSET = Charset.forName("ISO-8859-1");
   private final static String rollup_table = "tsdb-rollup-10m";
   private final static String preagg_table = "tsdb-rollup-agg-10m";
@@ -38,7 +38,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor1SecondHour() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")
@@ -58,7 +58,7 @@ public class TestRollupInterval {
   // test odd boundaries
   @Test
   public void ctor7SecondHour() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("7s")
@@ -77,7 +77,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor15SecondsHour() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("15s")
@@ -96,7 +96,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor30SecondsHour() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("30s")
@@ -115,7 +115,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor1MinuteDay() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1m")
@@ -134,7 +134,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor10MinuteDay() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("10m")
@@ -153,7 +153,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor10Minute6Hours() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("10m")
@@ -172,7 +172,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor10Minute12Hours() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("10m")
@@ -191,7 +191,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor15MinuteDay() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("15m")
@@ -210,7 +210,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor30MinuteDay() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("30m")
@@ -229,7 +229,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor1HourDay() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1h")
@@ -248,7 +248,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor1HourMonth() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1h")
@@ -267,7 +267,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor3HourMonth() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("3h")
@@ -286,7 +286,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor6HourMonth() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("6h")
@@ -305,7 +305,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor6HourYear() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("6h")
@@ -324,7 +324,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor12HourYear() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("12h")
@@ -343,7 +343,7 @@ public class TestRollupInterval {
   
   @Test
   public void ctor1DayYear() throws Exception {
-    final RollupInterval interval = RollupInterval.builder()
+    final DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1d")
@@ -362,7 +362,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorUnknownNullRollupTable() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
         .setTable(null)
         .setPreAggregationTable(preagg_table)
         .setInterval("1h")
@@ -372,7 +372,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorUnknownEmptyRollupTable() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable("")
     .setPreAggregationTable(preagg_table)
     .setInterval("1h")
@@ -382,7 +382,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorUnknownNullPreAggTable() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(null)
     .setInterval("1h")
@@ -392,7 +392,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorUnknownEmptyPreAggTable() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable("")
     .setInterval("1h")
@@ -402,7 +402,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorUnknownSpan() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("1h")
@@ -412,7 +412,7 @@ public class TestRollupInterval {
   
   @Test (expected = NullPointerException.class)
   public void ctorNullInterval() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval(null)
@@ -422,7 +422,7 @@ public class TestRollupInterval {
   
   @Test (expected = StringIndexOutOfBoundsException.class)
   public void ctorEmptyInterval() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("")
@@ -432,7 +432,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorBigDuration() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("365y")
@@ -442,7 +442,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorTooManyIntervals() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("1s")
@@ -452,7 +452,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorDurationTooBigForSpan() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("36500s")
@@ -462,7 +462,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorDurationEqualToSpan() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("3600s")
@@ -472,7 +472,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorTooFewIntervals() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("3000s")
@@ -482,7 +482,7 @@ public class TestRollupInterval {
 
   @Test (expected = IllegalArgumentException.class)
   public void ctorNoUnitsInSpan() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("365y")
@@ -492,7 +492,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorNoIntervalInSpan() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("365y")
@@ -502,7 +502,7 @@ public class TestRollupInterval {
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorNoMs() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("365y")
@@ -512,7 +512,7 @@ public class TestRollupInterval {
 
   @Test (expected = IllegalArgumentException.class)
   public void ctor15Minute7Days() throws Exception {
-    RollupInterval.builder()
+    DefaultRollupInterval.builder()
     .setTable(rollup_table)
     .setPreAggregationTable(preagg_table)
     .setInterval("15m")
@@ -522,7 +522,7 @@ public class TestRollupInterval {
 
   @Test
   public void serdes() throws Exception {
-    RollupInterval interval = RollupInterval.builder()
+    DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")
@@ -540,7 +540,7 @@ public class TestRollupInterval {
     json = "{\"interval\":\"1s\",\"table\":\"tsdb-rollup-10m\","
         + "\"defaultRollupInterval\":true,\"rowSpan\":\"1h\","
         + "\"preAggregationTable\":\"tsdb-rollup-agg-10m\"}";
-    interval = JSON.parseToObject(json, RollupInterval.class);
+    interval = JSON.parseToObject(json, DefaultRollupInterval.class);
     assertEquals('h', interval.getUnits());
     assertEquals("1s", interval.getInterval());
     assertEquals('s', interval.getIntervalUnits());
@@ -554,7 +554,7 @@ public class TestRollupInterval {
   
   @Test
   public void config() throws Exception {
-    RollupInterval interval = RollupInterval.builder()
+    DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")
@@ -568,14 +568,14 @@ public class TestRollupInterval {
   
   @Test
   public void testHashCodeAndEquals() throws Exception {
-    final RollupInterval interval_a = RollupInterval.builder()
+    final DefaultRollupInterval interval_a = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")
         .setRowSpan("1h")
         .setDefaultInterval(true)
         .build();
-    RollupInterval interval_b = RollupInterval.builder()
+    DefaultRollupInterval interval_b = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")
@@ -585,7 +585,7 @@ public class TestRollupInterval {
     assertEquals(interval_a.hashCode(), interval_b.hashCode());
     assertEquals(interval_a, interval_b);
     
-    interval_b = RollupInterval.builder()
+    interval_b = DefaultRollupInterval.builder()
         .setTable("nothertable")  // <-- DIFF
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")
@@ -595,7 +595,7 @@ public class TestRollupInterval {
     assertNotEquals(interval_a.hashCode(), interval_b.hashCode());
     assertNotEquals(interval_a, interval_b);
     
-    interval_b = RollupInterval.builder()
+    interval_b = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable("nothertable")  // <-- DIFF
         .setInterval("1s")
@@ -605,7 +605,7 @@ public class TestRollupInterval {
     assertNotEquals(interval_a.hashCode(), interval_b.hashCode());
     assertNotEquals(interval_a, interval_b);
     
-    interval_b = RollupInterval.builder()
+    interval_b = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("30s")  // <-- DIFF
@@ -615,7 +615,7 @@ public class TestRollupInterval {
     assertNotEquals(interval_a.hashCode(), interval_b.hashCode());
     assertNotEquals(interval_a, interval_b);
     
-    interval_b = RollupInterval.builder()
+    interval_b = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")
@@ -625,7 +625,7 @@ public class TestRollupInterval {
     assertNotEquals(interval_a.hashCode(), interval_b.hashCode());
     assertNotEquals(interval_a, interval_b);
     
-    interval_b = RollupInterval.builder()
+    interval_b = DefaultRollupInterval.builder()
         .setTable(rollup_table)
         .setPreAggregationTable(preagg_table)
         .setInterval("1s")

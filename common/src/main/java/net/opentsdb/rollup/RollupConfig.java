@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.rollup;
 
+import net.opentsdb.exceptions.IllegalDataException;
+
 import java.util.List;
 import java.util.Map;
 
@@ -51,5 +53,27 @@ public interface RollupConfig {
    * to highest.
    */
   public List<String> getPossibleIntervals(final String interval);
-  
+
+  /**
+   * Converts the old 2.x style qualifiers from {@code sum:<offset>} to
+   * the assigned ID.
+   * @param qualifier A non-null qualifier of at least 6 bytes.
+   * @return The mapped ID if configured or IllegalArgumentException if
+   * the mapping wasn't found.
+   * @throws IllegalArgumentException if the qualifier as null, less than
+   * 6 bytes or the aggregation was not assigned an ID.
+   * @throws IllegalDataException if the aggregation was unrecognized.
+   */
+  public int getIdForAggregator(final byte[] qualifier);
+
+  /**
+   * Returns the index of the time offset in the qualifier given an
+   * older 2.x style rollup of the form {@code sum:<offset>}.
+   * @param qualifier A non-null qualifier of at least 6 bytes.
+   * @return A 0 based index in the array when the offset begins.
+   * @throws IllegalArgumentException if the qualifier as null or less
+   * than 6 bytes
+   * @throws IllegalDataException if the aggregation was unrecognized.
+   */
+  public int getOffsetStartFromQualifier(final byte[] qualifier);
 }
