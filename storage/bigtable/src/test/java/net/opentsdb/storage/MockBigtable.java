@@ -142,8 +142,9 @@ public final class MockBigtable {
   /** The default table for shortcuts */
   private byte[] default_table;
 
-  /** Incremented every time a new value is stored (without a timestamp) */
-  private long current_timestamp = 1388534400000L;
+  /** Incremented every time a new value is stored (without a timestamp).
+   * This value is in microseconds for Bigtable. */
+  private long current_timestamp = 1388534400000000L;
 
   /** A list of exceptions that can be thrown when working with a row key */
   private ByteMap<Pair<RuntimeException, Boolean>> exceptions;
@@ -371,6 +372,9 @@ public final class MockBigtable {
       // remember, most recent at the top!
       column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
       row.put(qualifier, column);
+    } else {
+      // TODO bigtable allows storing multiple timestamps
+      column.clear();
     }
     column.put(timestamp, value);
   }
@@ -579,6 +583,29 @@ public final class MockBigtable {
       return null;
     }
     return column.firstEntry().getValue();
+  }
+
+  public byte[] getColumn(final byte[] table, final byte[] key,
+                          final byte[] family, final byte[] qualifier,
+                          final long timestamp) {
+    final ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>> map =
+            storage.get(table);
+    if (map == null) {
+      return null;
+    }
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> cf = map.get(family);
+    if (cf == null) {
+      return null;
+    }
+    final ByteMap<TreeMap<Long, byte[]>> row = cf.get(key);
+    if (row == null) {
+      return null;
+    }
+    final TreeMap<Long, byte[]> column = row.get(qualifier);
+    if (column == null) {
+      return null;
+    }
+    return column.get(timestamp);
   }
 
   /**
@@ -1204,7 +1231,7 @@ public final class MockBigtable {
           row = new ByteMap<TreeMap<Long, byte[]>>();
           cf.put(request.getRowKey().toByteArray(), row);
         }
-  
+
         TreeMap<Long, byte[]> column = row.get(
             mutation.getSetCell().getColumnQualifier().toByteArray());
         if (column == null) {
@@ -1212,15 +1239,16 @@ public final class MockBigtable {
           row.put(mutation.getSetCell().getColumnQualifier().toByteArray(), column);
         } else {
           long storedTs = column.firstKey();
-    		  if (mutation.getSetCell().getTimestampMicros() / 1000 >= storedTs) {
+    		  if (mutation.getSetCell().getTimestampMicros() == -1 ||
+                  mutation.getSetCell().getTimestampMicros() >= storedTs) {
     		    column.clear();
     		  } else {
     		    continue;
     		  }
         }
         
-        column.put(mutation.getSetCell().getTimestampMicros() / 1000 
-            != Long.MAX_VALUE ? mutation.getSetCell().getTimestampMicros() / 1000 :
+        column.put(mutation.getSetCell().getTimestampMicros()
+            != -1 ? mutation.getSetCell().getTimestampMicros() :
           current_timestamp++, mutation.getSetCell().getValue().toByteArray());
         assert column.size() == 1 : "Since max versions allowed is 1, there can "
             + "never be two entries at similar timestamp. To resolve change the "
@@ -1541,6 +1569,8 @@ public final class MockBigtable {
         column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
         row.put(mutation.getSetCell().getColumnQualifier().toByteArray(), column);
       } else {
+        // TODO bigtable allows storing multiples.
+        column.clear();
 //        long storedTs = column.firstKey();
 //        if (put.timestamp() >= storedTs) {
 //            column.clear();
@@ -1770,14 +1800,12 @@ public final class MockBigtable {
      */
     public MockScanner(final ReadRowsRequest request) {
       this.request = request;
-      System.out.println("SCANNER INIT: " + request);
       // parse out the request
       start = request.getRows().getRowRanges(0).getStartKeyClosed().toByteArray();
       stop = request.getRows().getRowRanges(0).getEndKeyOpen().toByteArray();
       
       // get the column family and 
       if (request.hasFilter()) {
-        System.out.println("FILTER: " + request.getFilter());
         if (request.getFilter().hasChain()) {
           int filters = 0;
           for (final RowFilter filter : request.getFilter().getChain().getFiltersList()) {

@@ -12,6 +12,7 @@ import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
@@ -41,6 +42,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
 
   protected boolean write_appends;
   protected boolean encode_as_appends;
+  protected boolean use_dp_timestamp;
 
   protected Set<Class<? extends Exception>> retryExceptions;
 
@@ -109,6 +111,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           return writeAppend(ioe.id(),
                   Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
                   Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                  datum.value().timestamp(),
                   child);
         } else {
           // same for co-proc and puts. The encode method figures out
@@ -116,6 +119,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           return write(ioe.id(),
                   Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
                   Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                  datum.value().timestamp(),
                   child);
         }
       }
@@ -206,6 +210,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           return writeAppend(key,
                   Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
                   Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                  data.timestamp(),
                   child);
         } else {
           // same for co-proc and puts. The encode method figures out
@@ -213,6 +218,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           return write(key,
                   Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
                   Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                  data.timestamp(),
                   child);
         }
       }
@@ -383,24 +389,16 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           return writeAppend(key,
                   Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
                   Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                  data.timestamp(),
                   child);
-//          return client.append(new AppendRequest(data_table, key,
-//                  DATA_FAMILY,
-//                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-//                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-//                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child));
         } else {
           // same for co-proc and puts. The encode method figures out
           // the qualifier and values.
           return write(key,
                   Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
                   Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                  data.timestamp(),
                   child);
-//          return client.put(new PutRequest(data_table, key,
-//                  DATA_FAMILY,
-//                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-//                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0])))
-//                  .addCallbacks(new SuccessCB(child), new WriteErrorCB(child));
         }
       }
     }
@@ -546,10 +544,12 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
   protected abstract Deferred<WriteStatus> write(final byte[] key,
                                                  final byte[] qualifier,
                                                  final byte[] value,
+                                                 final TimeStamp timestamp,
                                                  final Span span);
 
   protected abstract Deferred<WriteStatus> writeAppend(final byte[] key,
                                                        final byte[] qualifier,
                                                        final byte[] value,
+                                                       final TimeStamp timestamp,
                                                        final Span span);
 }

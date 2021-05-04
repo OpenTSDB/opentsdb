@@ -561,6 +561,29 @@ public final class MockBase {
     return column.firstEntry().getValue();
   }
 
+  public byte[] getColumn(final byte[] table, final byte[] key,
+                          final byte[] family, final byte[] qualifier,
+                          final long timestamp) {
+    final ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>> map =
+            storage.get(table);
+    if (map == null) {
+      return null;
+    }
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> cf = map.get(family);
+    if (cf == null) {
+      return null;
+    }
+    final ByteMap<TreeMap<Long, byte[]>> row = cf.get(key);
+    if (row == null) {
+      return null;
+    }
+    final TreeMap<Long, byte[]> column = row.get(qualifier);
+    if (column == null) {
+      return null;
+    }
+    return column.get(timestamp);
+  }
+
   /**
    * Retrieve the full map of timestamps and values of a single column with
    * the default family and default table
@@ -1107,11 +1130,11 @@ public final class MockBase {
           row.put(put.qualifiers()[i], column);
         } else {
           long storedTs = column.firstKey();
-		  if(put.timestamp() >= storedTs) {
-		    column.clear();
-		  } else {
-			continue;
-		  }
+          if(put.timestamp() >= storedTs) {
+            column.clear();
+          } else {
+            continue;
+          }
         }
 
         column.put(put.timestamp() != Long.MAX_VALUE ? put.timestamp() :

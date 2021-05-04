@@ -45,6 +45,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
@@ -99,6 +100,7 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
   public static final String ROWS_PER_SCAN_KEY = "tsd.query.rows_per_scan";
   public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
   public static final String ENABLE_APPENDS_KEY = "tsd.storage.enable_appends";
+  public static final String ENABLE_DP_TIMESTAMP = "tsd.storage.use_otsdb_timestamp";
 
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ISO_8859_CHARSET);
@@ -155,7 +157,8 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
     meta_table = (table_namer.toTableNameStr(
         config.getString(getConfigKey(id, META_TABLE_KEY))))
           .getBytes(Const.ISO_8859_CHARSET);
-    write_appends = config.getBoolean(ENABLE_APPENDS_KEY);
+    write_appends = config.getBoolean(getConfigKey(id, ENABLE_APPENDS_KEY));
+    use_dp_timestamp = config.getBoolean(getConfigKey(id, ENABLE_DP_TIMESTAMP));
     
     try {
       final CredentialOptions creds = CredentialOptions.jsonCredentials(
@@ -272,6 +275,7 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
   protected Deferred<WriteStatus> write(final byte[] key,
                                         final byte[] qualifier,
                                         final byte[] value,
+                                        final TimeStamp timestamp,
                                         final Span span) {
     final MutateRowRequest mutate_row_request =
         MutateRowRequest.newBuilder()
@@ -282,7 +286,7 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
                     .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))
                     .setColumnQualifier(UnsafeByteOperations.unsafeWrap(qualifier))
                     .setValue(UnsafeByteOperations.unsafeWrap(value))
-                    .setTimestampMicros(-1)))
+                    .setTimestampMicros(use_dp_timestamp ? timestamp.msEpoch() * 1000 : -1)))
                 .build();
 
     final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
@@ -333,6 +337,7 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
   protected Deferred<WriteStatus> writeAppend(final byte[] key,
                                               final byte[] qualifier,
                                               final byte[] value,
+                                              final TimeStamp timestamp,
                                               final Span span) {
     final ReadModifyWriteRowRequest append_request =
         ReadModifyWriteRowRequest.newBuilder()
@@ -434,8 +439,8 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
         config.register(getConfigKey(id, META_TABLE_KEY), "tsdb-meta", false, 
             "The name of the Meta data table for OpenTSDB.");
       }
-      if (!config.hasProperty(ENABLE_APPENDS_KEY)) {
-        config.register(ENABLE_APPENDS_KEY, false, false,
+      if (!config.hasProperty(getConfigKey(id, ENABLE_APPENDS_KEY))) {
+        config.register(getConfigKey(id, ENABLE_APPENDS_KEY), false, false,
             "TODO");
       }
       
@@ -498,10 +503,6 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
         config.register(MAX_MG_CARDINALITY_KEY, "128", true,
             "TODO");
       }
-      if (!config.hasProperty(ENABLE_APPENDS_KEY)) {
-        config.register(ENABLE_APPENDS_KEY, false, false,
-            "TODO");
-      }
       
       // bigtable configs
       if (!config.hasProperty(getConfigKey(id, PROJECT_ID_KEY))) {
@@ -532,6 +533,10 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
             "The number of sockets opened to the Bigtable API for handling "
             + "RPCs. For higher throughput consider increasing the "
             + "channel count.");
+      }
+      if (!config.hasProperty(getConfigKey(id, ENABLE_DP_TIMESTAMP))) {
+        config.register(getConfigKey(id, ENABLE_DP_TIMESTAMP), true, false,
+                "TODO");
       }
     }
   }
