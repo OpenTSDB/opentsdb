@@ -79,7 +79,7 @@ public class DefaultRollupInterval implements RollupInterval {
   private int intervals;
 
   /** A pointer back to the config this interval belongs to. */
-  private DefaultRollupConfig config; 
+  private RollupConfig config;
   
   /** Tells whether it is the default rollup interval
    * Default interval is of 1m interval, and will be stored in normal
@@ -242,6 +242,7 @@ public class DefaultRollupInterval implements RollupInterval {
     return temporal_table_name;
   }
 
+  @JsonIgnore
   @Override
   public byte[] getTemporalTable() {
     return temporal_table;
@@ -252,6 +253,7 @@ public class DefaultRollupInterval implements RollupInterval {
     return groupby_table_name;
   }
 
+  @JsonIgnore
   @Override
   public byte[] getGroupbyTable() {
     return groupby_table;
@@ -297,8 +299,8 @@ public class DefaultRollupInterval implements RollupInterval {
     return row_span;
   }
   
-  /** @param config The rollup config this interval belongs to. */
-  public void setConfig(final DefaultRollupConfig config) {
+  @Override
+  public void setRollupConfig(final RollupConfig config) {
     this.config = config;
   }
 

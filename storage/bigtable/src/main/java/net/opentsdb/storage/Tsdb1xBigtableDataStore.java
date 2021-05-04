@@ -277,9 +277,19 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
                                         final byte[] value,
                                         final TimeStamp timestamp,
                                         final Span span) {
+    return write(data_table, key, qualifier, value, timestamp, span);
+  }
+
+  @Override
+  protected Deferred<WriteStatus> write(final byte[] table,
+                                        final byte[] key,
+                                        final byte[] qualifier,
+                                        final byte[] value,
+                                        final TimeStamp timestamp,
+                                        final Span span) {
     final MutateRowRequest mutate_row_request =
         MutateRowRequest.newBuilder()
-          .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
+          .setTableNameBytes(UnsafeByteOperations.unsafeWrap(table))
           .setRowKey(UnsafeByteOperations.unsafeWrap(key))
           .addMutations(Mutation.newBuilder()
                 .setSetCell(SetCell.newBuilder()
@@ -339,9 +349,19 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
                                               final byte[] value,
                                               final TimeStamp timestamp,
                                               final Span span) {
+    return writeAppend(data_table, key, qualifier, value, timestamp, span);
+  }
+
+  @Override
+  protected Deferred<WriteStatus> writeAppend(final byte[] table,
+                                              final byte[] key,
+                                              final byte[] qualifier,
+                                              final byte[] value,
+                                              final TimeStamp timestamp,
+                                              final Span span) {
     final ReadModifyWriteRowRequest append_request =
         ReadModifyWriteRowRequest.newBuilder()
-            .setTableNameBytes(UnsafeByteOperations.unsafeWrap(data_table))
+            .setTableNameBytes(UnsafeByteOperations.unsafeWrap(table))
             .setRowKey(UnsafeByteOperations.unsafeWrap(key))
             .addRules(ReadModifyWriteRule.newBuilder()
                 .setFamilyNameBytes(UnsafeByteOperations.unsafeWrap(DATA_FAMILY))

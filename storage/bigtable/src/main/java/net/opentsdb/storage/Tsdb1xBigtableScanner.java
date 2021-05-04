@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +87,7 @@ public class Tsdb1xBigtableScanner {
   private final int idx;
   
   /** An optional rollup interval. */
-  private final DefaultRollupInterval rollup_interval;
+  private final RollupInterval rollup_interval;
   
   /** The current state of this scanner. */
   private State state;
@@ -124,7 +125,7 @@ public class Tsdb1xBigtableScanner {
   public Tsdb1xBigtableScanner(final Tsdb1xBigtableScanners owner, 
                                final ResultScanner<FlatRow> scanner, 
                                final int idx,
-                               final DefaultRollupInterval rollup_interval) {
+                               final RollupInterval rollup_interval) {
     if (owner == null) {
       throw new IllegalArgumentException("Owner cannot be null.");
     }

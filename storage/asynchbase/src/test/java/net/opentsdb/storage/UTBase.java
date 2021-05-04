@@ -228,10 +228,17 @@ public class UTBase {
         .setTable(new String(ROLLUP_TABLE))
         .setPreAggregationTable(new String(ROLLUP_TABLE))
         .build();
-    HOURLY_INTERVAL.setConfig(DefaultRollupConfig.newBuilder()
+    HOURLY_INTERVAL.setRollupConfig(DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 1)
         .addInterval(HOURLY_INTERVAL)
+            .addInterval(DefaultRollupInterval.builder()
+                    .setInterval("1m")
+                    .setRowSpan("1h")
+                    .setTable(new String(DATA_TABLE))
+                    .setPreAggregationTable(new String(DATA_TABLE))
+                    .setDefaultInterval(true)
+                    .build())
         .build());
     
     storage = new MockBase(client, true, true, true, true);

@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Map;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.KeyValue;
 
 import com.google.common.collect.Maps;
@@ -65,7 +66,7 @@ public class Tsdb1xQueryResult extends
    * @param interval An optional interval, may be null.
    */
   public void decode(final ArrayList<KeyValue> row,
-                     final DefaultRollupInterval interval) {
+                     final RollupInterval interval) {
     final long base_timestamp = schema.baseTimestamp(row.get(0).key());
     final long hash = schema.getTSUIDHash(row.get(0).key());
     final RowSeq numerics;

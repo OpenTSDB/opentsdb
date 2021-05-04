@@ -562,7 +562,7 @@ public class TestDefaultRollupInterval {
         .setDefaultInterval(true)
         .build();
     assertNull(interval.rollupConfig());
-    interval.setConfig(CONFIG);
+    interval.setRollupConfig(CONFIG);
     assertSame(CONFIG, interval.rollupConfig());
   }
   

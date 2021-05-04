@@ -68,6 +68,9 @@ public interface RollupInterval {
   /** @return The rollup config this interval belongs to. */
   public RollupConfig rollupConfig();
 
+  /** @param rollupConfig A non-null rollup config this interval belongs to. */
+  public void setRollupConfig(final RollupConfig rollupConfig);
+
   @Override
   public int hashCode();
 

@@ -218,7 +218,7 @@ public class TestRollupConfig {
   public void getRollupIntervals() throws Exception {
     DefaultRollupConfig config = builder.build();
     
-    List<DefaultRollupInterval> intervals = config.getRollupIntervals(60, "1m");
+    List<RollupInterval> intervals = config.getRollupIntervals(60, "1m");
     assertEquals(1, intervals.size());
     assertSame(raw, intervals.get(0));
     

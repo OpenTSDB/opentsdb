@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.List;
 
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.FilterList;
 import org.hbase.async.GetRequest;
@@ -378,7 +379,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
         .setId("m1")
         .build();
     when(node.rollupIntervals())
-      .thenReturn(Lists.<DefaultRollupInterval>newArrayList(DefaultRollupInterval.builder()
+      .thenReturn(Lists.<RollupInterval>newArrayList(DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
@@ -1770,16 +1771,17 @@ public class TestTsdb1xMultiGetPush extends UTBase {
         .setPreAggregationTable("tsdb-rollup-1h")
         .setRowSpan("1d")
         .build());
+    List<RollupInterval> plainIntervals = Lists.newArrayList(intervals);
     DefaultRollupConfig config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 1)
         .setIntervals(intervals)
         .build();
-    for (final DefaultRollupInterval interval : intervals) {
-      interval.setConfig(rollup_config);
+    for (final RollupInterval interval : intervals) {
+      interval.setRollupConfig(rollup_config);
     }
     when(node.rollupIntervals())
-      .thenReturn(intervals);
+      .thenReturn(plainIntervals);
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)

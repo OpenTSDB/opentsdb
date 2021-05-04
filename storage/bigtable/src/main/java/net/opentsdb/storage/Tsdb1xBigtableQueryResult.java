@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
 import net.opentsdb.storage.schemas.tsdb1x.NumericSummaryRowSeq;
 import net.opentsdb.storage.schemas.tsdb1x.RowSeq;
@@ -66,7 +67,7 @@ public class Tsdb1xBigtableQueryResult extends
    * @param interval An optional interval, may be null.
    */
   public void decode(final FlatRow row,
-                     final DefaultRollupInterval interval) {
+                     final RollupInterval interval) {
     final byte[] key = row.getRowKey().toByteArray();
     final long base_timestamp = schema.baseTimestamp(key);
     final long hash = schema.getTSUIDHash(key);
@@ -158,7 +159,7 @@ public class Tsdb1xBigtableQueryResult extends
    * @param interval An optional interval, may be null.
    */
   public void decode(final Row row,
-                     final DefaultRollupInterval interval) {
+                     final RollupInterval interval) {
     final byte[] key = row.getKey().toByteArray();
     final long base_timestamp = schema.baseTimestamp(key);
     final long hash = schema.getTSUIDHash(key);

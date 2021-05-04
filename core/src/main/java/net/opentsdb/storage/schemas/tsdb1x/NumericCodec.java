@@ -26,6 +26,7 @@ import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.utils.Bytes;
 
@@ -174,7 +175,7 @@ public class NumericCodec extends BaseCodec {
           final TimeSeriesValue<? extends TimeSeriesDataType> value,
           final boolean append_format,
           final int base_time,
-          final DefaultRollupInterval rollup_interval) {
+          final RollupInterval rollup_interval) {
     final boolean is_float;
     if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
       values[0] = vleEncodeLong(((TimeSeriesValue<NumericType>) value).value().longValue());

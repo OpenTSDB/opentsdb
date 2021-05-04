@@ -1,7 +1,9 @@
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.auth.AuthState;
@@ -9,11 +11,17 @@ import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.LowLevelMetricData;
 import net.opentsdb.data.LowLevelTimeSeriesData;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupDatum;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WriteStatus;
@@ -32,6 +40,8 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
 
   private static ThreadLocal<MutableNumericValue> TL_NUMERIC_TYPES =
           ThreadLocal.withInitial(() -> new MutableNumericValue());
+  private static WriteStatus NO_ROLLUP = WriteStatus.error("No rollups configured.", null);
+
   protected final String id;
   protected final TSDB tsdb;
 
@@ -43,6 +53,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
   protected boolean write_appends;
   protected boolean encode_as_appends;
   protected boolean use_dp_timestamp;
+  protected final RollupConfig rollupConfig;
 
   protected Set<Class<? extends Exception>> retryExceptions;
 
@@ -53,6 +64,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
     this.tsdb = tsdb;
     this.schema = schema;
     this.uid_store = uid_store;
+    rollupConfig = schema.rollupConfig();
   }
 
   @Override
@@ -99,28 +111,86 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           return Deferred.fromResult(WriteStatus.error("No codec for type: "
                   + datum.value().type(), null));
         }
-        WriteStatus status = codec.encode(datum.value(),
-                write_appends || encode_as_appends, (int) base_time, null);
-        if (status.state() != WriteStatus.WriteState.OK) {
-          return Deferred.fromResult(status);
-        }
 
-        if (write_appends) {
-          // TODO - Copying the arrays sucks! We have to for now though as the
-          // asynchbase client can req-ueue the RPCs so we'd lose thread locality.
-          return writeAppend(ioe.id(),
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
-                  datum.value().timestamp(),
-                  child);
+        final TypeToken<? extends TimeSeriesDataType> type = datum.value().type();
+        if (type == NumericType.TYPE) {
+          WriteStatus status = codec.encode(datum.value(),
+                  write_appends || encode_as_appends, (int) base_time, null);
+          if (status.state() != WriteStatus.WriteState.OK) {
+            return Deferred.fromResult(status);
+          }
+
+          if (write_appends) {
+            // TODO - Copying the arrays sucks! We have to for now though as the
+            // asynchbase client can req-ueue the RPCs so we'd lose thread locality.
+            return writeAppend(ioe.id(),
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    datum.value().timestamp(),
+                    child);
+          } else {
+            // same for co-proc and puts. The encode method figures out
+            // the qualifier and values.
+            return write(ioe.id(),
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    datum.value().timestamp(),
+                    child);
+          }
+        } else if (type == NumericSummaryType.TYPE) {
+          if (rollupConfig == null) {
+            return Deferred.fromResult(NO_ROLLUP);
+          }
+
+          final RollupDatum rollupDatum = (RollupDatum) datum;
+          final RollupInterval interval;
+          final byte[] table;
+          if (!Strings.isNullOrEmpty(rollupDatum.intervalString())) {
+            interval = rollupConfig.getRollupInterval(rollupDatum.intervalString());
+            if (rollupDatum.groupByAggregator() > 0 ||
+                rollupDatum.groupByAggregatorString() != null) {
+              table = interval.getGroupbyTable();
+            } else {
+              table = interval.getTemporalTable();
+            }
+          } else {
+            interval = rollupConfig.getDefaultInterval();
+            table = interval.getGroupbyTable();
+          }
+
+          WriteStatus status = codec.encode(datum.value(),
+                  write_appends || encode_as_appends, (int) base_time, interval);
+          if (status.state() != WriteStatus.WriteState.OK) {
+            return Deferred.fromResult(status);
+          }
+
+          final List<Deferred<WriteStatus>> summaryStates = Lists.newArrayList();
+          if (write_appends) {
+            // TODO - Copying the arrays sucks! We have to for now though as the
+            // asynchbase client can req-ueue the RPCs so we'd lose thread locality.
+            for (int i = 0; i < codec.encodedValues(); i++) {
+              summaryStates.add(writeAppend(table,
+                      ioe.id(),
+                      Arrays.copyOf(codec.qualifiers()[i], codec.qualifierLengths()[i]),
+                      Arrays.copyOf(codec.values()[i], codec.valueLengths()[i]),
+                      datum.value().timestamp(),
+                      child));
+            }
+          } else {
+            for (int i = 0; i < codec.encodedValues(); i++) {
+              // same for co-proc and puts. The encode method figures out
+              // the qualifier and values.
+              summaryStates.add(write(table,
+                      ioe.id(),
+                      Arrays.copyOf(codec.qualifiers()[i], codec.qualifierLengths()[i]),
+                      Arrays.copyOf(codec.values()[i], codec.valueLengths()[i]),
+                      datum.value().timestamp(),
+                      child));
+            }
+          }
+          return Deferred.groupInOrder(summaryStates).addCallback(new SummaryGroupCB());
         } else {
-          // same for co-proc and puts. The encode method figures out
-          // the qualifier and values.
-          return write(ioe.id(),
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
-                  datum.value().timestamp(),
-                  child);
+          return Deferred.fromResult(WriteStatus.error("Unhandled data type: " + type, null));
         }
       }
 
@@ -200,26 +270,84 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           return Deferred.fromResult(WriteStatus.error("No codec for type: "
                   + datum.value().value().type(), null));
         }
-        WriteStatus status = codec.encode(datum.value(),
-                write_appends || encode_as_appends, (int) base_timestamp, null);
-        if (status.state() != WriteStatus.WriteState.OK) {
-          return Deferred.fromResult(status);
-        }
 
-        if (write_appends) {
-          return writeAppend(key,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
-                  data.timestamp(),
-                  child);
+        final TypeToken<? extends TimeSeriesDataType> type = datum.value().type();
+        if (type == NumericType.TYPE) {
+          WriteStatus status = codec.encode(datum.value(),
+                  write_appends || encode_as_appends, (int) base_timestamp, null);
+          if (status.state() != WriteStatus.WriteState.OK) {
+            return Deferred.fromResult(status);
+          }
+
+          if (write_appends) {
+            return writeAppend(key,
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    data.timestamp(),
+                    child);
+          } else {
+            // same for co-proc and puts. The encode method figures out
+            // the qualifier and values.
+            return write(key,
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    data.timestamp(),
+                    child);
+          }
+        } else if (type == NumericSummaryType.TYPE) {
+          if (rollupConfig == null) {
+            return Deferred.fromResult(NO_ROLLUP);
+          }
+
+          final RollupDatum rollupDatum = (RollupDatum) datum;
+          final RollupInterval interval;
+          final byte[] table;
+          if (!Strings.isNullOrEmpty(rollupDatum.intervalString())) {
+            interval = rollupConfig.getRollupInterval(rollupDatum.intervalString());
+            if (rollupDatum.groupByAggregator() > 0 ||
+                    rollupDatum.groupByAggregatorString() != null) {
+              table = interval.getGroupbyTable();
+            } else {
+              table = interval.getTemporalTable();
+            }
+          } else {
+            interval = rollupConfig.getDefaultInterval();
+            table = interval.getGroupbyTable();
+          }
+
+          WriteStatus status = codec.encode(datum.value(),
+                  write_appends || encode_as_appends, (int) base_timestamp, interval);
+          if (status.state() != WriteStatus.WriteState.OK) {
+            return Deferred.fromResult(status);
+          }
+
+          final List<Deferred<WriteStatus>> summaryStates = Lists.newArrayList();
+          if (write_appends) {
+            // TODO - Copying the arrays sucks! We have to for now though as the
+            // asynchbase client can req-ueue the RPCs so we'd lose thread locality.
+            for (int i = 0; i < codec.encodedValues(); i++) {
+              summaryStates.add(writeAppend(table,
+                      key,
+                      Arrays.copyOf(codec.qualifiers()[i], codec.qualifierLengths()[i]),
+                      Arrays.copyOf(codec.values()[i], codec.valueLengths()[i]),
+                      datum.value().timestamp(),
+                      child));
+            }
+          } else {
+            for (int i = 0; i < codec.encodedValues(); i++) {
+              // same for co-proc and puts. The encode method figures out
+              // the qualifier and values.
+              summaryStates.add(write(table,
+                      key,
+                      Arrays.copyOf(codec.qualifiers()[i], codec.qualifierLengths()[i]),
+                      Arrays.copyOf(codec.values()[i], codec.valueLengths()[i]),
+                      datum.value().timestamp(),
+                      child));
+            }
+          }
+          return Deferred.groupInOrder(summaryStates).addCallback(new SummaryGroupCB());
         } else {
-          // same for co-proc and puts. The encode method figures out
-          // the qualifier and values.
-          return write(key,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
-                  data.timestamp(),
-                  child);
+          return Deferred.fromResult(WriteStatus.error("Unhandled data type: " + type, null));
         }
       }
     }
@@ -541,13 +669,42 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
 
   }
 
+  protected class SummaryGroupCB implements Callback<WriteStatus, ArrayList<WriteStatus>> {
+
+    @Override
+    public WriteStatus call(ArrayList<WriteStatus> statuses) throws Exception {
+      // TODO - pick one for now
+      for (int i = 0; i < statuses.size(); i++) {
+        WriteStatus status = statuses.get(i);
+        if (status.state() != WriteStatus.WriteState.OK) {
+          return status;
+        }
+      }
+      return statuses.get(0);
+    }
+  }
+
   protected abstract Deferred<WriteStatus> write(final byte[] key,
                                                  final byte[] qualifier,
                                                  final byte[] value,
                                                  final TimeStamp timestamp,
                                                  final Span span);
 
+  protected abstract Deferred<WriteStatus> write(final byte[] table,
+                                                 final byte[] key,
+                                                 final byte[] qualifier,
+                                                 final byte[] value,
+                                                 final TimeStamp timestamp,
+                                                 final Span span);
+
   protected abstract Deferred<WriteStatus> writeAppend(final byte[] key,
+                                                       final byte[] qualifier,
+                                                       final byte[] value,
+                                                       final TimeStamp timestamp,
+                                                       final Span span);
+
+  protected abstract Deferred<WriteStatus> writeAppend(final byte[] table,
+                                                       final byte[] key,
                                                        final byte[] qualifier,
                                                        final byte[] value,
                                                        final TimeStamp timestamp,

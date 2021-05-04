@@ -18,6 +18,7 @@ import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +89,7 @@ public class Tsdb1xNumericSummaryPartialTimeSeries extends
                     final long id_hash, 
                     final ObjectPool array_pool,
                     final PartialTimeSeriesSet set,
-                    final DefaultRollupInterval interval) {
+                    final RollupInterval interval) {
     super.reset(base_timestamp, id_hash, array_pool, set, interval);
     if (interval == null) {
       throw new IllegalArgumentException("Rollup interval cannot be null.");

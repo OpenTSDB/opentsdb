@@ -492,7 +492,17 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
                                         final byte[] value,
                                         final TimeStamp timestamp,
                                         final Span span) {
-    return client.put(new PutRequest(data_table,
+    return write(data_table, key, qualifier, value, timestamp, span);
+  }
+
+  @Override
+  protected Deferred<WriteStatus> write(final byte[] table,
+                                        final byte[] key,
+                                        final byte[] qualifier,
+                                        final byte[] value,
+                                        final TimeStamp timestamp,
+                                        final Span span) {
+    return client.put(new PutRequest(table,
             key,
             DATA_FAMILY,
             qualifier,
@@ -507,7 +517,17 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
                                               final byte[] value,
                                               final TimeStamp timestamp,
                                               final Span span) {
-    return client.append(new AppendRequest(data_table,
+    return writeAppend(data_table, key, qualifier, value, timestamp, span);
+  }
+
+  @Override
+  protected Deferred<WriteStatus> writeAppend(final byte[] table,
+                                              final byte[] key,
+                                              final byte[] qualifier,
+                                              final byte[] value,
+                                              final TimeStamp timestamp,
+                                              final Span span) {
+    return client.append(new AppendRequest(table,
             key,
             DATA_FAMILY,
             qualifier,

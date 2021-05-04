@@ -119,7 +119,6 @@ public class MutableNumericSummaryValue implements NumericSummaryType,
   
   /**
    * Resets the local value by copying the timestamp and value from the arguments.
-   * @param A non-null timestamp.
    * @param value A numeric summary value.
    * @throws IllegalArgumentException if the timestamp or value was null.
    */

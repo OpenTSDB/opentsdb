@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.WriteStatus;
 
 /**
@@ -65,7 +66,7 @@ public interface Codec {
       final TimeSeriesValue<? extends TimeSeriesDataType> value,
       final boolean append_format,
       final int base_time,
-      final DefaultRollupInterval rollup_interval);
+      final RollupInterval rollup_interval);
 
   public void reset();
   public int encodedValues();

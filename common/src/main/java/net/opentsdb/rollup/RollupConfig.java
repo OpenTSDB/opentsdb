@@ -55,6 +55,20 @@ public interface RollupConfig {
   public List<String> getPossibleIntervals(final String interval);
 
   /**
+   * Fetches the RollupInterval corresponding to the forward interval string map
+   * @param interval The interval to lookup
+   * @return The RollupInterval object configured for the given interval
+   * @throws IllegalArgumentException if the interval is null or empty
+   * @throws NoSuchRollupForIntervalException if the interval was not configured
+   */
+  public RollupInterval getRollupInterval(final String interval);
+
+  /**
+   * @return The non-null default interval.
+   */
+  public RollupInterval getDefaultInterval();
+
+  /**
    * Converts the old 2.x style qualifiers from {@code sum:<offset>} to
    * the assigned ID.
    * @param qualifier A non-null qualifier of at least 6 bytes.
