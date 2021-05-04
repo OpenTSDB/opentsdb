@@ -43,7 +43,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -79,7 +79,7 @@ public class TestGroupByNumericSummaryIterator {
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")

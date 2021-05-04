@@ -31,7 +31,7 @@ import net.opentsdb.pools.ArrayObjectPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 
 /**
@@ -61,7 +61,7 @@ public class NumericSummaryRowSeq implements RowSeq {
   protected long base_timestamp;
   
   /** The rollup interval for offset decoding. */
-  protected final RollupInterval interval;
+  protected final DefaultRollupInterval interval;
   
   /** The data in qualifier/value/qualifier/value, etc order per summary 
    * type. */
@@ -78,7 +78,7 @@ public class NumericSummaryRowSeq implements RowSeq {
    * @param base_timestamp The row base timestamp in Unix epoch seconds.
    */
   public NumericSummaryRowSeq(final long base_timestamp, 
-                              final RollupInterval interval) {
+                              final DefaultRollupInterval interval) {
     if (interval == null) {
       throw new IllegalArgumentException("Interval can't be null.");
     }

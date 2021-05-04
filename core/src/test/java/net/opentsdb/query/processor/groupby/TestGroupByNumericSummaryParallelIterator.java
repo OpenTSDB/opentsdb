@@ -25,8 +25,6 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.pools.DefaultObjectPoolConfig;
-import net.opentsdb.pools.MockObjectPool;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryPipelineContext;
@@ -34,17 +32,14 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
-import net.opentsdb.utils.MockBigSmallLinkedBlockingQueue;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.function.Predicate;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -92,7 +87,7 @@ public class TestGroupByNumericSummaryParallelIterator {
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")

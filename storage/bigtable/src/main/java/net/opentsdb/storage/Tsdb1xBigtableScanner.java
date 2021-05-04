@@ -45,7 +45,7 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.BigtableExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.TSUID;
@@ -86,7 +86,7 @@ public class Tsdb1xBigtableScanner {
   private final int idx;
   
   /** An optional rollup interval. */
-  private final RollupInterval rollup_interval;
+  private final DefaultRollupInterval rollup_interval;
   
   /** The current state of this scanner. */
   private State state;
@@ -124,7 +124,7 @@ public class Tsdb1xBigtableScanner {
   public Tsdb1xBigtableScanner(final Tsdb1xBigtableScanners owner, 
                                final ResultScanner<FlatRow> scanner, 
                                final int idx,
-                               final RollupInterval rollup_interval) {
+                               final DefaultRollupInterval rollup_interval) {
     if (owner == null) {
       throw new IllegalArgumentException("Owner cannot be null.");
     }

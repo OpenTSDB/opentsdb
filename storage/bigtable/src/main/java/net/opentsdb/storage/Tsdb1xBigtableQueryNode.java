@@ -52,7 +52,7 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.BigtableExecutor.State;
@@ -126,7 +126,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
   protected final RollupUsage rollup_usage;
   
   /** Rollup intervals matching the query downsampler if applicable. */
-  protected List<RollupInterval> rollup_intervals;
+  protected List<DefaultRollupInterval> rollup_intervals;
 
   /** When pushing, whether or not real data was sent. */
   protected final AtomicBoolean sent_data;
@@ -322,7 +322,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
       rollup_intervals = Lists.newArrayListWithExpectedSize(
           rollupIntervals.size());
       for (final String interval : rollupIntervals) {
-        final RollupInterval ri = parent.schema().rollupConfig()
+        final DefaultRollupInterval ri = parent.schema().rollupConfig()
             .getRollupInterval(interval);
         if (ri != null) {
           rollup_intervals.add(ri);
@@ -449,7 +449,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
   }
 
   /** @return A list of applicable rollup intervals. May be null. */
-  List<RollupInterval> rollupIntervals() {
+  List<DefaultRollupInterval> rollupIntervals() {
     return rollup_intervals;
   }
   

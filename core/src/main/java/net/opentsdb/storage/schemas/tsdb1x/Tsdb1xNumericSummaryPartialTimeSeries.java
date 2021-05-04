@@ -29,7 +29,7 @@ import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.utils.Bytes;
 
@@ -88,7 +88,7 @@ public class Tsdb1xNumericSummaryPartialTimeSeries extends
                     final long id_hash, 
                     final ObjectPool array_pool,
                     final PartialTimeSeriesSet set,
-                    final RollupInterval interval) {
+                    final DefaultRollupInterval interval) {
     super.reset(base_timestamp, id_hash, array_pool, set, interval);
     if (interval == null) {
       throw new IllegalArgumentException("Rollup interval cannot be null.");

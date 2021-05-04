@@ -40,7 +40,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 public class TestSummarizedTimeSeries {
   private static final long BASE_TIME = 1356998400L;
@@ -88,7 +88,7 @@ public class TestSummarizedTimeSeries {
         .addAggregationId("max", 2)
         .addAggregationId("min", 3)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")

@@ -71,7 +71,7 @@ import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.Span;
@@ -263,13 +263,13 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setId("m1")
         .build();
     when(node.rollupIntervals())
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+      .thenReturn(Lists.<DefaultRollupInterval>newArrayList(DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
           .setRowSpan("1d")
           .build(),
-        RollupInterval.builder()
+        DefaultRollupInterval.builder()
           .setInterval("30m")
           .setTable("tsdb-30m")
           .setPreAggregationTable("tsdb-agg-30m")
@@ -1327,7 +1327,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
     verify(result, times(32)).decode(any(Row.class), 
-        any(RollupInterval.class));
+        any(DefaultRollupInterval.class));
     verifySpan(Tsdb1xBigtableMultiGet.class.getName() + ".fetchNext", 18);
   }
 
@@ -1359,7 +1359,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
     verify(result, times(28)).decode(any(Row.class), 
-        any(RollupInterval.class));
+        any(DefaultRollupInterval.class));
     verifySpan(Tsdb1xBigtableMultiGet.class.getName() + ".fetchNext", 
         ExecutionException.class, 9);
   }
@@ -1370,13 +1370,13 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   
   void setMultiRollupQuery(final boolean reversed) throws Exception {
     when(node.rollupIntervals())
-      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+      .thenReturn(Lists.<DefaultRollupInterval>newArrayList(DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
           .setRowSpan("1d")
           .build(),
-        RollupInterval.builder()
+        DefaultRollupInterval.builder()
           .setInterval("30m")
           .setTable("tsdb-30m")
           .setPreAggregationTable("tsdb-agg-30m")

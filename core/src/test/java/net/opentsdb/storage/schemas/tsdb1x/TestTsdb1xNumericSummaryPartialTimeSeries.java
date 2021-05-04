@@ -39,7 +39,7 @@ import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.utils.Bytes;
 
@@ -51,7 +51,7 @@ public class TestTsdb1xNumericSummaryPartialTimeSeries {
       .addAggregationId("count", 1)
       .addAggregationId("min", 2)
       .addAggregationId("max", 3)
-      .addInterval(RollupInterval.builder()
+      .addInterval(DefaultRollupInterval.builder()
         .setInterval("1h")
         .setRowSpan("1d")
         .setTable("tsdb-rollup-1h")
@@ -60,7 +60,7 @@ public class TestTsdb1xNumericSummaryPartialTimeSeries {
       .build();
   
   private ObjectPool pool;
-  private RollupInterval interval;
+  private DefaultRollupInterval interval;
   
   @Before
   public void before() throws Exception {
@@ -74,7 +74,7 @@ public class TestTsdb1xNumericSummaryPartialTimeSeries {
         return obj;
       }
     });
-    interval = spy(RollupInterval.builder()
+    interval = spy(DefaultRollupInterval.builder()
         .setInterval("1h")
         .setRowSpan("1d")
         .setTable("tsdb-rollup-1h")

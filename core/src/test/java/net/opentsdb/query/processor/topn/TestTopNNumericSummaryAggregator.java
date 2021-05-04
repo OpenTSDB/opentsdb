@@ -28,7 +28,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -78,7 +78,7 @@ public class TestTopNNumericSummaryAggregator {
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
         .addAggregationId("max", 1)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("1m")
             .setTable("tsdb")
             .setRowSpan("1h")

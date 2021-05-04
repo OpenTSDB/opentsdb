@@ -46,7 +46,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -87,7 +87,7 @@ public class TestDownsampleNumericSummaryIterator {
         .addAggregationId("max", 1)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")
             .setInterval("1h")

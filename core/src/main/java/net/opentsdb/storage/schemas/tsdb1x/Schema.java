@@ -45,7 +45,6 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
@@ -57,7 +56,7 @@ import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WritableTimeSeriesDataStore;
@@ -73,7 +72,6 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.Exceptions;
-import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.XXHash;
 
 /**
@@ -881,7 +879,7 @@ public class Schema implements WritableTimeSeriesDataStore {
    */
   public Deferred<IdOrError> createRowKey(final AuthState auth, 
                                           final TimeSeriesDatum datum,
-                                          final RollupInterval interval,
+                                          final DefaultRollupInterval interval,
                                           final Span span) {
     if (datum.value() == null) {
       return Deferred.fromResult(IdOrError.wrapError("Null values are not allowed"));
@@ -1417,7 +1415,7 @@ public class Schema implements WritableTimeSeriesDataStore {
       final TimeStamp base_timestamp, 
       final long id_hash, 
       final PartialTimeSeriesSet set,
-      final RollupInterval interval) {
+      final DefaultRollupInterval interval) {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }

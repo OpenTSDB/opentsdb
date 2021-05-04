@@ -32,7 +32,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -58,7 +58,7 @@ public class TestRateNumericSummaryIterator {
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")

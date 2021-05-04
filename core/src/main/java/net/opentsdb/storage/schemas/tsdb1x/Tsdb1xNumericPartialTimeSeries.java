@@ -27,7 +27,7 @@ import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 /**
  * An implementation that converts the column from a 1x schema into the
@@ -76,7 +76,7 @@ public class Tsdb1xNumericPartialTimeSeries extends
       final long id_hash, 
       final ObjectPool array_pool,
       final PartialTimeSeriesSet set,
-      final RollupInterval interval) {
+      final DefaultRollupInterval interval) {
     super.reset(base_timestamp, id_hash, array_pool, set, interval);
     needs_repair = false;
     last_offset = -1;

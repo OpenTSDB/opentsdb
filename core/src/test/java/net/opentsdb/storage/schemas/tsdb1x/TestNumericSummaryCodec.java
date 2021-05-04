@@ -21,7 +21,7 @@ import static org.junit.Assert.fail;
 
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.storage.WriteStatus;
 import org.junit.Test;
 
@@ -43,7 +43,7 @@ public class TestNumericSummaryCodec {
 
   @Test
   public void encode() throws Exception {
-    RollupInterval interval = RollupInterval.builder()
+    DefaultRollupInterval interval = DefaultRollupInterval.builder()
             .setInterval("1h")
             .setRowSpan("1d")
             .setTable("table")

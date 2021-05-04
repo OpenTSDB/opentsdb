@@ -51,7 +51,7 @@ import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.processor.rate.Rate;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -430,7 +430,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
    * @return A non-null and non-empty byte array.
    */
   byte[] setStartKey(final byte[] metric, 
-                     final RollupInterval rollup_interval,
+                     final DefaultRollupInterval rollup_interval,
                      final byte[] fuzzy_key) {
     long start;
     if (source_config.timeShifts() == null) {
@@ -498,7 +498,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
    * @param rollup_interval An optional rollup interval.
    * @return A non-null and non-empty byte array.
    */
-  byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
+  byte[] setStopKey(final byte[] metric, final DefaultRollupInterval rollup_interval) {
     long end;
     if (source_config.timeShifts() == null) {
       end = node.pipelineContext().query().endTime().epoch();
@@ -744,7 +744,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         for (int i = 0; i < node.rollupIntervals().size(); i++) {
-          final RollupInterval interval = node.rollupIntervals().get(idx);
+          final DefaultRollupInterval interval = node.rollupIntervals().get(idx);
           final Tsdb1xBigtableScanner[] array = 
               new Tsdb1xBigtableScanner[node.schema().saltWidth() > 0 ? 
                   node.schema().saltBuckets() : 1];

@@ -18,9 +18,8 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.storage.WriteStatus;
-import net.opentsdb.utils.Pair;
 
 /**
  * A class that will return a storage object that can be populated
@@ -66,7 +65,7 @@ public interface Codec {
       final TimeSeriesValue<? extends TimeSeriesDataType> value,
       final boolean append_format,
       final int base_time,
-      final RollupInterval rollup_interval);
+      final DefaultRollupInterval rollup_interval);
 
   public void reset();
   public int encodedValues();

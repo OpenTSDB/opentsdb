@@ -40,7 +40,6 @@ import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
@@ -59,7 +58,6 @@ import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.annotation.AnnotationType;
@@ -71,7 +69,7 @@ import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.DummyObjectPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
@@ -81,7 +79,6 @@ import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestSchema extends SchemaBase {
@@ -1287,7 +1284,7 @@ public class TestSchema extends SchemaBase {
     
     // summary
     pts = schema.newSeries(NumericByteArraySummaryType.TYPE, 
-        timestamp, 42, set, mock(RollupInterval.class));
+        timestamp, 42, set, mock(DefaultRollupInterval.class));
     assertTrue(pts instanceof Tsdb1xNumericSummaryPartialTimeSeries);
     assertEquals(4, schema.pool_cache.size());
     assertSame(summary_pool, schema.pool_cache.get(NumericByteArraySummaryType.TYPE));
@@ -1295,7 +1292,7 @@ public class TestSchema extends SchemaBase {
     
     try {
       schema.newSeries(AnnotationType.TYPE, 
-          timestamp, 42, set, mock(RollupInterval.class));
+          timestamp, 42, set, mock(DefaultRollupInterval.class));
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     

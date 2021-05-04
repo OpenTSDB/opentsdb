@@ -818,7 +818,17 @@ public class HttpQueryV3Result implements QueryResult {
       // TODO Auto-generated method stub
       return null;
     }
-    
+
+    @Override
+    public int getIdForAggregator(byte[] qualifier) {
+      throw new UnsupportedOperationException("TODO");
+    }
+
+    @Override
+    public int getOffsetStartFromQualifier(byte[] qualifier) {
+      throw new UnsupportedOperationException("TODO");
+    }
+
   }
   
 }

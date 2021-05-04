@@ -73,7 +73,7 @@ import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.summarizer.Summarizer;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
@@ -104,7 +104,7 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
       .addAggregationId("avg", 5)
       .addAggregationId("first", 6)
       .addAggregationId("last", 7)
-      .addInterval(RollupInterval.builder()
+      .addInterval(DefaultRollupInterval.builder()
           .setInterval("sum")
           .setTable("tsdb")
           .setPreAggregationTable("tsdb")
@@ -1541,7 +1541,17 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
         // TODO Auto-generated method stub
         return null;
       }
-      
+
+      @Override
+      public int getIdForAggregator(byte[] qualifier) {
+        throw new UnsupportedOperationException("TODO");
+      }
+
+      @Override
+      public int getOffsetStartFromQualifier(byte[] qualifier) {
+        throw new UnsupportedOperationException("TODO");
+      }
+
     }
 
     @Override
