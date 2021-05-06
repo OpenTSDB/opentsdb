@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -113,8 +114,10 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
             .setLeft("a")
             .setLeftType(OperandType.VARIABLE)
+            .setLeftId(new DefaultQueryResultId("m1", "m1"))
             .setRight("a")
             .setRightType(OperandType.VARIABLE)
+            .setRightId(new DefaultQueryResultId("m1", "m1"))
             .setExpressionOp(ExpressionOp.SUBTRACT)
             .setExpressionConfig(config)
             .setId("expression")
@@ -747,6 +750,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
@@ -886,6 +890,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.ADD)
@@ -1050,6 +1055,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.ADD)
@@ -1090,6 +1096,7 @@ public class TestExpressionNumericIteratorAdditive extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.ADD)

@@ -267,7 +267,15 @@ public class ExpressionNumericSummaryIterator extends
       }
     } else {
       left = left_interpolator.next(next_ts).value();
-      right = null;
+      ExpressionParseNode config = node.config();
+      // check if left and right have same operand
+      if(config.getLeftId() != null &&
+         config.getRightId() != null &&
+         config.getLeftId().equals(config.getRightId())) {
+        right = left;
+      } else {
+        right = null;
+      }
       
       if (left_interpolator.hasNext()) {
         has_next = true;

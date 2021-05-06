@@ -143,7 +143,9 @@ public class ExpressionNumericArrayIterator extends
             left_literal);
     } else if (right == null) {
       ExpressionParseNode config = node.config();
-      if (config.left.equals(config.right)) {
+      if (config.getLeftId() != null &&
+          config.getRightId() != null &&
+          config.getLeftId().equals(config.getRightId())) {
         right_value = left_value;
       } else {
         right_value = new LiteralArray(
