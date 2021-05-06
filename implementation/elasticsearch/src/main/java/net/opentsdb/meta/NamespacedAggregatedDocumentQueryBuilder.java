@@ -214,7 +214,7 @@ public class NamespacedAggregatedDocumentQueryBuilder {
       try {
         filter.initialize(null).join();
       } catch (Exception e) {
-        throw new QueryExecutionException("Unable to initialize plugin", -1);
+        throw new QueryExecutionException("Unable to initialize plugin", 204);
       }
       final List<String> lower_case = Lists.newArrayListWithCapacity(
           ((TagValueLiteralOrFilter) filter).literals().size());
