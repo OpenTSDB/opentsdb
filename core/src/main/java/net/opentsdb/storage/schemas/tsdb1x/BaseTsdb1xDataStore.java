@@ -16,6 +16,7 @@ import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -40,6 +41,8 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
 
   private static ThreadLocal<MutableNumericValue> TL_NUMERIC_TYPES =
           ThreadLocal.withInitial(() -> new MutableNumericValue());
+  private static ThreadLocal<MutableNumericSummaryValue> TL_SUMMARY_TYPES =
+          ThreadLocal.withInitial(() -> new MutableNumericSummaryValue());
   private static WriteStatus NO_ROLLUP = WriteStatus.error("No rollups configured.", null);
 
   protected final String id;
@@ -495,38 +498,104 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           schema.prefixKeyWithSalt(key);
         }
 
-        MutableNumericValue mutable = TL_NUMERIC_TYPES.get();
-        if (is_int) {
-          mutable.reset(data.timestamp(), long_value);
-        } else {
-          mutable.reset(data.timestamp(), double_value);
-        }
+        if (data instanceof LowLevelMetricData.LowLevelRollupMetricData) {
+          if (rollupConfig == null) {
+            return Deferred.fromResult(NO_ROLLUP);
+          }
+          MutableNumericSummaryValue mutable = TL_SUMMARY_TYPES.get();
+          mutable.clear();
+          mutable.resetTimestamp(data.timestamp());
 
-        final Codec codec = schema.getEncoder(mutable.value().type());
-        if (codec == null) {
-          return Deferred.fromResult(WriteStatus.error("No codec for type: "
-                  + mutable.value().type(), null));
-        }
-        WriteStatus status = codec.encode(mutable,
-                write_appends || encode_as_appends, (int) base_timestamp, null);
-        if (status.state() != WriteStatus.WriteState.OK) {
-          return Deferred.fromResult(status);
-        }
+          LowLevelMetricData.LowLevelRollupMetricData rollupData =
+                  (LowLevelMetricData.LowLevelRollupMetricData) data;
+          int summary = rollupData.intervalAggregator();
+          if (summary < 0) {
+            rollupConfig.getRollupInterval(rollupData.intervalAggregatorString());
+          }
+          if (is_int) {
+            mutable.resetValue(summary, long_value);
+          } else {
+            mutable.resetValue(summary, double_value);
+          }
 
-        if (write_appends) {
-          return writeAppend(key,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
-                  data.timestamp(),
-                  child);
+          final RollupInterval interval;
+          final byte[] table;
+          if (!Strings.isNullOrEmpty(rollupData.intervalString())) {
+            interval = rollupConfig.getRollupInterval(rollupData.intervalString());
+            if (rollupData.groupByAggregator() > 0 ||
+                    rollupData.groupByAggregatorString() != null) {
+              table = interval.getGroupbyTable();
+            } else {
+              table = interval.getTemporalTable();
+            }
+          } else {
+            interval = rollupConfig.getDefaultInterval();
+            table = interval.getGroupbyTable();
+          }
+
+          final Codec codec = schema.getEncoder(mutable.value().type());
+          if (codec == null) {
+            return Deferred.fromResult(WriteStatus.error("No codec for type: "
+                    + mutable.value().type(), null));
+          }
+          WriteStatus status = codec.encode(mutable,
+                  write_appends || encode_as_appends, (int) base_timestamp, interval);
+          if (status.state() != WriteStatus.WriteState.OK) {
+            return Deferred.fromResult(status);
+          }
+
+          if (write_appends) {
+            return writeAppend(table,
+                    key,
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    data.timestamp(),
+                    child);
+          } else {
+            // same for co-proc and puts. The encode method figures out
+            // the qualifier and values.
+            return write(table,
+                    key,
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    data.timestamp(),
+                    child);
+          }
         } else {
-          // same for co-proc and puts. The encode method figures out
-          // the qualifier and values.
-          return write(key,
-                  Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
-                  Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
-                  data.timestamp(),
-                  child);
+          // TODO - other types. For now we assume it's a NumericType.
+          MutableNumericValue mutable = TL_NUMERIC_TYPES.get();
+          if (is_int) {
+            mutable.reset(data.timestamp(), long_value);
+          } else {
+            mutable.reset(data.timestamp(), double_value);
+          }
+
+          final Codec codec = schema.getEncoder(mutable.value().type());
+          if (codec == null) {
+            return Deferred.fromResult(WriteStatus.error("No codec for type: "
+                    + mutable.value().type(), null));
+          }
+          WriteStatus status = codec.encode(mutable,
+                  write_appends || encode_as_appends, (int) base_timestamp, null);
+          if (status.state() != WriteStatus.WriteState.OK) {
+            return Deferred.fromResult(status);
+          }
+
+          if (write_appends) {
+            return writeAppend(key,
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    data.timestamp(),
+                    child);
+          } else {
+            // same for co-proc and puts. The encode method figures out
+            // the qualifier and values.
+            return write(key,
+                    Arrays.copyOf(codec.qualifiers()[0], codec.qualifierLengths()[0]),
+                    Arrays.copyOf(codec.values()[0], codec.valueLengths()[0]),
+                    data.timestamp(),
+                    child);
+          }
         }
       }
     }

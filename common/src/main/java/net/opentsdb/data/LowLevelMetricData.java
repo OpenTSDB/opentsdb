@@ -65,4 +65,35 @@ public interface LowLevelMetricData extends LowLevelTimeSeriesData{
     /** @return The hash of the current metric. */
     public long metricHash();
   }
+
+  /**
+   * A low level interface for rollup values. If multiple aggregates are present
+   * in the source then {@link LowLevelTimeSeriesData#advance()} should return
+   * the next aggregate.
+   */
+  public interface LowLevelRollupMetricData extends LowLevelMetricData {
+
+    /** @return The optional rollup interval as a string if it's a time based
+     * rollup. Null if only a pre-aggregate.
+     */
+    public String intervalString();
+
+    /** @return The optional time based aggregator if set. */
+    public String intervalAggregatorString();
+
+    /** @return The optional ID of the time based aggregator if pulled from the
+     * rollup config. -1 if not set in which case use {@link #intervalAggregatorString()}.
+     * @return
+     */
+    public int intervalAggregator();
+
+    /** @return The non-null aggregation string. */
+    public String groupByAggregatorString();
+
+    /** @return The optional numeric ID of the group aggregation from the rollup
+     * configuration. -1 if not set in which case use {@link #groupByAggregatorString()}.
+     */
+    public int groupByAggregator();
+
+  }
 }

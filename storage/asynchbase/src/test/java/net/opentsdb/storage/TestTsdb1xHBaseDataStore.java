@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import net.opentsdb.data.MockLowLevelMetricData;
+import net.opentsdb.data.MockLowLevelRollupMetricData;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesValue;
@@ -511,8 +512,98 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
             new byte[] { 1 }));
   }
 
+  @Test
+  public void writeLowLevelRollup() throws Exception {
+    storage.flushStorage("tsdb-rollup-1h".getBytes(StandardCharsets.UTF_8));
+    when(schema_factory.rollupConfig()).thenReturn(HOURLY_INTERVAL.rollupConfig());
+
+    TimeStamp ts = new SecondTimeStamp(1262304000);
+    MutableRollupDatum datum_1 = new MutableRollupDatum();
+    datum_1.setId(BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build());
+    datum_1.resetTimestamp(ts);
+    datum_1.resetValue(0, 42);
+    datum_1.resetValue(1, 60);
+    datum_1.setInterval("1h");
+
+    MutableRollupDatum datum_2 = new MutableRollupDatum();
+    datum_2.setId(BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_B_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build());
+    datum_2.resetTimestamp(ts);
+    datum_2.resetValue(0, 24);
+    datum_2.resetValue(1, 30);
+    datum_2.setInterval("1h");
+
+    MockLowLevelRollupMetricData data = lowLevelRollup(datum_1, datum_2);
+    Tsdb1xHBaseDataStore store =
+            new Tsdb1xHBaseDataStore(factory, "UT", schema);
+    Whitebox.setInternalState(store, "use_dp_timestamp", false);
+    List<WriteStatus> statuses = store.write(null, data, null).join();
+
+    assertEquals(4, statuses.size());
+    System.out.println(statuses.get(0));
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+    assertEquals(WriteState.OK, statuses.get(2).state());
+    assertEquals(WriteState.OK, statuses.get(3).state());
+
+    byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 42 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0, 0, 0 }));
+    assertArrayEquals(new byte[] { 60 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1, 0, 0 }));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 24 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0, 0, 0 }));
+    assertArrayEquals(new byte[] { 30 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1, 0, 0 }));
+
+    // appends
+    data = lowLevelRollup(datum_1, datum_2);
+    Whitebox.setInternalState(store, "write_appends", true);
+    statuses = store.write(null, data, null).join();
+    assertEquals(4, statuses.size());
+    assertEquals(WriteState.OK, statuses.get(0).state());
+    assertEquals(WriteState.OK, statuses.get(1).state());
+    assertEquals(WriteState.OK, statuses.get(2).state());
+    assertEquals(WriteState.OK, statuses.get(3).state());
+
+    row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0 }));
+    assertArrayEquals(new byte[] { 0, 0, 60 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1 }));
+
+    row_key = new byte[] { 0, 0, 2, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
+    assertArrayEquals(new byte[] { 0, 0, 24 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0 }));
+    assertArrayEquals(new byte[] { 0, 0, 30 }, storage.getColumn(
+            ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 1 }));
+  }
+
   MockLowLevelMetricData lowLevel(TimeSeriesDatum... data) {
     MockLowLevelMetricData low_level = new MockLowLevelMetricData();
+    for (int i = 0; i < data.length; i++) {
+      low_level.add(data[i]);
+    }
+    return low_level;
+  }
+
+  MockLowLevelRollupMetricData lowLevelRollup(TimeSeriesDatum... data) {
+    MockLowLevelRollupMetricData low_level = new MockLowLevelRollupMetricData();
     for (int i = 0; i < data.length; i++) {
       low_level.add(data[i]);
     }
