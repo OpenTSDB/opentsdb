@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -128,8 +129,10 @@ public class TestExpressionNumericIteratorLogical extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
             .setLeft("a")
             .setLeftType(OperandType.VARIABLE)
+            .setLeftId(new DefaultQueryResultId("m1", "m1"))
             .setRight("a")
             .setRightType(OperandType.VARIABLE)
+            .setRightId(new DefaultQueryResultId("m1", "m1"))
             .setExpressionOp(ExpressionOp.AND)
             .setExpressionConfig(config)
             .setId("expression")

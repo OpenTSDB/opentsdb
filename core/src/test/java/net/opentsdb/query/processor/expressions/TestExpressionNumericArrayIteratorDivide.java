@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -47,8 +48,10 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
+        .setRightId(new DefaultQueryResultId("m2", "m2"))
         .setExpressionOp(ExpressionOp.DIVIDE)
         .setExpressionConfig(config)
         .setId("expression")
@@ -90,8 +93,10 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
             .setLeft("a")
             .setLeftType(OperandType.VARIABLE)
+            .setLeftId(new DefaultQueryResultId("m1", "m1"))
             .setRight("a")
             .setRightType(OperandType.VARIABLE)
+            .setRightId(new DefaultQueryResultId("m1", "m1"))
             .setExpressionOp(ExpressionOp.DIVIDE)
             .setExpressionConfig(config)
             .setId("expression")
@@ -615,6 +620,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.DIVIDE)
@@ -687,6 +693,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.DIVIDE)
@@ -735,6 +742,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.DIVIDE)
@@ -830,6 +838,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.DIVIDE)
@@ -890,6 +899,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.DIVIDE)
@@ -1048,6 +1058,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.DIVIDE)
@@ -1083,6 +1094,7 @@ public class TestExpressionNumericArrayIteratorDivide extends BaseNumericTest {
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
+        .setLeftId(new DefaultQueryResultId("m1", "m1"))
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.DIVIDE)

@@ -171,8 +171,10 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
 
       ExpressionParseNode config = node.config();
       // check if left and right have same operand
-      if(config.left.equals(config.right)) {
-          right = left;
+      if(config.getLeftId() != null &&
+         config.getRightId() != null &&
+         config.getLeftId().equals(config.getRightId())) {
+        right = left;
       } else {
         right = right_literal;
       }
