@@ -24,13 +24,13 @@ import java.util.List;
 import java.util.Map;
 
 public class MockLowLevelMetricData implements LowLevelMetricData {
-  private List<TimeSeriesDatum> data = Lists.newArrayList();
-  private int readIndex = -1;
-  private TimeSeriesDatumStringId currentId;
-  private byte[] flatTags;
-  private int[] tagBits = new int[8];
-  private int tagBitsIndex;
-  private int tagBitsReadIndex;
+  protected List<TimeSeriesDatum> data = Lists.newArrayList();
+  protected int readIndex = -1;
+  protected TimeSeriesDatumStringId currentId;
+  protected byte[] flatTags;
+  protected int[] tagBits = new int[8];
+  protected int tagBitsIndex;
+  protected int tagBitsReadIndex;
 
   public void add(TimeSeriesDatum datum) {
     data.add(datum);
