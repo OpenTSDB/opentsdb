@@ -25,7 +25,7 @@ import com.google.common.base.Strings;
 public interface WriteStatus {
 
   static final String OK_STRING = "state=OK";
-  static final String RETRY_STRING = "state=OK";
+  static final String RETRY_STRING = "state=RETRY";
   static final String REJECTED_STRING = "state=REJECTED";
 
   /**
