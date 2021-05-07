@@ -17,3 +17,5 @@ jobs:
       - DOCKER_PASSWORD
       - DOCKER_REPOSITORY
       - DOCKER_USERNAME
+    annotations:
+      screwdriver.cd/dockerEnabled: true
