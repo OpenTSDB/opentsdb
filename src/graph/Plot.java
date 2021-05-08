@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2021  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -15,7 +15,6 @@ package net.opentsdb.graph;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -139,7 +138,7 @@ public final class Plot {
     String[] y_format_keys = {"format y", "format y2"};
     for(String k : y_format_keys){
       if(params.containsKey(k)){
-        params.put(k, URLDecoder.decode(params.get(k)));
+        params.put(k, params.get(k));
       }
     }
     this.params = params;

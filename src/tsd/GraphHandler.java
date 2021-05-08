@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2021  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -19,21 +19,26 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +58,6 @@ import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -66,6 +70,17 @@ final class GraphHandler implements HttpRpc {
   private static final boolean IS_WINDOWS =
     System.getProperty("os.name", "").contains("Windows");
 
+  private static Pattern RANGE_VALIDATOR = Pattern.compile(
+      "\\[\\\"?-?\\d+\\.?(\\d+)?([eE]-?\\d+)?\\\"?:\\\"?-?(\\d+\\.?\\d+?)?([eE]-?\\d+)?\\\"?\\]");
+  private static Pattern LABEL_VALIDATOR = Pattern.compile("[a-zA-z0-9 \\-_]");
+  private static Pattern KEY_VALIDATOR = Pattern.compile(
+      "(out|left|top|center|right|horiz|box|bottom)?\\s?");
+  private static Pattern STYLE_VALIDATOR = Pattern.compile("(linespoint|points|circles|dots)");
+  private static Pattern COLOR_VALIDATOR = Pattern.compile("(x|X)[a-fA-F0-9]{6}");
+  private static Pattern SMOOTH_VALIDATOR = Pattern.compile("unique|frequency|fnormal|cumulative|cnormal|bins|csplines|acsplines|mcsplines|bezier|sbezier|unwrap|zsort");
+  // NOTE: This one should be tightened for only time based formatters.
+  private static Pattern FORMAT_VALIDATOR = Pattern.compile("(%[a-zA-Z])+[:\\/]?\\s?");
+  private static Pattern WXH_VALIDATOR = Pattern.compile("^\\d+x\\d+$");
   /** Number of times we had to do all the work up to running Gnuplot. */
   private static final AtomicInteger graphs_generated
     = new AtomicInteger();
@@ -171,7 +186,29 @@ final class GraphHandler implements HttpRpc {
     // Build the queries for the parsed TSQuery
     Query[] tsdbqueries = tsquery.buildQueries(tsdb);
 
-    List<String> options = query.getQueryStringParams("o");
+    List<String> options = null;
+    final String options_allow_list = tsdb.getConfig().getString(
+        "tsd.gnuplot.options.allowlist");
+    if (!Strings.isNullOrEmpty(options_allow_list)) {
+      String[] allow_list_strings = options_allow_list.split(";");
+      Set<String> allow_list = Sets.newHashSet();
+      for (int i = 0; i < allow_list_strings.length; i++) {
+        String allow = allow_list_strings[i];
+        if (allow != null) {
+          allow = URLDecoder.decode(allow.trim());
+          allow_list.add(allow);
+        }
+      }
+      
+      options = query.getQueryStringParams("o");
+      for (int i = 0; i < options.size(); i++) {
+        if (!allow_list.contains(options.get(i))) {
+          throw new BadRequestException("Query option at index " + i 
+              + " was not in the allow list.");
+        }
+      }
+    }
+    
     if (options == null) {
       options = new ArrayList<String>(tsdbqueries.length);
       for (int i = 0; i < tsdbqueries.length; i++) {
@@ -180,15 +217,6 @@ final class GraphHandler implements HttpRpc {
     } else if (options.size() != tsdbqueries.length) {
       throw new BadRequestException(options.size() + " `o' parameters, but "
         + tsdbqueries.length + " `m' parameters.");
-    } else {
-      for (final String option : options) {
-        // TODO - far from perfect, should help a little.
-        if (option.contains("`") || option.contains("%60") || 
-            option.contains("&#96;")) {
-          throw new BadRequestException("Option contained a back-tick. "
-              + "That's a no-no.");
-        }
-      }
     }
     for (final Query tsdbquery : tsdbqueries) {
       try {
@@ -635,13 +663,12 @@ final class GraphHandler implements HttpRpc {
 
   /** Parses the {@code wxh} query parameter to set the graph dimension. */
   static void setPlotDimensions(final HttpQuery query, final Plot plot) {
-    final String wxh = query.getQueryStringParam("wxh");
+    String wxh = query.getQueryStringParam("wxh");
     if (wxh != null && !wxh.isEmpty()) {
-      // TODO - far from perfect, should help a little.
-      if (wxh.contains("`") || wxh.contains("%60") || 
-          wxh.contains("&#96;")) {
-        throw new BadRequestException("WXH contained a back-tick. "
-            + "That's a no-no.");
+      wxh = URLDecoder.decode(wxh.trim());
+      if (!WXH_VALIDATOR.matcher(wxh).find()) {
+        throw new IllegalArgumentException("'wxh' was invalid. "
+            + "Must satisfy the pattern " + WXH_VALIDATOR.toString());
       }
       final int wxhlength = wxh.length();
       if (wxhlength < 7) {  // 100x100 minimum.
@@ -687,13 +714,16 @@ final class GraphHandler implements HttpRpc {
    * @return {@code null} if the parameter wasn't passed, otherwise the
    * value of the last occurrence of the parameter.
    */
-  private static String popParam(final Map<String, List<String>> querystring,
-                                     final String param) {
+  public static String popParam(final Map<String, List<String>> querystring,
+                                final String param) {
     final List<String> params = querystring.remove(param);
     if (params == null) {
       return null;
     }
-    final String given = params.get(params.size() - 1);
+    String given = params.get(params.size() - 1);
+    if (given != null) {
+      given = URLDecoder.decode(given.trim());
+    }
     // TODO - far from perfect, should help a little.
     if (given.contains("`") || given.contains("%60") || 
         given.contains("&#96;")) {
@@ -713,24 +743,52 @@ final class GraphHandler implements HttpRpc {
     final Map<String, List<String>> querystring = query.getQueryString();
     String value;
     if ((value = popParam(querystring, "yrange")) != null) {
+      if (!RANGE_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'yrange' was invalid. "
+            + "Must be in the format [min:max].");
+      }
       params.put("yrange", value);
     }
     if ((value = popParam(querystring, "y2range")) != null) {
+      if (!RANGE_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'y2range' was invalid. "
+            + "Must be in the format [min:max].");
+      }
       params.put("y2range", value);
     }
     if ((value = popParam(querystring, "ylabel")) != null) {
+      if (!LABEL_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'ylabel' was invalid. Must "
+            + "satisfy the pattern " + LABEL_VALIDATOR.toString());
+      }
       params.put("ylabel", stringify(value));
     }
     if ((value = popParam(querystring, "y2label")) != null) {
+      if (!LABEL_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'y2label' was invalid. Must "
+            + "satisfy the pattern " + LABEL_VALIDATOR.toString());
+      }
       params.put("y2label", stringify(value));
     }
     if ((value = popParam(querystring, "yformat")) != null) {
+      if (!FORMAT_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'yformat' was invalid. Must "
+            + "satisfy the pattern " + FORMAT_VALIDATOR.toString());
+      }
       params.put("format y", stringify(value));
     }
     if ((value = popParam(querystring, "y2format")) != null) {
+      if (!FORMAT_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'y2format' was invalid. Must "
+            + "satisfy the pattern " + FORMAT_VALIDATOR.toString());
+      }
       params.put("format y2", stringify(value));
     }
     if ((value = popParam(querystring, "xformat")) != null) {
+      if (!FORMAT_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'xformat' was invalid. Must "
+            + "satisfy the pattern " + FORMAT_VALIDATOR.toString());
+      }
       params.put("format x", stringify(value));
     }
     if ((value = popParam(querystring, "ylog")) != null) {
@@ -740,21 +798,45 @@ final class GraphHandler implements HttpRpc {
       params.put("logscale y2", "");
     }
     if ((value = popParam(querystring, "key")) != null) {
+      if (!KEY_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'key' was invalid. Must "
+            + "satisfy the pattern " + KEY_VALIDATOR.toString());
+      }
       params.put("key", value);
     }
     if ((value = popParam(querystring, "title")) != null) {
+      if (!LABEL_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'title' was invalid. Must "
+            + "satisfy the pattern " + LABEL_VALIDATOR.toString());
+      }
       params.put("title", stringify(value));
     }
     if ((value = popParam(querystring, "bgcolor")) != null) {
+      if (!COLOR_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'bgcolor' was invalid. Must "
+            + "be a hex value e.g. 'xFFFFFF'");
+      }
       params.put("bgcolor", value);
     }
     if ((value = popParam(querystring, "fgcolor")) != null) {
+      if (!COLOR_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'fgcolor' was invalid. Must "
+            + "be a hex value e.g. 'xFFFFFF'");
+      }
       params.put("fgcolor", value);
     }
     if ((value = popParam(querystring, "smooth")) != null) {
+      if (!SMOOTH_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'smooth' was invalid. Must "
+            + "satisfy the pattern " + SMOOTH_VALIDATOR.toString());
+      }
       params.put("smooth", value);
     }
     if ((value = popParam(querystring, "style")) != null) {
+      if (!STYLE_VALIDATOR.matcher(value).find()) {
+        throw new BadRequestException("'style' was invalid. Must "
+            + "satisfy the pattern " + STYLE_VALIDATOR.toString());
+      }
       params.put("style", value);
     }
     // This must remain after the previous `if' in order to properly override
