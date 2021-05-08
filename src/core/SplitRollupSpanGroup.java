@@ -1,3 +1,15 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2021  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
 import com.stumbleupon.async.Callback;
@@ -11,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 public class SplitRollupSpanGroup extends AbstractSpanGroup {
-    private final List<SpanGroup> spanGroups = new ArrayList<>();
+    private final List<SpanGroup> spanGroups = new ArrayList<SpanGroup>();
 
     public SplitRollupSpanGroup(SpanGroup... groups) {
         for (SpanGroup group : groups) {
@@ -59,7 +71,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public Map<String, String> getTags() {
-        Map<String, String> tags = new HashMap<>();
+        Map<String, String> tags = new HashMap<String, String>();
 
         for (SpanGroup group : spanGroups) {
             tags.putAll(group.getTags());
@@ -79,7 +91,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
         class GetTagsCB implements Callback<Map<String, String>, ArrayList<Map<String, String>>> {
             @Override
             public Map<String, String> call(ArrayList<Map<String, String>> resolvedTags) throws Exception {
-                Map<String, String> tags = new HashMap<>();
+                Map<String, String> tags = new HashMap<String, String>();
                 for (Map<String, String> groupTags : resolvedTags) {
                     tags.putAll(groupTags);
                 }
@@ -87,7 +99,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
             }
         }
 
-        List<Deferred<Map<String, String>>> deferreds = new ArrayList<>(spanGroups.size());
+        List<Deferred<Map<String, String>>> deferreds = new ArrayList<Deferred<Map<String, String>>>(spanGroups.size());
 
         for (SpanGroup group : spanGroups) {
             deferreds.add(group.getTagsAsync());
@@ -107,7 +119,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public Bytes.ByteMap<byte[]> getTagUids() {
-        Bytes.ByteMap<byte[]> tagUids = new Bytes.ByteMap<>();
+        Bytes.ByteMap<byte[]> tagUids = new Bytes.ByteMap<byte[]>();
 
         for (SpanGroup group : spanGroups) {
             tagUids.putAll(group.getTagUids());
@@ -132,7 +144,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public List<String> getAggregatedTags() {
-        List<String> aggregatedTags = new ArrayList<>();
+        List<String> aggregatedTags = new ArrayList<String>();
 
         for (SpanGroup group : spanGroups) {
             aggregatedTags.addAll(group.getAggregatedTags());
@@ -161,7 +173,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
         class GetAggregatedTagsCB implements Callback<List<String>, ArrayList<List<String>>> {
             @Override
             public List<String> call(ArrayList<List<String>> resolvedTags) throws Exception {
-                List<String> aggregatedTags = new ArrayList<>();
+                List<String> aggregatedTags = new ArrayList<String>();
                 for (List<String> groupTags : resolvedTags) {
                     aggregatedTags.addAll(groupTags);
                 }
@@ -169,7 +181,8 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
             }
         }
 
-        List<Deferred<List<String>>> deferreds = new ArrayList<>(spanGroups.size());
+        List<Deferred<List<String>>> deferreds =
+                new ArrayList<Deferred<List<String>>>(spanGroups.size());
         for (SpanGroup group : spanGroups) {
             deferreds.add(group.getAggregatedTagsAsync());
         }
@@ -185,7 +198,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public List<byte[]> getAggregatedTagUids() {
-        List<byte[]> aggTagUids = new ArrayList<>();
+        List<byte[]> aggTagUids = new ArrayList<byte[]>();
 
         for (SpanGroup group : spanGroups) {
             aggTagUids.addAll(group.getAggregatedTagUids());
@@ -201,7 +214,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public List<String> getTSUIDs() {
-        List<String> tsuids = new ArrayList<>();
+        List<String> tsuids = new ArrayList<String>();
 
         for (SpanGroup group : spanGroups) {
             tsuids.addAll(group.getTSUIDs());
@@ -218,7 +231,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public List<Annotation> getAnnotations() {
-        List<Annotation> annotations = new ArrayList<>();
+        List<Annotation> annotations = new ArrayList<Annotation>();
 
         for (SpanGroup group : spanGroups) {
             List<Annotation> groupAnnotations = group.getAnnotations();
@@ -280,7 +293,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public SeekableView iterator() {
-        List<SeekableView> iterators = new ArrayList<>();
+        List<SeekableView> iterators = new ArrayList<SeekableView>();
         for (SpanGroup group : spanGroups) {
             iterators.add(group.iterator());
         }

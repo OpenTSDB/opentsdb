@@ -372,7 +372,7 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     query.configureFromQuery(ts_query, 0, true).joinUninterruptibly();
 
     assertFalse(query.isRollupQuery());
-    verify(query, never()).transformDownSamplerToRollupQuery(any(), any());
+    verify(query, never()).transformDownSamplerToRollupQuery(any(Aggregator.class), anyString());
 
     assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
     assertEquals(1, ForTesting.getFilters(query).size());
