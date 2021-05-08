@@ -97,9 +97,9 @@ public class TestSplitRollupSpanGroup {
 
     @Test
     public void testGetTagUids() {
-        final Bytes.ByteMap<byte[]> uids1 = new Bytes.ByteMap<>();
+        final Bytes.ByteMap<byte[]> uids1 = new Bytes.ByteMap<byte[]>();
         uids1.put(new byte[]{0, 0, 1}, new byte[]{0, 0, 2});
-        final Bytes.ByteMap<byte[]> uids2 = new Bytes.ByteMap<>();
+        final Bytes.ByteMap<byte[]> uids2 = new Bytes.ByteMap<byte[]>();
         uids2.put(new byte[]{0, 0, 3}, new byte[]{0, 0, 4});
 
         when(rollupSpanGroup.getTagUids()).thenReturn(uids1);
@@ -116,9 +116,9 @@ public class TestSplitRollupSpanGroup {
 
     @Test
     public void testGetAggregatedTagUids() {
-        final List<byte[]> uids1 = new ArrayList<>();
+        final List<byte[]> uids1 = new ArrayList<byte[]>();
         uids1.add(new byte[]{0, 0, 1});
-        final List<byte[]> uids2 = new ArrayList<>();
+        final List<byte[]> uids2 = new ArrayList<byte[]>();
         uids2.add(new byte[]{0, 0, 2});
 
         when(rollupSpanGroup.getAggregatedTagUids()).thenReturn(uids1);

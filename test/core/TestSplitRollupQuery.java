@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2021  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -188,14 +188,14 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
     @Test
     public void configureFromQuerySplitsRollupQuery() {
         mockEnableRollupQuerySplitting();
-        doReturn(Deferred.fromResult(null)).when(rollupQuery).split(any(), anyInt(), any());
+        doReturn(Deferred.fromResult(null)).when(rollupQuery).split(any(TSQuery.class), anyInt(), any(TsdbQuery.class));
 
         assertNull(Whitebox.getInternalState(queryUnderTest, "rawQuery"));
 
         rollupQuery.setStartTime(0);
         queryUnderTest.configureFromQuery(null, 0, false);
 
-        verify(rollupQuery).split(eq(null), eq(0), anyObject());
+        verify(rollupQuery).split(eq((TSQuery) null), eq(0), any(TsdbQuery.class));
         assertNotNull(Whitebox.getInternalState(queryUnderTest, "rawQuery"));
     }
 
@@ -203,7 +203,7 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
     public void configureFromQuerySplitsRollupQueryWithRawOnlyQuery() {
         mockEnableRollupQuerySplitting();
         doReturn(true).when(rollupQuery).needsSplitting();
-        doReturn(Deferred.fromResult(null)).when(rollupQuery).split(any(), anyInt(), any());
+        doReturn(Deferred.fromResult(null)).when(rollupQuery).split(any(TSQuery.class), anyInt(), any(TsdbQuery.class));
 
         rollupQuery.setStartTime(DateTime.currentTimeMillis());
 
@@ -211,7 +211,7 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
 
         queryUnderTest.configureFromQuery(null, 0, false);
 
-        verify(rollupQuery).split(eq(null), eq(0), anyObject());
+        verify(rollupQuery).split(eq((TSQuery) null), eq(0), any(TsdbQuery.class));
         assertNotNull(Whitebox.getInternalState(queryUnderTest, "rawQuery"));
         assertNull(Whitebox.getInternalState(queryUnderTest, "rollupQuery"));
     }
@@ -294,7 +294,7 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
         verify(rollupQuery).runAsync();
         verify(rawQuery).runAsync();
 
-        List<String> actualGroups = new ArrayList<>(actualPoints.length);
+        List<String> actualGroups = new ArrayList<String>(actualPoints.length);
         for (DataPoints dataPoints : actualPoints) {
             actualGroups.add(new String(((SplitRollupSpanGroup) dataPoints).group()));
         }
@@ -309,7 +309,7 @@ public class TestSplitRollupQuery extends BaseTsdbTest {
                 tsdb,
                 0,
                 42,
-                new ArrayList<>(),
+                new ArrayList<Span>(),
                 false,
                 new RateOptions(),
                 Aggregators.SUM,

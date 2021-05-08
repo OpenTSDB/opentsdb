@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2021  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -431,7 +431,7 @@ public class SplitRollupQuery extends AbstractQuery {
     private class RunCB implements Callback<DataPoints[], ArrayList<DataPoints[]>> {
 
         private ByteMap<SpanGroup> makeSpanGroupMap(DataPoints[] dataPointsArray) {
-            ByteMap<SpanGroup> map = new ByteMap<>();
+            ByteMap<SpanGroup> map = new ByteMap<SpanGroup>();
 
             for (DataPoints points : dataPointsArray) {
                 if (!(points instanceof SpanGroup)) {
@@ -448,11 +448,11 @@ public class SplitRollupQuery extends AbstractQuery {
             ByteMap<SpanGroup> rollupResults = makeSpanGroupMap(rollup);
             ByteMap<SpanGroup> rawResults = makeSpanGroupMap(raw);
 
-            TreeSet<byte[]> allGroups = new TreeSet<>(Bytes.MEMCMP);
+            TreeSet<byte[]> allGroups = new TreeSet<byte[]>(Bytes.MEMCMP);
             allGroups.addAll(rollupResults.keySet());
             allGroups.addAll(rawResults.keySet());
 
-            List<SplitRollupSpanGroup> results = new ArrayList<>(allGroups.size());
+            List<SplitRollupSpanGroup> results = new ArrayList<SplitRollupSpanGroup>(allGroups.size());
 
             for (byte[] group : allGroups) {
                 SpanGroup rawGroup = rawResults.get(group);
