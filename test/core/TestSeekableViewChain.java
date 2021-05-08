@@ -40,7 +40,7 @@ public class TestSeekableViewChain {
 
     @Test
     public void testIteratorChain() {
-        List<SeekableView> iterators = new ArrayList<>();
+        List<SeekableView> iterators = new ArrayList<SeekableView>();
         for (int i = 0; i < 3; i++) {
             iterators.add(SeekableViewsForTest.fromArray(DATA_POINTS_1));
         }
@@ -57,7 +57,7 @@ public class TestSeekableViewChain {
 
     @Test
     public void testSeek() {
-        List<SeekableView> iterators = new ArrayList<>();
+        List<SeekableView> iterators = new ArrayList<SeekableView>();
         iterators.add(SeekableViewsForTest.generator(
                 BASE_TIME, 10000, 5, true
         ));
@@ -80,7 +80,7 @@ public class TestSeekableViewChain {
 
     @Test
     public void testEmptyChain() {
-        SeekableViewChain chain = new SeekableViewChain(new ArrayList<>());
+        SeekableViewChain chain = new SeekableViewChain(new ArrayList<SeekableView>());
         assertFalse(chain.hasNext());
     }
 
@@ -90,7 +90,7 @@ public class TestSeekableViewChain {
     }
 
     private SeekableViewChain makeChain(int numIterators) {
-        List<SeekableView> iterators = new ArrayList<>();
+        List<SeekableView> iterators = new ArrayList<SeekableView>();
         for (int i = 0; i < numIterators; i++) {
             iterators.add(SeekableViewsForTest.fromArray(DATA_POINTS_1));
         }
