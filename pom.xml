@@ -92,6 +92,7 @@
     <module>implementation/egads</module>
     <module>implementation/http-config</module>
     <module>implementation/elasticsearch</module>
+    <module>implementation/okta</module>
     <module>implementation/prometheus</module>
     <module>implementation/prophet</module>
     <module>implementation/protobuf</module>
