@@ -28,6 +28,19 @@
           <artifactId>jakarta.xml.bind-api</artifactId>
           <version>2.3.2</version>
         </dependency>
+
+        <dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter</artifactId>
+          <version>5.7.1</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.junit.vintage</groupId>
+          <artifactId>junit-vintage-engine</artifactId>
+          <version>5.7.1</version>
+          <scope>test</scope>
+        </dependency>
       </dependencies>
     </dependencyManagement>
     
@@ -66,10 +79,15 @@
         <artifactId>jakarta.xml.bind-api</artifactId>
       </dependency>
       
-      <!-- TESTING Deps -->    
+      <!-- TESTING Deps -->
       <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.vintage</groupId>
+        <artifactId>junit-vintage-engine</artifactId>
         <scope>test</scope>
       </dependency>
       <dependency>
