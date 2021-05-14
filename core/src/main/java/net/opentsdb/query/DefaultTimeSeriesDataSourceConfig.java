@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.merge.MergerConfig;

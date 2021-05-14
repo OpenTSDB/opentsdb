@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,13 +22,18 @@ import static org.mockito.Mockito.when;
 
 import java.time.temporal.TemporalAmount;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 import com.google.common.graph.MutableGraph;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.filter.AnyFieldRegexFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
 import org.junit.Before;
@@ -370,6 +375,42 @@ public class TestDefaultTimeSeriesDataSourceConfig {
 
     assertTrue(!config.equals(config3));
     assertNotEquals(config.hashCode(), config3.hashCode());
+  }
+
+  @Test
+  public void serdes() throws Exception {
+    // TODO - test the rest.
+    DefaultTimeSeriesDataSourceConfig build =
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setSourceId("HBase")
+                    .setNamespace("Verizon")
+                    .setId("UT")
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("system.cpu.use")
+                            .build())
+                    .setStartOverrideTimeStamp(new SecondTimeStamp(1609372800))
+                    .setEndOverrideTimeStamp(new SecondTimeStamp(1609416000))
+                    .build();
+
+    final String json = JSON.serializeToString(build);
+    assertTrue(json.contains("\"id\":\"UT\""));
+    assertTrue(json.contains("\"type\":\"TimeSeriesDataSource\""));
+    assertTrue(json.contains("\"namespace\":\"Verizon\""));
+    assertTrue(json.contains("\"metric\":\"system.cpu.use\""));
+    assertTrue(json.contains("\"sourceId\":\"HBase\""));
+    assertTrue(json.contains("\"startOverrideMs\":1609372800000"));
+    assertTrue(json.contains("\"endOverrideMs\":1609416000000"));
+
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
+    JsonNode node = JSON.getMapper().readTree(json);
+    build = DefaultTimeSeriesDataSourceConfig.parseConfig(JSON.getMapper(), tsdb, node);
+
+    assertEquals("UT", build.getId());
+    assertEquals("TimeSeriesDataSource", build.getType());
+    assertEquals(1, build.resultIds().size());
+    assertEquals(new DefaultQueryResultId("UT", "UT"), build.resultIds().get(0));
+    assertEquals(1609372800, build.startOverrideTimestamp().epoch());
+    assertEquals(1609416000, build.endOverrideTimestamp().epoch());
   }
 
 }
