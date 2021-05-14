@@ -175,17 +175,17 @@ public class TimeRouterConfigEntry {
    * @param config The non-null config to send to the factory for 
    * validation.
    * @param tsdb The non-null TSDB.
+   * @param now The Unix epoch time in seconds.
    * @return The type of match made.
    */
   MatchType match(final QueryPipelineContext context, 
                   final TimeSeriesDataSourceConfig config, 
-                  final TSDB tsdb) {
+                  final TSDB tsdb,
+                  final int now) {
     // time match first
     MatchType match = MatchType.FULL;
     if (start != 0 || end != 0) { // 0,0 == all time
       // assume start & end in the query have been set and validated.
-      final long now = DateTime.currentTimeMillis() / 1000;
-      
       // first check for out of bounds.
       if (start != 0) {
         if (start_relative ? context.query().endTime().epoch() < now - start : 
@@ -252,7 +252,6 @@ public class TimeRouterConfigEntry {
         return MatchType.NONE;
       }
     }
-
 
     if (!factory.supportsQuery(context, config)) {
       return MatchType.NONE;
