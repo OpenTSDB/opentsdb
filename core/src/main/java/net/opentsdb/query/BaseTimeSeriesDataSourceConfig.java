@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2017-2020  The OpenTSDB Authors.
+//Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 //This program is free software: you can redistribute it and/or modify it
 //under the terms of the GNU Lesser General Public License as published by
@@ -29,7 +29,9 @@ import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
@@ -111,6 +113,12 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   /** Whether or not this node has been setup already. */
   protected final boolean has_been_setup;
 
+  /** Optional override for the start time. */
+  protected final TimeStamp start_override;
+
+  /** Optional override for the end time. */
+  protected final TimeStamp end_override;
+
   /**
    * Private ctor for the builder.
    * @param builder The non-null builder.
@@ -144,6 +152,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     pre_padding = builder.pre_padding;
     post_padding = builder.post_padding;
     has_been_setup = builder.has_been_setup;
+    start_override = builder.start_override;
+    end_override = builder.end_override;
     
     if (!Strings.isNullOrEmpty(builder.interval) && 
         builder.amounts == null) {
@@ -281,6 +291,26 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   }
 
   @Override
+  public TimeStamp startOverrideTimestamp() {
+    return start_override;
+  }
+
+  @Override
+  public long getStartOverrideMs() {
+    return start_override != null ? startOverrideTimestamp().msEpoch() : 0;
+  }
+
+  @Override
+  public TimeStamp endOverrideTimestamp() {
+    return end_override;
+  }
+
+  @Override
+  public long getEndOverrideMs() {
+    return end_override != null ? end_override.msEpoch() : 0;
+  }
+
+  @Override
   public boolean joins() {
     return false;
   }
@@ -309,7 +339,9 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
             && Objects.equal(metric, tsconfig.getMetric())
             && Objects.equal(filter, tsconfig.getFilter())
             && Objects.equal(fetch_last, tsconfig.getFetchLast())
-            && Objects.equal(interval, tsconfig.getTimeShiftInterval());
+            && Objects.equal(interval, tsconfig.getTimeShiftInterval())
+            && Objects.equal(start_override, tsconfig.startOverrideTimestamp())
+            && Objects.equal(end_override, tsconfig.endOverrideTimestamp());
 
     if (!result) {
       return false;
@@ -337,6 +369,12 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
             .putString(Strings.nullToEmpty(filter_id), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(interval), Const.UTF8_CHARSET)
             .putBoolean(fetch_last);
+    if (start_override != null) {
+      hc.putLong(start_override.msEpoch());
+    }
+    if (end_override != null) {
+      hc.putLong(end_override.msEpoch());
+    }
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(4);
 
@@ -391,6 +429,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
                 : Lists.newArrayList(config.getPushDownNodes()))
         .setTimeShiftInterval(config.getTimeShiftInterval())
         .setTimeShifts(config.timeShifts())
+        .setStartOverrideTimeStamp(config.startOverrideTimestamp())
+        .setEndOverrideTimeStamp(config.endOverrideTimestamp())
         .setSources(config.getSources() != null ? 
             Lists.newArrayList(config.getSources()) : null)
         .setResultIds(config.resultIds() != null ? 
@@ -560,6 +600,17 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     if (n != null && !n.isNull()) {
       builder.setTimeShiftInterval(n.asText());
     }
+
+    // TODO - millis no good! May need time zone too!
+    n = node.get("startOverrideMs");
+    if (n != null && !n.isNull()) {
+      builder.setStartOverrideTimeStamp(new MillisecondTimeStamp(n.asLong()));
+    }
+
+    n = node.get("endOverrideMs");
+    if (n != null && !n.isNull()) {
+      builder.setEndOverrideTimeStamp(new MillisecondTimeStamp(n.asLong()));
+    }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -596,6 +647,8 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     protected String interval;
     protected Pair<Boolean, TemporalAmount> amounts;
     protected boolean has_been_setup;
+    protected TimeStamp start_override;
+    protected TimeStamp end_override;
 
     protected Builder() {
       setType(TimeSeriesDataSourceConfig.DEFAULT);
@@ -755,7 +808,20 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       this.has_been_setup = has_been_setup;
       return self();
     }
-    
+
+    @Override
+    public B setStartOverrideTimeStamp(final TimeStamp start_override) {
+      this.start_override = start_override != null ? start_override.getCopy()
+          : null;
+      return self();
+    }
+
+    @Override
+    public B setEndOverrideTimeStamp(final TimeStamp end_override) {
+      this.end_override = end_override != null ? end_override.getCopy()
+          : null;
+      return self();
+    }
   }
 
 }
