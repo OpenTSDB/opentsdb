@@ -18,6 +18,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -132,7 +133,7 @@ public class TestTimeRouterFactory {
     
     TimeRouterConfigEntry entry = mock(TimeRouterConfigEntry.class);
     when(entry.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.FULL);
     when(entry.getSourceId()).thenReturn("s1");
     when(context.query()).thenReturn(query);
@@ -165,22 +166,22 @@ public class TestTimeRouterFactory {
             .setId("m1")
             .build())
         .build();
-    
+
     TimeRouterConfigEntry entry = mock(TimeRouterConfigEntry.class);
-    when(entry.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(entry.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.NONE);
     when(context.query()).thenReturn(query);
-    
+
     FACTORY.config = Lists.newArrayList(entry);
-    
+
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     try {
       planner.plan(null);
       fail("Expected QueryExecutionException");
     } catch (QueryExecutionException e) { }
   }
-  
+
   @Test
   public void setupMatchSecond() throws Exception {
     SemanticQuery query = SemanticQuery.newBuilder()
@@ -193,36 +194,36 @@ public class TestTimeRouterFactory {
             .setId("m1")
             .build())
         .build();
-    
+
     TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e1.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.NONE);
     when(e1.getSourceId()).thenReturn("s1");
-    
+
     TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e2.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.FULL);
     when(e2.getSourceId()).thenReturn("s2");
     when(context.query()).thenReturn(query);
-    
+
     FACTORY.config = Lists.newArrayList(e1, e2);
-    
+
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
-    
+
     assertEquals(2, planner.graph().nodes().size());
     QueryNode node = planner.nodeForId("m1");
     assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
+    assertEquals("sys.if.in",
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("m1")));
   }
-  
+
   @Test
   public void setupMatchSecondPartial() throws Exception {
     SemanticQuery query = SemanticQuery.newBuilder()
@@ -235,36 +236,36 @@ public class TestTimeRouterFactory {
             .setId("m1")
             .build())
         .build();
-    
+
     TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e1.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.NONE);
     when(e1.getSourceId()).thenReturn("s1");
-    
+
     TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e2.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.PARTIAL);
     when(e2.getSourceId()).thenReturn("s2");
     when(context.query()).thenReturn(query);
-    
+
     FACTORY.config = Lists.newArrayList(e1, e2);
-    
+
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
-    
+
     assertEquals(2, planner.graph().nodes().size());
     QueryNode node = planner.nodeForId("m1");
     assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
+    assertEquals("sys.if.in",
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("m1")));
   }
-  
+
   @Test
   public void setupMatchTwoPartialsThenNone() throws Exception {
     SemanticQuery query = SemanticQuery.newBuilder()
@@ -277,57 +278,57 @@ public class TestTimeRouterFactory {
             .setId("m1")
             .build())
         .build();
-    
+
     TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e1.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.NONE);
     when(e1.getSourceId()).thenReturn("s1");
-    
+
     TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e2.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.PARTIAL);
     when(e2.getSourceId()).thenReturn("s2");
-    
+
     TimeRouterConfigEntry e3 = mock(TimeRouterConfigEntry.class);
-    when(e3.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e3.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.PARTIAL);
     when(e3.getSourceId()).thenReturn("s3");
-    
+
     TimeRouterConfigEntry e4 = mock(TimeRouterConfigEntry.class);
-    when(e4.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class)))
+    when(e4.match(any(QueryPipelineContext.class),
+          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
       .thenReturn(MatchType.NONE);
     when(context.query()).thenReturn(query);
-    
+
     FACTORY.config = Lists.newArrayList(e1, e2, e3, e4);
-    
+
     DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
     planner.plan(null).join(250);
-    
+
     assertEquals(4, planner.graph().nodes().size());
     QueryNode node = planner.nodeForId("m1");
     assertTrue(node instanceof Merger);
-    
+
     node = planner.nodeForId("m1_s2");
     assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
+    assertEquals("sys.if.in",
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    
+
     node = planner.nodeForId("m1_s3");
     assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
+    assertEquals("sys.if.in",
         ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
     assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
+
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
         planner.nodeForId("m1_s2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"), 
+    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
         planner.nodeForId("m1_s3")));
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
+    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
         planner.nodeForId("m1")));
   }
   

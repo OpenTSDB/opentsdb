@@ -49,6 +49,7 @@ import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.router.TimeRouterConfigEntry.MatchType;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.DateTime;
 
 /**
  * A node that manages slicing and routing queries across multiple sources
@@ -100,8 +101,9 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
                          final QueryPlanner planner) {
     final List<TimeRouterConfigEntry> config_ref = this.config;
     List<TimeRouterConfigEntry> sources = Lists.newArrayList();
+    final int now = (int) (DateTime.currentTimeMillis() / 1000);
     for (final TimeRouterConfigEntry entry : config_ref) {
-      final MatchType match = entry.match(context, config, tsdb);
+      final MatchType match = entry.match(context, config, tsdb, now);
       if (match == MatchType.NONE) {
         continue;
       } else if (match == MatchType.FULL) {
