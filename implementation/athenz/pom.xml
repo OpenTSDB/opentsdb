@@ -42,6 +42,11 @@
            <artifactId>athenz-cert-refresher</artifactId>
            <version>1.10.14</version>
          </dependency>
+         <dependency>
+            <groupId>com.yahoo.athenz</groupId>
+            <artifactId>athenz-client-common</artifactId>
+            <version>1.10.14</version>
+         </dependency>
 
          <dependency>
             <groupId>net.opentsdb</groupId>
@@ -79,6 +84,10 @@
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-cert-refresher</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>com.yahoo.athenz</groupId>
+         <artifactId>athenz-client-common</artifactId>
       </dependency>
 
       
