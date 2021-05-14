@@ -89,6 +89,7 @@
     <module>common</module>
     <module>core</module>
     <module>executors/http</module>
+    <module>implementation/athenz</module>
     <module>implementation/egads</module>
     <module>implementation/http-config</module>
     <module>implementation/elasticsearch</module>
