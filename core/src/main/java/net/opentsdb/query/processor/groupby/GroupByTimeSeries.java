@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -138,7 +141,7 @@ public class GroupByTimeSeries implements TimeSeries {
     }
     // TODO - pool
     if (source_refs == null) {
-      source_refs = new int[16];
+      source_refs = new int[8];
     } else if (sources_idx + 1 >= source_refs.length) {
       source_refs = Arrays.copyOf(source_refs, source_refs.length * 2);
     }
@@ -165,6 +168,7 @@ public class GroupByTimeSeries implements TimeSeries {
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
+
     iterators_returned = true;
     if (!types.contains(type)) {
       return Optional.empty();
@@ -189,6 +193,7 @@ public class GroupByTimeSeries implements TimeSeries {
     final Collection<TypeToken<? extends TimeSeriesDataType>> types = types(); // calc the union
     final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators =
         Lists.newArrayListWithCapacity(types.size());
+
     for (final TypeToken<? extends TimeSeriesDataType> type : types) {
       if (sources != null) {
         iterators.add(((ProcessorFactory) node.factory())
@@ -203,17 +208,17 @@ public class GroupByTimeSeries implements TimeSeries {
 
   @Override
   public Collection<TypeToken<? extends TimeSeriesDataType>> types() {
-    if (!types_unioned) {
-      final Collection<TypeToken<? extends TimeSeriesDataType>> factory_types = 
-          ((ProcessorFactory) node.factory()).types();
-      final Iterator<TypeToken<? extends TimeSeriesDataType>> iterator = 
-          types.iterator();
-      while (iterator.hasNext()) {
-        if (!factory_types.contains(iterator.next())) {
-          iterator.remove();
-        }
-      }
-    }
+//    if (!types_unioned) {
+//      final Collection<TypeToken<? extends TimeSeriesDataType>> factory_types = 
+//          ((ProcessorFactory) node.factory()).types();
+//      final Iterator<TypeToken<? extends TimeSeriesDataType>> iterator = 
+//          types.iterator();
+//      while (iterator.hasNext()) {
+//        if (!factory_types.contains(iterator.next())) {
+//          iterator.remove();
+//        }
+//      }
+//    }
     return types;
   }
 

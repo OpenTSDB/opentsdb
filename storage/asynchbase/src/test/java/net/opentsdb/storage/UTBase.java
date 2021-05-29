@@ -37,7 +37,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
@@ -171,7 +171,7 @@ public class UTBase {
   protected static Tsdb1xHBaseDataStore data_store;
   protected static UniqueIdFactory uid_factory;
   protected static UniqueIdStore uid_store;
-  protected static RollupInterval HOURLY_INTERVAL;
+  protected static DefaultRollupInterval HOURLY_INTERVAL;
   
   protected static Schema schema;
   protected static SchemaFactory schema_factory;
@@ -222,16 +222,23 @@ public class UTBase {
     schema = spy(new Schema(schema_factory, tsdb, null));
     when(data_store.schema()).thenReturn(schema);
     
-    HOURLY_INTERVAL = RollupInterval.builder()
+    HOURLY_INTERVAL = DefaultRollupInterval.builder()
         .setInterval("1h")
         .setRowSpan("1d")
         .setTable(new String(ROLLUP_TABLE))
         .setPreAggregationTable(new String(ROLLUP_TABLE))
         .build();
-    HOURLY_INTERVAL.setConfig(DefaultRollupConfig.newBuilder()
+    HOURLY_INTERVAL.setRollupConfig(DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 1)
         .addInterval(HOURLY_INTERVAL)
+            .addInterval(DefaultRollupInterval.builder()
+                    .setInterval("1m")
+                    .setRowSpan("1h")
+                    .setTable(new String(DATA_TABLE))
+                    .setPreAggregationTable(new String(DATA_TABLE))
+                    .setDefaultInterval(true)
+                    .build())
         .build());
     
     storage = new MockBase(client, true, true, true, true);
@@ -273,7 +280,7 @@ public class UTBase {
    * Mocks out both UIDs, writing them to storage.
    * @param type The type.
    * @param name The name.
-   * @param inal The id.
+   * @param id The id.
    */
   static void bothUIDs(final UniqueIdType type, 
                        final String name, 

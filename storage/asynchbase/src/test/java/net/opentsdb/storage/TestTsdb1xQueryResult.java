@@ -52,7 +52,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -339,13 +339,13 @@ public class TestTsdb1xQueryResult extends UTBase {
 
   @Test
   public void decodeSingleColumnRollup() throws Exception {
-    RollupInterval interval = RollupInterval.builder()
+    DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setInterval("1h")
         .setRowSpan("1d")
         .setTable("tsdb-rollup-1h")
         .setPreAggregationTable("tsdb-rollup-1h")
         .build();
-    interval.setConfig(rollup_config);
+    interval.setRollupConfig(rollup_config);
     rollup_config = DefaultRollupConfig.newBuilder()
         .addInterval(interval)
         .addAggregationId("sum", 0)
@@ -375,13 +375,13 @@ public class TestTsdb1xQueryResult extends UTBase {
   
   @Test
   public void decodeSingleColumnRollupStringPrefix() throws Exception {
-    RollupInterval interval = RollupInterval.builder()
+    DefaultRollupInterval interval = DefaultRollupInterval.builder()
         .setInterval("1h")
         .setRowSpan("1d")
         .setTable("tsdb-rollup-1h")
         .setPreAggregationTable("tsdb-rollup-1h")
         .build();
-    interval.setConfig(rollup_config);
+    interval.setRollupConfig(rollup_config);
     rollup_config = DefaultRollupConfig.newBuilder()
         .addInterval(interval)
         .addAggregationId("sum", 0)
@@ -465,7 +465,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     } catch (IndexOutOfBoundsException e) { }
   }
   
-  byte[] buildStringQualifier(int offset, short flags, int type, RollupInterval interval) {
+  byte[] buildStringQualifier(int offset, short flags, int type, DefaultRollupInterval interval) {
     byte[] qualifier = RollupUtils.buildRollupQualifier(TS_SINGLE_SERIES + offset, flags, type, interval);
     String name = interval.rollupConfig().getAggregatorForId(type);
     if (Strings.isNullOrEmpty(name)) {

@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.HBaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,10 +50,11 @@ import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
@@ -208,6 +210,11 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
   }
 
   @Override
+  public QueryNodeFactory factory() {
+    return null;
+  }
+  
+  @Override
   public QueryNodeConfig config() {
     return config;
   }
@@ -279,9 +286,13 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
     if (stats != null) {
       stats.incrementRawTimeSeriesCount(next.timeSeries().size());
     }
+    if (executor == null) {
+      onError(new QueryExecutionException("Executor was null.", 500));
+      return;
+    }
+    final State state = executor.state();
+    
     context.tsdb().getQueryThreadPool().submit(new Runnable() {
-      final State state = executor.state();
-      
       @Override
       public void run() {
         sendUpstream(next);
@@ -516,8 +527,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
           .addErrback(new MetaErrorCB(span));
     } else {
       synchronized (this) {
-        executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
-            Tsdb1xScannersPool.TYPE).claim().object();
+        //executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
+        //    Tsdb1xScannersPool.TYPE).claim().object();
+        executor = new Tsdb1xScanners();
         ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           if (push) {
@@ -625,8 +637,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
       }
       
       synchronized (Tsdb1xHBaseQueryNode.this) {
-        executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
-            Tsdb1xScannersPool.TYPE).claim().object();
+        //executor = (Tsdb1xScanners) parent.tsdb().getRegistry().getObjectPool(
+        //    Tsdb1xScannersPool.TYPE).claim().object();
+        executor = new Tsdb1xScanners();
         ((Tsdb1xScanners) executor).reset(Tsdb1xHBaseQueryNode.this, config);
         if (initialized.compareAndSet(false, true)) {
           if (push) {
@@ -703,8 +716,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
             child.setSuccessTags()
                  .finish();
           }
-          executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
-              Tsdb1xMultiGetPool.TYPE).claim().object();
+          //executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
+          //    Tsdb1xMultiGetPool.TYPE).claim().object();
+          executor = new Tsdb1xMultiGet();
           ((Tsdb1xMultiGet) executor).reset(
               Tsdb1xHBaseQueryNode.this, 
               config, 
@@ -912,8 +926,9 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
                 child.setSuccessTags()
                      .finish();
               }
-              executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
-                  Tsdb1xMultiGetPool.TYPE).claim().object();
+              //executor = (Tsdb1xMultiGet) parent.tsdb().getRegistry().getObjectPool(
+              //    Tsdb1xMultiGetPool.TYPE).claim().object();
+              executor = new Tsdb1xMultiGet();
               ((Tsdb1xMultiGet) executor).reset(
                   Tsdb1xHBaseQueryNode.this, 
                   config, 

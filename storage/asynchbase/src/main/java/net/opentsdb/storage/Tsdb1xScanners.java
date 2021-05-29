@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList.Operator;
 import org.hbase.async.KeyRegexpFilter;
@@ -61,7 +62,7 @@ import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.processor.rate.Rate;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -473,7 +474,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
 
   @Override
   public void run(final Timeout timeout) {
-    if (close_attempts++ > 6000) {
+    if (close_attempts++ > 20) {
       LOG.warn("Whoops, bug returning scanners to the pool after " 
           + close_attempts + ". Resetting scanners done.");
       scanners_done = scanners.get(scanner_index).length;
@@ -1017,8 +1018,9 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
             LOG.debug("Instantiating raw table scanner: " + scanner);
           }
           
-          final Tsdb1xScanner scnr = (Tsdb1xScanner) node.parent().tsdb()
-              .getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE).claim().object();            
+//          final Tsdb1xScanner scnr = (Tsdb1xScanner) node.parent().tsdb()
+//              .getRegistry().getObjectPool(Tsdb1xScannerPool.TYPE).claim().object();
+          final Tsdb1xScanner scnr = new Tsdb1xScanner();
           scnr.reset(this, scanner, i, null);
           array[i] = scnr;
         }
@@ -1049,7 +1051,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
    * @param interval An optional rollup interval.
    * @param scanners_index The current inde that needs setting up.
    */
-  void setupSets(final RollupInterval interval, 
+  void setupSets(final RollupInterval interval,
                  final int scanners_index) {
     final long start_epoch = computeStartTimestamp(interval);
     final long end_epoch = computeStopTimestamp(interval);

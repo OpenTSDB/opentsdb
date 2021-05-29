@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xQueryNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,10 +49,11 @@ import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.meta.MetaDataStorageResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.BigtableExecutor.State;
@@ -198,6 +200,11 @@ public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
     }
   }
 
+  @Override
+  public QueryNodeFactory factory() {
+    return null;
+  }
+  
   @Override
   public QueryNodeConfig config() {
     return config;

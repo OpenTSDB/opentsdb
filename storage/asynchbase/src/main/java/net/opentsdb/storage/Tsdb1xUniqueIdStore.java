@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2020  The OpenTSDB Authors.
+// Copyright (C) 2010-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,17 +75,13 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       CONFIG_PREFIX.put(type, "uid." + type.toString().toLowerCase() + ".");
     }
   }
-  
-  /** The error message returned when an ID is being assigned in the
-   * background and should be retried later. */
-  public static final String ASSIGN_AND_RETRY = 
-      "Assigning ID, queue and retry the data.";
-  
+
   /** Various configuration keys. */
   public static final String CHARACTER_SET_KEY = "character_set";
   public static final String CHARACTER_SET_DEFAULT = "ISO-8859-1";
   public static final String ASSIGN_AND_RETRY_KEY = "assign_and_retry";
   public static final String RANDOM_ASSIGNMENT_KEY = "assign_random";
+  public static final String LOG_ASSIGNMENT_KEY = "log_assignments";
   public static final String RANDOM_ATTEMPTS_KEY = "attempts.max_random";
   public static final String ATTEMPTS_KEY = "attempts.max";
   
@@ -185,7 +181,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       pending_assignments.put(type, Maps.newConcurrentMap());
     }
     
-    LOG.info("Initalized UniqueId store.");
+    LOG.info("Initialized UniqueId store.");
   }
   
 //  /** Returns the number of random UID collisions */
@@ -649,13 +645,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
         final String err;
         switch (type) {
         case METRIC:
-          err = "Failed to assign an ID for kind='" + type
-            + "' name='" + name + "' after " + attempts + " attempts.";
-          break;
         case TAGK:
-          err = "Failed to assign an ID for kind='" + type
-          + "' name='" + name + "' after " + attempts + " attempts.";
-          break;
         case TAGV:
           err = "Failed to assign an ID for kind='" + type
           + "' name='" + name + "' after " + attempts + " attempts.";
@@ -993,7 +983,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
             }
             if (assign_and_retry) {
               // aww, still pending.
-              return Deferred.fromResult(IdOrError.wrapRetry(ASSIGN_AND_RETRY));
+              return Deferred.fromResult(IdOrError.ASSIGNMENT_RETRY);
             } else {
               return assignment;
             }
@@ -1001,15 +991,17 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
         }
         
         // start the assignment dance after stashing the deferred
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Assigning UID for '" + name + "' of type '" + type + 
-              "' for series '" + id + "'");
+        if (data_store.tsdb().getConfig().hasProperty(
+                data_store.getConfigKey(LOG_ASSIGNMENT_KEY)) &&
+          LOG.isInfoEnabled()) {
+          LOG.info("Assigning UID for '" + name + "' of type '" + type +
+                  "' for series '" + id + "'");
         }
         
         // start the assignment dance after stashing the deferred
         if (assign_and_retry) {
           new UniqueIdAllocator(type, name, assignment).tryAllocate();
-          return Deferred.fromResult(IdOrError.wrapRetry(ASSIGN_AND_RETRY));
+          return Deferred.fromResult(IdOrError.ASSIGNMENT_RETRY);
         }
         return new UniqueIdAllocator(type, name, assignment).tryAllocate();
       }
@@ -1794,6 +1786,15 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           + "when a UID needs to be assigned and being the assignment "
           + "process in the background. The next time the same string "
           + "is looked up it should be assigned.");
+    }
+
+    if (!data_store.tsdb().getConfig().hasProperty(
+            data_store.getConfigKey(LOG_ASSIGNMENT_KEY))) {
+      data_store.tsdb().getConfig().register(
+              data_store.getConfigKey(LOG_ASSIGNMENT_KEY),
+              false,
+              true,
+              "Whether or not to log UID assignments at the INFO level.");
     }
     
     if (!data_store.tsdb().getConfig().hasProperty(

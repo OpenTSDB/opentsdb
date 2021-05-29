@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2020  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may getNot use this file except in compliance with the License.
@@ -41,9 +41,33 @@ public class ExpressionNumericArrayIterator extends
     BaseExpressionNumericIterator<NumericArrayType>
   implements NumericArrayType {
 
+  private static final int STATIC_ARRAY_LEN = 86_400;
+  private static final double[] NAN_ARRAY = new double[STATIC_ARRAY_LEN];
+  static {
+    Arrays.fill(NAN_ARRAY, Double.NaN);
+  }
+  
+  private static ThreadLocal<long[]> LITERAL_LONGS = new ThreadLocal<long[]>() {
+    @Override
+    protected long[] initialValue() {
+      return new long[STATIC_ARRAY_LEN];
+    }
+  };
+  private static ThreadLocal<double[]> LITERAL_DOUBLES = new ThreadLocal<double[]>() {
+    @Override
+    protected double[] initialValue() {
+      return new double[STATIC_ARRAY_LEN];
+    }
+  };
+  
   /** The iterators. */
-  protected TypedTimeSeriesIterator left;
-  protected TypedTimeSeriesIterator right;
+  protected TypedTimeSeriesIterator<?> left;
+  protected TypedTimeSeriesIterator<?> right;
+
+  protected final boolean infectious_nan;
+  protected final boolean negate_or_not;
+  protected boolean left_is_int;
+  protected boolean right_is_int;
   
   /** The values, either integers or doubles. */
   protected long[] long_values;
@@ -59,14 +83,13 @@ public class ExpressionNumericArrayIterator extends
                                  final QueryResult result,
                                  final Map<String, TimeSeries> sources) {
     super(node, result, sources);
-    
+    infectious_nan = ((BinaryExpressionNode) node).expressionConfig().getInfectiousNan();
     if (sources.get(ExpressionTimeSeries.LEFT_KEY) == null) {
       left = null;
       if (((BinaryExpressionNode) node).config().getLeftType() 
           == OperandType.LITERAL_BOOL ||
         ((BinaryExpressionNode) node).config().getLeftType() 
-          == OperandType.LITERAL_NUMERIC ||
-          ((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+          == OperandType.LITERAL_NUMERIC || !infectious_nan) {
         has_next = true;
       }
     } else {
@@ -80,8 +103,7 @@ public class ExpressionNumericArrayIterator extends
       if (((BinaryExpressionNode) node).config().getRightType() 
             != OperandType.LITERAL_BOOL &&
           ((BinaryExpressionNode) node).config().getRightType() 
-            != OperandType.LITERAL_NUMERIC &&
-            !((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+            != OperandType.LITERAL_NUMERIC && infectious_nan) {
         has_next = false;
       }
     } else {
@@ -91,6 +113,9 @@ public class ExpressionNumericArrayIterator extends
         has_next = right != null ? right.hasNext() : false;
       }
     }
+    
+    negate_or_not = ((BinaryExpressionNode) node).config().getNegate() ||
+        ((BinaryExpressionNode) node).config().getNot();
     
     // final sanity check
     if (this.getClass().equals(ExpressionNumericArrayIterator.class) &&
@@ -117,9 +142,16 @@ public class ExpressionNumericArrayIterator extends
           right_value.value().end() - right_value.value().offset(),
             left_literal);
     } else if (right == null) {
-      right_value = new LiteralArray(
-          left_value.value().end() - left_value.value().offset(),
-            right_literal);
+      ExpressionParseNode config = node.config();
+      if (config.getLeftId() != null &&
+          config.getRightId() != null &&
+          config.getLeftId().equals(config.getRightId())) {
+        right_value = left_value;
+      } else {
+        right_value = new LiteralArray(
+                left_value.value().end() - left_value.value().offset(),
+                right_literal);
+      }
     }
     next_ts.update(left != null ? left_value.timestamp() : right_value.timestamp());
 
@@ -130,86 +162,119 @@ public class ExpressionNumericArrayIterator extends
     }  else if (left_value != null && left_value.value().end() > right_value.value().end()) {
       left_offset = left_value.value().end() - right_value.value().end();
     }
+    
+    left_is_int = left_value != null && 
+                  left_value.value() != null && 
+                  left_value.value().isInteger();
+    right_is_int = right_value != null && 
+                   right_value.value() != null && 
+                   right_value.value().isInteger();
 
     switch (((ExpressionParseNode) node.config()).getOperator()) {
     // logical
     case OR:
-      runOr(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-            right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
-            left_offset, 
-            right_offset);
+      runOr(left_value == null ? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null ? 
+              new Substitute(left_value.value().end()) : right_value, 
+          left_offset, 
+          right_offset);
       break;
     case AND:
-      runAnd(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runAnd(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     // relational
     case EQ:
-      runEQ(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runEQ(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case NE:
-      runNE(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runNE(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case LE:
-      runLE(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runLE(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case GE:
-      runGE(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runGE(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case LT:
-      runLT(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runLT(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case GT:
-      runGT(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runGT(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     // arithmetic
     case ADD:
-      runAdd(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runAdd(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case SUBTRACT:
-      runSubtract(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 0) : right_value, 
+      runSubtract(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case DIVIDE:
-      runDivide(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 1) : right_value, 
+      runDivide(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case MULTIPLY:
-      runMultiply(left_value == null ? new Substitute(right_value.value().end(), 1) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 1) : right_value, 
+      runMultiply(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
     case MOD:
-      runMod(left_value == null ? new Substitute(right_value.value().end(), 0) : left_value, 
-          right_value == null ? new Substitute(left_value.value().end(), 1) : right_value, 
+      runMod(left_value == null? 
+              new Substitute(right_value.value().end()) : left_value, 
+          right_value == null? 
+              new Substitute(left_value.value().end()) : right_value, 
           left_offset, 
           right_offset);
       break;
@@ -292,15 +357,17 @@ public class ExpressionNumericArrayIterator extends
   }
   
   /**
-   * Implements the logical OR comparison of two values. Nulls are 
-   * treated as false. Non-finite floating point values are treated as 
-   * false except in the case when both are NaN.
+   * Implements the logical OR comparison of two values. Non-finite floating 
+   * point values are treated as false except in the case when either side are
+   * NaN and infectious NaN is enabled.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
-   * integer results.
+   * integer results (except if infectious NaNs were countered).
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runOr(final TimeSeriesValue<NumericArrayType> left_value, 
              final TimeSeriesValue<NumericArrayType> right_value,
@@ -312,48 +379,30 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > 0 || 
-              right[right_idx]  > 0 ? 0 : 1;
-          right_idx++;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] > 0 || right[right_idx] > 0) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > 0 || 
-              right[right_idx] > 0 ? 1 : 0;
-          right_idx++;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
-            long_values[idx++] = 0;
-            right_idx++;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          if (left > 0 || right > 0) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
           } else {
-            long_values[idx++] = left[left_idx] > 0 || 
-                right[right_idx] > 0 ? 0 : 1;
-            right_idx++;
-          }
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
-            long_values[idx++] = 1;
-            right_idx++;
-          } else {
-            long_values[idx++] = left[left_idx] > 0 || 
-                right[right_idx] > 0 ? 1 : 0;
-            right_idx++;
+            writeResult(idx++, negate_or_not ? 1 : 0);
           }
         }
       }
@@ -361,15 +410,17 @@ public class ExpressionNumericArrayIterator extends
   }
   
   /**
-   * Implements the logical AND comparison of two values. Nulls are 
-   * treated as false. Non-finite floating point values are treated as 
-   * false except in the case when both are NaN.
+   * Implements the logical AND comparison of two values. Non-finite floating 
+   * point values are treated as false except in the case when either side are
+   * NaN and infectious Nan is enabled.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
-   * integer results.
+   * integer results (except if infectious NaNs were countered).
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runAnd(final TimeSeriesValue<NumericArrayType> left_value, 
               final TimeSeriesValue<NumericArrayType> right_value,
@@ -381,48 +432,30 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > 0 && 
-              right[right_idx]  > 0 ? 0 : 1;
-          right_idx++;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] > 0 && right[right_idx] > 0) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > 0 && 
-              right[right_idx] > 0 ? 1 : 0;
-          right_idx++;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
-            long_values[idx++] = 0;
-            right_idx++;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          if (left > 0 && right > 0) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
           } else {
-            long_values[idx++] = left[left_idx] > 0 && 
-                right[right_idx] > 0 ? 0 : 1;
-            right_idx++;
-          }
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (Double.isNaN(left[left_idx]) && Double.isNaN(right[right_idx])) {
-            long_values[idx++] = 1;
-            right_idx++;
-          } else {
-            long_values[idx++] = left[left_idx] > 0 && 
-                right[right_idx] > 0 ? 1 : 0;
-            right_idx++;
+            writeResult(idx++, negate_or_not ? 1 : 0);
           }
         }
       }
@@ -430,14 +463,16 @@ public class ExpressionNumericArrayIterator extends
   }
   
   /**
-   * Implements the equals comparison of two values. A null on either 
-   * side will null the result. We follow IEEE 754 for NaN behavior.
+   * Implements the equals comparison of two values. We follow IEEE 754 for NaN 
+   * behavior when infectious nans is false.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runEQ(final TimeSeriesValue<NumericArrayType> left_value, 
              final TimeSeriesValue<NumericArrayType> right_value,
@@ -449,47 +484,48 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] == right[right_idx++] ? 0 : 1;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] == right[right_idx]) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] == right[right_idx++] ? 1 : 0;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      // let the ieee 754 standard handle NaNs
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] == right[right_idx++] ? 0 : 1;
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] == right[right_idx++] ? 1 : 0;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          // let the ieee 754 standard handle NaNs when not infectious
+          if (left == right) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
+          } else {
+            writeResult(idx++, negate_or_not ? 1 : 0);
+          }
         }
       }
     }
   }
   
   /**
-   * Implements the not equal comparison of two values. A null on either 
-   * side will null the result. We follow IEEE 754 for NaN behavior.
+   * Implements the not equal comparison of two values. We follow IEEE 754 for 
+   * NaN behavior if infectious nans is false.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runNE(final TimeSeriesValue<NumericArrayType> left_value, 
              final TimeSeriesValue<NumericArrayType> right_value,
@@ -501,48 +537,48 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] != right[right_idx++] ? 0 : 1;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] != right[right_idx]) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] != right[right_idx++] ? 1 : 0;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      // let the ieee 754 standard handle NaNs
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] != right[right_idx++] ? 0 : 1;
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] != right[right_idx++] ? 1 : 0;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          // let the ieee 754 standard handle NaNs when not infectious
+          if (left != right) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
+          } else {
+            writeResult(idx++, negate_or_not ? 1 : 0);
+          }
         }
       }
     }
   }
   
   /**
-   * Implements the less than or equal to comparison of two values. A 
-   * null on either side will null the result. We follow IEEE 754 for 
-   * NaN behavior.
+   * Implements the less than or equal to comparison of two values. We follow 
+   * IEEE 754 for NaN behavior when infectious nans is false.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runLE(final TimeSeriesValue<NumericArrayType> left_value, 
              final TimeSeriesValue<NumericArrayType> right_value,
@@ -554,48 +590,48 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] <= right[right_idx++] ? 0 : 1;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] <= right[right_idx]) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] <= right[right_idx++] ? 1 : 0;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      // let the ieee 754 standard handle NaNs
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] <= right[right_idx++] ? 0 : 1;
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] <= right[right_idx++] ? 1 : 0;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          // let the ieee 754 standard handle NaNs when not infectious
+          if (left <= right) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
+          } else {
+            writeResult(idx++, negate_or_not ? 1 : 0);
+          }
         }
       }
     }
   }
   
   /**
-   * Implements the greater than or equal to comparison of two values. A 
-   * null on either side will null the result. We follow IEEE 754 for 
-   * NaN behavior.
+   * Implements the greater than or equal to comparison of two values. We follow 
+   * IEEE 754 for NaN behavior when infectious nans is false.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runGE(final TimeSeriesValue<NumericArrayType> left_value, 
              final TimeSeriesValue<NumericArrayType> right_value,
@@ -607,47 +643,48 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] >= right[right_idx++] ? 0 : 1;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] >= right[right_idx]) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] >= right[right_idx++] ? 1 : 0;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      // let the ieee 754 standard handle NaNs
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] >= right[right_idx++] ? 0 : 1;
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] >= right[right_idx++] ? 1 : 0;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          // let the ieee 754 standard handle NaNs when not infectious
+          if (left >= right) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
+          } else {
+            writeResult(idx++, negate_or_not ? 1 : 0);
+          }
         }
       }
     }
   }
   
   /**
-   * Implements the less than comparison of two values. A null on either 
-   * side will null the result. We follow IEEE 754 for NaN behavior.
+   * Implements the less than comparison of two values. We follow IEEE 754 for 
+   * NaN behavior when infectious NaNs is false.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runLT(final TimeSeriesValue<NumericArrayType> left_value, 
              final TimeSeriesValue<NumericArrayType> right_value,
@@ -659,47 +696,48 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] < right[right_idx++] ? 0 : 1;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] < right[right_idx]) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] < right[right_idx++] ? 1 : 0;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      // let the ieee 754 standard handle NaNs
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] < right[right_idx++] ? 0 : 1;
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] < right[right_idx++] ? 1 : 0;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          // let the ieee 754 standard handle NaNs when not infectious
+          if (left < right) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
+          } else {
+            writeResult(idx++, negate_or_not ? 1 : 0);
+          }
         }
       }
     }
   }
   
   /**
-   * Implements the greater than comparison of two values. A null on either 
-   * side will null the result. We follow IEEE 754 for NaN behavior.
+   * Implements the greater than comparison of two values. We follow IEEE 754 
+   * for NaN behavior if infectious nans is false.
    * <p>
    * <b>Note:</b> All values are returned as 1 for true and 0 for false as 
    * integer results.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runGT(final TimeSeriesValue<NumericArrayType> left_value, 
              final TimeSeriesValue<NumericArrayType> right_value,
@@ -711,42 +749,40 @@ public class ExpressionNumericArrayIterator extends
     if (left_value.value().isInteger() && right_value.value().isInteger()) {
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-      
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > right[right_idx++] ? 0 : 1;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (left[left_idx] > right[right_idx]) {
+          long_values[idx++] = negate_or_not ? 0 : 1;
+        } else {
+          long_values[idx++] = negate_or_not ? 1 : 0;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > right[right_idx++] ? 1 : 0;
-        }
+        right_idx++;
       }
     } else {
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      // let the ieee 754 standard handle NaNs
-      if (((ExpressionParseNode) node.config()).getNot()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > right[right_idx++] ? 0 : 1;
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] > right[right_idx++] ? 1 : 0;
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        if (infectious_nan && 
+            (Double.isNaN(left) || Double.isNaN(right))) {
+          writeResult(idx++, Double.NaN);
+        } else {
+          // let the ieee 754 standard handle NaNs when not infectious
+          if (left > right) {
+            writeResult(idx++, negate_or_not ? 0 : 1);
+          } else {
+            writeResult(idx++, negate_or_not ? 1 : 0);
+          }
         }
       }
     }
   }
   
   /**
-   * Implements the sum of two values. A null on either side will null 
-   * the result. A NaN in both returns NaN. Non-infectious NaN will just 
-   * return the other operand.
+   * Implements the sum of two values. A NaN in both returns NaN.
+   * Non-infectious NaN will just return the other operand.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand. getNote that values may overflow.
@@ -755,6 +791,8 @@ public class ExpressionNumericArrayIterator extends
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runAdd(final TimeSeriesValue<NumericArrayType> left_value, 
               final TimeSeriesValue<NumericArrayType> right_value,
@@ -766,62 +804,37 @@ public class ExpressionNumericArrayIterator extends
       long_values = new long[left_value.value().end() - left_offset];
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = -(left[left_idx] + right[right_idx++]);
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] + right[right_idx++];
-        }
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        long result = left[left_idx] + right[right_idx++];
+        long_values[idx++] = negate_or_not ? -result : result;
       }
-      
     } else {
       double_values = new double[left_value.value().end() - left_offset];
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (infectious_nan) {
-            double_values[idx++] = -(left[left_idx] + right[right_idx++]);
-          } else if (Double.isNaN(left[left_idx])) {
-            double_values[idx++] = -right[right_idx++];
-          } else if (Double.isNaN(right[right_idx])) {
-            double_values[idx++] = -left[left_idx];
-            right_idx++;
-          } else {
-            double_values[idx++] = -(left[left_idx] + right[right_idx++]);
-          }
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        final double result;
+        if (infectious_nan) {
+          result = left + right;
+        } else if (Double.isNaN(left)) {
+          result = right;
+        } else if (Double.isNaN(right)) {
+          result = left;
+        } else {
+          result = left + right;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (infectious_nan) {
-            double_values[idx++] = left[left_idx] + right[right_idx++];
-          } else if (Double.isNaN(left[left_idx])) {
-            double_values[idx++] = right[right_idx++];
-          } else if (Double.isNaN(right[right_idx])) {
-            double_values[idx++] = left[left_idx];
-            right_idx++;
-          } else {
-            double_values[idx++] = left[left_idx] + right[right_idx++];
-          }
-        }
+        double_values[idx++] = negate_or_not ? -result : result;
       }
-      
     }
   }
   
   /**
-   * Implements the difference of two values. A null on either side will 
-   * null the result. A NaN in both returns NaN. Non-infectious NaN will 
-   * just return the other operand.
+   * Implements the difference of two values. A NaN in both returns NaN. 
+   * Non-infectious NaN will treat the missing operand as 0.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand. getNote that values may overflow.
@@ -830,6 +843,8 @@ public class ExpressionNumericArrayIterator extends
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runSubtract(final TimeSeriesValue<NumericArrayType> left_value, 
                    final TimeSeriesValue<NumericArrayType> right_value,
@@ -841,70 +856,47 @@ public class ExpressionNumericArrayIterator extends
       long_values = new long[left_value.value().end() - left_offset];
       long[] left = left_value.value().longArray();
       long[] right = right_value.value().longArray();
-
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = -(left[left_idx] - right[right_idx++]);
-        }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] - right[right_idx++];
-        }
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        long result = left[left_idx] - right[right_idx++];
+        long_values[idx++] = negate_or_not ? -result : result;
       }
     } else {
       double_values = new double[left_value.value().end() - left_offset];
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (infectious_nan) {
-            double_values[idx++] = -(left[left_idx] - right[right_idx++]);
-          } else if (Double.isNaN(left[left_idx])) {
-            double_values[idx++] = -right[right_idx++];
-          } else if (Double.isNaN(right[right_idx])) {
-            double_values[idx++] = -left[left_idx];
-            right_idx++;
-          } else {
-            double_values[idx++] = -(left[left_idx] - right[right_idx++]);
-          }
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        final double result;
+        if (infectious_nan) {
+          result = left - right;
+        } else if (Double.isNaN(left)) {
+          result = -right;
+        } else if (Double.isNaN(right)) {
+          result = left;
+        } else {
+          result = left - right;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (infectious_nan) {
-            double_values[idx++] = left[left_idx] - right[right_idx++];
-          } else if (Double.isNaN(left[left_idx])) {
-            double_values[idx++] = right[right_idx++];
-          } else if (Double.isNaN(right[right_idx])) {
-            double_values[idx++] = left[left_idx];
-            right_idx++;
-          } else {
-            double_values[idx++] = left[left_idx] - right[right_idx++];
-          }
-        }
+        double_values[idx++] = negate_or_not ? -result : result;
       }
     }
   }
   
   /**
-   * Implements the quotient of two values. A null on either side will null 
-   * the result. A NaN in both returns NaN. Non-infectious NaN will just 
-   * return the other operand.
+   * Implements the quotient of two values. 
    * <p>
-   * <b>Note</b> A divide-by-zero operation will return 0. Likewise a 
-   * NaN in the numerator or denominator will return a 0 unless both are
-   * NaN or infectious NaN is enabled.
+   * <b>Note</b> With infectious NaN enabled, a divide-by-zero operation will 
+   * return NaN, otherwise it will return 0. Without infection, a NaN in either
+   * operand will return a 0.
    * <p>
-   * Integer math is used unless a floating point is present in either
-   * operand OR the quotient would result in a float.
+   * The result is always a double.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runDivide(final TimeSeriesValue<NumericArrayType> left_value, 
                  final TimeSeriesValue<NumericArrayType> right_value,
@@ -912,51 +904,32 @@ public class ExpressionNumericArrayIterator extends
     int idx = 0;
     int right_idx = right_offset;
     double_values = new double[left_value.value().end() - left_offset];
-    double[] left = left_value.value().isInteger() ? 
-        convert(left_value.value().longArray()) : left_value.value().doubleArray();
-    double[] right = right_value.value().isInteger() ?
-        convert(right_value.value().longArray()) : right_value.value().doubleArray();
-    if (((ExpressionParseNode) node.config()).getNegate()) {
-      for (int left_idx = left_offset;
-            left_idx < left_value.value().end(); left_idx++) {
-        if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
-          double_values[idx++] = 0;
-          right_idx++;
-        } else if (infectious_nan) {
-          double_values[idx++] = -(left[left_idx] / right[right_idx++]);
-        } else if (Double.isNaN(left[left_idx]) || 
-                  (Double.isNaN(right[right_idx]))) {
-          double_values[idx++] = Double.NaN;
-          right_idx++;
-        } else {
-          double_values[idx++] = -(left[left_idx] / right[right_idx++]);
-        }
+    for (int left_idx = left_offset;
+        left_idx < left_value.value().end(); left_idx++) {
+      final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+        left_value.value().doubleArray()[left_idx];
+      final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+        right_value.value().doubleArray()[right_idx++];
+      final double result;
+      if (infectious_nan) {
+        result = left / (right == 0 ? Double.NaN : right);
+      } else if (right == 0) {
+        result = 0;
+      } else if (Math.abs(0.0 - right) <= EPSILON) {
+        result = 0;
+      }  else if (Double.isNaN(left) || Double.isNaN(right)) {
+        result = 0;
+      } else {
+        result = left / (right == 0 ? Double.NaN : right);
       }
-    } else {
-      for (int left_idx = left_offset;
-            left_idx < left_value.value().end(); left_idx++) {
-        if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
-          double_values[idx++] = 0;
-          right_idx++;
-        } else if (infectious_nan) {
-          double_values[idx++] = left[left_idx] / right[right_idx++];
-        } else if (Double.isNaN(left[left_idx]) || 
-            (Double.isNaN(right[right_idx]))) {
-          double_values[idx++] = Double.NaN;
-          right_idx++;
-        } else {
-          double_values[idx++] = left[left_idx] / right[right_idx++];
-        }
-      }
+      
+      writeResult(idx++, negate_or_not ? -result : result);
     }
   }
   
   /**
-   * Implements the product of two values. A null on either side will null 
-   * the result. A NaN in both returns NaN.
-   * <p>
-   * getNote that if a NaN is present in the left or right (but getNot both) 
-   * then a 0 is returned.
+   * Implements the product of two values. Non-infectious NaN treats the 
+   * missing value as a 0.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand. getNote that values may overflow.
@@ -965,6 +938,8 @@ public class ExpressionNumericArrayIterator extends
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runMultiply(final TimeSeriesValue<NumericArrayType> left_value, 
                    final TimeSeriesValue<NumericArrayType> right_value,
@@ -978,65 +953,47 @@ public class ExpressionNumericArrayIterator extends
       long[] right = right_value.value().longArray();
 
       // TODO - deal with overflow
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-            left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = -(left[left_idx] * right[right_idx++]);
-        }
-      } else {
-        for (int left_idx = left_offset;
-            left_idx < left_value.value().end(); left_idx++) {
-          long_values[idx++] = left[left_idx] * right[right_idx++];
-        }        
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final long result = left[left_idx] * right[right_idx++];
+        long_values[idx++] = negate_or_not ? -result : result;
       }
     } else {
       double_values = new double[left_value.value().end() - left_offset];
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (infectious_nan) {
-            double_values[idx++] = -(left[left_idx] * right[right_idx++]);
-          } else if (Double.isNaN(left[left_idx]) || 
-              (Double.isNaN(right[right_idx]))) {
-            double_values[idx++] = Double.NaN;
-            right_idx++;
-          } else {
-            double_values[idx++] = -(left[left_idx] * right[right_idx++]);
-          }
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        final double result;
+        if (infectious_nan) {
+          result = left * right;
+        } else if (Double.isNaN(left) || Double.isNaN(right)) {
+          result = 0;
+        } else {
+          result = left * right;
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (infectious_nan) {
-            double_values[idx++] = left[left_idx] * right[right_idx++];
-          } else if (Double.isNaN(left[left_idx]) || 
-              (Double.isNaN(right[right_idx]))) {
-            double_values[idx++] = Double.NaN;
-            right_idx++;
-          } else {
-            double_values[idx++] = left[left_idx] * right[right_idx++];
-          }
-        }
+        
+        writeResult(idx++, negate_or_not ? -result : result);
       }
     }
   }
   
   /**
-   * Implements the modulus of two values. A null on either side will null 
-   * the result. A NaN in both returns NaN.
+   * Implements the modulus of two values. 
    * <p>
-   * getNote that if a NaN is present in the left or right (but getNot both) then
-   * a 0 is returned.
+   * <b>Note</b> With infectious NaN enabled, a divide-by-zero operation will 
+   * return NaN, otherwise it will return 0. Without infection, a NaN in either
+   * operand will return a 0.
    * <p>
    * Integer math is used unless a floating point is present in either
    * operand.
    * 
    * @param left_value The left operand.
    * @param right_value The right operand.
+   * @param left_offset The offset into the left array.
+   * @param right_offset The offset into the right array.
    */
   void runMod(final TimeSeriesValue<NumericArrayType> left_value, 
               final TimeSeriesValue<NumericArrayType> right_value,
@@ -1050,82 +1007,70 @@ public class ExpressionNumericArrayIterator extends
       long[] right = right_value.value().longArray();
 
       // TODO - deal with overflow
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-            left_idx < left_value.value().end(); left_idx++) {
-          if (right[right_idx] == 0) {
-            long_values[idx++] = 0;
-            right_idx++;
-          } else {
-            long_values[idx++] = -(left[left_idx] % right[right_idx++]);
-          }
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        if (right[right_idx] == 0) {
+          writeResult(idx++, Double.NaN);
+          right_idx++;
+        } else {
+          long result = left[left_idx] % right[right_idx++];
+          long_values[idx++] = negate_or_not ? -result : result;
         }
-      } else {
-        for (int left_idx = left_offset;
-            left_idx < left_value.value().end(); left_idx++) {
-          if (right[right_idx] == 0) {
-            long_values[idx++] = 0;
-            right_idx++;
-          } else {
-            long_values[idx++] = left[left_idx] % right[right_idx++];
-          }
-        }        
       }
     } else {
       double_values = new double[left_value.value().end() - left_offset];
-      double[] left = left_value.value().isInteger() ? 
-          convert(left_value.value().longArray()) : left_value.value().doubleArray();
-      double[] right = right_value.value().isInteger() ?
-          convert(right_value.value().longArray()) : right_value.value().doubleArray();
-      if (((ExpressionParseNode) node.config()).getNegate()) {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
-            double_values[idx++] = 0;
-            right_idx++;
-          } else if (infectious_nan) {
-            double_values[idx++] = -(left[left_idx] % right[right_idx++]);
-          } else if (Double.isNaN(left[left_idx]) || 
-              (Double.isNaN(right[right_idx]))) {
-            double_values[idx++] = 0;
-            right_idx++;
-          } else {
-            double_values[idx++] = -(left[left_idx] % right[right_idx++]);
-          }
+      for (int left_idx = left_offset;
+          left_idx < left_value.value().end(); left_idx++) {
+        final double left = left_is_int ? left_value.value().longArray()[left_idx] :
+          left_value.value().doubleArray()[left_idx];
+        final double right = right_is_int ? right_value.value().longArray()[right_idx++] :
+          right_value.value().doubleArray()[right_idx++];
+        final double result;
+        if (infectious_nan) {
+          result = left % (right == 0 ? Double.NaN : right);
+        } else if (right == 0) {
+          result = 0;
+        } else if (Math.abs(0.0 - right) <= EPSILON) {
+          result = 0;
+        } else if (Double.isNaN(left) || Double.isNaN(right)) {
+          result = 0;
+        } else {
+          result = left % (right == 0 ? Double.NaN : right);
         }
-      } else {
-        for (int left_idx = left_offset;
-              left_idx < left_value.value().end(); left_idx++) {
-          if (Math.abs(0.0 - right[right_idx]) <= EPSILON) {
-            double_values[idx++] = 0;
-            right_idx++;
-          } else if (infectious_nan) {
-            double_values[idx++] = left[left_idx] % right[right_idx++];
-          } else if (Double.isNaN(left[left_idx]) || 
-              (Double.isNaN(right[right_idx]))) {
-            double_values[idx++] = 0;
-            right_idx++;
-          } else {
-            double_values[idx++] = left[left_idx] % right[right_idx++];
-          }
-        }
+        
+        writeResult(idx++, negate_or_not ? -result : result);
       }
     }
   }
   
   /**
-   * Ugly way to cast from a long to a double. Note that this doesn't 
-   * care about offsets and ends, just copies the full array over so
-   * there is potential that it'll do extra work.
-   * @param values The non-null longs to convert.
-   * @return A double array the same length of the values.
+   * Directs the result to the proper array. Hopefully it'll be inlined.
+   * @param idx The index to write into.
+   * @param result The result to store.
    */
-  double[] convert(final long[] values) {
-    final double[] converted = new double[values.length];
-    for (int i = 0; i < values.length; i++) {
-      converted[i] = (double) values[i];
+  void writeResult(final int idx, final long result) {
+    if (long_values != null) {
+      long_values[idx] = result;
+    } else {
+      double_values[idx] = result;
     }
-    return converted;
+  }
+  
+  /**
+   * Directs the result to the proper array, migrating to the double array if
+   * appropriate. Hopefully it'll be inlined.
+   * @param idx The index to write into.
+   * @param result The result to store.
+   */
+  void writeResult(final int idx, final double result) {
+    if (long_values != null) {
+      double_values = new double[long_values.length];
+      for (int i = 0; i < idx; i++) {
+        double_values[i] = long_values[i];
+      }
+      long_values = null;
+    }
+    double_values[idx] = result;
   }
 
   /**
@@ -1134,19 +1079,30 @@ public class ExpressionNumericArrayIterator extends
    */
   class LiteralArray implements TimeSeriesValue<NumericArrayType>,
                                 NumericArrayType{
-    
     private long[] long_values;
     private double[] double_values;
     
     LiteralArray(final int length, final NumericType literal) {
       if (literal == null) {
-        double_values = new double[length];
-        Arrays.fill(double_values, Double.NaN);
+        if (length > STATIC_ARRAY_LEN) {
+          double_values = new double[length];
+          Arrays.fill(double_values, Double.NaN);
+        } else {
+          double_values = NAN_ARRAY;
+        }
       } else if (literal.isInteger()) {
-        long_values = new long[length];
+        if (length > STATIC_ARRAY_LEN) {
+          long_values = new long[length];
+        } else {
+          long_values = LITERAL_LONGS.get();
+        }
         Arrays.fill(long_values, literal.longValue());
       } else {
-        double_values = new double[length];
+        if (length > STATIC_ARRAY_LEN) {
+          double_values = new double[length];
+        } else {
+          double_values = LITERAL_DOUBLES.get();
+        }
         Arrays.fill(double_values, literal.doubleValue());
       }
     }
@@ -1196,12 +1152,14 @@ public class ExpressionNumericArrayIterator extends
 
   /** Helper to substitute a missing time series. */
   class Substitute implements TimeSeriesValue<NumericArrayType>, NumericArrayType {
-    final long[] array;
+    final double[] array;
     
-    Substitute(final int length, final int value) {
-      array = new long[length];
-      if (value != 0) {
-        Arrays.fill(array, value);
+    Substitute(final int length) {
+      if (length <= NAN_ARRAY.length) {
+        array = NAN_ARRAY;
+      } else {
+        array = new double[length];
+        Arrays.fill(array, Double.NaN);
       }
     }
     
@@ -1231,17 +1189,17 @@ public class ExpressionNumericArrayIterator extends
 
     @Override
     public boolean isInteger() {
-      return true;
+      return false;
     }
 
     @Override
     public long[] longArray() {
-      return array;
+      return null;
     }
 
     @Override
     public double[] doubleArray() {
-      return null;
+      return array;
     }
   }
 }

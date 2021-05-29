@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import org.junit.Before;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
@@ -51,7 +52,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -86,6 +87,33 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
+
+    // MULTIPLY w/ same operand
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+            .setLeft("a")
+            .setLeftType(OperandType.VARIABLE)
+            .setLeftId(new DefaultQueryResultId("m1", "m1"))
+            .setRight("a")
+            .setRightType(OperandType.VARIABLE)
+            .setRightId(new DefaultQueryResultId("m1", "m1"))
+            .setExpressionOp(ExpressionOp.MULTIPLY)
+            .setExpressionConfig(config)
+            .setId("expression")
+            .build();
+    when(node.config()).thenReturn(expression_config);
+
+    iterator = new ExpressionNumericArrayIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                    .put(ExpressionTimeSeries.LEFT_KEY, left)
+                    .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new long[] { 1, 16, 4 },
+            value.value().longArray());
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
   }
   
   @Test
@@ -108,7 +136,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -182,7 +210,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -237,7 +265,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
   }
   
   @Test
-  public void fillNaNNonInfectious() throws Exception {
+  public void fillNaN() throws Exception {
     left = new NumericArrayTimeSeries(LEFT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(1.1);
@@ -259,7 +287,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 4.95, Double.NaN, Double.NaN },
+    assertArrayEquals(new double[] { 4.95, 0, 0 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -300,6 +328,50 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
   }
   
   @Test
+  public void fillNaNInfectiousNegate() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1.1);
+    ((NumericArrayTimeSeries) left).add(Double.NaN);
+    ((NumericArrayTimeSeries) left).add(2.66);
+    
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4.5);
+    ((NumericArrayTimeSeries) right).add(10.75);
+    ((NumericArrayTimeSeries) right).add(Double.NaN);
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.MULTIPLY)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    Whitebox.setInternalState(iterator, "infectious_nan", true);
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { -4.95, Double.NaN, Double.NaN },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
   public void numericLiteralLeft() throws Exception {
     NumericLiteral literal = mock(NumericLiteral.class);
     when(literal.isInteger()).thenReturn(true);
@@ -317,7 +389,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -356,7 +428,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -407,7 +479,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -434,7 +506,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -467,7 +539,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -494,7 +566,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight(false)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -527,7 +599,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -537,11 +609,55 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 0, 0, 0 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
   
   @Test
-  public void nullLeftSubstitute() throws Exception {
+  public void nullLeftNegate() throws Exception {
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(10);
+    ((NumericArrayTimeSeries) right).add(8);
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.MULTIPLY)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 0, 0, 0 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  public void nullLeftInfectiousNan() throws Exception {
     right = new NumericArrayTimeSeries(RIGHT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) right).add(4);
@@ -552,9 +668,10 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setExpression("a * b")
         .setJoinConfig(JOIN_CONFIG)
         .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
+        .setInfectiousNan(true)
         .setId("e1")
         .build();
+    when(node.expressionConfig()).thenReturn(cfg);
     
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft(null)
@@ -562,25 +679,16 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
-    when(node.expressionConfig()).thenReturn(cfg);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
-    assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericArrayType> value = 
-        (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { Double.NaN, Double.NaN, Double.NaN },
-        value.value().doubleArray(), 0.001);
-    assertEquals(60, value.timestamp().epoch());
-    assertEquals(0, value.value().offset());
-    assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
   
@@ -598,7 +706,7 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.MULTIPLY)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -608,11 +716,55 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 0, 0, 0 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
   
   @Test
-  public void nullRightSubstitute() throws Exception {
+  public void nullRightNegate() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(4);
+    ((NumericArrayTimeSeries) left).add(10);
+    ((NumericArrayTimeSeries) left).add(8);
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.MULTIPLY)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 0, 0, 0 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullRightInfectiousNan() throws Exception {
     left = new NumericArrayTimeSeries(LEFT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(4);
@@ -620,10 +772,10 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     ((NumericArrayTimeSeries) left).add(8);
     
     ExpressionConfig cfg = ExpressionConfig.newBuilder()
-        .setExpression("a % b")
+        .setExpression("a * b")
         .setJoinConfig(JOIN_CONFIG)
         .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
+        .setInfectiousNan(true)
         .setId("e1")
         .build();
     
@@ -644,14 +796,6 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .build());
-    assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericArrayType> value = 
-        (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { Double.NaN, Double.NaN, Double.NaN },
-        value.value().doubleArray(), 0.001);
-    assertEquals(60, value.timestamp().epoch());
-    assertEquals(0, value.value().offset());
-    assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
 }

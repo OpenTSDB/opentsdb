@@ -22,12 +22,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.CompareFilter;
 import org.hbase.async.FilterList;
@@ -62,7 +62,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.rate.Rate;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.QueryStats;
@@ -399,44 +399,44 @@ public class Tsdb1xMultiGet implements
   
   @Override
   public void close() {
-    if (outstanding.get() > 0) {
-      if (close_attempts.incrementAndGet() < 100) {
-        node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
-            this, 100, TimeUnit.MILLISECONDS);
-        if (LOG.isTraceEnabled()) {
-          LOG.trace("Waiting on calls to finish before returning to the pool: " 
-              + close_attempts.get());
-        }
-        return;
-      }
-    }
-    node = null;
-    source_config = null;
+//    if (outstanding.get() > 0) {
+//      if (close_attempts.incrementAndGet() < 100) {
+//        node.pipelineContext().tsdb().getMaintenanceTimer().newTimeout(
+//            this, 100, TimeUnit.MILLISECONDS);
+//        if (LOG.isTraceEnabled()) {
+//          LOG.trace("Waiting on calls to finish before returning to the pool: "
+//              + close_attempts.get());
+//        }
+//        return;
+//      }
+//    }
+//    node = null;
+//    source_config = null;
     tsuids = null;
     filter = null;
     tables.clear();
     current_result = null;
-    timestamp.updateEpoch(-1);
-    end_timestamp.updateEpoch(-1);
-    all_batches_sent.set(false);
-    has_failed.set(false);
-    close_attempts.set(0);
-    child = null;
-    outstanding.set(0);
-    tsuid_idx = -1;
-    if (sets != null) {
-      for (int i = 0; i < sets.length(); i++) {
-        final Tsdb1xPartialTimeSeriesSet set = sets.get(i);
-        if (set != null) {
-          try {
-            set.close();
-          } catch (Exception e) {
-            LOG.error("Failed to close out set", e);
-          }
-          sets.set(i, null);
-        }
-      }
-    }
+//    timestamp.updateEpoch(-1);
+//    end_timestamp.updateEpoch(-1);
+//    all_batches_sent.set(false);
+//    has_failed.set(false);
+//    close_attempts.set(0);
+//    child = null;
+//    outstanding.set(0);
+//    tsuid_idx = -1;
+//    if (sets != null) {
+//      for (int i = 0; i < sets.length(); i++) {
+//        final Tsdb1xPartialTimeSeriesSet set = sets.get(i);
+//        if (set != null) {
+//          try {
+//            set.close();
+//          } catch (Exception e) {
+//            LOG.error("Failed to close out set", e);
+//          }
+//          sets.set(i, null);
+//        }
+//      }
+//    }
     release();
   }
   
@@ -606,6 +606,14 @@ public class Tsdb1xMultiGet implements
     public Void call(final List<GetResultOrException> results)
         throws Exception {
       if (has_failed.get()) {
+        return null;
+      }
+      
+      // TODO - some kind of race here that we need to track down.
+      if (node == null ||
+          node.pipelineContext() == null ||
+          node.pipelineContext().queryContext() == null ||
+          node.pipelineContext().queryContext().isClosed()) {
         return null;
       }
       
@@ -815,7 +823,7 @@ public class Tsdb1xMultiGet implements
   @VisibleForTesting
   void incrementTimestamp() {
     if (rollup_index >= 0) {
-      final RollupInterval interval = 
+      final RollupInterval interval =
           node.rollupIntervals().get(rollup_index);
       if (reversed) {
         timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -842,16 +850,6 @@ public class Tsdb1xMultiGet implements
       timestamp.update(node.pipelineContext().query().endTime());
     } else {
       timestamp.update(node.pipelineContext().query().startTime());
-    }
-    
-    if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
-      if (pair.getKey()) {
-        timestamp.subtract(pair.getValue());
-      } else {
-        timestamp.add(pair.getValue());
-      }
     }
     
     if (rollup_index >= 0 && 
@@ -883,6 +881,16 @@ public class Tsdb1xMultiGet implements
       // Don't return negative numbers.
       ts = ts > 0L ? ts : 0L;
       timestamp.updateEpoch(ts);
+    }
+    
+    if (source_config.timeShifts() != null) {
+      final Pair<Boolean, TemporalAmount> pair = 
+          source_config.timeShifts();
+      if (pair.getKey()) {
+        timestamp.subtract(pair.getValue());
+      } else {
+        timestamp.add(pair.getValue());
+      }
     }
   }
   
@@ -954,7 +962,7 @@ public class Tsdb1xMultiGet implements
       if (!node.pipelineContext().hasId(hash, Const.TS_BYTE_ID)) {
         node.pipelineContext().addId(hash, new TSUID(tsuid, node.schema()));
       }
-      final RollupInterval interval = rollup_index >= 0 ? 
+      final RollupInterval interval = rollup_index >= 0 ?
           node.rollupIntervals().get(rollup_index) : null;
       
       Tsdb1xPartialTimeSeriesSet set = getSet(index);

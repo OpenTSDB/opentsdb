@@ -108,8 +108,6 @@ public class PluginsConfig extends Validatable {
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.query.filter.QueryFilterFactory"));
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
-        "net.opentsdb.stats.StatsCollector"));
-    PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.query.interpolation.QueryInterpolatorFactory"));
     PRE_LOAD_DEFAULTS.add(Lists.newArrayList(
         "net.opentsdb.storage.DatumIdValidator"));
@@ -302,6 +300,28 @@ public class PluginsConfig extends Validatable {
     }
     return (T) class_map.get(Strings.isNullOrEmpty(id) ? null : 
       id.toLowerCase());
+  }
+  
+  /**
+   * Retrieves the plugin with the given class type and ID.
+   * @param clazz The type of plugin to be fetched.
+   * @param id An optional ID, may be null if the default is fetched.
+   * @return An instantiated plugin if found, null if not.
+   * @throws IllegalArgumentException if the clazz was null.
+   */
+  public <T> List<T> getPlugins(final Class<T> clazz) {
+    if (clazz == null) {
+      throw new IllegalArgumentException("Class cannot be null.");
+    }
+    final Map<String, TSDBPlugin> class_map = plugins.get(clazz);
+    if (class_map == null) {
+      return null;
+    }
+    final List<T> instances = Lists.newArrayListWithCapacity(class_map.size());
+    for (final TSDBPlugin instance : class_map.values()) {
+      instances.add((T) instance);
+    }
+    return instances;
   }
   
   /**

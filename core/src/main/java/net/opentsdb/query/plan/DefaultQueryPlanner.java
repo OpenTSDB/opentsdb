@@ -240,8 +240,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // Default code path that simply brings forward the sources and replaces the
     // node ID if no sources were set during the setup phase.
     if (node.resultIds().isEmpty()) {
+      List<QueryResultId> ids = compileResultIds(node);
       QueryNodeConfig.Builder builder = node.toBuilder()
-          .setResultIds(compileResultIds(node))
+          .setResultIds(ids)
           .setSources(node.getSources());
       this.replace(node, builder.build());
       return true;
@@ -317,7 +318,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
     if (!node.pushDown()) {
       return;
     }
-    
+
     // we can push this one down so add to the list and yank the edge.
     push_downs.add(node);
     config_graph.removeEdge(node, parent);
@@ -1074,7 +1075,15 @@ public class DefaultQueryPlanner implements QueryPlanner {
    */
   public List<QueryResultId> compileResultIds(final QueryNodeConfig config) {
     final List<QueryResultId> ids = Lists.newArrayList();
-    for (final QueryNodeConfig downstream : config_graph.successors(config)) {
+    Set<QueryNodeConfig> downstreams = Sets.newHashSet(config_graph.successors(config));
+    for (QueryNodeConfig downstream : downstreams) {
+      if (downstream.resultIds() == null || downstream.resultIds().isEmpty()) {
+        QueryNodeConfig newConfig = downstream.toBuilder()
+                .setResultIds(compileResultIds(downstream))
+                .build();
+        replace(downstream, newConfig);
+        downstream = newConfig;
+      }
       for (final QueryResultId source : 
           (List<QueryResultId>) downstream.resultIds()) {
         ids.add(new DefaultQueryResultId(config.getId(), source.dataSource()));

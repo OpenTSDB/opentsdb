@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1681,7 +1681,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
         null).join();
     assertNull(result.id());
     assertEquals(WriteState.RETRY, result.state());
-    assertSame(Tsdb1xUniqueIdStore.ASSIGN_AND_RETRY, result.error());
+    assertSame(IdOrError.ASSIGNMENT_RETRY, result);
     
     // still assigns
     assertArrayEquals(UNASSIGNED_ID, storage.getColumn(data_store.uidTable(), 
@@ -1746,7 +1746,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
     assertNull(result.get(0).error());
     assertNull(result.get(1).id());
     assertEquals(WriteState.RETRY, result.get(1).state());
-    assertSame(Tsdb1xUniqueIdStore.ASSIGN_AND_RETRY, result.get(1).error());
+    assertSame(IdOrError.ASSIGNMENT_RETRY, result.get(1));
     
     assertArrayEquals(UNASSIGNED_TAGV, storage.getColumn(data_store.uidTable(), 
         UNASSIGNED_TAGV_NAME.getBytes(Const.UTF8_CHARSET), 

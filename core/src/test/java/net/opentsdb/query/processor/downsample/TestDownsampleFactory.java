@@ -57,7 +57,7 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.utils.Pair;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -135,6 +135,8 @@ public class TestDownsampleFactory {
         .setAggregator("sum")
         .setId("foo")
         .setInterval("15s")
+        .setStart("0")
+        .setEnd("3600")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .build();
@@ -153,7 +155,7 @@ public class TestDownsampleFactory {
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")

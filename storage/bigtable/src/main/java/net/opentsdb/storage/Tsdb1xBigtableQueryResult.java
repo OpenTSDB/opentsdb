@@ -24,6 +24,7 @@ import com.google.cloud.bigtable.grpc.scanner.FlatRow.Cell;
 import com.google.common.collect.Maps;
 
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
 import net.opentsdb.storage.schemas.tsdb1x.NumericSummaryRowSeq;

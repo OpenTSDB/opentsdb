@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may getNot use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import net.opentsdb.query.DefaultQueryResultId;
 import org.junit.Test;
-import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -79,12 +79,12 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
-    
-    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+
+    iterator = new ExpressionNumericArrayIterator(node, RESULT,
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
@@ -93,6 +93,33 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
     assertArrayEquals(new long[] { -3, -5, -6 },
         value.value().longArray());
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+
+    // subtract w/ same operand
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+            .setLeft("a")
+            .setLeftType(OperandType.VARIABLE)
+            .setLeftId(new DefaultQueryResultId("m1", "m1"))
+            .setRight("a")
+            .setRightType(OperandType.VARIABLE)
+            .setRightId(new DefaultQueryResultId("m1", "m1"))
+            .setExpressionOp(ExpressionOp.SUBTRACT)
+            .setExpressionConfig(config)
+            .setId("expression")
+            .build();
+    when(node.config()).thenReturn(expression_config);
+
+    iterator = new ExpressionNumericArrayIterator(node, RESULT,
+            (Map) ImmutableMap.builder()
+                    .put(ExpressionTimeSeries.LEFT_KEY, left)
+                    .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new long[] { 0, 0, 0 },
+            value.value().longArray());
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
@@ -135,7 +162,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -175,7 +202,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -204,7 +231,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -262,7 +289,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -302,7 +329,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -331,7 +358,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setNegate(true)
         .setId("expression")
         .build();
@@ -389,7 +416,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -410,7 +437,73 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
   }
   
   @Test
-  public void doubleDoubleNaNRight() throws Exception {
+  public void doubleDoubleNaN() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1.1);
+    ((NumericArrayTimeSeries) left).add(5.33);
+    ((NumericArrayTimeSeries) left).add(Double.NaN);
+    
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4.5);
+    ((NumericArrayTimeSeries) right).add(Double.NaN);
+    ((NumericArrayTimeSeries) right).add(8.9);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 5.6, 5.33, 8.9 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(config)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { -3.4, 5.33, -8.9 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void doubleDoubleNaNRightInfectious() throws Exception {
+    ExpressionConfig e = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .setInfectiousNan(true)
+        .build();
+    when(node.expressionConfig()).thenReturn(e);
+    
     left = new NumericArrayTimeSeries(LEFT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(1.1);
@@ -432,7 +525,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 5.6, 5.33, 11.56 },
+    assertArrayEquals(new double[] { 5.6, Double.NaN, 11.56 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -446,7 +539,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -458,7 +551,86 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { -3.4, 5.33, -6.24 },
+    assertArrayEquals(new double[] { -3.4, Double.NaN, -6.24 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void doubleDoubleNaNRightInfectiousNegate() throws Exception {
+    ExpressionConfig e = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .setInfectiousNan(true)
+        .build();
+    when(node.expressionConfig()).thenReturn(e);
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1.1);
+    ((NumericArrayTimeSeries) left).add(5.33);
+    ((NumericArrayTimeSeries) left).add(2.66);
+    
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4.5);
+    ((NumericArrayTimeSeries) right).add(Double.NaN);
+    ((NumericArrayTimeSeries) right).add(8.9);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { -5.6, Double.NaN, -11.56 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 3.4, Double.NaN, 6.24 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -502,7 +674,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -523,7 +695,15 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
   }
 
   @Test
-  public void fillNaNNonInfectious() throws Exception {
+  public void fillNaN() throws Exception {
+    ExpressionConfig e = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .build();
+    when(node.expressionConfig()).thenReturn(e);
+    
     left = new NumericArrayTimeSeries(LEFT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(1.1);
@@ -559,7 +739,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -571,7 +751,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
               .build());
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { -3.4, 10.75, 2.66 },
+    assertArrayEquals(new double[] { -3.4, -10.75, 2.66 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
@@ -581,6 +761,15 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
   
   @Test
   public void fillNaNInfectious() throws Exception {
+    ExpressionConfig e = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .setInfectiousNan(true)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .build();
+    when(node.expressionConfig()).thenReturn(e);
+    
     left = new NumericArrayTimeSeries(LEFT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(1.1);
@@ -599,7 +788,6 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
-    Whitebox.setInternalState(iterator, "infectious_nan", true);
     assertTrue(iterator.hasNext());
     TimeSeriesValue<NumericArrayType> value = 
         (TimeSeriesValue<NumericArrayType>) iterator.next();
@@ -617,7 +805,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -627,7 +815,6 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
-    Whitebox.setInternalState(iterator, "infectious_nan", true);
     assertTrue(iterator.hasNext());
     value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
     assertArrayEquals(new double[] { -3.4, Double.NaN, Double.NaN },
@@ -656,7 +843,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -683,7 +870,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -720,7 +907,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -747,7 +934,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(literal)
         .setRightType(OperandType.LITERAL_NUMERIC)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -780,7 +967,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -808,7 +995,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -841,7 +1028,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -868,7 +1055,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(true)
         .setRightType(OperandType.LITERAL_BOOL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -901,64 +1088,10 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
-    
-    ExpressionNumericArrayIterator iterator = 
-        new ExpressionNumericArrayIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-              .build());
-    assertFalse(iterator.hasNext());
-    
-    // subtract
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft(null)
-        .setLeftType(OperandType.NULL)
-        .setRight("b")
-        .setRightType(OperandType.VARIABLE)
-        .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    
-    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-              .build());
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void nullLeftSubstitute() throws Exception {
-    right = new NumericArrayTimeSeries(RIGHT_ID, 
-        new SecondTimeStamp(60));
-    ((NumericArrayTimeSeries) right).add(4);
-    ((NumericArrayTimeSeries) right).add(10);
-    ((NumericArrayTimeSeries) right).add(8);
-    
-    ExpressionConfig cfg = ExpressionConfig.newBuilder()
-        .setExpression("a + b")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
-        .setId("e1")
-        .build();
-    
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft(null)
-        .setLeftType(OperandType.NULL)
-        .setRight("b")
-        .setRightType(OperandType.VARIABLE)
-        .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(cfg)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    when(node.expressionConfig()).thenReturn(cfg);
     
     ExpressionNumericArrayIterator iterator = 
         new ExpressionNumericArrayIterator(node, RESULT, 
@@ -982,7 +1115,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight("b")
         .setRightType(OperandType.VARIABLE)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -992,7 +1125,69 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
               .put(ExpressionTimeSeries.RIGHT_KEY, right)
               .build());
     assertTrue(iterator.hasNext());
-    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    value = (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { -4, -10, -8 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullLeftNegate() throws Exception {
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(10);
+    ((NumericArrayTimeSeries) right).add(8);
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { -4, -10, -8 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft(null)
+        .setLeftType(OperandType.NULL)
+        .setRight("b")
+        .setRightType(OperandType.VARIABLE)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertTrue(iterator.hasNext());
+    value = (TimeSeriesValue<NumericArrayType>) iterator.next();
     assertArrayEquals(new double[] { 4, 10, 8 },
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
@@ -1002,7 +1197,187 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
   }
   
   @Test
+  public void nullLeftInfectious() throws Exception {
+    ExpressionConfig e = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .setInfectiousNan(true)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .build();
+    when(node.expressionConfig()).thenReturn(e);
+    
+    right = new NumericArrayTimeSeries(RIGHT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) right).add(4);
+    ((NumericArrayTimeSeries) right).add(10);
+    ((NumericArrayTimeSeries) right).add(8);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.RIGHT_KEY, right)
+              .build());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
   public void nullRight() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(5);
+    ((NumericArrayTimeSeries) left).add(2);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(cfg)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 1, 5, 2 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(config)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { 1, 5, 2 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullRightNegate() throws Exception {
+    left = new NumericArrayTimeSeries(LEFT_ID, 
+        new SecondTimeStamp(60));
+    ((NumericArrayTimeSeries) left).add(1);
+    ((NumericArrayTimeSeries) left).add(5);
+    ((NumericArrayTimeSeries) left).add(2);
+    
+    ExpressionConfig cfg = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .build();
+    
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.ADD)
+        .setExpressionConfig(cfg)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    when(node.expressionConfig()).thenReturn(cfg);
+    
+    ExpressionNumericArrayIterator iterator = 
+        new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> value = 
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { -1, -5, -2 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+    
+    // subtract
+    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
+        .setLeft("a")
+        .setLeftType(OperandType.VARIABLE)
+        .setRight(null)
+        .setRightType(OperandType.NULL)
+        .setExpressionOp(ExpressionOp.SUBTRACT)
+        .setExpressionConfig(config)
+        .setNegate(true)
+        .setId("expression")
+        .build();
+    when(node.config()).thenReturn(expression_config);
+    
+    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
+            (Map) ImmutableMap.builder()
+              .put(ExpressionTimeSeries.LEFT_KEY, left)
+              .build());
+    assertTrue(iterator.hasNext());
+    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertArrayEquals(new double[] { -1, -5, -2 },
+        value.value().doubleArray(), 0.001);
+    assertEquals(60, value.timestamp().epoch());
+    assertEquals(0, value.value().offset());
+    assertEquals(3, value.value().end());
+    assertFalse(iterator.hasNext());
+  }
+  
+  @Test
+  public void nullRightInfectious() throws Exception {
+    ExpressionConfig e = ExpressionConfig.newBuilder()
+        .setExpression("a + b")
+        .setJoinConfig(JOIN_CONFIG)
+        .setInfectiousNan(true)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
+        .setId("e1")
+        .build();
+    when(node.expressionConfig()).thenReturn(e);
+    
     left = new NumericArrayTimeSeries(LEFT_ID, 
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(1);
@@ -1015,7 +1390,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -1034,7 +1409,7 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
         .setRight(null)
         .setRightType(OperandType.NULL)
         .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
+        .setExpressionConfig(config)
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
@@ -1043,75 +1418,6 @@ public class TestExpressionNumericArrayIteratorAdditive extends BaseNumericTest 
             (Map) ImmutableMap.builder()
               .put(ExpressionTimeSeries.LEFT_KEY, left)
               .build());
-    assertFalse(iterator.hasNext());
-  }
-  
-  @Test
-  public void nullRightSubstitute() throws Exception {
-    left = new NumericArrayTimeSeries(LEFT_ID, 
-        new SecondTimeStamp(60));
-    ((NumericArrayTimeSeries) left).add(1);
-    ((NumericArrayTimeSeries) left).add(5);
-    ((NumericArrayTimeSeries) left).add(2);
-    
-    ExpressionConfig cfg = ExpressionConfig.newBuilder()
-        .setExpression("a + b")
-        .setJoinConfig(JOIN_CONFIG)
-        .addInterpolatorConfig(NUMERIC_CONFIG)
-        .setSubstituteMissing(true)
-        .setId("e1")
-        .build();
-    
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft("a")
-        .setLeftType(OperandType.VARIABLE)
-        .setRight(null)
-        .setRightType(OperandType.NULL)
-        .setExpressionOp(ExpressionOp.ADD)
-        .setExpressionConfig(cfg)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    when(node.expressionConfig()).thenReturn(cfg);
-    
-    ExpressionNumericArrayIterator iterator = 
-        new ExpressionNumericArrayIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .build());
-    assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericArrayType> value = 
-        (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 1, 5, 2 },
-        value.value().doubleArray(), 0.001);
-    assertEquals(60, value.timestamp().epoch());
-    assertEquals(0, value.value().offset());
-    assertEquals(3, value.value().end());
-    assertFalse(iterator.hasNext());
-    
-    // subtract
-    expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
-        .setLeft("a")
-        .setLeftType(OperandType.VARIABLE)
-        .setRight(null)
-        .setRightType(OperandType.NULL)
-        .setExpressionOp(ExpressionOp.SUBTRACT)
-        .setExpressionConfig(CONFIG)
-        .setId("expression")
-        .build();
-    when(node.config()).thenReturn(expression_config);
-    
-    iterator = new ExpressionNumericArrayIterator(node, RESULT, 
-            (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .build());
-    assertTrue(iterator.hasNext());
-    value =  (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 1, 5, 2 },
-        value.value().doubleArray(), 0.001);
-    assertEquals(60, value.timestamp().epoch());
-    assertEquals(0, value.value().offset());
-    assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
 }

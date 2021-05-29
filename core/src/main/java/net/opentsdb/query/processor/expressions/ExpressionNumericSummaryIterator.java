@@ -78,8 +78,7 @@ public class ExpressionNumericSummaryIterator extends
       if (((BinaryExpressionNode) node).config().getLeftType() 
             == OperandType.LITERAL_BOOL ||
          ((BinaryExpressionNode) node).config().getLeftType() 
-            == OperandType.LITERAL_NUMERIC ||
-         ((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
+            == OperandType.LITERAL_NUMERIC) {
       }
     } else {
       QueryInterpolatorConfig interpolator_config = 
@@ -149,11 +148,10 @@ public class ExpressionNumericSummaryIterator extends
       if (((BinaryExpressionNode) node).config().getRightType() 
             != OperandType.LITERAL_BOOL &&
           ((BinaryExpressionNode) node).config().getRightType() 
-            != OperandType.LITERAL_NUMERIC &&
-          !((BinaryExpressionNode) node).expressionConfig().getSubstituteMissing()) {
-        has_next = false;
-        summaries_available = null;
-        return;
+            != OperandType.LITERAL_NUMERIC) {
+//        has_next = false;
+//        summaries_available = null;
+//        return;
       }
     } else {
       QueryInterpolatorConfig interpolator_config = 
@@ -269,7 +267,15 @@ public class ExpressionNumericSummaryIterator extends
       }
     } else {
       left = left_interpolator.next(next_ts).value();
-      right = null;
+      ExpressionParseNode config = node.config();
+      // check if left and right have same operand
+      if(config.getLeftId() != null &&
+         config.getRightId() != null &&
+         config.getLeftId().equals(config.getRightId())) {
+        right = left;
+      } else {
+        right = null;
+      }
       
       if (left_interpolator.hasNext()) {
         has_next = true;

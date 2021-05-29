@@ -54,6 +54,9 @@ public class RateNumericSummaryIterator implements QueryIterator {
   /** Options for calculating rates. */
   private final RateConfig config;
   
+  /** IDs cached to avoid lookups per value. */
+  private final int count_id;
+  
   /** The previous raw value to calculate the rate. */
   private MutableNumericSummaryValue prev_data;
   
@@ -104,6 +107,7 @@ public class RateNumericSummaryIterator implements QueryIterator {
         data_interval = 1;
       }
     }
+    count_id = result.rollupConfig().getIdForAggregator("count");
     
     final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> optional =
         sources.iterator().next().iterator(NumericSummaryType.TYPE);
@@ -187,8 +191,17 @@ public class RateNumericSummaryIterator implements QueryIterator {
       final double time_delta = (double) diff / (double) config.duration().toNanos();
       
       next_rate.resetTimestamp(next.timestamp());
+      boolean reset = false;
       for (final int summary : next.value().summariesAvailable()) {
-        runRate(summary, next, time_delta);
+        reset = runRate(summary, next, time_delta);
+        if (reset) {
+          break;
+        }
+      }
+      if (reset) {
+        for (final int summary : next.value().summariesAvailable()) {
+          next_rate.resetValue(summary, Double.NaN);
+        }
       }
       prev_data.reset(next);
       has_next = true;
@@ -196,7 +209,7 @@ public class RateNumericSummaryIterator implements QueryIterator {
     }
   }
   
-  void runRate(final int summary, 
+  boolean runRate(final int summary, 
                final TimeSeriesValue<NumericSummaryType> next, 
                final double time_delta) {
     final NumericType n = next.value().value(summary);
@@ -204,65 +217,79 @@ public class RateNumericSummaryIterator implements QueryIterator {
     
     if (config.getRateToCount()) {
       // TODO - support longs
+      // TODO - make sure this is right.
       final double value = n.toDouble() * data_interval;
       next_rate.resetValue(summary, value);
       has_next = true;
-      return;
+      return false;
     }
     
     // delta code
     if (config.getDeltaOnly()) {
-      // TODO - look at the rest values
-      if (prev == null || (!prev.isInteger() && Double.isNaN(prev.doubleValue()))) {
+      // TODO - look at the reset values
+      if ((!prev.isInteger() && Double.isNaN(prev.doubleValue()))) {
         if (config.isCounter()) {
           next_rate.resetValue(summary, Double.NaN);
           prev_data.resetValue(summary, n);
-          return;
+          return false;
         }
       }
       
       if (prev.isInteger() && n.isInteger()) {
+        if (summary == count_id) {
+          next_rate.resetValue(summary, n.longValue());
+          return false;
+        }
+        
         long delta = n.longValue() - prev.longValue();
         if (config.isCounter() && delta < 0) {
           if (config.getDropResets()) {
             next_rate.resetValue(summary, Double.NaN);
             prev_data.resetValue(summary, n);
-            return;
+            return true;
           }
         }
         
         next_rate.resetValue(summary, delta);
         prev_data.resetValue(summary, n);
         has_next = true;
-        return;
+        return false;
       } else {
+        if (summary == count_id) {
+          next_rate.resetValue(summary, n.doubleValue());
+          return false;
+        }
+        
         double delta = n.toDouble() - prev.toDouble();
         if (config.isCounter() && delta < 0) {
           if (config.getDropResets()) {
             next_rate.resetValue(summary, Double.NaN);
             prev_data.resetValue(summary, n);
-            return;
+            return true;
           }
         }
         
         next_rate.resetValue(summary, delta);
         prev_data.resetValue(summary, n);
         has_next = true;
-        return;
+        return false;
       }
     }
     
     // got a rate!
     if (prev.isInteger() && n.isInteger()) {
+      if (summary == count_id) {
+        next_rate.resetValue(summary, n.longValue());
+        return false;
+      }
       // longs
       long value_delta = n.longValue() - prev.longValue();
       if (config.isCounter() && value_delta < 0) {
         if (config.getDropResets()) {
           next_rate.resetValue(summary, Double.NaN);
           prev_data.resetValue(summary, n);
-          return;
+          return true;
         }
-        
         value_delta = config.getCounterMax() - prev.longValue() +
             n.longValue();
         
@@ -270,6 +297,7 @@ public class RateNumericSummaryIterator implements QueryIterator {
         if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE && 
             rate > config.getResetValue()) {
           next_rate.resetValue(summary, 0.0D);
+          return true;
         } else {
           next_rate.resetValue(summary, rate);
         }
@@ -278,18 +306,23 @@ public class RateNumericSummaryIterator implements QueryIterator {
         if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE && 
             rate > config.getResetValue()) {
           next_rate.resetValue(summary, 0.0D);
+          return true;
         } else {
           next_rate.resetValue(summary, rate);
         }
       }
       prev_data.resetValue(summary, n);
     } else {
+      if (summary == count_id) {
+        next_rate.resetValue(summary, n.doubleValue());
+        return false;
+      }
       double value_delta = n.toDouble() - prev.toDouble();
       if (config.isCounter() && value_delta < 0) {
         if (config.getDropResets()) {
           next_rate.resetValue(summary, Double.NaN);
           prev_data.resetValue(summary, n);
-          return;
+          return true;
         }
         
         value_delta = config.getCounterMax() - prev.toDouble() +
@@ -299,6 +332,7 @@ public class RateNumericSummaryIterator implements QueryIterator {
         if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE && 
             rate > config.getResetValue()) {
           next_rate.resetValue(summary, 0.0D);
+          return true;
         } else {
           next_rate.resetValue(summary, rate);
         }
@@ -307,13 +341,14 @@ public class RateNumericSummaryIterator implements QueryIterator {
         if (config.getResetValue() > RateOptions.DEFAULT_RESET_VALUE && 
             rate > config.getResetValue()) {
           next_rate.resetValue(summary, 0.0D);
+          return true;
         } else {
           next_rate.resetValue(summary, rate);
         }
-        next_rate.resetValue(summary, rate);
       }
       prev_data.resetValue(summary, n);
     }
+    return false;
   }
 
   @Override

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,6 +92,36 @@ public class NumericArrayTimeSeries implements TimeSeries {
     }
     
     addDouble(value);
+  }
+  
+  /**
+   * Replaces the value at the proper spot. NOTE! No bounds check.
+   * @param index The index into the array to change.
+   * @param value The value to save.
+   */
+  public void replace(int index, long value) {
+    if (long_values != null) {
+      long_values[index] = value;
+    } else {
+      double_values[index] = value;
+    }
+  }
+  
+  /**
+   * Replaces the value at the proper spot. NOTE! No bounds check.
+   * @param index The index into the array to change.
+   * @param value The value to save.
+   */
+  public void replace(int index, double value) {
+    if (long_values != null) {
+      // shift!
+      double_values = new double[long_values.length];
+      for (int i = 0; i < long_values.length; i++) {
+        double_values[i] = (double) long_values[i];
+      }
+      long_values = null;
+    }
+    double_values[index] = value;
   }
   
   private void addLong(final long value) {

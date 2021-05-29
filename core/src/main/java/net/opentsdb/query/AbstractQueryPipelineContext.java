@@ -42,6 +42,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.hacluster.HACluster;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.stats.Span;
+import net.opentsdb.utils.JSON;
 
 /**
  * A useful base class for {@link QueryPipelineContext}s that stores references
@@ -644,7 +645,8 @@ public abstract class AbstractQueryPipelineContext implements
        if (cntr == null ) {
         LOG.error("Unexpected result source, no counter for: " 
             + result.dataSource() + " of type " + result.getClass() 
-            + ". Want sources: " + countdowns);
+            + ". Want sources: " + countdowns + ". Query: " 
+            + JSON.serializeToString(context.query()));
       } else {
         cntr.decrementAndGet();
       }

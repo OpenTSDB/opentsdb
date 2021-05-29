@@ -45,8 +45,8 @@ public class TestDefaultMetaQuery {
       .build();
 
     assertNotNull(query);
-    assertEquals("Test-Namespace", query.namespace());
-    assertEquals("Chain" , query.filter().getType());
+    assertEquals("Test-Namespace", query.getNamespace());
+    assertEquals("Chain" , query.getFilter().getType());
   }
 
   @Test
@@ -61,8 +61,8 @@ public class TestDefaultMetaQuery {
       BatchMetaQuery.QueryType.METRICS).build();
 
     assertNotNull(query);
-    assertEquals("Test-Namespace", query.namespace());
-    assertEquals("Chain" , query.filter().getType());
+    assertEquals("Test-Namespace", query.getNamespace());
+    assertEquals("Chain" , query.getFilter().getType());
   }
 
   @Test
@@ -78,8 +78,8 @@ public class TestDefaultMetaQuery {
       .build();
 
     assertNotNull(query);
-    assertEquals("Test-Namespace", query.namespace());
-    assertEquals("Chain" , query.filter().getType());
+    assertEquals("Test-Namespace", query.getNamespace());
+    assertEquals("Chain" , query.getFilter().getType());
   }
 
   @Test
@@ -95,8 +95,8 @@ public class TestDefaultMetaQuery {
       .build();
 
     assertNotNull(query);
-    assertEquals("Test-Namespace", query.namespace());
-    assertEquals("Chain" , query.filter().getType());
+    assertEquals("Test-Namespace", query.getNamespace());
+    assertEquals("Chain" , query.getFilter().getType());
   }
 
   @Test
@@ -110,7 +110,7 @@ public class TestDefaultMetaQuery {
       .build();
 
     assertNotNull(query);
-    assertEquals("Test-Namespace", query.namespace());
+    assertEquals("Test-Namespace", query.getNamespace());
   }
 
 }

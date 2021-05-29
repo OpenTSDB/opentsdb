@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.rollup.RollupInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,14 +39,13 @@ import com.google.protobuf.UnsafeByteOperations;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
-import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.rate.Rate;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -667,7 +667,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
   void incrementTimestamp() {
     if (rollups_enabled) {
       if (rollup_index == 0) {
-        final RollupInterval interval = 
+        final RollupInterval interval =
             node.rollupIntervals().get(rollup_index);
         if (reversed) {
           timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -687,7 +687,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
           fallback_timestamp.add(Duration.of(
               (reversed ? - 1 : 1), ChronoUnit.HOURS));
         } else {
-          final RollupInterval interval = 
+          final RollupInterval interval =
               node.rollupIntervals().get(rollup_index);
           if (reversed) {
             fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
@@ -718,15 +718,6 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     final TimeStamp timestamp = reversed ? 
         node.pipelineContext().query().endTime().getCopy() : 
           node.pipelineContext().query().startTime().getCopy();
-    if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
-      if (pair.getKey()) {
-        timestamp.subtract(pair.getValue());
-      } else {
-        timestamp.add(pair.getValue());
-      }
-    }
     
     if (rollups_enabled && rollup_index >= 0 && 
         rollup_index < node.rollupIntervals().size()) {
@@ -734,12 +725,12 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
           .upstreamOfType(node, Rate.class);
       final RollupInterval interval = node.rollupIntervals().get(0);
       if (!rates.isEmpty()) {
-        return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval) * 1000L);      
+        timestamp.updateEpoch(RollupUtils.getRollupBasetime(
+            (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));
       } else {
-        return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
+        timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
             (reversed ? node.pipelineContext().query().endTime().epoch() : 
-              node.pipelineContext().query().startTime().epoch()), interval) * 1000L);
+              node.pipelineContext().query().startTime().epoch()), interval));
       }
     } else {
       long ts = timestamp.epoch();
@@ -758,7 +749,18 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
       
       // Don't return negative numbers.
       ts = ts > 0L ? ts : 0L;
-      return new MillisecondTimeStamp(ts * 1000);
+      timestamp.updateEpoch(ts);
     }
+    
+    if (source_config.timeShifts() != null) {
+      final Pair<Boolean, TemporalAmount> pair = 
+          source_config.timeShifts();
+      if (pair.getKey()) {
+        timestamp.subtract(pair.getValue());
+      } else {
+        timestamp.add(pair.getValue());
+      }
+    }
+    return timestamp;
   }
 }

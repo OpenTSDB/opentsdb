@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2020  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -168,7 +168,16 @@ public class ExpressionNumericIterator extends BaseExpressionNumericIterator<Num
       }
     } else {
       left = left_interpolator.next(next_ts).value();
-      right = right_literal;
+
+      ExpressionParseNode config = node.config();
+      // check if left and right have same operand
+      if(config.getLeftId() != null &&
+         config.getRightId() != null &&
+         config.getLeftId().equals(config.getRightId())) {
+        right = left;
+      } else {
+        right = right_literal;
+      }
       
       if (left_interpolator.hasNext()) {
         has_next = true;

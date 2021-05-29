@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -25,14 +26,15 @@ import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.*;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.servlet.sinks.ServletSinkTee;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.stats.Trace;
@@ -65,7 +67,23 @@ public class MetaRpc {
     private static final Logger LOG = LoggerFactory.getLogger(MetaRpc.class);
     private final String NAME = "name";
     private final String COUNT = "count";
-    
+
+    private ServletSinkTee sink_tee;
+
+    public MetaRpc(final TSDB tsdb) {
+      if (!tsdb.getConfig().hasProperty("meta.rpc.tee")) {
+        tsdb.getConfig().register("meta.rpc.tee", null, false, "An optional tee plugin for meta queries.");
+      }
+
+      final String tee_id = tsdb.getConfig().getString("meta.rpc.tee");
+      if (!Strings.isNullOrEmpty(tee_id)) {
+        sink_tee = tsdb.getRegistry().getPlugin(ServletSinkTee.class, tee_id);
+        if (sink_tee == null) {
+          throw new IllegalArgumentException("No tee plugin found for " + tee_id);
+        }
+      }
+    }
+
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -215,7 +233,7 @@ public class MetaRpc {
             json.writeStartArray();
             for (TimeSeriesId timeSeriesId : metadata_storage_result.timeSeries()) {
               json.writeStartObject();
-              BaseTimeSeriesStringId id = (BaseTimeSeriesStringId) timeSeriesId;
+              TimeSeriesStringId id = (TimeSeriesStringId) timeSeriesId;
               json.writeStringField("metric", id.metric());
               json.writeObjectFieldStart("tags");
 
@@ -262,7 +280,7 @@ public class MetaRpc {
 
             json.writeFieldName("tagKeys");
             json.writeStartArray();
-            if (query.type() == QueryType.TAG_KEYS &&
+            if (query.getType() == QueryType.TAG_KEYS &&
                     metadata_storage_result.tagKeysOrValues() != null) {
               for (final Pair<String, Long> key_or_value : metadata_storage_result.tagKeysOrValues()) {
                 json.writeStartObject();
@@ -275,7 +293,7 @@ public class MetaRpc {
 
             json.writeFieldName("tagValues");
             json.writeStartArray();
-            if (query.type() == QueryType.TAG_VALUES &&
+            if (query.getType() == QueryType.TAG_VALUES &&
                     metadata_storage_result.tagKeysOrValues() != null) {
               for (final Pair<String, Long> key_or_value : metadata_storage_result.tagKeysOrValues()) {
                 json.writeStartObject();
@@ -297,6 +315,10 @@ public class MetaRpc {
           stream.close();
           if (timer != null) {
             timer.stop("endpoint", "meta");
+          }
+
+          if (sink_tee != null) {
+            sink_tee.send(3, query.buildHashCode().asLong(), auth_state, data);
           }
         } catch (Throwable t) {
             LOG.error("Unexpected exception triggering query.", t);

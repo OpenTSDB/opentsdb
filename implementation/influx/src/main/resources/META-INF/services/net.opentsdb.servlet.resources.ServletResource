@@ -1,0 +1,2 @@
+net.opentsdb.data.influx.InfluxWriteResource
+net.opentsdb.data.influx.Influx2WriteResource

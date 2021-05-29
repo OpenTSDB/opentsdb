@@ -37,6 +37,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
@@ -88,6 +89,23 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   @Override
   public MockDataStore.LocalNode newNode(final QueryPipelineContext context,
                                          final TimeSeriesDataSourceConfig config) {
+    TimeSeriesDataSourceConfig source_config = config;
+    if (!Strings.isNullOrEmpty((source_config).getSummaryInterval())) {
+      final TimeSeriesDataSourceConfig.Builder builder = 
+          (TimeSeriesDataSourceConfig.Builder) source_config.toBuilder();
+      if (mds.rollupConfig() != null) {
+        try {
+          builder.setRollupIntervals(mds.rollupConfig().getPossibleIntervals(
+              (source_config).getSummaryInterval()));
+        } catch (NoSuchRollupForIntervalException e) {
+          // ignore, we'll use raw.
+        }
+        // TODO compute the padding
+        builder.setPrePadding("1h");
+        builder.setPostPadding("30m");
+      }
+      return mds.new LocalNode(context, (TimeSeriesDataSourceConfig) builder.build());
+    }
     return mds.new LocalNode(context, config);
   }
   

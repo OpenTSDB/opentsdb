@@ -61,18 +61,18 @@ public class FileFactory implements ProtocolProviderFactory, ProviderFactory {
   @Override
   public Provider newInstance(final Configuration config, 
                               final HashedWheelTimer timer,
-                              String uri) {
-    uri = uri.toLowerCase();
+                              String originUri) {
+    String uri = originUri.toLowerCase();
     if (uri.endsWith(".conf") ||
         uri.endsWith(".config") ||
         uri.endsWith(".txt") ||
         uri.endsWith(".properties")) {
-      return new PropertiesFileProvider(this, config, timer, uri);
+      return new PropertiesFileProvider(this, config, timer, originUri);
     } else if (uri.endsWith(".yaml") || 
                uri.endsWith(".yml") ||
                uri.endsWith(".json") ||
                uri.endsWith(".jsn")) {
-      return new YamlJsonFileProvider(this, config, timer, uri);
+      return new YamlJsonFileProvider(this, config, timer, originUri);
     } else {
       throw new UnsupportedOperationException("File type not recognized.");
     }

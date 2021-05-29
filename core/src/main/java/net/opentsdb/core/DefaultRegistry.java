@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -342,6 +343,15 @@ public class DefaultRegistry implements Registry {
           + "Call loadPlugins();");
     }
     return plugins.getPlugin(clazz, id);
+  }
+  
+  @Override
+  public <T> List<T> getPlugins(final Class<T> clazz) {
+    if (plugins == null) {
+      throw new IllegalStateException("Plugins have not been loaded. "
+          + "Call loadPlugins();");
+    }
+    return plugins.getPlugins(clazz);
   }
   
   @Override

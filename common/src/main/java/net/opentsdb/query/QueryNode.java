@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,13 @@ import net.opentsdb.stats.Span;
  */
 public interface QueryNode<T extends QueryNodeConfig> {
 
+  /**
+   * @return The factory that created this node. Could be null in some cases
+   * but should be used to fetch settings or objects that apply to all instances
+   * of this kind of node.
+   */
+  public QueryNodeFactory factory();
+  
   /**
    * The pipeline context this node belongs to.
    * @return A non-null context.

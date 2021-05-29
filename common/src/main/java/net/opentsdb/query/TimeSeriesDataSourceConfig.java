@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import java.time.temporal.TemporalAmount;
 import java.util.Collection;
 import java.util.List;
 
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.Pair;
@@ -93,6 +94,22 @@ public interface TimeSeriesDataSourceConfig<
   /** @return Whether or not the node has been setup so we can avoid infinite
    * loops when configuring the graph. */
   public boolean hasBeenSetup();
+
+  /** @return An optional timestamp when the source is querying for a slice of
+   * the overall query time. */
+  public TimeStamp startOverrideTimestamp();
+
+  /** @return The optional start override timestamp in milliseconds. 0 if not
+   * set. */
+  public long getStartOverrideMs();
+
+  /** @return An optional timestamp when the source is querying for a slice of
+   * the overall query time. */
+  public TimeStamp endOverrideTimestamp();
+
+  /** @return The optional end override timestamp in milliseconds. 0 if not
+   * set. */
+  public long getEndOverrideMs();
   
   /**
    * A base builder interface for data source configs.
@@ -141,7 +158,11 @@ public interface TimeSeriesDataSourceConfig<
     B setTimeShifts(final Pair<Boolean, TemporalAmount> amounts);
     
     B setHasBeenSetup(final boolean has_been_setup);
-    
+
+    B setStartOverrideTimeStamp(final TimeStamp start_override);
+
+    B setEndOverrideTimeStamp(final TimeStamp end_override);
+
     String id();
     
     String sourceId();

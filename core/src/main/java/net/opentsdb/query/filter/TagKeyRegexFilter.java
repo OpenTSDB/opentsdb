@@ -98,7 +98,7 @@ public class TagKeyRegexFilter implements TagKeyFilter {
 
   @Override
   public String getType() {
-    return TagValueRegexFactory.TYPE;
+    return TagKeyRegexFactory.TYPE;
   }
   
   /** Whether or not the regex would match all strings. */

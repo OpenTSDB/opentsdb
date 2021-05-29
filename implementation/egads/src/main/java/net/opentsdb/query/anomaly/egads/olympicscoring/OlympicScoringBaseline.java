@@ -36,7 +36,7 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.anomaly.egads.EgadsPredictionTimeSeries;
+import net.opentsdb.query.anomaly.AnomalyPredictionTimeSeries;
 
 /**
  * A class that parses and appends the period-over-period baseline queries to
@@ -153,7 +153,7 @@ public class OlympicScoringBaseline {
       ts += node.predictionInterval();
     }
     
-    return new EgadsPredictionTimeSeries(id, results, 
+    return new AnomalyPredictionTimeSeries(id, results, 
         new SecondTimeStamp(prediction_start));
   }
 

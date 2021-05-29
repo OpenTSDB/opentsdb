@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.Comparators;
@@ -287,7 +288,27 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   public boolean hasBeenSetup() {
     return has_been_setup;
   }
-  
+
+  @Override
+  public TimeStamp startOverrideTimestamp() {
+    return config.startOverrideTimestamp();
+  }
+
+  @Override
+  public long getStartOverrideMs() {
+    return config.getStartOverrideMs();
+  }
+
+  @Override
+  public TimeStamp endOverrideTimestamp() {
+    return config.endOverrideTimestamp();
+  }
+
+  @Override
+  public long getEndOverrideMs() {
+    return config.getEndOverrideMs();
+  }
+
   @Override
   public Pair<Boolean, TemporalAmount> timeShifts() {
     return config.timeShifts();

@@ -17,6 +17,7 @@ package net.opentsdb.tsd;
 import java.io.File;
 import java.io.IOException;
 import java.time.temporal.TemporalAmount;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
@@ -52,6 +53,10 @@ public class V3ResultParser implements ResultParser {
     final File file = new File(path);
     try {
       final String json = Files.toString(file, Const.UTF8_CHARSET);
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Raw results for " + config.id + " " + Arrays.toString(tags) 
+          + "\n" + json);
+      }
       final JsonNode root = JSON.getMapper().readTree(json);
       
       long last_ts = Long.MIN_VALUE;
@@ -62,7 +67,7 @@ public class V3ResultParser implements ResultParser {
       
       final JsonNode results = root.get("results");
       if (results == null || results.isNull()) {
-        LOG.debug("No data for " + config.id);
+        LOG.debug("No data for " + config.id+ " " + Arrays.toString(tags));
         return;
       }
       
@@ -122,6 +127,7 @@ public class V3ResultParser implements ResultParser {
                   LATEST_DP, last_dp, series_tags);
               if (LOG.isTraceEnabled()) {
                 LOG.trace("Reporting last DP for " + config.id + " for " 
+                    + Arrays.toString(series_tags) + " @"
                     + series_last_ts + " => " + last_dp);
               }
             }
@@ -150,6 +156,7 @@ public class V3ResultParser implements ResultParser {
                       LATEST_DP, last_dp, series_tags);
                   if (LOG.isTraceEnabled()) {
                     LOG.trace("Reporting last DP for " + config.id + " for " 
+                        + Arrays.toString(series_tags) + " @"
                         + series_last_ts + " => " + last_dp);
                   }
                 }
@@ -182,7 +189,8 @@ public class V3ResultParser implements ResultParser {
       } else {
         delta = 0;
       }
-      LOG.debug("Successfully parsed [" + config.id + "] Results: " + result_count 
+      LOG.debug("Successfully parsed [" + config.id + " " + Arrays.toString(tags) 
+          + "] Results: " + result_count 
           + " Time series: " + time_series_count + " Values: " + values 
           + " Nans: " + nans + " Lag: " + delta + "(s)");
     } catch (IOException e) {

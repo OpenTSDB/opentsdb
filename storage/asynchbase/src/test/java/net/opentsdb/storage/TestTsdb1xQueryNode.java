@@ -69,7 +69,7 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.Span;
@@ -221,14 +221,14 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(data_store.schema()).thenReturn(schema);
     
     when(rollup_config.getRollupInterval("1h")).thenReturn(
-        RollupInterval.builder()
+        DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
           .setRowSpan("1d")
           .build());
     when(rollup_config.getRollupInterval("30m")).thenReturn(
-        RollupInterval.builder()
+        DefaultRollupInterval.builder()
           .setInterval("30m")
           .setTable("tsdb-30m")
           .setPreAggregationTable("tsdb-agg-30m")
@@ -377,14 +377,14 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(data_store.schema()).thenReturn(schema);
     
     when(rollup_config.getRollupInterval("1h")).thenReturn(
-        RollupInterval.builder()
+        DefaultRollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
           .setPreAggregationTable("tsdb-agg-1h")
           .setRowSpan("1d")
           .build());
     when(rollup_config.getRollupInterval("30m")).thenReturn(
-        RollupInterval.builder()
+        DefaultRollupInterval.builder()
           .setInterval("30m")
           .setTable("tsdb-30m")
           .setPreAggregationTable("tsdb-agg-30m")

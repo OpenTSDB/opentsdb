@@ -58,13 +58,17 @@ public class FilterUtils {
     }
     
     if (filter instanceof ExplicitTagsFilter) {
+      Set<String> matched_tags = matched;
+      if (matched == null) {
+        matched_tags = Sets.newHashSet();
+      }
       final boolean satisfied = matchesTags(
-          ((ExplicitTagsFilter) filter).getFilter(), tags, matched);
+          ((ExplicitTagsFilter) filter).getFilter(), tags, matched_tags);
       
       if (!satisfied) {
         return false;
       }
-      if (matched.size() != tags.size()) {
+      if (matched_tags.size() != tags.size()) {
         return false;
       }
       return true;
@@ -434,7 +438,7 @@ public class FilterUtils {
     } else if (filter instanceof TagValueFilter) {
         return ((TagValueFilter) filter).matches(id.tags());
     } else if (filter instanceof TagKeyFilter) {
-      return ((TagValueFilter) filter).matches(id.tags());
+      return ((TagKeyFilter) filter).matches(id.tags());
     } else if (filter instanceof AnyFieldRegexFilter) {
       if (((AnyFieldRegexFilter) filter).matches(id.metric())) {
         return true;

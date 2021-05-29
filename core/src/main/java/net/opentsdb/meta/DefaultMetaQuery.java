@@ -18,12 +18,19 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.QueryFilterFactory;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.utils.JSON;
+
+import java.util.List;
 
 /**
  * Represents parameters to search for metadata.
@@ -50,7 +57,6 @@ public class DefaultMetaQuery implements MetaQuery {
 
   private static String default_id = "-1";
 
-
   protected DefaultMetaQuery(final Builder builder) {
     namespace = Strings.isNullOrEmpty(builder.namespace) ? null : builder.namespace;
     filters = builder.filter;
@@ -60,16 +66,27 @@ public class DefaultMetaQuery implements MetaQuery {
     }
   }
 
-  public String namespace() {
+  public String getNamespace() {
     return namespace;
   }
 
-  public QueryFilter filter() {
+  public QueryFilter getFilter() {
     return filters;
   }
 
-  public String id() {
+  public String getId() {
     return id;
+  }
+
+  @Override
+  public HashCode buildHashCode() {
+    final Hasher hc = Const.HASH_FUNCTION().newHasher()
+            .putString(Strings.nullToEmpty(namespace), Const.UTF8_CHARSET)
+            .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET);
+    final List<HashCode> hashes = Lists.newArrayList();
+    hashes.add(hc.hash());
+    hashes.add(filters.buildHashCode());
+    return Hashing.combineOrdered(hashes);
   }
 
   public static Builder newBuilder() {

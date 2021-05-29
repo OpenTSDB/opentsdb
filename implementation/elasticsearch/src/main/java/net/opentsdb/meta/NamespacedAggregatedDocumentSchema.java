@@ -38,6 +38,7 @@ import net.opentsdb.query.filter.*;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 import org.elasticsearch.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -238,9 +239,13 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
     String namespace = temp.substring(0, idx);
     final String metric = temp.substring(idx + 1);
 
-    if (namespaces.containsKey(namespace)) {
+    if (namespaces != null && namespaces.containsKey(namespace)) {
       String retention = namespaces.get(namespace);
       long retention_ms = DateTime.parseDuration(retention);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Skipping meta for namespace [" + namespace + "] due to the "
+            + "query being beyond retention.");
+      }
       if (System.currentTimeMillis() - queryPipelineContext.query().startTime().msEpoch() > retention_ms) {
         NamespacedAggregatedDocumentResult result = new NamespacedAggregatedDocumentResult(
             MetaResult.NO_DATA_FALLBACK, skip_meta_ex, null);

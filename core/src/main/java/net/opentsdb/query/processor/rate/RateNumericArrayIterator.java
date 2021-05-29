@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020 The OpenTSDB Authors.
+// Copyright (C) 2018-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@ import java.util.Optional;
  * Iterator that generates rates from a sequence of adjacent data points.
  * 
  * TODO - proper interval conversion. May not work for > 1hr
+ *
+ * TODO - handle run-all where we ask for the interval previous. For now it will
+ * always return a NaN.
  * 
  * @since 3.0
  */
@@ -59,7 +62,10 @@ public class RateNumericArrayIterator implements QueryIterator,
   private boolean has_next;
   
   /** The value timestamp. */
-  private TimeStamp timestamp;
+  private final TimeStamp timestamp;
+  
+  /** The value pulled from the source. */
+  private final TimeSeriesValue<NumericArrayType> value;
   
   /** The long or double values. */
   private long[] long_values;
@@ -119,9 +125,20 @@ public class RateNumericArrayIterator implements QueryIterator,
         sources.iterator().next().iterator(NumericArrayType.TYPE);
     if (optional.isPresent()) {
       this.source = optional.get();
-      has_next = this.source.hasNext();
+      if (source.hasNext()) {
+        value = (TimeSeriesValue<NumericArrayType>) source.next();
+        timestamp = value.timestamp();
+        if (value.value() != null && value.value().end() > value.value().offset()) {
+          has_next = true;
+        }
+      } else {
+        value = null;
+        timestamp = null;
+      }
     } else {
       this.source = null;
+      value = null;
+      timestamp = null;
     }
   }
 
@@ -134,9 +151,6 @@ public class RateNumericArrayIterator implements QueryIterator,
   @Override
   public TimeSeriesValue<?> next() {
     has_next = false;
-    final TimeSeriesValue<NumericArrayType> value = 
-        (TimeSeriesValue<NumericArrayType>) source.next();
-    timestamp = value.timestamp();
     int idx = value.value().offset() + 1;
     int write_idx = 1;
     
@@ -197,9 +211,16 @@ public class RateNumericArrayIterator implements QueryIterator,
     }
     
     // calculate the denom
-    double denom = 
-        (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * TO_NANOS /
-        (double) config.duration().toNanos();
+    double denom;
+    if (result.timeSpecification().interval() == null) {
+      // run_all
+      denom = result.timeSpecification().end().epoch() - result.timeSpecification().start().epoch();
+      denom *= TO_NANOS;
+      denom += result.timeSpecification().end().nanos() - result.timeSpecification().start().nanos();
+    } else {
+      denom = (double) result.timeSpecification().interval().get(ChronoUnit.SECONDS) * TO_NANOS /
+              (double) config.duration().toNanos();
+    }
     double delta;
     if (value.value().isInteger()) {
       long[] source = value.value().longArray();

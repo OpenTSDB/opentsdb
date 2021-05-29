@@ -148,12 +148,13 @@ public final class RollupUtils {
   }
 
   /**
-   * Builds a rollup column qualifier, prepending the appender as a string
-   * then the offeset on 2 bytes for the interval after a colon with the last
-   * four bits reserved for the length and type flags. I.e.
-   * {@code <agg>:<offset(flag)> 
-   *   n  :  2 bytes }
-   * @param timestamp The data point timestamp
+   * Builds a rollup column qualifier, prepending the append function as a single
+   * byte id based on the rollup config. The remaining two bytes encode the
+   * offset within the given interval while the last four bits are reserved for
+   * the length and type flags similar to a raw value. I.e.
+   * {@code <agg><offset(flag)>
+   *   n  2 bytes }
+   * @param timestamp The data point timestamp in unix epoch seconds.
    * @param flags The length and type (float || int) flags for the value
    * @param aggregator_id The numeric ID of the aggregator the value maps to.
    * @param interval The RollupInterval object with data about the interval
@@ -170,12 +171,13 @@ public final class RollupUtils {
   }
   
   /**
-   * Builds a rollup column qualifier, prepending the appender as a string
-   * then the offeset on 2 bytes for the interval after a colon with the last
-   * four bits reserved for the length and type flags. I.e.
-   * {@code <agg>:<offset(flag)>
-   *   n  :  2 bytes }
-   * @param timestamp The data point timestamp
+   * Builds a rollup column qualifier, prepending the append function as a single
+   * byte id based on the rollup config. The remaining two bytes encode the
+   * offset within the given interval while the last four bits are reserved for
+   * the length and type flags similar to a raw value. I.e.
+   * {@code <agg><offset(flag)>
+   *   n  2 bytes }
+   * @param timestamp The data point timestamp in unix epoch seconds.
    * @param basetime The base timestamp to calculate the offset from 
    * @param flags The length and type (float || int) flags for the value
    * @param aggregator_id The numeric ID of the aggregator the value maps to.
@@ -190,7 +192,6 @@ public final class RollupUtils {
                                             final int aggregator_id,
                                             final RollupInterval interval) {
     final byte[] qualifier = new byte[3];
-
     final int time_seconds = (int) ((timestamp & Const.SECOND_MASK) != 0 ?
             timestamp / 1000 : timestamp);
 
@@ -223,7 +224,7 @@ public final class RollupUtils {
   public static byte[] buildStringRollupQualifier(final String aggregator,
                                                   final long timestamp,
                                                   final short flags,
-                                                  final RollupInterval interval) {
+                                                  final DefaultRollupInterval interval) {
     return buildStringRollupQualifier(aggregator, timestamp, 
         getRollupBasetime(timestamp, interval), flags, interval);
   }
@@ -242,7 +243,7 @@ public final class RollupUtils {
                                                   final long timestamp,
                                                   final int basetime,
                                                   final short flags,
-                                                  final RollupInterval interval) {
+                                                  final DefaultRollupInterval interval) {
     final String prefix = aggregator.toLowerCase() + ROLLUP_QUAL_DELIM;
     final byte[] qualifier = new byte[prefix.length() + 2];
     System.arraycopy(prefix.getBytes(Const.ASCII_CHARSET), 0, qualifier, 
@@ -276,7 +277,7 @@ public final class RollupUtils {
    */
   public static byte[] buildAppendRollupValue(final long timestamp,
                                               final short flags,
-                                              final RollupInterval interval,
+                                              final DefaultRollupInterval interval,
                                               final byte[] value) {
     return buildAppendRollupValue(timestamp, 
         getRollupBasetime(timestamp, interval), flags, interval, value);
@@ -326,9 +327,9 @@ public final class RollupUtils {
    * @return The absolute timestamp in milliseconds
    */
   public static long getTimestampFromRollupQualifier(final byte[] qualifier, 
-                  final long base_time, 
-                  final RollupInterval interval,
-                  final int offset) {
+                                                     final long base_time,
+                                                     final RollupInterval interval,
+                                                     final int offset) {
     return (base_time * 1000) + 
             getOffsetFromRollupQualifier(qualifier, offset, interval);
   }
@@ -340,9 +341,9 @@ public final class RollupUtils {
    * @param interval  The RollupInterval object with data about the interval
    * @return The absolute timestamp in milliseconds
    */
-  public static long getTimestampFromRollupQualifier(final int qualifier, 
-      final long base_time, 
-      final RollupInterval interval) {
+  public static long getTimestampFromRollupQualifier(final int qualifier,
+                                                     final long base_time,
+                                                     final RollupInterval interval) {
     return (base_time * 1000) + getOffsetFromRollupQualifier(qualifier, interval);
   }
 
@@ -355,8 +356,8 @@ public final class RollupUtils {
    * @return The offset in milliseconds from the base time
    */
   public static long getOffsetFromRollupQualifier(final byte[] qualifier, 
-                  final int byte_offset, 
-                  final RollupInterval interval) {
+                                                  final int byte_offset,
+                                                  final RollupInterval interval) {
     
     long offset = 0;
     
@@ -379,7 +380,7 @@ public final class RollupUtils {
    * @return The offset in milliseconds from the base time
    */
   public static long getOffsetFromRollupQualifier(final int qualifier, 
-      final RollupInterval interval) {
+                                                  final RollupInterval interval) {
 
     long offset = 0;
     if ((qualifier & Const.MS_FLAG) == Const.MS_FLAG) {

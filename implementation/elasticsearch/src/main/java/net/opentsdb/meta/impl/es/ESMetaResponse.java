@@ -88,9 +88,9 @@ public class ESMetaResponse implements MetaResponse {
       // NOTE: For multigets, case matters so we have to match with the original query.
       final NamespacedAggregatedDocumentResult result;
 
-      MetaQuery metaQuery = query.metaQueries().get(0);
-      String metric = findMetric(metaQuery.filter());
-      NamespacedKey namespacedKey = new NamespacedKey(metaQuery.namespace(), metaQuery.id());
+      MetaQuery metaQuery = query.getQueries().get(0);
+      String metric = findMetric(metaQuery.getFilter());
+      NamespacedKey namespacedKey = new NamespacedKey(metaQuery.getNamespace(), metaQuery.getId());
       // quick validation
       long max_hits = 0;
       for (final Map.Entry<String, MultiSearchResponse> response_entry : response.entrySet()) {
@@ -183,10 +183,10 @@ public class ESMetaResponse implements MetaResponse {
 
     } else {
       int i = 0;
-      for (MetaQuery meta_query : query.metaQueries()) {
+      for (MetaQuery meta_query : query.getQueries()) {
         long max_hits = 0;
 
-        int count = countMetricFilters(meta_query.filter(), 0);
+        int count = countMetricFilters(meta_query.getFilter(), 0);
 
         count = count == 0 ? 1 : count;
 
@@ -202,9 +202,7 @@ public class ESMetaResponse implements MetaResponse {
           if (count == 0) {
             response = responses[i].getResponse();
           }
-          for (int k = i;
-              k < i + count;
-              k++) { // we have one query per metric so go through them accordingly
+          for (int k = i; k < responses.length; k++) { // we have one query per metric so go through them accordingly
             response = responses[k].getResponse();
 
             if (response == null) {
@@ -232,11 +230,11 @@ public class ESMetaResponse implements MetaResponse {
               tsdb.getStatsCollector()
                   .addTime("es.client.query.es.latency", response.getTookInMillis(), ChronoUnit.MILLIS,
                       "es_colo", search_response.getKey(),
-                      "namespace", query.type() == QueryType.NAMESPACES ? "all_namespaces": meta_query.namespace(),
-                      "type", query.type().toString());
+                      "namespace", query.getType() == QueryType.NAMESPACES ? "all_namespaces": meta_query.getNamespace(),
+                      "type", query.getType().toString());
 
               long startTime = System.currentTimeMillis();
-              switch (query.type()) {
+              switch (query.getType()) {
                 case NAMESPACES:
                   if (response.getAggregations() == null
                       || response
@@ -394,7 +392,7 @@ public class ESMetaResponse implements MetaResponse {
                   break;
                 default:
                   final_results.put(
-                      new NamespacedKey(meta_query.namespace(), meta_query.id()),
+                      new NamespacedKey(meta_query.getNamespace(), meta_query.getId()),
                       new NamespacedAggregatedDocumentResult(
                           MetaDataStorageResult.MetaResult.NO_DATA, query, meta_query));
                   return final_results;
@@ -422,7 +420,7 @@ public class ESMetaResponse implements MetaResponse {
         }
         if (null_results == response.size()) {
           final_results.put(
-              new NamespacedKey(meta_query.namespace(), meta_query.id()),
+              new NamespacedKey(meta_query.getNamespace(), meta_query.getId()),
               new NamespacedAggregatedDocumentResult(
                   MetaDataStorageResult.MetaResult.NO_DATA, query, meta_query));
         }
@@ -432,7 +430,7 @@ public class ESMetaResponse implements MetaResponse {
                   MetaDataStorageResult.MetaResult.NO_DATA, query, meta_query);
         }
         result.setTotalHits(max_hits);
-        final_results.put(new NamespacedKey(meta_query.namespace(), meta_query.id()), result);
+        final_results.put(new NamespacedKey(meta_query.getNamespace(), meta_query.getId()), result);
         i = i + count;
       }
     }
@@ -681,9 +679,9 @@ public class ESMetaResponse implements MetaResponse {
     }
 
     for (final Terms.Bucket bucket : ((StringTerms) tag_keys).getBuckets()) {
-      if (Strings.isNullOrEmpty(query.aggregationField()) ||
-              query.aggregationField().equalsIgnoreCase(".*") ||
-              bucket.getKey().equals(query.aggregationField())) {
+      if (Strings.isNullOrEmpty(query.getAggregationField()) ||
+              query.getAggregationField().equalsIgnoreCase(".*") ||
+              bucket.getKey().equals(query.getAggregationField())) {
         if (result == null) {
           result =
               new NamespacedAggregatedDocumentResult(
@@ -747,9 +745,9 @@ public class ESMetaResponse implements MetaResponse {
             }
             
             final TimeSeriesId id = buildTimeseries(
-                meta_query.namespace() + "." + m, tags);
+                meta_query.getNamespace() + "." + m, tags);
             if (isMultiGet) {
-              if (!FilterUtils.matchesTags(meta_query.filter(), 
+              if (!FilterUtils.matchesTags(meta_query.getFilter(), 
                   ((TimeSeriesStringId) id).tags(), Sets.newHashSet())) {
                 if (LOGGER.isTraceEnabled()) {
                   LOGGER.trace("Dropping ES meta response " + id 
@@ -768,9 +766,9 @@ public class ESMetaResponse implements MetaResponse {
                   MetaDataStorageResult.MetaResult.DATA, query, meta_query);
         }
         final TimeSeriesId id = buildTimeseries(
-            meta_query.namespace() + "." + metric, tags);
+            meta_query.getNamespace() + "." + metric, tags);
         if (isMultiGet) {
-          if (!FilterUtils.matchesTags(meta_query.filter(), 
+          if (!FilterUtils.matchesTags(meta_query.getFilter(), 
               ((TimeSeriesStringId) id).tags(), Sets.newHashSet())) {
             if (LOGGER.isTraceEnabled()) {
               LOGGER.trace("Dropping ES meta response " + id 

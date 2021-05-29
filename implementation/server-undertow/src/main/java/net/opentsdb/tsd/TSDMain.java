@@ -14,15 +14,13 @@
 // limitations under the License.
 package net.opentsdb.tsd;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Strings;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import io.undertow.UndertowOptions;
-import io.undertow.server.ExchangeCompletionListener;
 import io.undertow.server.HttpHandler;
-import io.undertow.server.HttpServerExchange;
-import io.undertow.server.ExchangeCompletionListener.NextListener;
 import io.undertow.server.handlers.accesslog.AccessLogHandler;
 import io.undertow.server.handlers.accesslog.AccessLogReceiver;
 import io.undertow.server.handlers.encoding.EncodingHandler;
@@ -33,7 +31,7 @@ import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.FilterInfo;
 import io.undertow.servlet.api.InstanceFactory;
 import io.undertow.servlet.api.InstanceHandle;
-import io.undertow.util.HttpString;
+import jersey.repackaged.com.google.common.collect.Maps;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
@@ -43,6 +41,7 @@ import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.tsd.handlers.QueryRegistrationHandler;
 import net.opentsdb.utils.ArgP;
+import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.RefreshingSSLContext;
 import net.opentsdb.utils.RefreshingSSLContext.SourceType;
 import net.opentsdb.version.CoreVersion;
@@ -88,6 +87,7 @@ public class TSDMain {
   public static final String TLS_PROTOCOLS_KEY = "tsd.network.tls.protocols";
   public static final String TLS_CIPHERS_KEY = "tsd.network.tls.ciphers";
   public static final String DIRECTORY_KEY = "tsd.http.staticroot";
+  public static final String REWRITE_KEY = "tsd.http.rewrites";
   
   public static final String READ_TO_KEY = "tsd.network.read_timeout";
   public static final String WRITE_TO_KEY = "tsd.network.write_timeout";
@@ -182,6 +182,16 @@ public class TSDMain {
     config.register(NO_REQUEST_KEY, 15 * 60 * 1000, false, 
         "A timeout in milliseconds when we'll close a connection after not"
         + "receiving a request.");
+    config.register(ConfigurationEntrySchema.newBuilder()
+        .isNullable()
+        .setSource(TSDMain.class.getCanonicalName())
+        .setKey(REWRITE_KEY)
+        .setDefaultValue(null)
+        .setDescription("An optional map of URI path regular expressions to "
+            + "match and replace with the given map value to re-write the path "
+            + "portion of url.")
+        .setType(JSON.STRING_MAP_REFERENCE)
+        .build());
     
     int port = config.getInt(HTTP_PORT_KEY);
     int ssl_port = config.getInt(TLS_PORT_KEY);
@@ -223,11 +233,11 @@ public class TSDMain {
                       OpenTSDBApplication.class.getName())
                   .addMapping(root + "api/*"));
     
-        if (tsdb.getConfig().hasProperty(DIRECTORY_KEY) &&
-            !Strings.isNullOrEmpty(tsdb.getConfig().getString(DIRECTORY_KEY))) {
-          servletBuilder.setResourceManager(new FileResourceManager(
-                  new File(tsdb.getConfig().getString(DIRECTORY_KEY))));
-        }
+    if (tsdb.getConfig().hasProperty(DIRECTORY_KEY) &&
+        !Strings.isNullOrEmpty(tsdb.getConfig().getString(DIRECTORY_KEY))) {
+      servletBuilder.setResourceManager(new FileResourceManager(
+              new File(tsdb.getConfig().getString(DIRECTORY_KEY))));
+    }
 
     // Load an authentication filter if so configured.
     if (tsdb.getConfig().getBoolean(Authentication.AUTH_ENABLED_KEY)) {
@@ -300,6 +310,12 @@ public class TSDMain {
       if (tsdb.getStatsCollector() != null && 
           !(tsdb.getStatsCollector() instanceof BlackholeStatsCollector)) {
         handler = new MetricsHandler(tsdb.getStatsCollector(), handler);
+      }
+      
+      final Map<String, String> rewrite_rules = 
+          tsdb.getConfig().getTyped(REWRITE_KEY, JSON.STRING_MAP_REFERENCE);
+      if (rewrite_rules != null) {
+        handler = new net.opentsdb.tsd.handlers.RewriteHandler(rewrite_rules, handler);
       }
       
       handler = new AccessLogHandler(

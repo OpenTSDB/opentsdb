@@ -20,6 +20,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import net.opentsdb.storage.WriteStatus;
 import org.junit.Test;
 
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -715,81 +716,117 @@ public class TestNumericCodec {
     // top of the hour
     MutableNumericValue value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 42);
-    Pair<byte[], byte[]> encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 0 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 42 }, encoded.getValue());
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { 0, 0 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 42 }, codec.values()[0]);
+    assertEquals(2, codec.qualifierLengths()[0]);
+    assertEquals(1, codec.valueLengths()[0]);
     
     // offset
     value = new MutableNumericValue(
         new SecondTimeStamp(1262305800), 42);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0x70, (byte) 0x80 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 42 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { 0x70, (byte) 0x80 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 42 }, codec.values()[0]);
+    assertEquals(2, codec.qualifierLengths()[0]);
+    assertEquals(1, codec.valueLengths()[0]);
+
     // VLE lengths
     value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 256);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 1 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 1, 0 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { 0, 1 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 1, 0 }, codec.values()[0]);
+    assertEquals(2, codec.qualifierLengths()[0]);
+    assertEquals(2, codec.valueLengths()[0]);
+
     value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 65536);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 3 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 0, 1, 0, 0 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { 0, 3 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 0, 1, 0, 0 }, codec.values()[0]);
+    assertEquals(2, codec.qualifierLengths()[0]);
+    assertEquals(4, codec.valueLengths()[0]);
+
     value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 4294967295L);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 7 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 0, 0, 0, 0, -1, -1, -1, -1 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { 0, 7 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 0, 0, 0, 0, -1, -1, -1, -1 }, codec.values()[0]);
+    assertEquals(2, codec.qualifierLengths()[0]);
+    assertEquals(8, codec.valueLengths()[0]);
+
     // Float / Double
     value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 42.5D);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 11 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 66, 42, 0, 0 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { 0, 11 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 66, 42, 0, 0 }, codec.values()[0]);
+    assertEquals(2, codec.qualifierLengths()[0]);
+    assertEquals(4, codec.valueLengths()[0]);
+
     value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 1.234556789123456);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 15 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 63, -13, -64, -66, -98, -91, 112, -80 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { 0, 15 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 63, -13, -64, -66, -98, -91, 112, -80 }, codec.values()[0]);
+    assertEquals(2, codec.qualifierLengths()[0]);
+    assertEquals(8, codec.valueLengths()[0]);
+
     // milliseconds
     value = new MutableNumericValue(
-        new MillisecondTimeStamp(1262304000000L), 42);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { -16, 0, 0, 0 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 42 }, encoded.getValue());
-    
+        new MillisecondTimeStamp(1262304000001L), 42);
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { -16, 0, 0, 64 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 42 }, codec.values()[0]);
+    assertEquals(4, codec.qualifierLengths()[0]);
+    assertEquals(1, codec.valueLengths()[0]);
+
     value = new MutableNumericValue(
         new MillisecondTimeStamp(1262304000250L), 42);
-    encoded = codec.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { -16, 0, 62, -128 }, encoded.getKey());
-    assertArrayEquals(new byte[] { 42 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, false, 1262304000, null));
+    assertArrayEquals(new byte[] { -16, 0, 62, -128 }, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 42 }, codec.values()[0]);
+    assertEquals(4, codec.qualifierLengths()[0]);
+    assertEquals(1, codec.valueLengths()[0]);
+
     // TODO - nanos
-    
+
     // appends
     value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 42);
-    encoded = codec.encode(value, true, 1262304000, null);
-    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, encoded.getKey());
-    assertArrayEquals(new byte[] { 0, 0, 42 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, true, 1262304000, null));
+    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 0, 0, 42 }, codec.values()[0]);
+    assertEquals(3, codec.qualifierLengths()[0]);
+    assertEquals(3, codec.valueLengths()[0]);
+
     value = new MutableNumericValue(
         new SecondTimeStamp(1262304000), 42.5D);
-    encoded = codec.encode(value, true, 1262304000, null);
-    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, encoded.getKey());
-    assertArrayEquals(new byte[] { 0, 11, 66, 42, 0, 0 }, encoded.getValue());
-    
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, true, 1262304000, null));
+    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { 0, 11, 66, 42, 0, 0 }, codec.values()[0]);
+    assertEquals(3, codec.qualifierLengths()[0]);
+    assertEquals(6, codec.valueLengths()[0]);
+
     value = new MutableNumericValue(
-        new MillisecondTimeStamp(1262304000000L), 42);
-    encoded = codec.encode(value, true, 1262304000, null);
-    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, encoded.getKey());
-    assertArrayEquals(new byte[] { -16, 0, 0, 0, 42 }, encoded.getValue());
+        new MillisecondTimeStamp(1262304000001L), 42);
+    assertEquals(WriteStatus.OK,
+            codec.encode(value, true, 1262304000, null));
+    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, codec.qualifiers()[0]);
+    assertArrayEquals(new byte[] { -16, 0, 0, 64, 42 }, codec.values()[0]);
+    assertEquals(3, codec.qualifierLengths()[0]);
+    assertEquals(5, codec.valueLengths()[0]);
   }
 }

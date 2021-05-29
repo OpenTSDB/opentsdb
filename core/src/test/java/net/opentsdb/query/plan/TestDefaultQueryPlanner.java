@@ -2890,33 +2890,16 @@ public class TestDefaultQueryPlanner {
     assertEquals(31, planner.graph().nodes().size());
 
     assertEquals(9, planner.serializationSources().size());
-    QueryResultId source = planner.serializationSources().get(0);
-    assertEquals("q3_m2-smooth", source.nodeID());
-    assertEquals("q3_m2", source.dataSource());
-    source = planner.serializationSources().get(1);
-    assertEquals("q2_m2-smooth", source.nodeID());
-    assertEquals("q2_m2", source.dataSource());
-    source = planner.serializationSources().get(2);
-    assertEquals("q3_e1", source.nodeID());
-    assertEquals("q3_e1", source.dataSource());
-    source = planner.serializationSources().get(3);
-    assertEquals("q2_m1-smooth", source.nodeID());
-    assertEquals("q2_m1", source.dataSource());
-    source = planner.serializationSources().get(4);
-    assertEquals("q1_m1-smooth", source.nodeID());
-    assertEquals("q1_m1", source.dataSource());
-    source = planner.serializationSources().get(5);
-    assertEquals("q1_m2-smooth", source.nodeID());
-    assertEquals("q1_m2", source.dataSource());
-    source = planner.serializationSources().get(6);
-    assertEquals("q3_m1-smooth", source.nodeID());
-    assertEquals("q3_m1", source.dataSource());
-    source = planner.serializationSources().get(7);
-    assertEquals("q1_e1", source.nodeID());
-    assertEquals("q1_e1", source.dataSource());
-    source = planner.serializationSources().get(8);
-    assertEquals("q2_e1", source.nodeID());
-    assertEquals("q2_e1", source.dataSource());
+    List<QueryResultId> sources = planner.serializationSources();
+    assertTrue(sources.contains(new DefaultQueryResultId("q3_m2-smooth", "q3_m2")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q2_m2-smooth", "q2_m2")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q3_e1", "q3_e1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q1_m1-smooth", "q1_m1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q2_m1-smooth", "q2_m1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q3_m1-smooth", "q3_m1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q1_m2-smooth", "q1_m2")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q1_e1", "q1_e1")));
+    assertTrue(sources.contains(new DefaultQueryResultId("q2_e1", "q2_e1")));
     
     assertTrue(planner.graph().hasEdgeConnecting(SINK, 
         planner.nodeForId("q1_e1")));
@@ -3222,7 +3205,32 @@ public class TestDefaultQueryPlanner {
     planner.plan(null).join();
     assertEquals(2, planner.serializationSources().size());
   }
-  
+
+  @Test
+  public void missingQueryResultIds() throws Exception {
+    // fixed with recursion.
+    String q = "{\"start\":\"1614346980\",\"end\":\"1614348780\",\"mode\":\"SINGLE\",\"executionGraph\":" +
+            "[{\"id\":\"m1\",\"type\":\"TimeSeriesDataSource\",\"metric\":{\"metric\":\"sys.cpu.user\",\"type\":" +
+            "\"MetricLiteral\"}},{\"id\":\"m1_downsample\",\"type\":\"Downsample\",\"sources\":[\"m1\"],\"start\":" +
+            "\"1614346980\",\"end\":\"1614348780\",\"interval\":\"1m\",\"timezone\":\"UTC\",\"aggregator\":\"avg\"," +
+            "\"fill\":true,\"runAll\":false,\"originalInterval\":\"1m\",\"processAsArrays\":true,\"infectiousNan\":" +
+            "false,\"interpolatorConfigs\":[{\"fillPolicy\":\"nan\",\"realFillPolicy\":\"NONE\",\"dataType\":" +
+            "\"numeric\"}]},{\"id\":\"m1_groupby\",\"type\":\"GroupBy\",\"sources\":[\"m1_downsample\"]," +
+            "\"aggregator\":\"sum\",\"infectiousNan\":false,\"tagKeys\":[],\"mergeIds\":false,\"fullMerge\":false," +
+            "\"interpolatorConfigs\":[{\"fillPolicy\":\"nan\",\"realFillPolicy\":\"NONE\",\"dataType\":\"numeric\"}]}]}";
+    SemanticQuery query = SemanticQuery.parse(TSDB, JSON.getMapper().readTree(q)).build();
+    when(context.query()).thenReturn(query);
+
+    DefaultQueryPlanner planner =
+            new DefaultQueryPlanner(context, SINK);
+    planner.plan(null).join();
+    assertEquals(1, planner.sources().size());
+    assertTrue(planner.sources().contains(STORE_NODES.get(0)));
+    assertEquals(4, planner.graph().nodes().size());
+
+    assertEquals(1, planner.serializationSources().size());
+  }
+
   private SerdesOptions serdesConfigs(final List<String> filter) {
     final SerdesOptions config = mock(SerdesOptions.class);
     when(config.getFilter()).thenReturn(filter);

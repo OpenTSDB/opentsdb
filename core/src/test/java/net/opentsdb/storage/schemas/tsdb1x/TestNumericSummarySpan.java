@@ -29,7 +29,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.utils.Bytes;
 
@@ -42,14 +42,14 @@ public class TestNumericSummarySpan {
   private final static byte PREFIX = (byte) 0;
   
   private static DefaultRollupConfig CONFIG;
-  private static RollupInterval RAW;
-  private static RollupInterval TENMIN;
+  private static DefaultRollupInterval RAW;
+  private static DefaultRollupInterval TENMIN;
   
   private TSDB tsdb;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
-    RAW = RollupInterval.builder()
+    RAW = DefaultRollupInterval.builder()
         .setTable(TSDB_TABLE)
         .setPreAggregationTable(TSDB_TABLE)
         .setInterval("1m")
@@ -57,7 +57,7 @@ public class TestNumericSummarySpan {
         .setDefaultInterval(true)
         .build();
     
-    TENMIN = RollupInterval.builder()
+    TENMIN = DefaultRollupInterval.builder()
         .setTable(ROLLUP_TABLE)
         .setPreAggregationTable(PREAGG_TABLE)
         .setInterval("10m")
@@ -887,7 +887,7 @@ public class TestNumericSummarySpan {
     }
   }
   
-  NumericSummaryRowSeq newSeq(final long base_timestamp, final RollupInterval interval) {
+  NumericSummaryRowSeq newSeq(final long base_timestamp, final DefaultRollupInterval interval) {
     NumericSummaryRowSeq seq = new NumericSummaryRowSeq(base_timestamp, interval);
     
     // add dps

@@ -28,9 +28,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.TemporalAmount;
+import java.util.concurrent.Future;
 
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -97,6 +99,16 @@ public class TestHttpQueryV3Source {
     upstream = mock(QueryNode.class);
     
     TSDB tsdb = mock(TSDB.class);
+    TSDBThreadPoolExecutor executor = mock(TSDBThreadPoolExecutor.class);
+    when(executor.submit(any(Runnable.class)))
+            .thenAnswer(new Answer<Future<?>>() {
+      @Override
+      public Future<?> answer(InvocationOnMock invocation) throws Throwable {
+        ((Runnable) invocation.getArguments()[0]).run();
+        return null;
+      }
+    });
+    when(tsdb.getQueryThreadPool()).thenReturn(executor);
     when(tsdb.getConfig()).thenReturn(mock(Configuration.class));
     when(ctx.tsdb()).thenReturn(tsdb);
     BlackholeStatsCollector stats = new BlackholeStatsCollector();

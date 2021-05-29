@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.pools.DefaultObjectPoolConfig;
-import net.opentsdb.pools.MockObjectPool;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryPipelineContext;
@@ -34,18 +32,14 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
-import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJobPool;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupInterval;
-import net.opentsdb.utils.MockBigSmallLinkedBlockingQueue;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.function.Predicate;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -56,7 +50,6 @@ public class TestGroupByNumericSummaryParallelIterator {
   public static MockTSDB TSDB;
   public static NumericInterpolatorConfig NUMERIC_CONFIG;
   private static GroupByFactory FACTORY;
-  private static MockObjectPool JOB_POOL;
 
   private GroupByConfig config;
   private GroupBy node;
@@ -85,39 +78,16 @@ public class TestGroupByNumericSummaryParallelIterator {
       .setDataType(NumericType.TYPE.toString())
       .build();
 
-    Predicate<GroupByJob> p = groupByJob -> groupByJob.totalTsCount > 5;
-    FACTORY = mock(GroupByFactory.class);
-    MockBigSmallLinkedBlockingQueue queue = new MockBigSmallLinkedBlockingQueue(true, 
-        p);
-    when(FACTORY.getQueue()).thenReturn(queue);
-    when(FACTORY.predicate()).thenReturn(p);
-    when(FACTORY.tsdb()).thenReturn(TSDB);
-    TSDB.getRegistry().registerFactory(FACTORY);
-    
-    GroupByJobPool allocator = new GroupByJobPool();
-    try {
-      allocator.initialize(TSDB, null).join();
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    JOB_POOL = new MockObjectPool(DefaultObjectPoolConfig.newBuilder()
-        .setInitialCount(5)
-        .setAllocator(allocator)
-        .setId(GroupByJobPool.TYPE)
-        .build());
-    when(FACTORY.jobPool()).thenReturn(JOB_POOL);
+    FACTORY = (GroupByFactory) TSDB.getRegistry().getQueryNodeFactory(GroupByFactory.TYPE);
   }
   
   @Before
   public void before() throws Exception {
-    JOB_POOL.resetCounters();
     rollup_config = DefaultRollupConfig.newBuilder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")
@@ -149,6 +119,7 @@ public class TestGroupByNumericSummaryParallelIterator {
         .setEnd(Long.toString(BASE_TIME + (24 * 8 * 3600)))
         .addInterpolatorConfig(NUMERIC_CONFIG)
         .build();
+    when(result.isSourceProcessInParallel()).thenReturn(true);
   }
   
   @Test
@@ -268,7 +239,6 @@ public class TestGroupByNumericSummaryParallelIterator {
   public void avgGaps() throws Exception {
     setupDataLongs(5, true);
     setupMock("avg");
-    
     GroupByNumericSummaryParallelIterator iterator = 
         new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
     long ts = BASE_TIME;
@@ -277,7 +247,6 @@ public class TestGroupByNumericSummaryParallelIterator {
     while (iterator.hasNext()) {
       TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) iterator.next();
-      System.out.println(tsv.timestamp().epoch() + "  " + tsv.value().value(5).toDouble());
       assertEquals(ts, tsv.timestamp().epoch());
       if (v % 2 == 0) {
         assertTrue(Double.isNaN(tsv.value().value(5).doubleValue()));
@@ -316,7 +285,56 @@ public class TestGroupByNumericSummaryParallelIterator {
     }
     assertEquals(192, i);
   }
-  
+
+  @Test
+  public void serial() throws Exception {
+    when(result.isSourceProcessInParallel()).thenReturn(false);
+    setupDataLongs(0, false);
+    setupMock("sum");
+
+    GroupByNumericSummaryParallelIterator iterator =
+            new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
+    long ts = BASE_TIME;
+    int i = 0;
+    double v = 0;
+    while (iterator.hasNext()) {
+      TimeSeriesValue<NumericSummaryType> tsv =
+              (TimeSeriesValue<NumericSummaryType>) iterator.next();
+      assertEquals(ts, tsv.timestamp().epoch());
+      assertEquals(v, tsv.value().value(0).doubleValue(), 0.001);
+      ts += 3600;
+      if (v == 0) {
+        v = 64;
+      } else {
+        v += 64;
+      }
+      i++;
+    }
+    assertEquals(192, i);
+  }
+
+  @Test
+  public void singleSource() throws Exception {
+    setupDataLongs(0, false, 1);
+    setupMock("sum");
+
+    GroupByNumericSummaryParallelIterator iterator =
+            new GroupByNumericSummaryParallelIterator(node, result, time_series, queueThreshold, timeSeriesPerJob, threadCount);
+    long ts = BASE_TIME;
+    int i = 0;
+    double v = 0;
+    while (iterator.hasNext()) {
+      TimeSeriesValue<NumericSummaryType> tsv =
+              (TimeSeriesValue<NumericSummaryType>) iterator.next();
+      assertEquals(ts, tsv.timestamp().epoch());
+      assertEquals(v, tsv.value().value(0).doubleValue(), 0.001);
+      ts += 3600;
+      v += 1;
+      i++;
+    }
+    assertEquals(192, i);
+  }
+
   void setupDataLongs(final int summary, final boolean gaps) {
     setupDataLongs(summary, gaps, 64);
   }
@@ -361,9 +379,7 @@ public class TestGroupByNumericSummaryParallelIterator {
     pipeline_context = mock(QueryPipelineContext.class);
     when(pipeline_context.queryContext()).thenReturn(query_context);
     when(node.pipelineContext()).thenReturn(pipeline_context);
-    final QueryPipelineContext context = mock(QueryPipelineContext.class);
-    when(node.pipelineContext()).thenReturn(context);
-    when(context.tsdb()).thenReturn(TSDB);
+    when(pipeline_context.tsdb()).thenReturn(TSDB);
     when(result.source()).thenReturn(node);
     when(node.factory()).thenReturn(FACTORY);
   }

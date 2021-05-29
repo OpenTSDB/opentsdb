@@ -31,12 +31,15 @@ import static org.mockito.Mockito.when;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import com.google.common.collect.Maps;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
@@ -55,7 +58,6 @@ import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.annotation.AnnotationType;
@@ -67,7 +69,7 @@ import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.DummyObjectPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
@@ -77,7 +79,6 @@ import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestSchema extends SchemaBase {
@@ -1060,7 +1061,7 @@ public class TestSchema extends SchemaBase {
   }
   
   @Test
-  public void createRowKeyErors() throws Exception {
+  public void createRowKeyRejected() throws Exception {
     resetConfig();
     Schema schema = schema();
     
@@ -1108,31 +1109,130 @@ public class TestSchema extends SchemaBase {
     assertNull(ioe.id());
     assertEquals(WriteState.REJECTED, ioe.state());
   }
-  
+
   @Test
-  public void encode() throws Exception {
+  public void createRowTagsSuccess() throws Exception {
     resetConfig();
     Schema schema = schema();
-    
-    MutableNumericValue value = 
-        new MutableNumericValue(new SecondTimeStamp(1262304000), 42);
-    Pair<byte[], byte[]> qv = schema.encode(value, false, 1262304000, null);
-    assertArrayEquals(new byte[] { 0, 0 }, qv.getKey());
-    assertArrayEquals(new byte[] { 42 }, qv.getValue());
-    
-    qv = schema.encode(value, true, 1262304000, null);
-    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, qv.getKey());
-    assertArrayEquals(new byte[] { 0, 0, 42 }, qv.getValue());
-    
-    TimeSeriesValue no_codec = mock(TimeSeriesValue.class);
-    when(no_codec.type()).thenReturn(TypeToken.of(String.class));
-    assertNull(schema.encode(no_codec, true, 1262304000, null));
-    
-    try {
-      schema.encode(null, false, 1262304000, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowTags(null,
+            METRIC_STRING, tags,null).join();
+    byte[] expected = com.google.common.primitives.Bytes.concat(
+            TAGK_BYTES, TAGV_BYTES, TAGK_B_BYTES, TAGV_B_BYTES);
+    assertEquals(WriteState.OK, ioe.state());
+    assertArrayEquals(expected, ioe.id());
   }
+
+  @Test
+  public void createRowTagsRejected() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put("unassigned", TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowTags(null,
+            METRIC_STRING, tags,null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+
+    tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, "unassigned");
+    ioe = schema.createRowTags(null,
+            METRIC_STRING, tags,null).join();
+    assertNull(ioe.id());
+    assertEquals(WriteState.REJECTED, ioe.state());
+  }
+
+  @Test
+  public void createRowMetricIdSuccess() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric(METRIC_STRING)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    IdOrError ioe = schema.createRowMetric(null, id, null).join();
+    assertEquals(WriteState.OK, ioe.state());
+    assertArrayEquals(METRIC_BYTES, ioe.id());
+  }
+
+  @Test
+  public void createRowMetricIdRejected() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    TimeSeriesDatumStringId id = BaseTimeSeriesDatumStringId.newBuilder()
+            .setMetric("unassigned")
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build();
+    IdOrError ioe = schema.createRowMetric(null, id, null).join();
+    assertEquals(WriteState.REJECTED, ioe.state());
+  }
+
+  @Test
+  public void createRowMetricStringsSuccess() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowMetric(null, METRIC_STRING, tags,null).join();
+    assertEquals(WriteState.OK, ioe.state());
+    assertArrayEquals(METRIC_BYTES, ioe.id());
+  }
+
+  @Test
+  public void createRowMetricStringsRejected() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+
+    Map<String, String> tags = Maps.newHashMap();
+    tags.put(TAGK_STRING, TAGV_STRING);
+    tags.put(TAGK_B_STRING, TAGV_B_STRING);
+    IdOrError ioe = schema.createRowMetric(null, "unassigned", tags,null).join();
+    assertEquals(WriteState.REJECTED, ioe.state());
+  }
+
+  @Test
+  public void getEncoder() throws Exception {
+    resetConfig();
+    Schema schema = schema();
+    assertTrue(schema.getEncoder(NumericType.TYPE) instanceof NumericCodec);
+    assertTrue(schema.getEncoder(NumericSummaryType.TYPE) instanceof NumericSummaryCodec);
+    assertNull(schema.getEncoder(AnnotationType.TYPE));
+  }
+
+//  @Test
+//  public void encode() throws Exception {
+//    resetConfig();
+//    Schema schema = schema();
+//
+//    MutableNumericValue value =
+//        new MutableNumericValue(new SecondTimeStamp(1262304000), 42);
+//    Pair<byte[], byte[]> qv = schema.encode(value, false, 1262304000, null);
+//    assertArrayEquals(new byte[] { 0, 0 }, qv.getKey());
+//    assertArrayEquals(new byte[] { 42 }, qv.getValue());
+//
+//    qv = schema.encode(value, true, 1262304000, null);
+//    assertArrayEquals(NumericCodec.APPEND_QUALIFIER, qv.getKey());
+//    assertArrayEquals(new byte[] { 0, 0, 42 }, qv.getValue());
+//
+//    TimeSeriesValue no_codec = mock(TimeSeriesValue.class);
+//    when(no_codec.type()).thenReturn(TypeToken.of(String.class));
+//    assertNull(schema.encode(no_codec, true, 1262304000, null));
+//
+//    try {
+//      schema.encode(null, false, 1262304000, null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//  }
 
   @Test
   public void newSeries() throws Exception {
@@ -1184,7 +1284,7 @@ public class TestSchema extends SchemaBase {
     
     // summary
     pts = schema.newSeries(NumericByteArraySummaryType.TYPE, 
-        timestamp, 42, set, mock(RollupInterval.class));
+        timestamp, 42, set, mock(DefaultRollupInterval.class));
     assertTrue(pts instanceof Tsdb1xNumericSummaryPartialTimeSeries);
     assertEquals(4, schema.pool_cache.size());
     assertSame(summary_pool, schema.pool_cache.get(NumericByteArraySummaryType.TYPE));
@@ -1192,7 +1292,7 @@ public class TestSchema extends SchemaBase {
     
     try {
       schema.newSeries(AnnotationType.TYPE, 
-          timestamp, 42, set, mock(RollupInterval.class));
+          timestamp, 42, set, mock(DefaultRollupInterval.class));
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     

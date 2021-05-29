@@ -46,7 +46,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.DefaultRollupInterval;
 
 public class TestSummarizerNonPassthroughNumericIterator {
   public static MockTSDB TSDB;
@@ -78,7 +78,7 @@ public class TestSummarizerNonPassthroughNumericIterator {
         .addAggregationId("max", 2)
         .addAggregationId("min", 3)
         .addAggregationId("avg", 5)
-        .addInterval(RollupInterval.builder()
+        .addInterval(DefaultRollupInterval.builder()
             .setInterval("sum")
             .setTable("tsdb")
             .setPreAggregationTable("tsdb")

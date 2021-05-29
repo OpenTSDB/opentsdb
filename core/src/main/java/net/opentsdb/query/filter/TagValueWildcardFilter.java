@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2020  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -126,6 +127,65 @@ public class TagValueWildcardFilter extends BaseTagValueFilter {
     return true;
   }
 
+  @Override
+  public boolean matches(final String tag_key, final String tag_value) {
+    if (Strings.isNullOrEmpty(tag_key)) {
+      return false;
+    }
+    if (!this.tag_key.equals(tag_key)) {
+      return false;
+    }
+    if (Strings.isNullOrEmpty(tag_value)) {
+      return false;
+    }
+    if (matches_all || 
+        components.length == 1 && 
+        components[0].equals("*")) {
+      // match all
+      return true;
+    }
+    if (has_postfix && !has_prefix && 
+        !tag_value.endsWith(components[components.length-1])) {
+      return false;
+    }
+    if (has_prefix && !has_postfix && !tag_value.startsWith(components[0])) {
+      return false;
+    }
+    int idx = 0;
+    for (int i = 0; i < components.length; i++) {
+      if (tag_value.indexOf(components[i], idx) < 0) {
+        return false;
+      }
+      idx += components[i].length();
+    }
+    return true;
+  }
+  
+  @Override
+  public boolean matches(final String tag_value) {
+    if (matches_all || 
+        components.length == 1 && 
+        components[0].equals("*")) {
+      // match all
+      return true;
+    }
+    if (has_postfix && !has_prefix && 
+        !tag_value.endsWith(components[components.length-1])) {
+      return false;
+    }
+    if (has_prefix && !has_postfix && !tag_value.startsWith(components[0])) {
+      return false;
+    }
+    int idx = 0;
+    for (int i = 0; i < components.length; i++) {
+      if (tag_value.indexOf(components[i], idx) < 0) {
+        return false;
+      }
+      idx += components[i].length();
+    }
+    return true;
+  }
+  
   @Override
   public String getType() {
     return TagValueWildcardFactory.TYPE;

@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +24,16 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Lists;
+import net.opentsdb.data.LowLevelMetricData;
+import net.opentsdb.data.TimeSeriesDatumStringId;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.storage.schemas.tsdb1x.BaseTsdb1xDataStore;
+import net.opentsdb.storage.schemas.tsdb1x.Codec;
 import org.hbase.async.AppendRequest;
+import org.hbase.async.CallQueueTooBigException;
 import org.hbase.async.ClientStats;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.PleaseThrottleException;
@@ -43,6 +55,7 @@ import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -61,7 +74,7 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
+public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xHBaseDataStore.class);
   
@@ -105,20 +118,14 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   public static final String ENABLE_APPENDS_KEY = "tsd.storage.enable_appends";
   public static final String ENABLE_COPROC_APPENDS_KEY = "tsd.storage.enable_appends_coproc";
   public static final String ENABLE_PUSH_KEY = "tsd.storage.enable_push";
+  public static final String ENABLE_DP_TIMESTAMP = "tsd.storage.use_otsdb_timestamp";
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ISO_8859_CHARSET);
-  
-  private final TSDB tsdb;
-  private final String id;
-  
+
   /** The AsyncHBase client. */
   private HBaseClient client;
-  
-  private Schema schema;
-  
-  private final Tsdb1xUniqueIdStore uid_store;
-  
+
   /** Name of the table in which timeseries are stored.  */
   private final byte[] data_table;
   
@@ -130,19 +137,14 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
   
   /** Name of the table where meta data is stored. */
   private final byte[] meta_table;
-  
-  private final boolean enable_appends;
-  private final boolean enable_appends_coproc;
-  
+
   private ClientStatsWrapper client_stats;
   private Map<String, RegionClientStatsWrapper> region_client_stats;
-  
+
   public Tsdb1xHBaseDataStore(final Tsdb1xHBaseFactory factory,
                               final String id,
                               final Schema schema) {
-    this.tsdb = factory.tsdb();
-    this.id = id;
-    this.schema = schema;
+    super(id, factory.tsdb(), schema);
     
     client_stats = new ClientStatsWrapper();
     region_client_stats = Maps.newHashMap();
@@ -305,6 +307,10 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
         config.register(ENABLE_PUSH_KEY, false, false,
             "TODO");
       }
+      if (!config.hasProperty(ENABLE_DP_TIMESTAMP)) {
+        config.register(ENABLE_DP_TIMESTAMP, true, false,
+            "TODO");
+      }
     }
     
     /** Copy all configs, then we'll override with node specific entries. */
@@ -351,9 +357,10 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       LOG.debug("AsyncHBase Config: " + async_config.dumpConfiguration());
     }
     
-    enable_appends = config.getBoolean(ENABLE_APPENDS_KEY);
-    enable_appends_coproc = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
-    
+    write_appends = config.getBoolean(ENABLE_APPENDS_KEY);
+    encode_as_appends = config.getBoolean(ENABLE_COPROC_APPENDS_KEY);
+    use_dp_timestamp = config.getBoolean(ENABLE_DP_TIMESTAMP);
+
     // TODO - shared client!
     client = new HBaseClient(async_config);
     
@@ -362,7 +369,12 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
     uid_store = new Tsdb1xUniqueIdStore(this);
     tsdb.getRegistry().registerSharedObject(Strings.isNullOrEmpty(id) ? 
         "default_uidstore" : id + "_uidstore", uid_store);
-    
+
+    // TODO - have to call them all out.
+    retryExceptions = Sets.newHashSet(
+            PleaseThrottleException.class,
+            CallQueueTooBigException.class
+    );
     // start the stats timer.
     tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
   }
@@ -377,128 +389,9 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
                            final TimeSeriesDataSourceConfig config) {
     return new Tsdb1xHBaseQueryNode(this, context, config);
   }
-  
-  @Override
-  public Deferred<WriteStatus> write(final AuthState state, 
-                                     final TimeSeriesDatum datum,
-                                     final Span span) {
-    // TODO - other types
-    if (datum.value().type() != NumericType.TYPE) {
-      return Deferred.fromResult(WriteStatus.rejected(
-          "Not handling this type yet: " + datum.value().type()));
-    }
-    
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-          .start();
-    } else {
-      child = null;
-    }
-    // no need to validate here, schema does it.
-    
-    class SuccessCB implements Callback<WriteStatus, Object> {
-      @Override
-      public WriteStatus call(final Object ignored) throws Exception {
-        if (child != null) {
-          child.setSuccessTags().finish();
-        }
-        return WriteStatus.OK;
-      }
-    }
-    
-    class WriteErrorCB implements Callback<WriteStatus, Exception> {
-      @Override
-      public WriteStatus call(final Exception ex) throws Exception {
-        // TODO log?
-        if (ex instanceof PleaseThrottleException ||
-            ex instanceof RecoverableException) {
-          if (child != null) {
-            child.setErrorTags(ex)
-                 .finish();
-          }
-          return WriteStatus.retry("Please retry at a later time.");
-        }
-        if (child != null) {
-          child.setErrorTags(ex)
-               .finish();
-        }
-        return WriteStatus.error(ex.getMessage(), ex);
-      }
-    }
-    
-    class RowKeyCB implements Callback<Deferred<WriteStatus>, IdOrError> {
 
-      @Override
-      public Deferred<WriteStatus> call(final IdOrError ioe) throws Exception {
-        if (ioe.id() == null) {
-          if (child != null) {
-            child.setErrorTags(ioe.exception())
-                 .setTag("state", ioe.state().toString())
-                 .setTag("message", ioe.error())
-                 .finish();
-          }
-          switch (ioe.state()) {
-          case RETRY:
-            return Deferred.fromResult(WriteStatus.retry(ioe.error()));
-          case REJECTED:
-            return Deferred.fromResult(WriteStatus.rejected(ioe.error()));
-          case ERROR:
-            return Deferred.fromResult(WriteStatus.error(ioe.error(), ioe.exception()));
-          default:
-            throw new StorageException("Unexpected resolution state: " 
-                + ioe.state());
-          }
-        }
-        // TODO - handle different types
-        long base_time = datum.value().timestamp().epoch();
-        base_time = base_time - (base_time % Schema.MAX_RAW_TIMESPAN);
-        Pair<byte[], byte[]> pair = schema.encode(datum.value(), 
-            enable_appends || enable_appends_coproc, (int) base_time, null);
-        
-        if (enable_appends) {
-          return client.append(new AppendRequest(data_table,ioe.id(), 
-              DATA_FAMILY, pair.getKey(), pair.getValue()))
-              .addCallbacks(new SuccessCB(), new WriteErrorCB());
-        } else {
-          // same for co-proc and puts. The encode method figures out
-          // the qualifier and values.
-          return client.put(new PutRequest(data_table, ioe.id(), 
-              DATA_FAMILY, pair.getKey(), pair.getValue()))
-              .addCallbacks(new SuccessCB(), new WriteErrorCB());
-        }
-      }
-      
-    }
-    
-    class ErrorCB implements Callback<WriteStatus, Exception> {
-      @Override
-      public WriteStatus call(final Exception ex) throws Exception {
-        return WriteStatus.error(ex.getMessage(), ex);
-      }
-    }
-    
-    try {
-      return schema.createRowKey(state, datum, null, child)
-          .addCallbackDeferring(new RowKeyCB())
-          .addErrback(new ErrorCB());
-    } catch (Exception e) {
-      // TODO - log
-      return Deferred.fromResult(WriteStatus.error(e.getMessage(), e));
-    }
-  }
-
-  @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final TimeSeriesSharedTagsAndTimeData data, 
-                                           final Span span) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
   public Deferred<Object> shutdown() {
-    // TODO - implement
-    return Deferred.fromResult(null);
+    return Deferred.fromResult(client.shutdown());
   }
   
   /**
@@ -592,7 +485,56 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore, TimerTask {
       tsdb.getMaintenanceTimer().newTimeout(this, 60, TimeUnit.SECONDS);
     }
   }
-  
+
+  @Override
+  protected Deferred<WriteStatus> write(final byte[] key,
+                                        final byte[] qualifier,
+                                        final byte[] value,
+                                        final TimeStamp timestamp,
+                                        final Span span) {
+    return write(data_table, key, qualifier, value, timestamp, span);
+  }
+
+  @Override
+  protected Deferred<WriteStatus> write(final byte[] table,
+                                        final byte[] key,
+                                        final byte[] qualifier,
+                                        final byte[] value,
+                                        final TimeStamp timestamp,
+                                        final Span span) {
+    return client.put(new PutRequest(table,
+            key,
+            DATA_FAMILY,
+            qualifier,
+            value,
+            use_dp_timestamp ? timestamp.msEpoch() : Long.MAX_VALUE))
+            .addCallbacks(new SuccessCB(span), new WriteErrorCB(span));
+  }
+
+  @Override
+  protected Deferred<WriteStatus> writeAppend(final byte[] key,
+                                              final byte[] qualifier,
+                                              final byte[] value,
+                                              final TimeStamp timestamp,
+                                              final Span span) {
+    return writeAppend(data_table, key, qualifier, value, timestamp, span);
+  }
+
+  @Override
+  protected Deferred<WriteStatus> writeAppend(final byte[] table,
+                                              final byte[] key,
+                                              final byte[] qualifier,
+                                              final byte[] value,
+                                              final TimeStamp timestamp,
+                                              final Span span) {
+    return client.append(new AppendRequest(table,
+            key,
+            DATA_FAMILY,
+            qualifier,
+            value))
+            .addCallbacks(new SuccessCB(span), new WriteErrorCB(span));
+  }
+
   class ClientStatsWrapper {
     private long num_connections_created;
     private long root_lookups;
