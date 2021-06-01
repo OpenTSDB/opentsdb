@@ -19,6 +19,7 @@ import com.google.common.base.Strings;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
@@ -189,9 +190,15 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
           .setFilter(context.query().getFilter(config.getFilterId()))
           .build());
     }
-    
+
     final HttpPost post = new HttpPost(host + endpoint);
     post.addHeader("Content-Type", "application/json");
+
+    //Add incoming headers
+    for(Map.Entry<String, String> header: context.queryContext().headers().entrySet()) {
+      post.addHeader(header.getKey(), header.getValue());
+    }
+    
     if (factory instanceof HttpQueryV3Factory) {
       final String user_header_key = context.tsdb().getConfig().getString(
           ((HttpQueryV3Factory) factory).getConfigKey(BaseHttpExecutorFactory.HEADER_USER_KEY));
