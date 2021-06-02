@@ -72,17 +72,17 @@ public class PlainTextSecretProvider extends BaseSecretProvider  {
 
   @Override
   public String getSecretString(final String key) {
-    return config.getString(key);
+    return config.asRawUnsecuredMap().get(key);
   }
 
   @Override
   public byte[] getSecretBytes(final String key) {
-    return config.getString(key).getBytes(Const.UTF8_CHARSET);
+    return config.asRawUnsecuredMap().get(key).getBytes(Const.UTF8_CHARSET);
   }
 
   @Override
   public Object getSecretObject(final String key) {
-    return config.getString(key);
+    return config.asRawUnsecuredMap().get(key);
   }
   
   @Override

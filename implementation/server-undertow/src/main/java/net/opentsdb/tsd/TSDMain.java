@@ -38,6 +38,7 @@ import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.servlet.filter.NoAuthFilter;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.tsd.handlers.QueryRegistrationHandler;
 import net.opentsdb.utils.ArgP;
@@ -283,6 +284,33 @@ public class TSDMain {
         System.exit(1);
         return;
       }
+    } else {
+      class AuthFactory implements InstanceFactory<Filter> {
+
+        @Override
+        public InstanceHandle<Filter> createInstance()
+                throws InstantiationException {
+          return new InstanceHandle<Filter>() {
+
+            @Override
+            public Filter getInstance() {
+              return new NoAuthFilter();
+            }
+
+            @Override
+            public void release() {
+            }
+
+          };
+        }
+      }
+      final FilterInfo filter_info = new FilterInfo(
+              "tsdbAuthFilter",
+              NoAuthFilter.class,
+              new AuthFactory());
+      filter_info.setAsyncSupported(true);
+      servletBuilder = servletBuilder.addFilter(filter_info)
+              .addFilterUrlMapping("tsdbAuthFilter", "/*", DispatcherType.REQUEST);
     }
     
     final DeploymentManager manager = Servlets.defaultContainer()
