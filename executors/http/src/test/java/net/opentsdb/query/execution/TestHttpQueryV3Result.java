@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,6 +60,8 @@ public class TestHttpQueryV3Result {
   @Before
   public void before() throws Exception {
     query_node = mock(QueryNode.class);
+    HttpQueryV3Factory factory = mock(HttpQueryV3Factory.class);
+    when(query_node.factory()).thenReturn(factory);
     context = mock(QueryPipelineContext.class);
     TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
         DefaultTimeSeriesDataSourceConfig.newBuilder()

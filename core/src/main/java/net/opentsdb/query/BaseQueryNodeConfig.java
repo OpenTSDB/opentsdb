@@ -54,7 +54,7 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   
   /** An optional list of downstream sources. */
   protected List<String> sources;
-  
+
   /** The optional map of overrides. */
   protected final Map<String, String> overrides;
   
@@ -103,13 +103,23 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   public Map<String, String> getOverrides() {
     return overrides;
   }
-  
+
   @Override
   public boolean readCacheable() {
     // Most nodes can be cached.
     return true;
   }
-  
+
+  @Override
+  public <T> T nodeOption(final QueryNodeConfigOptions option) {
+    return null;
+  }
+
+  @Override
+  public boolean nodeFlag(final QueryNodeConfigOptions option) {
+   return false;
+  }
+
   @Override
   public String getString(final Configuration config, final String key) {
     if (config == null) {
@@ -314,7 +324,6 @@ public abstract class BaseQueryNodeConfig<B extends BaseQueryNodeConfig.Builder<
   @JsonIgnoreProperties(ignoreUnknown = true)
   public abstract static class Builder<B extends Builder<B, C>, C extends BaseQueryNodeConfig>
       implements QueryNodeConfig.Builder<B, C> {
-
     @JsonProperty
     protected String id;
     @JsonProperty

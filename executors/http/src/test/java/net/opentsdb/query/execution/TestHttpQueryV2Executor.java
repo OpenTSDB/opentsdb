@@ -1,5 +1,5 @@
 //// This file is part of OpenTSDB.
-//// Copyright (C) 2017  The OpenTSDB Authors.
+//// Copyright (C) 2017-2021  The OpenTSDB Authors.
 ////
 //// Licensed under the Apache License, Version 2.0 (the "License");
 //// you may not use this file except in compliance with the License.
@@ -56,24 +56,14 @@
 //import org.powermock.core.classloader.annotations.PrepareForTest;
 //import org.powermock.modules.junit4.PowerMockRunner;
 //
-//import com.fasterxml.jackson.databind.JsonNode;
 //import com.google.common.collect.Maps;
 //import com.stumbleupon.async.TimeoutException;
 //
 //import io.opentracing.Span;
-//import net.opentsdb.data.SimpleStringGroupId;
-//import net.opentsdb.data.TimeSeriesValue;
-//import net.opentsdb.data.iterators.DefaultIteratorGroup;
-//import net.opentsdb.data.iterators.IteratorGroups;
-//import net.opentsdb.data.iterators.IteratorGroup;
-//import net.opentsdb.data.iterators.TimeSeriesIterator;
-//import net.opentsdb.data.types.numeric.NumericType;
 //import net.opentsdb.exceptions.QueryExecutionException;
 //import net.opentsdb.exceptions.RemoteQueryExecutionException;
 //import net.opentsdb.query.TSQuery;
 //import net.opentsdb.query.execution.HttpQueryV2Executor.Config;
-//import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-//import net.opentsdb.query.filter.TagVFilter;
 //import net.opentsdb.query.pojo.Downsampler;
 //import net.opentsdb.query.pojo.Expression;
 //import net.opentsdb.query.pojo.FillPolicy;
@@ -88,7 +78,7 @@
 //@RunWith(PowerMockRunner.class)
 //@PrepareForTest({ HttpQueryV2Executor.class, HttpAsyncClients.class, 
 //  HttpAsyncClientBuilder.class }) 
-//public class TestHttpQueryV2Executor extends BaseExecutorTest {
+//public class TestHttpQueryV2Executor {
 //  private ExecutorService cleanup_pool;
 //  private String endpoint;
 //  private FutureCallback<HttpResponse> callback;
@@ -103,7 +93,7 @@
 //  private CloseableHttpAsyncClient client;
 //  private Span span;
 //  private Config config;
-//  
+//
 //  @Before
 //  public void beforeLocal() throws Exception {
 //    node = mock(ExecutionGraphNode.class);
@@ -116,7 +106,7 @@
 //        .setExecutorId("Http")
 //        .setExecutorType("HttpQueryV2Executor")
 //        .build();
-//    
+//
 //    when(registry.cleanupPool()).thenReturn(cleanup_pool);
 //    doAnswer(new Answer<Void>() {
 //      @Override
@@ -129,7 +119,7 @@
 //    when(node.graph()).thenReturn(graph);
 //    when(context.getSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY))
 //      .thenReturn(headers);
-//    
+//
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
 //            .setStart("1490122900000")
@@ -138,7 +128,7 @@
 //        .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
 //        .build();
 //    query.validate();
-//    
+//
 //    response_content = "[{"
 //        + " \"metric\": \"sys.cpu.user\","
 //        + " \"tags\": {"
@@ -166,11 +156,11 @@
 //        + " },"
 //        + " \"stats\":{}"
 //        + "}]";
-//    
+//
 //    response = mock(HttpResponse.class);
 //    entity = new StringEntity(response_content);
 //    status = mock(StatusLine.class);
-//    
+//
 //    when(response.getEntity()).thenReturn(entity);
 //    when(response.getStatusLine()).thenReturn(status);
 //    final Header[] response_headers = new Header[1];
@@ -182,18 +172,18 @@
 //  @Test
 //  public void ctor() throws Exception {
 //    new HttpQueryV2Executor(node);
-//    
+//
 //    try {
 //      new HttpQueryV2Executor(null);
 //      fail("Expected IllegalArgumentException");
 //    } catch (IllegalArgumentException e) { }
-//    
+//
 //    when(node.getConfig()).thenReturn(null);
 //    try {
 //      new HttpQueryV2Executor(node);
 //      fail("Expected IllegalArgumentException");
 //    } catch (IllegalArgumentException e) { }
-//    
+//
 //    config = (Config) Config.newBuilder()
 //        //.setEndpoint(endpoint)
 //        .setExecutorId("Http")
@@ -208,12 +198,12 @@
 //  public void close() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    assertNull(executor.close().join());
-//    
+//
 //    QueryExecution<IteratorGroups> e1 = mock(QueryExecution.class);
 //    QueryExecution<IteratorGroups> e2 = mock(QueryExecution.class);
 //    executor.outstandingRequests().add(e1);
 //    executor.outstandingRequests().add(e2);
-//    
+//
 //    assertNull(executor.close().join());
 //    verify(e1, times(1)).cancel();
 //    verify(e2, times(1)).cancel();
@@ -305,18 +295,18 @@
 //      executor.executeQuery(context, query, span);
 //    exec.deferred().join();
 //  }
-//  
+//
 //  @Test (expected = IllegalArgumentException.class)
 //  public void executeQueryNullQuery() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    executor.executeQuery(context, null, span);
 //  }
-//  
+//
 //  @Test
 //  public void executeQueryFailToConvert() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    setupQuery();
-//    
+//
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
 //            .setStart("1486015200")
@@ -324,7 +314,7 @@
 //            .setAggregator("sum"))
 //        //.addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
 //        .build();
-//    
+//
 //    QueryExecution<IteratorGroups> exec = 
 //        executor.executeQuery(context, query, span);
 //    assertNull(callback);
@@ -335,12 +325,12 @@
 //    } catch (RejectedExecutionException e) { }
 //    verify(client, times(1)).close();
 //  }
-//  
+//
 //  @Test
 //  public void executeQueryFutureCancelled() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    setupQuery();
-//    
+//
 //    QueryExecution<IteratorGroups> exec = 
 //        executor.executeQuery(context, query, span);
 //    assertNotNull(callback);
@@ -349,9 +339,9 @@
 //      exec.deferred().join(1);
 //      fail("Expected TimeoutException");
 //    } catch (TimeoutException e) { }
-//    
+//
 //    callback.cancelled();
-//    
+//
 //    try {
 //      exec.deferred().join();
 //      fail("Expected QueryExecutionException");
@@ -361,12 +351,12 @@
 //    assertTrue(executor.outstandingRequests().isEmpty());
 //    verify(client, times(1)).close();
 //  }
-//  
+//
 //  @Test
 //  public void executeQueryUpstreamCancelled() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    setupQuery();
-//    
+//
 //    QueryExecution<IteratorGroups> exec = 
 //        executor.executeQuery(context, query, span);
 //    assertNotNull(callback);
@@ -375,9 +365,9 @@
 //      exec.deferred().join(1);
 //      fail("Expected TimeoutException");
 //    } catch (TimeoutException e) { }
-//    
+//
 //    exec.cancel();
-//    
+//
 //    try {
 //      exec.deferred().join();
 //      fail("Expected QueryExecutionException");
@@ -388,12 +378,12 @@
 //    verify(future, times(1)).cancel(true);
 //    verify(client, times(1)).close();
 //  }
-//  
+//
 //  @Test
 //  public void executeQueryException() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    setupQuery();
-//    
+//
 //    QueryExecution<IteratorGroups> exec = 
 //        executor.executeQuery(context, query, span);
 //    assertNotNull(callback);
@@ -402,9 +392,9 @@
 //      exec.deferred().join(1);
 //      fail("Expected TimeoutException");
 //    } catch (TimeoutException e) { }
-//    
+//
 //    callback.failed(new IllegalArgumentException("Boo!"));
-//    
+//
 //    try {
 //      exec.deferred().join();
 //      fail("Expected QueryExecutionException");
@@ -414,12 +404,12 @@
 //    assertTrue(executor.outstandingRequests().isEmpty());
 //    verify(client, times(1)).close();
 //  }
-//  
+//
 //  @Test
 //  public void executeQueryParsingException() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    setupQuery();
-//    
+//
 //    response_content = "[{"
 //        + " \"metric\": \"some.fun.metric\","
 //        + " \"tags\": {"
@@ -431,7 +421,7 @@
 //        + "   \"1490122920";
 //    entity = new StringEntity(response_content);
 //    when(response.getEntity()).thenReturn(entity);
-//    
+//
 //    QueryExecution<IteratorGroups> exec = 
 //        executor.executeQuery(context, query, span);
 //    assertNotNull(callback);
@@ -440,9 +430,9 @@
 //      exec.deferred().join(1);
 //      fail("Expected TimeoutException");
 //    } catch (TimeoutException e) { }
-//    
+//
 //    callback.completed(response);
-//    
+//
 //    try {
 //      exec.deferred().join();
 //      fail("Expected QueryExecutionException");
@@ -452,13 +442,13 @@
 //    assertTrue(executor.outstandingRequests().isEmpty());
 //    verify(client, times(1)).close();
 //  }
-//  
+//
 //  @Test
 //  public void executeQueryRemoteError() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    setupQuery();
 //    when(status.getStatusCode()).thenReturn(404);
-//    
+//
 //    QueryExecution<IteratorGroups> exec = 
 //        executor.executeQuery(context, query, span);
 //    assertNotNull(callback);
@@ -467,9 +457,9 @@
 //      exec.deferred().join(1);
 //      fail("Expected TimeoutException");
 //    } catch (TimeoutException e) { }
-//    
+//
 //    callback.completed(response);
-//    
+//
 //    try {
 //      exec.deferred().join();
 //      fail("Expected RemoteQueryExecutionException");
@@ -479,12 +469,12 @@
 //    assertTrue(executor.outstandingRequests().isEmpty());
 //    verify(client, times(1)).close();
 //  }
-//  
+//
 //  @Test
 //  public void executeQueryCancelled() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
 //    setupQuery();
-//    
+//
 //    QueryExecution<IteratorGroups> exec = 
 //        executor.executeQuery(context, query, span);
 //    assertNotNull(callback);
@@ -493,9 +483,9 @@
 //      exec.deferred().join(1);
 //      fail("Expected TimeoutException");
 //    } catch (TimeoutException e) { }
-//    
+//
 //    exec.cancel();
-//    
+//
 //    try {
 //      exec.deferred().join();
 //      fail("Expected QueryExecutionException");
@@ -506,7 +496,7 @@
 //    verify(future, times(1)).cancel(true);
 //    verify(client, times(1)).close();
 //  }
-//  
+//
 //  @Test
 //  public void convertQuery() throws Exception {
 //    // first one super simple
@@ -519,7 +509,7 @@
 //            .setMetric("sys.cpu.user"))
 //        .build();
 //    query.validate();
-//    
+//
 //    TSQuery converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -531,7 +521,7 @@
 //    assertNull(converted.getQueries().get(0).getRateOptions());
 //    assertNull(converted.getQueries().get(0).getDownsample());
 //    assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
-//    
+//
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
 //            .setStart("1410742740000")
@@ -547,7 +537,7 @@
 //            .setExpression("m1 + m2"))
 //        .build();
 //    query.validate();
-//    
+//
 //    converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -559,14 +549,14 @@
 //    assertNull(converted.getQueries().get(0).getRateOptions());
 //    assertNull(converted.getQueries().get(0).getDownsample());
 //    assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
-//    
+//
 //    assertEquals("sum", converted.getQueries().get(1).getAggregator());
 //    assertEquals("sys.cpu.idle", converted.getQueries().get(1).getMetric());
 //    assertFalse(converted.getQueries().get(1).getRate());
 //    assertNull(converted.getQueries().get(1).getRateOptions());
 //    assertNull(converted.getQueries().get(1).getDownsample());
 //    assertTrue(converted.getQueries().get(1).getFilters().isEmpty());
-//    
+//
 //    // test out TimeSpan options
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -587,7 +577,7 @@
 //            .setMetric("sys.cpu.user"))
 //        .build();
 //    query.validate();
-//    
+//
 //    converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -602,7 +592,7 @@
 //    assertEquals(-1, converted.getQueries().get(0).getRateOptions().getResetValue());
 //    assertEquals("1m-max", converted.getQueries().get(0).getDownsample());
 //    assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
-//    
+//
 //    // metric rate overrides
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -625,7 +615,7 @@
 //                .setResetValue(16)))
 //        .build();
 //    query.validate();
-//    
+//
 //    converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -640,7 +630,7 @@
 //    assertEquals(16, converted.getQueries().get(0).getRateOptions().getResetValue());
 //    assertNull(converted.getQueries().get(0).getDownsample());
 //    assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
-//    
+//
 //    // Downsample fills
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -671,7 +661,7 @@
 //                    .setPolicy(FillPolicy.ZERO))))
 //        .build();
 //    query.validate();
-//    
+//
 //    converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -686,7 +676,7 @@
 //    assertEquals(-1, converted.getQueries().get(0).getRateOptions().getResetValue());
 //    assertEquals("1m-max-nan", converted.getQueries().get(0).getDownsample());
 //    assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
-//    
+//
 //    assertEquals("sum", converted.getQueries().get(1).getAggregator());
 //    assertEquals("sys.cpu.idle", converted.getQueries().get(1).getMetric());
 //    assertTrue(converted.getQueries().get(1).getRate());
@@ -695,7 +685,7 @@
 //    assertEquals(-1, converted.getQueries().get(1).getRateOptions().getResetValue());
 //    assertEquals("30s-min-zero", converted.getQueries().get(1).getDownsample());
 //    assertTrue(converted.getQueries().get(1).getFilters().isEmpty());
-//    
+//
 //    // test out per-metric overrides
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -713,7 +703,7 @@
 //                .setInterval("30m")))
 //        .build();
 //    query.validate();
-//    
+//
 //    converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -723,7 +713,7 @@
 //    assertFalse(converted.getQueries().get(0).getRate());
 //    assertNull(converted.getQueries().get(0).getRateOptions());
 //    assertEquals("30m-min", converted.getQueries().get(0).getDownsample());
-//    
+//
 //    // filters
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -759,7 +749,7 @@
 //            .setFilter("f2"))
 //        .build();
 //    query.validate();
-//    
+//
 //    converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -770,17 +760,17 @@
 //    assertNull(converted.getQueries().get(0).getRateOptions());
 //    assertNull(converted.getQueries().get(0).getDownsample());
 //    assertEquals(2, converted.getQueries().get(0).getFilters().size());
-//    
+//
 //    assertEquals("host", converted.getQueries().get(0).getFilters().get(0).getTagk());
 //    assertEquals("*", converted.getQueries().get(0).getFilters().get(0).getFilter());
 //    assertEquals("literal_or", converted.getQueries().get(0).getFilters().get(0).getType());
 //    assertTrue(converted.getQueries().get(0).getFilters().get(0).isGroupBy());
-//    
+//
 //    assertEquals("dc", converted.getQueries().get(0).getFilters().get(1).getTagk());
 //    assertEquals("nyc", converted.getQueries().get(0).getFilters().get(1).getFilter());
 //    assertEquals("literal_or", converted.getQueries().get(0).getFilters().get(1).getType());
 //    assertFalse(converted.getQueries().get(0).getFilters().get(1).isGroupBy());
-//    
+//
 //    // filter routing between multiple metrics.
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -820,7 +810,7 @@
 //            .setFilter("f1"))
 //        .build();
 //    query.validate();
-//    
+//
 //    converted = HttpQueryV2Executor.convertQuery(query);
 //    converted.validateAndSetQuery();
 //    assertEquals("1410742740000", converted.getStart());
@@ -831,34 +821,34 @@
 //    assertNull(converted.getQueries().get(0).getRateOptions());
 //    assertNull(converted.getQueries().get(0).getDownsample());
 //    assertEquals(2, converted.getQueries().get(0).getFilters().size());
-//    
+//
 //    assertEquals("host", converted.getQueries().get(0).getFilters().get(0).getTagk());
 //    assertEquals("*", converted.getQueries().get(0).getFilters().get(0).getFilter());
 //    assertEquals("literal_or", converted.getQueries().get(0).getFilters().get(0).getType());
 //    assertTrue(converted.getQueries().get(0).getFilters().get(0).isGroupBy());
-//    
+//
 //    assertEquals("dc", converted.getQueries().get(0).getFilters().get(1).getTagk());
 //    assertEquals("nyc", converted.getQueries().get(0).getFilters().get(1).getFilter());
 //    assertEquals("literal_or", converted.getQueries().get(0).getFilters().get(1).getType());
 //    assertFalse(converted.getQueries().get(0).getFilters().get(1).isGroupBy());
-//    
+//
 //    assertEquals("sum", converted.getQueries().get(1).getAggregator());
 //    assertEquals("sys.cpu.idle", converted.getQueries().get(1).getMetric());
 //    assertFalse(converted.getQueries().get(1).getRate());
 //    assertNull(converted.getQueries().get(1).getRateOptions());
 //    assertNull(converted.getQueries().get(1).getDownsample());
 //    assertEquals(2, converted.getQueries().get(1).getFilters().size());
-//    
+//
 //    assertEquals("host", converted.getQueries().get(1).getFilters().get(0).getTagk());
 //    assertEquals("web01", converted.getQueries().get(1).getFilters().get(0).getFilter());
 //    assertEquals("literal_or", converted.getQueries().get(1).getFilters().get(0).getType());
 //    assertTrue(converted.getQueries().get(1).getFilters().get(0).isGroupBy());
-//    
+//
 //    assertEquals("dc", converted.getQueries().get(1).getFilters().get(1).getTagk());
 //    assertEquals("lga", converted.getQueries().get(1).getFilters().get(1).getFilter());
 //    assertEquals("literal_or", converted.getQueries().get(1).getFilters().get(1).getType());
 //    assertFalse(converted.getQueries().get(1).getFilters().get(1).isGroupBy());
-//    
+//
 //    // filter routing between multiple metrics.
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -874,13 +864,13 @@
 //      converted = HttpQueryV2Executor.convertQuery(query);
 //      fail("expected IllegalArgumentException");
 //    } catch (IllegalArgumentException e) { }
-//    
+//
 //    // null query
 //    try {
 //      converted = HttpQueryV2Executor.convertQuery(null);
 //      fail("expected IllegalArgumentException");
 //    } catch (IllegalArgumentException e) { }
-//    
+//
 //    // no metric
 //    query = TimeSeriesQuery.newBuilder()
 //        .setTime(Timespan.newBuilder()
@@ -897,16 +887,16 @@
 //  @Test
 //  public void parseResponse() throws Exception {
 //    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
-//    
+//
 //    entity = new StringEntity("Hello!");
 //    when(response.getEntity()).thenReturn(entity);
-//    
+//
 //    // raw
 //    assertEquals("Hello!", executor.parseResponse(response, 0, "unknown"));
-//    
+//
 //    // TODO - figure out how to test the compressed entities. Looks like it's a 
 //    // bit of a pain.
-//    
+//
 //    // non-200
 //    when(status.getStatusCode()).thenReturn(400);
 //    try {
@@ -915,7 +905,7 @@
 //    } catch (RemoteQueryExecutionException e) { 
 //      assertEquals("Hello!", e.getMessage());
 //    }
-//    
+//
 //    // null entity
 //    when(status.getStatusCode()).thenReturn(200);
 //    when(response.getEntity()).thenReturn(null);
@@ -1078,7 +1068,7 @@
 //    assertTrue(json.contains("\"executorType\":\"HttpQueryV2Executor\""));
 //    assertTrue(json.contains("\"endpoint\":\"http://my.tsd:4242\""));
 //    assertTrue(json.contains("\"executorId\":\"Http\""));
-//    
+//
 //    json = "{\"executorType\":\"HttpQueryV2Executor\",\"endpoint\":"
 //        + "\"http://my.tsd:4242\",\"executorId\":\"Http\"}";
 //    config = JSON.parseToObject(json, Config.class);
@@ -1086,7 +1076,7 @@
 //    assertEquals("Http", config.getExecutorId());
 //    assertEquals("http://my.tsd:4242", config.getEndpoint());
 //  }
-//  
+//
 //  @Test
 //  public void hashCodeEqualsCompareTo() throws Exception {
 //    final Config c1 = (Config) Config.newBuilder()
@@ -1094,7 +1084,7 @@
 //        .setExecutorId("Http")
 //        .setExecutorType("HttpQueryV2Executor")
 //        .build();
-//    
+//
 //    Config c2 = (Config) Config.newBuilder()
 //        .setEndpoint(endpoint)
 //        .setExecutorId("Http")
@@ -1103,7 +1093,7 @@
 //    assertEquals(c1.hashCode(), c2.hashCode());
 //    assertEquals(c1, c2);
 //    assertEquals(0, c1.compareTo(c2));
-//    
+//
 //    c2 = (Config) Config.newBuilder()
 //        .setEndpoint("http://localhost:12345")  // <-- Diff
 //        .setExecutorId("Http")
@@ -1112,7 +1102,7 @@
 //    assertNotEquals(c1.hashCode(), c2.hashCode());
 //    assertNotEquals(c1, c2);
 //    assertEquals(1, c1.compareTo(c2));
-//    
+//
 //    c2 = (Config) Config.newBuilder()
 //        //.setEndpoint(endpoint)  // <-- Diff
 //        .setExecutorId("Http")
@@ -1121,7 +1111,7 @@
 //    assertNotEquals(c1.hashCode(), c2.hashCode());
 //    assertNotEquals(c1, c2);
 //    assertEquals(1, c1.compareTo(c2));
-//    
+//
 //    c2 = (Config) Config.newBuilder()
 //        .setEndpoint(endpoint)
 //        .setExecutorId("Http2")  // <-- Diff
@@ -1130,7 +1120,7 @@
 //    assertNotEquals(c1.hashCode(), c2.hashCode());
 //    assertNotEquals(c1, c2);
 //    assertEquals(-1, c1.compareTo(c2));
-//    
+//
 //    c2 = (Config) Config.newBuilder()
 //        .setEndpoint(endpoint)
 //        .setExecutorId("Http")
@@ -1140,12 +1130,12 @@
 //    assertNotEquals(c1, c2);
 //    assertEquals(-1, c1.compareTo(c2));
 //  }
-//  
+//
 //  @SuppressWarnings("unchecked")
 //  private void setupQuery() {
 //    client = mock(CloseableHttpAsyncClient.class);
 //    future = mock(Future.class);
-//    
+//
 //    final HttpAsyncClientBuilder builder = 
 //        PowerMockito.mock(HttpAsyncClientBuilder.class);
 //    PowerMockito.when(builder
@@ -1154,10 +1144,10 @@
 //    when(builder.setMaxConnTotal(anyInt())).thenReturn(builder);
 //    when(builder.setMaxConnPerRoute(anyInt())).thenReturn(builder);
 //    when(builder.build()).thenReturn(client);
-//    
+//
 //    PowerMockito.mockStatic(HttpAsyncClients.class);
 //    when(HttpAsyncClients.custom()).thenReturn(builder);
-//    
+//
 //    when(client.execute(any(HttpPost.class), any(FutureCallback.class)))
 //      .thenAnswer(new Answer<Future<HttpResponse>>() {
 //        @Override

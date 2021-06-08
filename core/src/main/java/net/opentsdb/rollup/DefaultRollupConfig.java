@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018 The OpenTSDB Authors.
+// Copyright (C) 2015-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,6 +67,9 @@ public class DefaultRollupConfig implements RollupConfig {
   
   /** The table name to interval map for queries */
   protected final Map<String, RollupInterval> reverse_intervals;
+
+  /** Same as above, just with longs as keys. */
+  protected final TreeMap<Long, RollupInterval> reverse_intervals_long;
   
   /** The map of IDs to aggregators for use at query time. */
   protected final Map<Integer, String> ids_to_aggregations;
@@ -77,6 +80,7 @@ public class DefaultRollupConfig implements RollupConfig {
   /** The sorted list of intervals. */
   protected final List<String> intervals;
 
+  /** The default interval. */
   protected RollupInterval defaultRollupInterval;
   
   /**
@@ -95,6 +99,7 @@ public class DefaultRollupConfig implements RollupConfig {
     
     forward_intervals = Maps.newHashMapWithExpectedSize(builder.intervals.size());
     reverse_intervals = Maps.newHashMapWithExpectedSize(builder.intervals.size());
+    reverse_intervals_long = new TreeMap<Long, RollupInterval>(Collections.reverseOrder());
     ids_to_aggregations = Maps.newHashMapWithExpectedSize(builder.aggregationIds.size());
     aggregations_to_ids = Maps.newHashMapWithExpectedSize(builder.aggregationIds.size());
     intervals = Lists.newArrayListWithExpectedSize(builder.intervals.size());
@@ -117,6 +122,7 @@ public class DefaultRollupConfig implements RollupConfig {
       reverse_intervals.put(config_interval.getTable(), config_interval);
       reverse_intervals.put(config_interval.getPreAggregationTable(), 
           config_interval);
+      reverse_intervals_long.put((long) config_interval.getIntervalSeconds(), config_interval);
       config_interval.setRollupConfig(this);
       if (LOG.isDebugEnabled()) {
         LOG.debug("Loaded rollup interval: " + config_interval);
@@ -149,7 +155,7 @@ public class DefaultRollupConfig implements RollupConfig {
     for (final Entry<Long, String> entry : ordered.entrySet()) {
       intervals.add(entry.getValue());
     }
-      
+
     LOG.info("Configured [" + forward_intervals.size() + "] rollup intervals");
   }
   
@@ -188,23 +194,8 @@ public class DefaultRollupConfig implements RollupConfig {
                                                  final String str_interval) {
     return getRollupIntervals(interval, str_interval, false);
   }
-  
-  /**
-   * Fetches the RollupInterval corresponding to the integer interval in seconds.
-   * It returns a list of matching RollupInterval and best next matches in the 
-   * order. It will help to search on the next best rollup tables.
-   * It is guaranteed that it return a non-empty list
-   * For example if the interval is 1 day
-   *  then it may return RollupInterval objects in the order
-   *    1 day, 1 hour, 10 minutes, 1 minute
-   * @param interval The interval in seconds to lookup
-   * @param str_interval String representation of the  interval, for logging
-   * @param skip_default Whether or not to include the default interval 
-   * the results.
-   * @return The RollupInterval object configured for the given interval
-   * @throws IllegalArgumentException if the interval is null or empty
-   * @throws NoSuchRollupForIntervalException if the interval was not configured
-   */
+
+  @Override
   public List<RollupInterval> getRollupIntervals(final long interval,
                                                  final String str_interval,
                                                  final boolean skip_default) {
@@ -212,46 +203,32 @@ public class DefaultRollupConfig implements RollupConfig {
     if (interval <= 0) {
       throw new IllegalArgumentException("Interval cannot be null or empty");
     }
-    
-    final Map<Long, RollupInterval> rollups =
-        new TreeMap<Long, RollupInterval>(Collections.reverseOrder());
-    boolean right_match = false;
-    
-    for (RollupInterval rollup: forward_intervals.values()) {
-      if (rollup.getIntervalSeconds() == interval) {
-        if (rollup.isDefaultInterval() && skip_default) {
-          right_match = true;
-          continue;
-        }
-        
-        rollups.put((long) rollup.getIntervalSeconds(), rollup);
-        right_match = true;
-      } else if (interval % rollup.getIntervalSeconds() == 0) {
-        if (rollup.isDefaultInterval() && skip_default) {
-          right_match = true;
-          continue;
-        }
-        
-        rollups.put((long) rollup.getIntervalSeconds(), rollup);
-      } else if (!skip_default && rollup.isDefaultInterval()) {
-        rollups.put(0L, rollup);
-      }
-    }
 
-    if (rollups.isEmpty() && !right_match) {
-      throw new NoSuchRollupForIntervalException(str_interval);
+    Entry<Long, RollupInterval> match = reverse_intervals_long.ceilingEntry(interval);
+    if (match == null) {
+      return Collections.emptyList();
     }
-    
-    List<RollupInterval> best_matches =
-            new ArrayList<RollupInterval>(rollups.values());
-    
-    if (!right_match) {
-      LOG.warn("No such rollup interval found, " + str_interval + ". So falling "
-              + "back to the next best match " + best_matches.get(0).
-                      getInterval());
+    List<RollupInterval> best_matches = null;
+    while (match != null) {
+      boolean is_default = match.getValue().isDefaultInterval();
+
+      if (interval % match.getKey()!= 0) {
+        match = reverse_intervals_long.ceilingEntry(match.getKey() - 1);
+        continue;
+      }
+
+      if (is_default && skip_default) {
+        // skip it.
+      } else {
+        if (best_matches == null) {
+          best_matches = Lists.newArrayList();
+        }
+        best_matches.add(match.getValue());
+      }
+
+      match = reverse_intervals_long.ceilingEntry(match.getKey() - 1);
     }
-    
-    return best_matches;
+    return best_matches == null ? Collections.emptyList() : best_matches;
   }
   
   /**

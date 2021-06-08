@@ -62,6 +62,9 @@ import java.util.List;
 @JsonDeserialize(builder = DownsampleConfig.Builder.class)
 public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   DownsampleConfig.Builder, DownsampleConfig> {
+
+  public static final String AUTO = "auto";
+
   /** The given start timestamp. */
   private final String start;
 
@@ -194,7 +197,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     //    do much validation
     // 2) setup and validation mode where we need to make sure it's a valid
     //    config.
-    if (builder.interval.equalsIgnoreCase("auto")) {
+    if (builder.interval.equalsIgnoreCase(AUTO)) {
       if (start_time != null && end_time != null) {
         // validate auto
         if (intervals == null) {
@@ -270,7 +273,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
 
     // make sure we have at least one interval in our range
     if (start_time != null) {
-      if (start_time.compare(Op.LT, originalStart)){
+      if (start_time.compare(Op.LT, originalStart)) {
         throw new IllegalArgumentException("The aligned start interval ("
                 + start_time.epoch() + "s) must be greater than or equal to the "
                 + "start of the query: " + originalStart.epoch() + "s. Given or "
@@ -282,7 +285,8 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
                 + "auto interval: " + interval);
       } else if (end_time.compare(Op.LTE, start_time)) {
         throw new IllegalArgumentException("No intervals found for the given or "
-                + "auto interval: " + interval + " within the query time range.");
+                + "auto interval: " + interval + " within the query time range. " +
+                start_time + " " + end_time);
       }
     }
   }
@@ -357,7 +361,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   /**  @return Converts the units to a 2x style parseable string. */
   public String getInterval() {
     if (units == null) {
-      return "0all";
+      return interval;
     }
 
     switch (units) {
@@ -545,7 +549,11 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
   @Override
   public String toString() {
     return new StringBuilder()
-            .append("interval=")
+            .append("{id=")
+            .append(id)
+            .append(", type=")
+            .append(type)
+            .append(", interval=")
             .append(interval)
             .append(", aggregator=")
             .append(aggregator)
@@ -583,6 +591,7 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
             .append(dps_in_interval)
             .append(", tz=")
             .append(timezone)
+            .append("}")
             .toString();
   }
 

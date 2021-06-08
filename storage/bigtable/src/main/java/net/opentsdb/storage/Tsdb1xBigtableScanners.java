@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,19 +71,19 @@ import net.opentsdb.utils.Pair;
 
 /**
  * The owner/container for one or more Bigtable scanners used to execute a
- * query for a single metric and optional filter. This used to be the 
- * {@code TsdbQuery} class in TSDB 1/2x.
+ * query for a single metric and optional filter. Essentially a clone of the
+ * AsyncHBase version but with the Bigtable request.
  * <p>
  * The class is responsible for converting the metric and optional filters
- * to their assigned UIDs. Then it will setup the {@link Scanner} with the 
+ * to their assigned UIDs. Then it will setup the {@link ReadRowsRequest} with the
  * appropriate filters and setup a {@link Tsdb1xBigtableScanner} for each HBase 
  * scanner.
  * <p>
- * To fetch data, call {@link #fetchNext(Tsdb1xQueryResult, Span)} and it
+ * To fetch data, call {@link #fetchNext(Tsdb1xBigtableQueryResult, Span)} and it
  * will perform the initialization on the first call. 
- * <b>Note:</b> Subsequent calls to {@link #fetchNext(Tsdb1xQueryResult, Span)}
+ * <b>Note:</b> Subsequent calls to {@link #fetchNext(Tsdb1xBigtableQueryResult, Span)}
  * should only be made after this scanner has responded with a result. 
- * Only one {@link Tsdb1xQueryNode} can be filled at a time.
+ * Only one {@link Tsdb1xBigtableQueryNode} can be filled at a time.
  * <p>
  * The class also handles rollup queries with fallback when so configured.
  * Currently fallback is limited to trying the next higher resolution 
@@ -116,7 +116,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
    * filter to send to HBase. */
   protected final int expansion_limit;
   
-  /** The number of rows to scan per call to {@link Scanner#nextRows()} */
+  /** The number of rows to fetch out of the result set at a time. */
   protected final int rows_per_scan;
   
   /** Whether or not to enable the fuzzy filter. */
@@ -152,7 +152,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
    * calls. <b>WARNING</b> Must be synchronized!. */
   protected volatile int scanners_done;
   
-  /** The current result set by {@link #fetchNext(Tsdb1xQueryResult, Span)}. */
+  /** The current result set by {@link #fetchNext(Tsdb1xBigtableQueryResult, Span)}. */
   protected Tsdb1xBigtableQueryResult current_result;
   
   /** A query filter if one or more source query filters could not be 
@@ -435,11 +435,11 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
                      final byte[] fuzzy_key) {
     long start;
     if (source_config.timeShifts() == null) {
-      start = node.pipelineContext().query().startTime().epoch();
+      start = source_config.startTimestamp().epoch();
     } else {
-      TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
+      TimeStamp ts = source_config.startTimestamp().getCopy();
+      final Pair<Boolean, TemporalAmount> pair =
+              source_config.timeShifts();
       if (pair.getKey()) {
         ts.subtract(pair.getValue());
       } else {
@@ -447,7 +447,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
       }
       start = ts.epoch();
     }
-    
+
     final Collection<QueryNode> rates = 
         node.pipelineContext().upstreamOfType(node, Rate.class);
     if (rollup_interval != null) {
@@ -461,14 +461,14 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
       // interval in which it appears, if downsampling.
       
       // TODO - doesn't account for calendaring, etc.
-      if (!Strings.isNullOrEmpty(source_config.getPrePadding())) {
-        final long interval = DateTime.parseDuration(
-            source_config.getPrePadding());
-        if (interval > 0) {
-          final long interval_offset = (1000L * start) % interval;
-          start -= interval_offset / 1000L;
-        }
-      }
+//      if (!Strings.isNullOrEmpty(source_config.getPrePadding())) {
+//        final long interval = DateTime.parseDuration(
+//            source_config.getPrePadding());
+//        if (interval > 0) {
+//          final long interval_offset = (1000L * start) % interval;
+//          start -= interval_offset / 1000L;
+//        }
+//      }
       
       // Then snap that timestamp back to its representative value for the
       // timespan in which it appears.
@@ -502,11 +502,11 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
   byte[] setStopKey(final byte[] metric, final RollupInterval rollup_interval) {
     long end;
     if (source_config.timeShifts() == null) {
-      end = node.pipelineContext().query().endTime().epoch();
+      end = source_config.endTimestamp().epoch();
     } else {
-      TimeStamp ts = node.pipelineContext().query().endTime().getCopy();
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
+      TimeStamp ts = source_config.endTimestamp().getCopy();
+      final Pair<Boolean, TemporalAmount> pair =
+              source_config.timeShifts();
       if (pair.getKey()) {
         ts.subtract(pair.getValue());
       } else {
@@ -514,46 +514,46 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
       }
       end = ts.epoch();
     }
-    
+
     if (rollup_interval != null) {
       // TODO - need rollup end time here
       end = RollupUtils.getRollupBasetime(end + 
           (rollup_interval.getIntervalSeconds() * rollup_interval.getIntervals()), 
             rollup_interval);
     } else {
-      long interval = 0;
-      if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
-        interval = DateTime.parseDuration(source_config.getPostPadding());
-      }
-
-      if (interval > 0) {
-        // Downsampling enabled.
-        //
-        // First, we align the end timestamp to its representative value for the
-        // interval FOLLOWING the one in which it appears.
-        //
-        // OpenTSDB's query bounds are inclusive, but HBase scan bounds are half-
-        // open. The user may have provided an end bound that is already
-        // interval-aligned (i.e., its interval offset is zero). If so, the user
-        // wishes for that interval to appear in the output. In that case, we
-        // skip forward an entire extra interval.
-        //
-        // This can be accomplished by simply not testing for zero offset.
-        final long interval_offset = (1000L * end) % interval;
-        final long interval_aligned_ts = end +
-          (interval - interval_offset) / 1000L;
-     
-        // Then, if we're now aligned on a timespan boundary, then we need no
-        // further adjustment: we are guaranteed to have always moved the end time
-        // forward, so the scan will find the data we need.
-        //
-        // Otherwise, we need to align to the NEXT timespan to ensure that we scan
-        // the needed data.
-        final long timespan_offset = interval_aligned_ts % Schema.MAX_RAW_TIMESPAN;
-        end = (0L == timespan_offset) ?
-          interval_aligned_ts :
-          interval_aligned_ts + (Schema.MAX_RAW_TIMESPAN - timespan_offset);
-      } else {
+//      long interval = 0;
+//      if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
+//        interval = DateTime.parseDuration(source_config.getPostPadding());
+//      }
+//
+//      if (interval > 0) {
+//        // Downsampling enabled.
+//        //
+//        // First, we align the end timestamp to its representative value for the
+//        // interval FOLLOWING the one in which it appears.
+//        //
+//        // OpenTSDB's query bounds are inclusive, but HBase scan bounds are half-
+//        // open. The user may have provided an end bound that is already
+//        // interval-aligned (i.e., its interval offset is zero). If so, the user
+//        // wishes for that interval to appear in the output. In that case, we
+//        // skip forward an entire extra interval.
+//        //
+//        // This can be accomplished by simply not testing for zero offset.
+//        final long interval_offset = (1000L * end) % interval;
+//        final long interval_aligned_ts = end +
+//          (interval - interval_offset) / 1000L;
+//
+//        // Then, if we're now aligned on a timespan boundary, then we need no
+//        // further adjustment: we are guaranteed to have always moved the end time
+//        // forward, so the scan will find the data we need.
+//        //
+//        // Otherwise, we need to align to the NEXT timespan to ensure that we scan
+//        // the needed data.
+//        final long timespan_offset = interval_aligned_ts % Schema.MAX_RAW_TIMESPAN;
+//        end = (0L == timespan_offset) ?
+//          interval_aligned_ts :
+//          interval_aligned_ts + (Schema.MAX_RAW_TIMESPAN - timespan_offset);
+//      } else {
         // Not downsampling.
         //
         // Regardless of the end timestamp's position within the current timespan,
@@ -562,7 +562,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
         // reason for this is OpenTSDB's closed interval vs. HBase's half-open.
         final long timespan_offset = end % Schema.MAX_RAW_TIMESPAN;
         end += (Schema.MAX_RAW_TIMESPAN - timespan_offset);
-      }
+//      }
     }
     
     final byte[] end_key = new byte[node.schema().saltWidth() + 
@@ -576,7 +576,7 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
 
   /**
    * Initializes the scanners on the first call to 
-   * {@link #fetchNext(Tsdb1xQueryResult, Span)}. Starts with resolving
+   * {@link #fetchNext(Tsdb1xBigtableQueryResult, Span)}. Starts with resolving
    * the metric to a UID and filters.
    * @param span An optional span.
    */
@@ -902,9 +902,9 @@ public class Tsdb1xBigtableScanners implements BigtableExecutor {
   }
   
   /**
-   * Called from {@link #fetchNext(Tsdb1xQueryResult, Span)} to iterate
+   * Called from {@link #fetchNext(Tsdb1xBigtableQueryResult, Span)} to iterate
    * over the current scanner index set and call 
-   * {@link Tsdb1xBigtableScanner#fetchNext(Tsdb1xQueryResult, Span)}.
+   * {@link Tsdb1xBigtableScanner#fetchNext(Tsdb1xBigtableQueryResult, Span)}.
    * @param span An optional tracer.
    */
   void scanNext(final Span span) {

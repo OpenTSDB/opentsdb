@@ -246,7 +246,8 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
         LOG.debug("Skipping meta for namespace [" + namespace + "] due to the "
             + "query being beyond retention.");
       }
-      if (System.currentTimeMillis() - queryPipelineContext.query().startTime().msEpoch() > retention_ms) {
+      if (System.currentTimeMillis() - queryPipelineContext.query().startTime().msEpoch() >
+              retention_ms) {
         NamespacedAggregatedDocumentResult result = new NamespacedAggregatedDocumentResult(
             MetaResult.NO_DATA_FALLBACK, skip_meta_ex, null);
         return Deferred.fromResult(result);

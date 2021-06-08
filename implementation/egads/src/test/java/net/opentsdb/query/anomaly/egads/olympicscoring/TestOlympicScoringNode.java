@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019-2020  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.storage.TimeSeriesDataConsumer;
 import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import org.junit.Assert;
@@ -141,6 +142,8 @@ public class TestOlympicScoringNode {
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric(HOULRY_METRIC)
                 .build())
+            .setStartTimeStamp(new SecondTimeStamp(BASE_TIME + (3600 * 11) + 300))
+            .setEndTimeStamp(new SecondTimeStamp(BASE_TIME + (3600 * 12) + 300))
             .setId("m1")
             .build())
         .addExecutionGraphNode(DownsampleConfig.newBuilder()
@@ -155,36 +158,38 @@ public class TestOlympicScoringNode {
     
     OlympicScoringConfig config =
         OlympicScoringConfig.newBuilder()
-    .setBaselinePeriod("1h")
-    .setBaselineNumPeriods(3)
-    .setBaselineAggregator("avg")
-    .setBaselineQuery(baseline_query)
-    .setMode(ExecutionMode.EVALUATE)
-    .setSerializeObserved(true)
-    .setSerializeThresholds(true)
-    .setLowerThresholdBad(100)
-    //.setUpperThreshold(100)
-    //.setMode(ExecutionMode.CONFIG)
-    .addInterpolatorConfig(INTERPOLATOR)
-    .addSource("ds")
-    .setId("egads")
-    .addResultId(new DefaultQueryResultId("os", "os"))
-    .build();
+        .setBaselinePeriod("1h")
+        .setBaselineNumPeriods(3)
+        .setBaselineAggregator("avg")
+        .setBaselineQuery(baseline_query)
+        .setMode(ExecutionMode.EVALUATE)
+        .setSerializeObserved(true)
+        .setSerializeThresholds(true)
+        .setLowerThresholdBad(100)
+        //.setUpperThreshold(100)
+        //.setMode(ExecutionMode.CONFIG)
+        .addInterpolatorConfig(INTERPOLATOR)
+        .addSource("ds")
+        .setId("egads")
+        .addResultId(new DefaultQueryResultId("os", "os"))
+        .build();
     
     QueryPipelineContext ctx = mock(QueryPipelineContext.class);
     when(ctx.tsdb()).thenReturn(TSDB);
     QueryNode src = mock(QueryNode.class);
     when(src.pipelineContext()).thenReturn(ctx);
     when(ctx.downstream(any(QueryNode.class))).thenReturn(Lists.newArrayList());
+    when(ctx.commonSourceConfig(any(QueryNode.class))).thenReturn(
+            (TimeSeriesDataSourceConfig) baseline_query.getExecutionGraph().get(0));
     final SemanticQuery egads_query = getEgadsQuery(baseline_query);
     when(ctx.query()).thenReturn(egads_query);
     OlympicScoringNode osn = new OlympicScoringNode(osf, ctx, config);
     TimeStamp st = new SecondTimeStamp(System.currentTimeMillis()/1000l);
     
     Assert.assertNotNull(osn);
-    
+
 //    osn.onNext(next);
-//    when(ega.endTime()).thenReturn(st);  
+//    when(ega.endTime()).thenReturn(st);
 //    osn.run();
 
   }

@@ -37,6 +37,7 @@ import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -89,6 +90,7 @@ public class TestMergerTimeSeries {
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("GB")
         .build();
     result = mock(QueryResult.class);

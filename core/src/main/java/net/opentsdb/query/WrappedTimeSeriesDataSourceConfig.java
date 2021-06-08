@@ -16,7 +16,6 @@ package net.opentsdb.query;
 
 import java.time.temporal.TemporalAmount;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -155,6 +154,16 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   }
 
   @Override
+  public boolean nodeFlag(QueryNodeConfigOptions option) {
+    return false;
+  }
+
+  @Override
+  public Object nodeOption(QueryNodeConfigOptions option) {
+    return null;
+  }
+
+  @Override
   public boolean readCacheable() {
     return false;
   }
@@ -270,16 +279,6 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   }
 
   @Override
-  public String getPrePadding() {
-    return config.getPrePadding();
-  }
-
-  @Override
-  public String getPostPadding() {
-    return config.getPostPadding();
-  }
-
-  @Override
   public String getTimeShiftInterval() {
     return config.getTimeShiftInterval();
   }
@@ -290,8 +289,8 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   }
 
   @Override
-  public TimeStamp startOverrideTimestamp() {
-    return config.startOverrideTimestamp();
+  public TimeStamp startTimestamp() {
+    return config.startTimestamp();
   }
 
   @Override
@@ -300,13 +299,18 @@ public class WrappedTimeSeriesDataSourceConfig implements TimeSeriesDataSourceCo
   }
 
   @Override
-  public TimeStamp endOverrideTimestamp() {
-    return config.endOverrideTimestamp();
+  public TimeStamp endTimestamp() {
+    return config.endTimestamp();
   }
 
   @Override
   public long getEndOverrideMs() {
     return config.getEndOverrideMs();
+  }
+
+  @Override
+  public String getDataSource() {
+    return config.getDataSource();
   }
 
   @Override

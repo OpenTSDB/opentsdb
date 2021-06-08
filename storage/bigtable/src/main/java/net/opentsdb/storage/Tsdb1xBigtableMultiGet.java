@@ -282,20 +282,16 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
     // sentinel
     tsuid_idx = -1;
     timestamp = getInitialTimestamp(rollup_index);
-    end_timestamp = reversed ? node.pipelineContext().query().startTime().getCopy() :
-        node.pipelineContext().query().endTime().getCopy();
+    end_timestamp = reversed ? source_config.startTimestamp().getCopy() :
+        source_config.endTimestamp().getCopy();
     if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
+      final Pair<Boolean, TemporalAmount> pair =
+              source_config.timeShifts();
       if (pair.getKey()) {
         end_timestamp.subtract(pair.getValue());
       } else {
         end_timestamp.add(pair.getValue());
       }
-    }
-    
-    if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
-      end_timestamp.add(DateTime.parseDuration2(source_config.getPostPadding()));
     }
     
     if (rollups_enabled) {
@@ -535,7 +531,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
 
   /**
    * A callback attached to the multi-gets that parses the results and
-   * stores them in the current results. Calls {@link MultiGet#onComplete()}.
+   * stores them in the current results. Sends the results up when done.
    * <p>
    * While it would be nice to attach a tracer here, we can avoid a lot
    * of object overhead by using a singleton here.
@@ -595,7 +591,7 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
   }
   
   /**
-   * Creates a batch of {@link GetRequest}s and sends them to the HBase
+   * Creates a batch of {@link ReadRowsRequest}s and sends them to the HBase
    * client.
    * @param tsuid_idx The TSUID index to start at.
    * @param timestamp The timestamp for each row key.
@@ -715,9 +711,8 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
    */
   @VisibleForTesting
   TimeStamp getInitialTimestamp(final int rollup_index) {
-    final TimeStamp timestamp = reversed ? 
-        node.pipelineContext().query().endTime().getCopy() : 
-          node.pipelineContext().query().startTime().getCopy();
+    final TimeStamp timestamp = reversed ? source_config.endTimestamp().getCopy() :
+            source_config.startTimestamp().getCopy();
     
     if (rollups_enabled && rollup_index >= 0 && 
         rollup_index < node.rollupIntervals().size()) {
@@ -729,18 +724,11 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
             (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));
       } else {
         timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-            (reversed ? node.pipelineContext().query().endTime().epoch() : 
-              node.pipelineContext().query().startTime().epoch()), interval));
+            (reversed ? source_config.endTimestamp().epoch() :
+                    source_config.startTimestamp().epoch()), interval));
       }
     } else {
       long ts = timestamp.epoch();
-      if (!(Strings.isNullOrEmpty(source_config.getPrePadding()))) {
-        final long interval = DateTime.parseDuration(source_config.getPrePadding());
-        if (interval > 0) {
-          final long interval_offset = (1000L * ts) % interval;
-          ts -= interval_offset / 1000L;
-        }
-      }
       
       // Then snap that timestamp back to its representative value for the
       // timespan in which it appears.
@@ -751,10 +739,10 @@ public class Tsdb1xBigtableMultiGet implements BigtableExecutor {
       ts = ts > 0L ? ts : 0L;
       timestamp.updateEpoch(ts);
     }
-    
+
     if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
+      final Pair<Boolean, TemporalAmount> pair =
+              source_config.timeShifts();
       if (pair.getKey()) {
         timestamp.subtract(pair.getValue());
       } else {

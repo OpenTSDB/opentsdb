@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2018  The OpenTSDB Authors.
+// Copyright (C) 2016-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,9 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupInterval;
 import org.junit.Before;
 import org.junit.Test;
@@ -68,7 +70,6 @@ import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -131,11 +132,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setId("m1")
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .build();
     
     when(data_store.dynamicString(Tsdb1xBigtableDataStore.ROLLUP_USAGE_KEY)).thenReturn("Rollup_Fallback");
@@ -217,10 +214,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addOverride(Tsdb1xBigtableDataStore.PRE_AGG_KEY, "true")
         .addOverride(Tsdb1xBigtableDataStore.MULTI_GET_CONCURRENT_KEY, "8")
         .addOverride(Tsdb1xBigtableDataStore.MULTI_GET_BATCH_KEY, "16")
@@ -253,11 +247,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
 
   @Test
   public void ctorRollups() throws Exception {
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
@@ -306,17 +296,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         interleave.getFilters(3).getColumnQualifierRegexFilter().toByteArray());
     
     // pre-agg
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
@@ -353,26 +333,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         interleave.getFilters(3).getColumnQualifierRegexFilter().toByteArray());
     
     // sum
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("sum")
-        .addRollupInterval("1h")
-        .setId("m1")
-        .build();
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addSummaryAggregation("sum")
         .addRollupInterval("1h")
         .setId("m1")
@@ -432,71 +393,6 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   }
 
   @Test
-  public void ctoreTimestamps() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(END_TS))
-        .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("max")
-        .setPrePadding("2h")
-        .setPostPadding("2h")
-        .setId("m1")
-        .build();
-    
-    Tsdb1xBigtableMultiGet mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
-    assertEquals(END_TS - 900 - 3600, mget.timestamp.epoch());
-    
-    // downsample 2 hours
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("max")
-        .addRollupInterval("2h")
-        .setPrePadding("2h")
-        .setPostPadding("2h")
-        .setId("m1")
-        .build();
-    
-    mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
-    assertEquals(START_TS - 900, mget.timestamp.epoch());
-  }
-
-  @Test
-  public void ctorTimestampsOffset() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(END_TS))
-        .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    
-    source_config = new WrappedTimeSeriesDataSourceConfig(
-        "m1-previous-P1D",
-        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric(METRIC_STRING)
-                .build())
-            .addSummaryAggregation("max")
-            .setTimeShiftInterval("1d")
-            .setId("m1")
-            .build(),
-        true);
-    when(context.query()).thenReturn(query);
-    
-    Tsdb1xBigtableMultiGet mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
-    assertEquals(END_TS - 900 - 86400, mget.timestamp.epoch());
-  }
-  
-  @Test
   public void ctorTimedSalt() throws Exception {
     node = mock(Tsdb1xBigtableQueryNode.class);
     when(node.parent()).thenReturn(data_store);
@@ -543,7 +439,62 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
         new byte[4], TAGK_BYTES, TAGV_B_BYTES), 
         mget.tsuids.get(3));
   }
-  
+
+  @Test
+  public void ctorTimestampsTimeShift() throws Exception {
+    query = SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart(Integer.toString(END_TS))
+            .setEnd(Integer.toString(END_TS + 3600))
+            .setExecutionGraph(Collections.emptyList())
+            .build();
+
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+            "m1-previous-P1D",
+            (TimeSeriesDataSourceConfig) baseConfig()
+                    .setStartTimeStamp(new SecondTimeStamp(END_TS))
+                    .setEndTimeStamp(new SecondTimeStamp(END_TS + 3600))
+                    .addSummaryAggregation("max")
+                    .setTimeShiftInterval("1d")
+                    .setId("m1")
+                    .build(),
+            true);
+    when(context.query()).thenReturn(query);
+
+    Tsdb1xBigtableMultiGet mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
+    assertEquals(END_TS - 900 - 86400, mget.timestamp.epoch());
+    assertEquals(END_TS + 3600 - 86400, mget.end_timestamp.epoch()); // not used
+
+    when(node.rollupIntervals())
+            .thenReturn(Lists.<RollupInterval>newArrayList(DefaultRollupInterval.builder()
+                            .setInterval("1h")
+                            .setTable("tsdb-1h")
+                            .setPreAggregationTable("tsdb-agg-1h")
+                            .setRowSpan("1d")
+                            .build(),
+                    DefaultRollupInterval.builder()
+                            .setInterval("30m")
+                            .setTable("tsdb-30m")
+                            .setPreAggregationTable("tsdb-agg-30m")
+                            .setRowSpan("1d")
+                            .build()));
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+            "m1-previous-P1D",
+            (TimeSeriesDataSourceConfig) baseConfig()
+                    .setStartTimeStamp(new SecondTimeStamp(END_TS))
+                    .setEndTimeStamp(new SecondTimeStamp(END_TS + (2 * 3600)))
+                    .addRollupInterval("1h")
+                    .addSummaryAggregation("max")
+                    .setTimeShiftInterval("1d")
+                    .build(),
+            true);
+    when(context.query()).thenReturn(query);
+
+    mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
+    assertEquals(END_TS - 900 - 3600 - 86400, mget.timestamp.epoch());
+    assertEquals(END_TS + (2 * 3600) - 86400, mget.end_timestamp.epoch()); // not used
+  }
+
   @Test
   public void advanceNoRollups() throws Exception {
     Tsdb1xBigtableMultiGet mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
@@ -739,17 +690,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   
   @Test
   public void incrementTimeStampReversed() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addOverride(Schema.QUERY_REVERSE_KEY, "true")
         .setId("m1")
         .build();
@@ -1302,18 +1243,9 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   @Test
   public void fetchNextRealTraced() throws Exception {
     trace = new MockTrace(true);
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(TS_SINGLE_SERIES))
-        .setEnd(Integer.toString(TS_SINGLE_SERIES + 
-            (TS_SINGLE_SERIES_COUNT * TS_SINGLE_SERIES_INTERVAL)))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(TS_SINGLE_SERIES,
+            TS_SINGLE_SERIES +
+                    (TS_SINGLE_SERIES_COUNT * TS_SINGLE_SERIES_INTERVAL))
         .addOverride(Schema.QUERY_REVERSE_KEY, "true")
         .setId("m1")
         .build();
@@ -1335,18 +1267,9 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   @Test
   public void fetchNextRealException() throws Exception {
     trace = new MockTrace(true);
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(TS_MULTI_SERIES_EX))
-        .setEnd(Integer.toString(TS_MULTI_SERIES_EX + 
-            (TS_MULTI_SERIES_EX_COUNT * TS_MULTI_SERIES_INTERVAL)))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(TS_MULTI_SERIES_EX,
+            TS_MULTI_SERIES_EX +
+                    (TS_MULTI_SERIES_EX_COUNT * TS_MULTI_SERIES_INTERVAL))
         .setId("m1")
         .build();
     
@@ -1384,32 +1307,26 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
           .setRowSpan("6h")
           .build()));
     
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
-        .setId("m1")
-        .build();
-    
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
         .addOverride(Schema.QUERY_REVERSE_KEY, reversed ? "true" : "false")
         .setId("m1")
         .build();
-    when(context.query()).thenReturn(query);
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseConfig() {
+    return baseConfig(START_TS, END_TS);
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseConfig(int start, int end) {
+    return DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric(METRIC_STRING)
+                    .build())
+            .setStartTimeStamp(new SecondTimeStamp(start))
+            .setEndTimeStamp(new SecondTimeStamp(end))
+            .setId("m1");
   }
 }

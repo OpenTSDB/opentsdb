@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupInterval;
 import org.junit.Before;
@@ -131,6 +132,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .setId("m1")
         .build();
     
@@ -256,19 +259,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
           .setPreAggregationTable("tsdb-agg-30m")
           .setRowSpan("1d")
           .build()));
-    
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("sum")
-        .addSummaryAggregation("count")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
-        .setId("m1")
-        .build();
-    
+
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     assertEquals(State.CONTINUE, scanners.state());
   }
@@ -296,19 +287,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
     // rollup further in
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(END_TS))
-        .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(END_TS, END_TS + 3600)
+            .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
@@ -316,19 +296,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     // rollup with rate on edge
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Lists.newArrayList(mock(QueryNode.class)));
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(START_TS - 900))
-        .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS - 900, END_TS)
+            .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
@@ -336,62 +305,21 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     // downsample
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(END_TS))
-        .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setId("m1")
-        .build();
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("max")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(END_TS, END_TS + 3600)
+            .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, null), start);
-    
-    // downsample 2 hours
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("max")
-        .setPrePadding("2h")
-        .setPostPadding("2h")
-        .setId("m1")
-        .build();
-    scanners = new Tsdb1xBigtableScanners(node, source_config);
-    start = scanners.setStartKey(METRIC_BYTES, null, null);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
-    
-    // offset
+
+    // time shift
     source_config = new WrappedTimeSeriesDataSourceConfig(
-        "m1-previous-P1D",
-        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric(METRIC_STRING)
-                .build())
-            .addSummaryAggregation("max")
-            .setPrePadding("2h")
-            .setPostPadding("2h")
-            .setTimeShiftInterval("1d")
-            .setId("m1")
-            .build(),
-        true);
+            "m1-previous-P1D",
+            (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS)
+                    .addSummaryAggregation("max")
+                    .setTimeShiftInterval("1d")
+                    .setId("m1")
+                    .build(),
+            true);
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
@@ -415,73 +343,34 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertArrayEquals(makeRowKey(METRIC_BYTES, 1514851200, null), stop);
     
     // rollup further in
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(END_TS))
-        .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(END_TS, END_TS + 3600)
+            .build();
     
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, interval);
     assertArrayEquals(makeRowKey(METRIC_BYTES, 1514851200, null), stop);
     
     // downsample
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(END_TS, END_TS + 3600)
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
         .setId("m1")
         .build();
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 7200), null), stop);
-    
-    // downsample 2 hours
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("sum")
-        .addSummaryAggregation("count")
-        .setPrePadding("2h")
-        .setPostPadding("2h")
-        .setId("m1")
-        .build();
-    scanners = new Tsdb1xBigtableScanners(node, source_config);
-    stop = scanners.setStopKey(METRIC_BYTES, null);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, (END_TS - 900 + 10800), null), stop);
-    
-    // offset
+
     source_config = new WrappedTimeSeriesDataSourceConfig(
-        "m1-previous-P1D",
-        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric(METRIC_STRING)
-                .build())
-            .addSummaryAggregation("max")
-            .setPrePadding("2h")
-            .setPostPadding("2h")
-            .setTimeShiftInterval("1d")
-            .setId("m1")
-            .build(),
-        true);
+            "m1-previous-P1D",
+            (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS)
+                    .addSummaryAggregation("max")
+                    .setTimeShiftInterval("1d")
+                    .setId("m1")
+                    .build(),
+            true);
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     stop = scanners.setStopKey(METRIC_BYTES, null);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900 - 86400 + 10800, null), stop);
+    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900 - 86400 + 3600, null), stop);
   }
 
   @Test
@@ -635,13 +524,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
@@ -1225,14 +1109,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
-        .setFilterId("f1")
         .setId("m1")
         .build();
     
@@ -1328,13 +1207,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
@@ -1376,13 +1250,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     scanners.current_result = results;
@@ -1425,13 +1294,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
@@ -1473,13 +1337,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     scanners.current_result = results;
@@ -1516,13 +1375,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
@@ -1582,13 +1436,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
@@ -1759,13 +1608,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
@@ -1811,13 +1655,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setFilterId("f1")
-        .setId("m1")
-        .build();
+    source_config = (TimeSeriesDataSourceConfig) baseConfig(START_TS, END_TS, "f1")
+            .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
@@ -2433,6 +2272,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .setMetric(METRIC_STRING)
             .build())
         .setFilterId(filter != null ? "f1" : null)
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .setId("m1");
     if (pre_agg) {
       builder.addOverride(Tsdb1xBigtableDataStore.PRE_AGG_KEY, "true");
@@ -2444,8 +2285,6 @@ public class TestTsdb1xBigtableScanners extends UTBase {
       } else {
         builder.addSummaryAggregation(ds);
       }
-      builder.setPrePadding("1h")
-             .setPostPadding("1h");
     }
     
     source_config = builder.build();
@@ -2466,5 +2305,26 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build()));
     }
     return filter;
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseConfig(int start, int end) {
+    return DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric(METRIC_STRING)
+                    .build())
+            .setStartTimeStamp(new SecondTimeStamp(start))
+            .setEndTimeStamp(new SecondTimeStamp(end))
+            .setId("m1");
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseConfig(int start, int end, String filter) {
+    return DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric(METRIC_STRING)
+                    .build())
+            .setStartTimeStamp(new SecondTimeStamp(start))
+            .setEndTimeStamp(new SecondTimeStamp(end))
+            .setFilterId(filter)
+            .setId("m1");
   }
 }

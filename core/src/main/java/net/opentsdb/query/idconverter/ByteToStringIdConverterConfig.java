@@ -104,8 +104,6 @@ public class ByteToStringIdConverterConfig extends BaseQueryNodeConfig<
     }
 
     final ByteToStringIdConverterConfig byteconfig = (ByteToStringIdConverterConfig) o;
-
-
     return Objects.equal(data_sources.keySet(), byteconfig.getDataSourceFactories().keySet());
   }
 

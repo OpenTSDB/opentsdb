@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2020  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.status.StatusGroupQueryResult;
 import net.opentsdb.data.types.status.Summary;
 import org.slf4j.Logger;
@@ -57,7 +58,7 @@ import net.opentsdb.utils.JSON;
  * 
  * <b>Invariants:</b>
  * <ul>
- * <li>Each {@link ExecutionGraphNode} must have a unique ID within the plan.graph().</li>
+ * <li>Each ExecutionGraphNode must have a unique ID within the plan.graph().</li>
  * <li>The graph must have at most one sink that will be used to execution a
  * query.</li>
  * <li>The graph must be a non-cyclical DAG.</li>
@@ -204,7 +205,33 @@ public abstract class AbstractQueryPipelineContext implements
     }
     return downstreams;
   }
-  
+
+  @Override
+  public TimeSeriesDataSourceConfig commonSourceConfig(final QueryNode node) {
+    final Collection<TimeSeriesDataSource> sources = downstreamSources(node);
+    // in theory, all sources should be the same. If not... throw for now.
+    TimeSeriesDataSourceConfig tsdConfig = null;
+    for (final TimeSeriesDataSource source : sources) {
+      if (tsdConfig == null) {
+        tsdConfig = (TimeSeriesDataSourceConfig) source.config();
+      } else {
+        final TimeSeriesDataSourceConfig local =
+                (TimeSeriesDataSourceConfig) source.config();
+        if (local.startTimestamp().compare(Op.NE, tsdConfig.startTimestamp())) {
+          throw new IllegalStateException("Missmatch between time series source " +
+                  "start times: " + local + " and " + tsdConfig + " for node " +
+                  node.config().getId());
+        }
+        if (local.endTimestamp().compare(Op.NE, tsdConfig.endTimestamp())) {
+          throw new IllegalStateException("Missmatch between time series source " +
+                  "end times: " + local + " and " + tsdConfig + " for node " +
+                  node.config().getId());
+        }
+      }
+    }
+    return tsdConfig;
+  }
+
   @Override
   public Collection<String> downstreamSourcesIds(final QueryNode node) {
     if (node == null) {
@@ -215,6 +242,40 @@ public abstract class AbstractQueryPipelineContext implements
     final Set<String> ids = Sets.newHashSetWithExpectedSize(downstreams.size());
     for (final QueryNode downstream : downstreams) {
       ids.add(downstream.config().getId());
+    }
+    return ids;
+  }
+
+  @Override
+  public Collection<QueryResultId> downstreamQueryResultIds(final QueryNode node) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+
+    final Set<QueryNode> downstreams = plan.graph().successors(node);
+    if (downstreams.isEmpty()) {
+      return Collections.emptyList();
+    }
+    final Set<QueryResultId> ids = Sets.newHashSetWithExpectedSize(downstreams.size());
+    for (final QueryNode downstream : downstreams) {
+      if (downstream.config() instanceof TimeSeriesDataSourceConfig) {
+        // pushdowns override
+        final TimeSeriesDataSourceConfig dataSourceConfig =
+                (TimeSeriesDataSourceConfig) downstream.config();
+        if (dataSourceConfig.getPushDownNodes() != null &&
+            !dataSourceConfig.getPushDownNodes().isEmpty()) {
+          final QueryNodeConfig pd = (QueryNodeConfig) dataSourceConfig.getPushDownNodes().get(
+                  dataSourceConfig.getPushDownNodes().size() - 1);
+          if (pd.resultIds().isEmpty()) {
+            LOG.warn("Pushdowns for downstream config " + pd.getId() + " from " +
+                    dataSourceConfig.getId() + " was empty. This should be set.");
+          } else {
+            ids.addAll(pd.resultIds());
+            continue;
+          }
+        }
+      }
+      ids.addAll(downstream.config().resultIds());
     }
     return ids;
   }

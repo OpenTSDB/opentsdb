@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -87,6 +88,7 @@ public class TestMergerNumericIterator {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     node = mock(Merger.class);
@@ -176,6 +178,7 @@ public class TestMergerNumericIterator {
         .setAggregator("nosuchagg")
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
@@ -299,11 +302,12 @@ public class TestMergerNumericIterator {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .setDataType(NumericType.TYPE.toString())
         .build();
-    
+
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
@@ -586,15 +590,16 @@ public class TestMergerNumericIterator {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .setDataType(NumericType.TYPE.toString())
         .build();
-    
+
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
-    
+
     ts2 = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
@@ -646,15 +651,7 @@ public class TestMergerNumericIterator {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .setDataType(NumericType.TYPE.toString())
         .build();
-    
-    config = (MergerConfig) MergerConfig.newBuilder()
-        .setAggregator("sum")
-        .addInterpolatorConfig(numeric_config)
-        .setDataSource("m1")
-        .setId("Testing")
-        .build();
-    when(node.config()).thenReturn(config);
-    
+
     ts2 = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
@@ -712,6 +709,7 @@ public class TestMergerNumericIterator {
         .setInfectiousNan(true)
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
@@ -772,6 +770,7 @@ public class TestMergerNumericIterator {
         .setInfectiousNan(false)
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
@@ -833,16 +832,17 @@ public class TestMergerNumericIterator {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .setDataType(NumericType.TYPE.toString())
         .build();
-    
+
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .setInfectiousNan(true)
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
-    
+
     ts2 = new MockNumericTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
@@ -894,15 +894,6 @@ public class TestMergerNumericIterator {
   
   @Test
   public void itearateNulls() throws Exception {
-    config = (MergerConfig) MergerConfig.newBuilder()
-        .setAggregator("sum")
-        .setInfectiousNan(true)
-        .addInterpolatorConfig(numeric_config)
-        .setDataSource("m1")
-        .setId("Testing")        
-        .build();
-    when(node.config()).thenReturn(config);
-    
     ts2 = new MockNumericTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
@@ -956,15 +947,6 @@ public class TestMergerNumericIterator {
   
   @Test
   public void itearateDownsampledNulls() throws Exception {
-    config = (MergerConfig) MergerConfig.newBuilder()
-        .setAggregator("sum")
-        .setInfectiousNan(true)
-        .addInterpolatorConfig(numeric_config)
-        .setDataSource("m1")
-        .setId("Testing")
-        .build();
-    when(node.config()).thenReturn(config);
-    
     ts1 = new MockNumericTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
@@ -1046,15 +1028,6 @@ public class TestMergerNumericIterator {
   
   @Test
   public void itearateDownsampledNaNs() throws Exception {
-    config = (MergerConfig) MergerConfig.newBuilder()
-        .setAggregator("sum")
-        .setInfectiousNan(true)
-        .addInterpolatorConfig(numeric_config)
-        .setDataSource("m1")
-        .setId("Testing")
-        .build();
-    when(node.config()).thenReturn(config);
-    
     ts1 = new MockNumericTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")

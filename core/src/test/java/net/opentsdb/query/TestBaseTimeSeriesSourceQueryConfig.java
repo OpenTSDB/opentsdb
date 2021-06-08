@@ -49,8 +49,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .addPushDownNode(mock(QueryNodeConfig.class))
         .addRollupInterval("1h")
         .addSummaryAggregation("sum")
-        .setPrePadding("30m")
-        .setPostPadding("1h")
         .setTimeShiftInterval("1d")
         .setId("UT");
     UTConfig config = builder.build();
@@ -64,8 +62,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("1h", config.getSummaryInterval());
     assertEquals(1, config.getSummaryAggregations().size());
     assertTrue(config.getSummaryAggregations().contains("sum"));
-    assertEquals("30m", config.getPrePadding());
-    assertEquals("1h", config.getPostPadding());
     assertFalse(config.pushDown());
     Pair<Boolean, TemporalAmount> pair = config.timeShifts();
     assertTrue(pair.getKey());
@@ -84,8 +80,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
         .addPushDownNode(mock(QueryNodeConfig.class))
         .addRollupInterval("1h")
         .addSummaryAggregation("sum")
-        .setPrePadding("30m")
-        .setPostPadding("1h")
         .setTimeShiftInterval("1d")
         .setId("UT").build();
     UTConfig config = builder.build();
@@ -111,8 +105,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("1h", config.getSummaryInterval());
     assertEquals(1, config.getSummaryAggregations().size());
     assertTrue(config.getSummaryAggregations().contains("sum"));
-    assertEquals("30m", config.getPrePadding());
-    assertEquals("1h", config.getPostPadding());
     Pair<Boolean, TemporalAmount> pair = config.timeShifts();
     assertTrue(pair.getKey());
     assertEquals(DateTime.parseDuration2("1d"), pair.getValue());
@@ -141,8 +133,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
             .build())
         .addRollupInterval("1h")
         .addSummaryAggregation("sum")
-        .setPrePadding("30m")
-        .setPostPadding("1h")
         .setTimeShiftInterval("1d")
         .setId("UT");
     UTConfig config = builder.build();
@@ -162,8 +152,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertTrue(json.contains("\"rollupIntervals\":[\"1h\"]"));
     assertTrue(json.contains("\"summaryInterval\":\"1h\""));
     assertTrue(json.contains("\"summaryAggregations\":[\"sum\"]"));
-    assertTrue(json.contains("\"prePadding\":\"30m\""));
-    assertTrue(json.contains("\"postPadding\":\"1h\""));
     assertTrue(json.contains("\"timeShiftInterval\":\"1d\""));
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode root = JSON.getMapper().readTree(json);
@@ -185,8 +173,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     assertEquals("1h", config.getSummaryInterval());
     assertEquals(1, config.getSummaryAggregations().size());
     assertTrue(config.getSummaryAggregations().contains("sum"));
-    assertEquals("30m", config.getPrePadding());
-    assertEquals("1h", config.getPostPadding());
     assertEquals("1d", config.getTimeShiftInterval());
   }
   
@@ -199,10 +185,6 @@ public class TestBaseTimeSeriesSourceQueryConfig {
     static Builder createBuilder() {
       return new Builder();
     }
-
-//    static void cloneBuilder(UTConfig config, Builder builder) {
-//
-//    }
 
     static class Builder extends DefaultTimeSeriesDataSourceConfig.Builder {
       @Override

@@ -188,9 +188,9 @@ public class GroupByNumericArrayIterator
       if (null == downsampleConfig) {
         TemporalAmount temporalAmount = this.result.downstreamResult()
                 .timeSpecification().interval();
-        TimeStamp ts = node.pipelineContext().query().startTime().getCopy();
+        TimeStamp ts = ((GroupByResult) result).dataSourceConfig().startTimestamp().getCopy();
         int intervals = 0;
-        while (ts.compare(Op.LT, node.pipelineContext().query().endTime())) {
+        while (ts.compare(Op.LT, result.dataSourceConfig().endTimestamp())) {
           intervals++;
           ts.add(temporalAmount);
         }

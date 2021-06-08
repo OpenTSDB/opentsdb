@@ -31,6 +31,7 @@ import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
@@ -123,22 +124,7 @@ public class SchemaFactory extends BaseTSDBPlugin
       final QueryPipelineContext context,
       final TimeSeriesDataSourceConfig config,
       final QueryPlanner planner) {
-
-    if (config.hasBeenSetup()) {
-      // all done.
-      return;
-    }
-
-    List<QueryNodeConfig> pushDownNodes = config.getPushDownNodes();
-    for (QueryNodeConfig pushdowns : pushDownNodes) {
-      if (pushdowns instanceof TimeShiftConfig) {
-        return;
-      }
-    }
-
-    if ((config).timeShifts() != null) {
-      DefaultTimeSeriesDataSourceConfig.setupTimeShift(config, planner);
-    }
+    planner.baseSetupGraph(context, config);
   }
 
   @Override
@@ -178,9 +164,6 @@ public class SchemaFactory extends BaseTSDBPlugin
           }
           
         }
-        // TODO compute the padding
-        builder.setPrePadding("1h");
-        builder.setPostPadding("30m");
       }
       
       source_config = (TimeSeriesDataSourceConfig) builder.build();

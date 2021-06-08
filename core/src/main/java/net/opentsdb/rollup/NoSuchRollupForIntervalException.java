@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015 The OpenTSDB Authors.
+// Copyright (C) 2015-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,12 @@ public class NoSuchRollupForIntervalException extends NoSuchElementException {
    */
   public NoSuchRollupForIntervalException(final String interval) {
     super("No rollups configured for the interval: " + interval);
+  }
+
+  public NoSuchRollupForIntervalException(final String interval,
+                                          final RollupConfig rollupConfig) {
+    super("No rollups configured for the interval: " + interval + " for "
+            + rollupConfig);
   }
   
   private static final long serialVersionUID = -8225702079229243161L;

@@ -76,6 +76,16 @@ public class NumericArrayTimeSeries implements TimeSeries {
       addDouble((double) value);
     }
   }
+
+  public void add(final long... values) {
+    for (int i = 0; i < values.length; i++) {
+      if (long_values != null) {
+        addLong(values[i]);
+      } else {
+        addDouble((double) values[i]);
+      }
+    }
+  }
   
   /**
    * Adds a floating point value to the end of the array.
@@ -92,6 +102,21 @@ public class NumericArrayTimeSeries implements TimeSeries {
     }
     
     addDouble(value);
+  }
+
+  public void add(final double... values) {
+    if (long_values != null) {
+      // shift!
+      double_values = new double[long_values.length];
+      for (int i = 0; i < long_values.length; i++) {
+        double_values[i] = (double) long_values[i];
+      }
+      long_values = null;
+    }
+
+    for (int i = 0; i < values.length; i++) {
+      addDouble(values[i]);
+    }
   }
   
   /**

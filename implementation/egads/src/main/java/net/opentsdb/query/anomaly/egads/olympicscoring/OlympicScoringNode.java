@@ -108,7 +108,8 @@ public class OlympicScoringNode extends BaseAnomalyNode {
     properties.setProperty("INTERVAL_UNITS", ds_units.toString());
     if (config.getMode() == ExecutionMode.CONFIG) {
       properties.setProperty("WINDOW_SIZE", Long.toString(
-          context.query().endTime().epoch() - context.query().startTime().epoch()));
+          dataSourceConfig.endTimestamp().epoch() -
+                  dataSourceConfig.startTimestamp().epoch()));
       properties.setProperty("WINDOW_SIZE_UNITS", "SECONDS");
     } else {
       properties.setProperty("WINDOW_SIZE", "1");
@@ -337,7 +338,7 @@ public class OlympicScoringNode extends BaseAnomalyNode {
     final TemporalAmount period = DateTime.parseDuration2(config.getBaselinePeriod());
     
     // advance to the oldest time first
-    final TimeStamp end = context.query().endTime().getCopy();
+    final TimeStamp end = dataSourceConfig.endTimestamp().getCopy();
     for (int i = 0; i < config.getBaselineNumPeriods(); i++) {
       start.subtract(period);
       end.subtract(period);
