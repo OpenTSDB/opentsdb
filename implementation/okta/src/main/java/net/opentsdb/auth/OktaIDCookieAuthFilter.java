@@ -47,6 +47,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -197,6 +198,7 @@ public class OktaIDCookieAuthFilter extends BaseAuthenticationPlugin {
 
     final Cookie cookie = findCookie(request, tsdb.getConfig()
             .getString(ID_COOKIE_KEY));
+    HttpServletRequestWrapper wrapper = null;
     if (cookie == null) {
       String requestedResource = request.getRequestURL().toString();
       if (requestedResource.equals(tsdb.getConfig().getString(CALLBACK_URL_KEY))) {
@@ -220,6 +222,12 @@ public class OktaIDCookieAuthFilter extends BaseAuthenticationPlugin {
         } else {
           final OktaAuthState state = new OktaAuthState(shortId);
           request.setAttribute(AUTH_STATE_KEY, state);
+          wrapper = new HttpServletRequestWrapper((HttpServletRequest) request) {
+            @Override
+            public Principal getUserPrincipal() {
+              return state.getPrincipal();
+            }
+          };
           stats.incrementCounter(VALID_METRIC, tags);
         }
       } catch (Throwable e) {
@@ -233,7 +241,24 @@ public class OktaIDCookieAuthFilter extends BaseAuthenticationPlugin {
       }
     }
 
-    chain.doFilter(servletRequest, servletResponse);
+    chain.doFilter(wrapper != null ? wrapper : servletRequest, servletResponse);
+  }
+
+  @Override
+  public AuthState authenticate(final ServletRequest servletRequest) {
+    final HttpServletRequest request = (HttpServletRequest) servletRequest;
+    final Cookie cookie = findCookie(request, tsdb.getConfig()
+            .getString(ID_COOKIE_KEY));
+    if (cookie == null) {
+      return null;
+    }
+
+    final String shortId = validateIdToken(cookie.getValue(), null);
+    if (shortId == null) {
+      return null;
+    }
+
+    return new OktaAuthState(shortId);
   }
 
   @Override
