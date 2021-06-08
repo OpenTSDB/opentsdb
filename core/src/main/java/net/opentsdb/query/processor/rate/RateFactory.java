@@ -32,13 +32,16 @@ import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
@@ -121,10 +124,39 @@ public class RateFactory extends BaseQueryNodeFactory<RateConfig, Rate> {
             getQueryNodeFactory(DownsampleFactory.TYPE.toLowerCase());
         intervals = downsample_factory.intervals();
       }
+      final Collection<QueryNodeConfig> sources = plan.terminalSourceNodes(config);
+      TimeSeriesDataSourceConfig dataSourceConfig = null;
+      for (final QueryNodeConfig source : sources) {
+        if (!(source instanceof TimeSeriesDataSourceConfig)) {
+          continue;
+        }
+
+        if (dataSourceConfig == null) {
+          dataSourceConfig = (TimeSeriesDataSourceConfig) source;
+        } else {
+          final TimeSeriesDataSourceConfig local =
+                  (TimeSeriesDataSourceConfig) source;
+          if (local.startTimestamp().compare(Op.NE, dataSourceConfig.startTimestamp())) {
+            throw new IllegalStateException("Missmatch between time series source " +
+                    "start times: " + local + " and " + dataSourceConfig + " for node " +
+                    config.getId());
+          }
+          if (local.endTimestamp().compare(Op.NE, dataSourceConfig.endTimestamp())) {
+            throw new IllegalStateException("Missmatch between time series source " +
+                    "end times: " + local + " and " + dataSourceConfig + " for node " +
+                    config.getId());
+          }
+        }
+      }
+      if (dataSourceConfig == null) {
+        throw new IllegalStateException("No data source found for rate node " +
+                config.getId());
+      }
+
       plan.replace(config, config.toBuilder()
           .setFactory(this)
-          .setStartTime(context.query().startTime())
-          .setEndTime(context.query().endTime())
+          .setStartTime(dataSourceConfig.startTimestamp())
+          .setEndTime(dataSourceConfig.endTimestamp())
           .build());
     }
   }

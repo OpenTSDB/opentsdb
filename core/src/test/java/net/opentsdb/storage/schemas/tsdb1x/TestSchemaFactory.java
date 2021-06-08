@@ -123,12 +123,9 @@ public class TestSchemaFactory extends SchemaBase {
     factory.initialize(tsdb, null).join(1);
     factory.newNode(mock(QueryPipelineContext.class), config);
     TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) node.config();
-    assertEquals("1h", new_config.getPrePadding());
-    assertEquals("30m", new_config.getPostPadding());
     assertEquals("1h", new_config.getSummaryInterval());
     assertEquals(1, new_config.getSummaryAggregations().size());
     assertTrue(new_config.getSummaryAggregations().contains("sum"));
-    //assertTrue(new_config.getRollupIntervals().isEmpty());
   }
   
   @Test
@@ -158,8 +155,6 @@ public class TestSchemaFactory extends SchemaBase {
     factory.newNode(mock(QueryPipelineContext.class), config);
 
     TimeSeriesDataSourceConfig new_config = (TimeSeriesDataSourceConfig) node.config();
-    assertEquals("1h", new_config.getPrePadding());
-    assertEquals("30m", new_config.getPostPadding());
     assertEquals("1h", new_config.getSummaryInterval());
     assertEquals(1, new_config.getSummaryAggregations().size());
     assertTrue(new_config.getSummaryAggregations().contains("sum"));
@@ -227,9 +222,7 @@ public class TestSchemaFactory extends SchemaBase {
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
     
-    assertEquals(2, plan.configGraph().nodes().size());
-    QueryNodeConfig node = plan.configNodeForId("m1");
-    assertSame(config, node);
+    assertEquals(3, plan.configGraph().nodes().size());
   }
   
   @Test
@@ -261,11 +254,11 @@ public class TestSchemaFactory extends SchemaBase {
     QueryNode sink = mock(QueryNode.class);
     DefaultQueryPlanner plan = new DefaultQueryPlanner(context, sink);
     plan.plan(null).join();
-    
-    QueryNodeConfig shift = plan.configNodeForId("m1-timeShift");
+
+    QueryNodeConfig shift = plan.configNodeForId("m1_timeShift");
     assertTrue(shift instanceof TimeShiftConfig);
 
-    assertEquals(3, plan.configGraph().nodes().size());
+    assertEquals(4, plan.configGraph().nodes().size());
     QueryNodeConfig node = plan.configNodeForId("m1");
     assertTrue(plan.configGraph().hasEdgeConnecting(shift, node));
   }

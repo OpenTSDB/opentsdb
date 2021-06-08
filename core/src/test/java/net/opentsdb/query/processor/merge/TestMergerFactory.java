@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -114,6 +115,7 @@ public class TestMergerFactory {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addInterpolatorConfig(summary_config)
+        .setMode(MergeMode.HA)
         .setDataSource("m1")
         .setId("Test")
         .build();

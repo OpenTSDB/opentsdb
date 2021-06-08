@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.Scanner;
@@ -122,12 +123,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .build();
     when(context.query()).thenReturn(query);
     
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setId("m1")
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .build();
     
     when(meta_schema.runQuery(any(QueryPipelineContext.class), 
@@ -246,8 +242,8 @@ public class TestTsdb1xQueryNode extends UTBase {
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
         .addRollupInterval("30m")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
+//        .setPrePadding("1h")
+//        .setPostPadding("1h")
         .setId("m1")
         .build();
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
@@ -402,8 +398,8 @@ public class TestTsdb1xQueryNode extends UTBase {
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
         .addRollupInterval("30m")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
+//        .setPrePadding("1h")
+//        .setPostPadding("1h")
         .setId("m1")
         .build();
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
@@ -838,10 +834,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
         .setId("m1")
         .build();
@@ -917,10 +910,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
         .setId("m1")
         .build();
@@ -1086,5 +1076,19 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(mget_pool.claim()).thenReturn(executor);
     when(tsdb.getRegistry().getObjectPool(Tsdb1xMultiGetPool.TYPE))
       .thenReturn(mget_pool);
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseConfig() {
+    return baseConfig(START_TS, END_TS);
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseConfig(int start, int end) {
+    return DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric(METRIC_STRING)
+                    .build())
+            .setStartTimeStamp(new SecondTimeStamp(start))
+            .setEndTimeStamp(new SecondTimeStamp(end))
+            .setId("m1");
   }
 }

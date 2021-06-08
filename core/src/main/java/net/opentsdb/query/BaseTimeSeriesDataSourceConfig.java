@@ -98,16 +98,13 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   /** An optional list of rollup intervals. */
   private final List<String> rollup_intervals;
 
-  /** Optional pre-query padding. */
-  private final String pre_padding;
-
-  /** Optional post-query padding. */
-  private final String post_padding;
-
   /** Optional offset interval. */
   private final String interval;
 
-  /** Map of dataSource() IDs to amounts. */
+  /** Optional data source override. */
+  private final String dataSource;
+
+  /** TODO - fixup and doc. */
   protected final Pair<Boolean, TemporalAmount> amounts;
 
   /** Whether or not this node has been setup already. */
@@ -131,8 +128,14 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     if (result_ids.isEmpty()) {
       // this could be a Collections.emptyList() which is immutable. So  build
       // a new one.
-      result_ids = Lists.newArrayList(new DefaultQueryResultId(id, id));
+      if (!Strings.isNullOrEmpty(builder.dataSource)) {
+        result_ids = Lists.newArrayList(
+                new DefaultQueryResultId(id, builder.dataSource));
+      } else {
+        result_ids = Lists.newArrayList(new DefaultQueryResultId(id, id));
+      }
     }
+    dataSource = builder.dataSource;
     source_id = builder.sourceId;
     types = builder.types;
     namespace = builder.namespace;
@@ -149,14 +152,11 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
         Collections.emptyList() : builder.summary_aggregations;
     rollup_intervals = builder.rollup_intervals == null ?
         Collections.emptyList() : builder.rollup_intervals;
-    pre_padding = builder.pre_padding;
-    post_padding = builder.post_padding;
     has_been_setup = builder.has_been_setup;
     start_override = builder.start_override;
     end_override = builder.end_override;
     
-    if (!Strings.isNullOrEmpty(builder.interval) && 
-        builder.amounts == null) {
+    if (!Strings.isNullOrEmpty(builder.interval)) {
       DateTime.parseDuration(builder.interval);
       interval = builder.interval;
 
@@ -167,10 +167,9 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       final TemporalAmount amount = DateTime.parseDuration2(
           Integer.toString(count) + units);
       amounts = new Pair<Boolean, TemporalAmount>(true, amount);
-
     } else {
-      interval = builder.interval;
-      amounts = builder.amounts;
+      interval = null;
+      amounts = null;
     }
   }
 
@@ -266,16 +265,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   }
 
   @Override
-  public String getPrePadding() {
-    return pre_padding;
-  }
-
-  @Override
-  public String getPostPadding() {
-    return post_padding;
-  }
-
-  @Override
   public String getTimeShiftInterval() {
     return interval;
   }
@@ -291,23 +280,28 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
   }
 
   @Override
-  public TimeStamp startOverrideTimestamp() {
+  public TimeStamp startTimestamp() {
     return start_override;
   }
 
   @Override
   public long getStartOverrideMs() {
-    return start_override != null ? startOverrideTimestamp().msEpoch() : 0;
+    return start_override != null ? startTimestamp().msEpoch() : 0;
   }
 
   @Override
-  public TimeStamp endOverrideTimestamp() {
+  public TimeStamp endTimestamp() {
     return end_override;
   }
 
   @Override
   public long getEndOverrideMs() {
     return end_override != null ? end_override.msEpoch() : 0;
+  }
+
+  @Override
+  public String getDataSource() {
+    return dataSource;
   }
 
   @Override
@@ -339,9 +333,7 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
             && Objects.equal(metric, tsconfig.getMetric())
             && Objects.equal(filter, tsconfig.getFilter())
             && Objects.equal(fetch_last, tsconfig.getFetchLast())
-            && Objects.equal(interval, tsconfig.getTimeShiftInterval())
-            && Objects.equal(start_override, tsconfig.startOverrideTimestamp())
-            && Objects.equal(end_override, tsconfig.endOverrideTimestamp());
+            && Objects.equal(interval, tsconfig.getTimeShiftInterval());
 
     if (!result) {
       return false;
@@ -421,16 +413,14 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
             config.getRollupIntervals() == null || config.getSummaryAggregations().isEmpty()
                 ? null
                 : Lists.newArrayList(config.getSummaryAggregations()))
-        .setPrePadding(config.getPrePadding())
-        .setPostPadding(config.getPostPadding())
         .setPushDownNodes(
             config.getPushDownNodes() == null || config.getPushDownNodes().isEmpty()
                 ? null
                 : Lists.newArrayList(config.getPushDownNodes()))
         .setTimeShiftInterval(config.getTimeShiftInterval())
-        .setTimeShifts(config.timeShifts())
-        .setStartOverrideTimeStamp(config.startOverrideTimestamp())
-        .setEndOverrideTimeStamp(config.endOverrideTimestamp())
+        .setDataSource(config.getDataSource())
+        .setStartTimeStamp(config.startTimestamp())
+        .setEndTimeStamp(config.endTimestamp())
         .setSources(config.getSources() != null ? 
             Lists.newArrayList(config.getSources()) : null)
         .setResultIds(config.resultIds() != null ? 
@@ -586,16 +576,6 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
       }
     }
 
-    n = node.get("prePadding");
-    if (n != null && !n.isNull()) {
-      builder.setPrePadding(n.asText());
-    }
-
-    n = node.get("postPadding");
-    if (n != null && !n.isNull()) {
-      builder.setPostPadding(n.asText());
-    }
-
     n = node.get("timeShiftInterval");
     if (n != null && !n.isNull()) {
       builder.setTimeShiftInterval(n.asText());
@@ -604,12 +584,17 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     // TODO - millis no good! May need time zone too!
     n = node.get("startOverrideMs");
     if (n != null && !n.isNull()) {
-      builder.setStartOverrideTimeStamp(new MillisecondTimeStamp(n.asLong()));
+      builder.setStartTimeStamp(new MillisecondTimeStamp(n.asLong()));
     }
 
     n = node.get("endOverrideMs");
     if (n != null && !n.isNull()) {
-      builder.setEndOverrideTimeStamp(new MillisecondTimeStamp(n.asLong()));
+      builder.setEndTimeStamp(new MillisecondTimeStamp(n.asLong()));
+    }
+
+    n = node.get("dataSource");
+    if (n != null && !n.isNull()) {
+      builder.setDataSource(n.asText());
     }
   }
 
@@ -641,14 +626,13 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     protected String summary_interval;
     protected List<String> summary_aggregations;
     protected List<String> rollup_intervals;
-    protected String pre_padding;
-    protected String post_padding;
     @JsonProperty
     protected String interval;
     protected Pair<Boolean, TemporalAmount> amounts;
     protected boolean has_been_setup;
     protected TimeStamp start_override;
     protected TimeStamp end_override;
+    protected String dataSource;
 
     protected Builder() {
       setType(TimeSeriesDataSourceConfig.DEFAULT);
@@ -662,6 +646,36 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     @Override
     public String sourceId() {
       return sourceId;
+    }
+
+    @Override
+    public TimeStamp startOverrideTimeStamp() {
+      return start_override;
+    }
+
+    @Override
+    public TimeStamp endOverrideTimeStamp() {
+      return end_override;
+    }
+
+    @Override
+    public Pair<Boolean, TemporalAmount> timeShifts() {
+      return amounts;
+    }
+
+    @Override
+    public List<QueryNodeConfig> pushDowns() {
+      return push_down_nodes;
+    }
+
+    @Override
+    public List<String> types() {
+      return types;
+    }
+
+    @Override
+    public String dataSource() {
+      return dataSource;
     }
 
     @Override
@@ -779,27 +793,19 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     }
 
     @Override
-    public B setPrePadding(final String pre_padding) {
-      this.pre_padding = pre_padding;
-      return self();
-    }
-
-    @Override
-    public B setPostPadding(final String post_padding) {
-      this.post_padding = post_padding;
-      return self();
-    }
-
-    @Override
     public B setTimeShiftInterval(final String interval) {
-      this.interval = interval;
-      return self();
-    }
+      if (!Strings.isNullOrEmpty(interval)) {
+        this.interval = interval;
+        DateTime.parseDuration(interval);
 
-    @Override
-    public B setTimeShifts(
-        final Pair<Boolean, TemporalAmount> amounts) {
-      this.amounts = amounts;
+        // TODO - must be easier/cleaner ways.
+        // TODO - handle calendaring
+        final int count = DateTime.getDurationInterval(interval);
+        final String units = DateTime.getDurationUnits(interval);
+        final TemporalAmount amount = DateTime.parseDuration2(
+                Integer.toString(count) + units);
+        amounts = new Pair<Boolean, TemporalAmount>(true, amount);
+      }
       return self();
     }
 
@@ -810,16 +816,22 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     }
 
     @Override
-    public B setStartOverrideTimeStamp(final TimeStamp start_override) {
-      this.start_override = start_override != null ? start_override.getCopy()
+    public B setStartTimeStamp(final TimeStamp start) {
+      this.start_override = start != null ? start.getCopy()
           : null;
       return self();
     }
 
     @Override
-    public B setEndOverrideTimeStamp(final TimeStamp end_override) {
-      this.end_override = end_override != null ? end_override.getCopy()
+    public B setEndTimeStamp(final TimeStamp end) {
+      this.end_override = end != null ? end.getCopy()
           : null;
+      return self();
+    }
+
+    @Override
+    public B setDataSource(final String dataSource) {
+      this.dataSource = dataSource;
       return self();
     }
   }

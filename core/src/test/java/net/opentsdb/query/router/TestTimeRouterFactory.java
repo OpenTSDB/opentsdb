@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,417 +17,158 @@ package net.opentsdb.query.router;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
-import java.util.List;
-
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.plan.DefaultQueryPlanner;
-import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.processor.downsample.DownsampleConfig;
-import net.opentsdb.query.processor.groupby.GroupByConfig;
-import net.opentsdb.query.processor.merge.Merger;
-import net.opentsdb.query.router.TimeRouterConfigEntry.MatchType;
-import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.stats.QueryStats;
-import net.opentsdb.stats.Span;
+import org.junit.Before;
+import org.junit.Test;
 
-public class TestTimeRouterFactory {
+public class TestTimeRouterFactory extends BaseTestTimeRouterFactorySplit {
 
-  private static MockTSDB TSDB;
-  private static TimeRouterFactory FACTORY;
-  private static TimeSeriesDataSource SRC_MOCK;
-
-  private QueryPipelineContext context;
-  private QueryNode ctx_node;
-  
-  @BeforeClass
-  public static void beforeClass() throws Exception {
-    TSDB = new MockTSDB();
-    TSDB.registry = spy(new DefaultRegistry(TSDB));
-    SRC_MOCK = mock(TimeSeriesDataSource.class);
-    
-    ((DefaultRegistry) TSDB.registry).initialize(true).join(60_000);
-    MockFactory s1 = new MockFactory("s1", Lists.newArrayList());
-    MockFactory s2 = new MockFactory("s2", Lists.newArrayList(
-        DownsampleConfig.class));
-    MockFactory s3 = new MockFactory("s3", Lists.newArrayList(
-        DownsampleConfig.class, GroupByConfig.class));
-    MockFactory s4 = new MockFactory("s4", Lists.newArrayList(
-        DownsampleConfig.class, GroupByConfig.class));
-    TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s1", s1);
-    TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s2", s2);
-    TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s3", s3);
-    TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, "s4", s4);
-    
-    FACTORY = new TimeRouterFactory();
-    FACTORY.registerConfigs(TSDB);
-    FACTORY.initialize(TSDB, null).join(250);
-    TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, null, FACTORY);
-    
-    QueryNodeConfig config = mock(QueryNodeConfig.class);
-    when(config.getId()).thenReturn("mock");
-    when(SRC_MOCK.config()).thenReturn(config);
-  }
-  
   @Before
-  public void before() throws Exception {
-    context = mock(QueryPipelineContext.class);
-    ctx_node = mock(QueryNode.class);
-    
-    QueryContext ctx = mock(QueryContext.class);
-    when(ctx.stats()).thenReturn(mock(QueryStats.class));
-    when(context.tsdb()).thenReturn(TSDB);
-    when(context.queryContext()).thenReturn(ctx);
-    when(context.downstreamSources(any(QueryNode.class)))
-      .thenReturn(Lists.newArrayList(SRC_MOCK));
+  public void beforeLocal() {
+    TSDB.config.override(FACTORY.getConfigKey(TimeRouterFactory.SPLIT_KEY), false);
   }
-  
+
   @Test
-  public void setupSingleSource() throws Exception {
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setStart("1h-ago")
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.if.in")
-                .build())
-            .setId("m1")
-            .build())
-        .build();
-    
-    TimeRouterConfigEntry entry = mock(TimeRouterConfigEntry.class);
-    when(entry.match(any(QueryPipelineContext.class), 
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.FULL);
-    when(entry.getSourceId()).thenReturn("s1");
-    when(context.query()).thenReturn(query);
-    
-    FACTORY.config = Lists.newArrayList(entry);
-    
-    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
-    planner.plan(null).join(250);
-    
-    assertEquals(2, planner.graph().nodes().size());
-    QueryNode node = planner.nodeForId("m1");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in", 
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s1", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-    
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node, 
-        planner.nodeForId("m1")));
+  public void matchFirstFuture() throws Exception {
+    setupQuery(baseMinus("15m"), basePlus("15m"));
+    setCurrentQuery3FixOverlappingSources();
+    run();
+
+    //assertEquals(2, planner.graph().nodes().size());
+    assertNodesAndEdges(2, 1);
+    assertTimestamps(new Object[] { "m1", baseMinus("15m"), basePlus("15m") });
+    assertEdgeToContextNode("m1");
+    assertSources("m1", "s1");
+    assertResultIds("m1", "m1", "m1");
+    assertPushdowns("m1", 0);
   }
-  
+
   @Test
-  public void setupSingleSourceNotSupported() throws Exception {
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setStart("1h-ago")
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.if.in")
-                .build())
-            .setId("m1")
-            .build())
-        .build();
+  public void matchFirstTip() throws Exception {
+    setupQuery(baseMinus("15m"), BASE_TS);
+    setCurrentQuery3FixOverlappingSources();
+    run();
 
-    TimeRouterConfigEntry entry = mock(TimeRouterConfigEntry.class);
-    when(entry.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.NONE);
-    when(context.query()).thenReturn(query);
+    assertNodesAndEdges(2, 1);
+    assertTimestamps(new Object[] { "m1", baseMinus("15m"), BASE_TS });
+    assertEdgeToContextNode("m1");
+    assertSources("m1", "s1");
+    assertResultIds("m1", "m1", "m1");
+    assertPushdowns("m1", 0);
+  }
 
-    FACTORY.config = Lists.newArrayList(entry);
+  @Test
+  public void matchFirstStartOverlap() throws Exception {
+    setupQuery(baseMinus("2h"), baseMinus("2h", Op.MINUS, "15m"));
+    setCurrentQuery3FixOverlappingSources();
+    run();
 
-    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
+    assertNodesAndEdges(2, 1);
+    assertTimestamps(new Object[] { "m1", baseMinus("2h"),
+            baseMinus("2h", Op.MINUS, "15m")});
+    assertEdgeToContextNode("m1");
+    assertSources("m1", "s1");
+    assertResultIds("m1", "m1", "m1");
+    assertPushdowns("m1", 0);
+  }
+
+  @Test
+  public void matchSecondEndOverlap() throws Exception {
+    setupQuery(baseMinus("3h"), baseMinus("2h", Op.MINUS, "15m"));
+    setCurrentQuery3FixOverlappingSources();
+    run();
+
+    assertNodesAndEdges(2, 1);
+    assertTimestamps(new Object[] { "m1", baseMinus("3h"),
+            baseMinus("2h", Op.MINUS, "15m")});
+    assertEdgeToContextNode("m1");
+    assertSources("m1", "s2");
+    assertResultIds("m1", "m1", "m1");
+    assertPushdowns("m1", 0);
+  }
+
+  @Test
+  public void matchThirdStartEndOverlap() throws Exception {
+    setupQuery(baseMinus("48h"), baseMinus("24h", Op.MINUS, "15m"));
+    setCurrentQuery3FixOverlappingSources();
+    run();
+
+    assertNodesAndEdges(2, 1);
+    assertTimestamps(new Object[] { "m1", baseMinus("48h"),
+            baseMinus("24h", Op.MINUS, "15m")});
+    assertEdgeToContextNode("m1");
+    assertSources("m1", "s3");
+    assertResultIds("m1", "m1", "m1");
+    assertPushdowns("m1", 0);
+  }
+
+  @Test
+  public void overLappingTimeShift() throws Exception {
+    setupQuery(baseMinus("15m"), basePlus("15m"), null, "15m");
+    setCurrentQuery3FixOverlappingSources();
+    run();
+
+    assertNodesAndEdges(2, 1);
+    assertTimestamps(new Object[] { "m1", baseMinus("15m"), basePlus("15m") });
+    assertEdgeToContextNode("m1");
+    assertSources("m1", "s1");
+    assertResultIds("m1", "m1", "m1");
+    assertPushdowns("m1", 0);
+  }
+
+  @Test
+  public void overLappingTimeShiftSetupGraph() throws Exception {
+    setupQuery(baseMinus("15m"), basePlus("15m"), null, "15m");
+    setCurrentQuery3FixOverlappingSources();
+    S1.setupGraph = true;
+    run();
+
+    assertNodesAndEdges(3, 2);
+    assertTimestamps(new Object[] { "m1", baseMinus("15m"), basePlus("15m") });
+    assertEdgeToContextNode("m1_timeShift");
+    assertEdge("m1_timeShift", "m1");
+    assertSources("m1", "s1");
+    assertResultIds("m1", "m1", "m1");
+    assertResultIds("m1_timeShift", "m1_timeShift", "m1");
+    assertPushdowns("m1", 0);
+  }
+
+  @Test
+  public void overLappingBeyondStart() throws Exception {
+    setupQuery(baseMinus("2w"), baseMinus("24h", Op.MINUS, "15m"));
+    setCurrentQuery3FixOverlappingSources();
     try {
-      planner.plan(null);
+      run();
       fail("Expected QueryExecutionException");
     } catch (QueryExecutionException e) { }
   }
 
   @Test
-  public void setupMatchSecond() throws Exception {
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setStart("1h-ago")
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.if.in")
-                .build())
-            .setId("m1")
-            .build())
-        .build();
-
-    TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.NONE);
-    when(e1.getSourceId()).thenReturn("s1");
-
-    TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.FULL);
-    when(e2.getSourceId()).thenReturn("s2");
-    when(context.query()).thenReturn(query);
-
-    FACTORY.config = Lists.newArrayList(e1, e2);
-
-    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
-    planner.plan(null).join(250);
-
-    assertEquals(2, planner.graph().nodes().size());
-    QueryNode node = planner.nodeForId("m1");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in",
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-        planner.nodeForId("m1")));
+  public void overLappingTimeShiftTooEarly() throws Exception {
+    setupQuery(baseMinus("15m"), basePlus("15m"), null, "1n");
+    setCurrentQuery3FixOverlappingSources();
+    try {
+      run();
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
   }
 
   @Test
-  public void setupMatchSecondPartial() throws Exception {
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setStart("1h-ago")
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.if.in")
-                .build())
-            .setId("m1")
-            .build())
-        .build();
+  public void zeroStartTimeShift() throws Exception {
+    setupQuery(baseMinus("15m"), basePlus("15m"), null, "1n");
+    setEntryConfigs(
+            mockEntry("2h-ago", null, BASE_TS, S1),
+            mockEntry(Integer.toString(baseMinus("24h")), "1h-ago", BASE_TS, S2),
+            mockEntry(null, Integer.toString(baseMinus("22h")), BASE_TS, S3)
+    );
+    run();
 
-    TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.NONE);
-    when(e1.getSourceId()).thenReturn("s1");
-
-    TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.PARTIAL);
-    when(e2.getSourceId()).thenReturn("s2");
-    when(context.query()).thenReturn(query);
-
-    FACTORY.config = Lists.newArrayList(e1, e2);
-
-    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
-    planner.plan(null).join(250);
-
-    assertEquals(2, planner.graph().nodes().size());
-    QueryNode node = planner.nodeForId("m1");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in",
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-        planner.nodeForId("m1")));
-  }
-
-  @Test
-  public void setupMatchTwoPartialsThenNone() throws Exception {
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setStart("1h-ago")
-        .setMode(QueryMode.SINGLE)
-        .addExecutionGraphNode(DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric("sys.if.in")
-                .build())
-            .setId("m1")
-            .build())
-        .build();
-
-    TimeRouterConfigEntry e1 = mock(TimeRouterConfigEntry.class);
-    when(e1.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.NONE);
-    when(e1.getSourceId()).thenReturn("s1");
-
-    TimeRouterConfigEntry e2 = mock(TimeRouterConfigEntry.class);
-    when(e2.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.PARTIAL);
-    when(e2.getSourceId()).thenReturn("s2");
-
-    TimeRouterConfigEntry e3 = mock(TimeRouterConfigEntry.class);
-    when(e3.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.PARTIAL);
-    when(e3.getSourceId()).thenReturn("s3");
-
-    TimeRouterConfigEntry e4 = mock(TimeRouterConfigEntry.class);
-    when(e4.match(any(QueryPipelineContext.class),
-          any(TimeSeriesDataSourceConfig.class), any(TSDB.class), anyInt()))
-      .thenReturn(MatchType.NONE);
-    when(context.query()).thenReturn(query);
-
-    FACTORY.config = Lists.newArrayList(e1, e2, e3, e4);
-
-    DefaultQueryPlanner planner = new DefaultQueryPlanner(context, ctx_node);
-    planner.plan(null).join(250);
-
-    assertEquals(4, planner.graph().nodes().size());
-    QueryNode node = planner.nodeForId("m1");
-    assertTrue(node instanceof Merger);
-
-    node = planner.nodeForId("m1_s2");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in",
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s2", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-
-    node = planner.nodeForId("m1_s3");
-    assertTrue(node instanceof TimeSeriesDataSource);
-    assertEquals("sys.if.in",
-        ((TimeSeriesDataSourceConfig) node.config()).getMetric().getMetric());
-    assertEquals("s3", ((TimeSeriesDataSourceConfig) node.config()).getSourceId());
-
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
-        planner.nodeForId("m1_s2")));
-    assertTrue(planner.graph().hasEdgeConnecting(planner.nodeForId("m1"),
-        planner.nodeForId("m1_s3")));
-    assertTrue(planner.graph().hasEdgeConnecting(ctx_node,
-        planner.nodeForId("m1")));
-  }
-  
-  static class MockFactory extends BaseTSDBPlugin implements 
-      TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig ,TimeSeriesDataSource> {
-
-    final List<Class<? extends QueryNodeConfig>> pushdowns;
-
-    MockFactory(final String id, final List<Class<? extends QueryNodeConfig>> pushdowns) {
-      this.id = id;
-      this.pushdowns = pushdowns;
-    }
-    
-    @Override
-    public TimeSeriesDataSourceConfig parseConfig(ObjectMapper mapper,
-        net.opentsdb.core.TSDB tsdb, JsonNode node) {
-      return DefaultTimeSeriesDataSourceConfig.parseConfig(mapper, tsdb, node);
-    }
-
-    @Override
-    public boolean supportsQuery(final QueryPipelineContext context, 
-                                 final TimeSeriesDataSourceConfig config) {
-      return true;
-    }
-    
-    @Override
-    public void setupGraph(QueryPipelineContext context, TimeSeriesDataSourceConfig config,
-        QueryPlanner planner) {
-      // no-op
-    }
-
-    @Override
-    public TimeSeriesDataSource newNode(QueryPipelineContext context) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public TimeSeriesDataSource newNode(QueryPipelineContext context,
-                             TimeSeriesDataSourceConfig config) {
-      TimeSeriesDataSource node = mock(TimeSeriesDataSource.class);
-      when(node.config()).thenReturn(config);
-      when(node.initialize(null)).thenAnswer(new Answer<Deferred<Void>>() {
-        @Override
-        public Deferred<Void> answer(InvocationOnMock invocation)
-            throws Throwable {
-          return Deferred.<Void>fromResult(null);
-        }
-      });
-      when(node.toString()).thenReturn("Mock: " + config.getId());
-      return node;
-    }
-
-    @Override
-    public TypeToken<? extends TimeSeriesId> idType() {
-      return Const.TS_STRING_ID;
-    }
-
-    @Override
-    public boolean supportsPushdown(
-        Class<? extends QueryNodeConfig> operation) {
-      return pushdowns.contains(operation);
-    }
-
-    @Override
-    public Deferred<TimeSeriesStringId> resolveByteId(TimeSeriesByteId id,
-        Span span) {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public Deferred<List<byte[]>> encodeJoinKeys(List<String> join_keys,
-        Span span) {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public Deferred<List<byte[]>> encodeJoinMetrics(List<String> join_metrics,
-        Span span) {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public String type() {
-      return "MockUTFactory";
-    }
-
-    @Override
-    public String version() {
-      return "3.0.0";
-    }
-
-    @Override
-    public RollupConfig rollupConfig() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-    
+    assertNodesAndEdges(2, 1);
+    assertTimestamps(new Object[] { "m1", baseMinus("15m"), basePlus("15m") });
+    assertEdgeToContextNode("m1");
+    assertSources("m1", "s3");
+    assertResultIds("m1", "m1", "m1");
+    assertPushdowns("m1", 0);
   }
 }

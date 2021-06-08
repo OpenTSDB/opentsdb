@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2018-2020  The OpenTSDB Authors.
+//Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -24,33 +24,25 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
-import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.MockTSDSFactory;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.common.Const;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryNodeConfig;
@@ -71,20 +63,21 @@ import net.opentsdb.query.processor.merge.MergerConfig;
 public class TestExpressionFactory {
 
   private static MockTSDB TSDB;
-  private static TimeSeriesDataSourceFactory STORE_FACTORY;
+  private static MockTSDSFactory STORE_FACTORY;
   protected static NumericInterpolatorConfig NUMERIC_CONFIG;
   protected static JoinConfig JOIN_CONFIG;
   protected static QueryNode SINK;
   private static List<TimeSeriesDataSource> STORE_NODES;
-  private static TimeSeriesDataSourceFactory S1;
-  private static TimeSeriesDataSourceFactory S2;
+  private static MockTSDSFactory S1;
+  private static MockTSDSFactory S2;
   
   private QueryPipelineContext context;
   
   @BeforeClass
   public static void beforeClass() throws Exception {
     TSDB = new MockTSDB();
-    STORE_FACTORY = mock(TimeSeriesDataSourceFactory.class);
+    STORE_FACTORY = new MockTSDSFactory("Default");
+    STORE_FACTORY.setupGraph = true;
     NUMERIC_CONFIG = 
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
       .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -98,8 +91,11 @@ public class TestExpressionFactory {
     
     SINK = mock(QueryNode.class);
     STORE_NODES = Lists.newArrayList();
-    S1 = mock(TimeSeriesDataSourceFactory.class);
-    S2 = mock(TimeSeriesDataSourceFactory.class);
+    STORE_FACTORY.store_nodes = STORE_NODES;
+    S1 = new MockTSDSFactory("s1");
+    S1.setupGraph = true;
+    S2 = new MockTSDSFactory("s2");
+    S2.setupGraph = true;
     
     TSDB.registry = new DefaultRegistry(TSDB);
     ((DefaultRegistry) TSDB.registry).initialize(true);
@@ -109,83 +105,7 @@ public class TestExpressionFactory {
         TimeSeriesDataSourceFactory.class, "s1", (TSDBPlugin) S1);
     ((DefaultRegistry) TSDB.registry).registerPlugin(
         TimeSeriesDataSourceFactory.class, "s2", (TSDBPlugin) S2);
-    
-    when(S1.newNode(any(QueryPipelineContext.class), 
-        any(QueryNodeConfig.class)))
-      .thenAnswer(new Answer<QueryNode>() {
-        @Override
-        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          final TimeSeriesDataSource node = mock(TimeSeriesDataSource.class);
-          when(node.initialize(null)).thenReturn(Deferred.fromResult(null));
-          when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[1]);
-          STORE_NODES.add(node);
-          return node;
-        }
-      });
-    when(S2.newNode(any(QueryPipelineContext.class), 
-        any(QueryNodeConfig.class)))
-      .thenAnswer(new Answer<QueryNode>() {
-        @Override
-        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          final TimeSeriesDataSource node = mock(TimeSeriesDataSource.class);
-          when(node.initialize(null)).thenReturn(Deferred.fromResult(null));
-          when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[1]);
-          STORE_NODES.add(node);
-          return node;
-        }
-      });
-    when(STORE_FACTORY.newNode(any(QueryPipelineContext.class), 
-        any(QueryNodeConfig.class)))
-      .thenAnswer(new Answer<QueryNode>() {
-        @Override
-        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
-          final TimeSeriesDataSource node = mock(TimeSeriesDataSource.class);
-          when(node.initialize(null)).thenReturn(Deferred.fromResult(null));
-          when(node.config()).thenReturn((QueryNodeConfig) invocation.getArguments()[1]);
-          STORE_NODES.add(node);
-          return node;
-        }
-      });
-    when(STORE_FACTORY.idType()).thenAnswer(new Answer<TypeToken<? extends TimeSeriesId>>() {
-      @Override
-      public TypeToken<? extends TimeSeriesId> answer(
-          InvocationOnMock invocation) throws Throwable {
-        return Const.TS_STRING_ID;
-      }
-    });
-    when(S1.idType()).thenAnswer(new Answer<TypeToken<? extends TimeSeriesId>>() {
-      @Override
-      public TypeToken<? extends TimeSeriesId> answer(
-          InvocationOnMock invocation) throws Throwable {
-        return Const.TS_BYTE_ID;
-      }
-    });
-    when(S2.idType()).thenAnswer(new Answer<TypeToken<? extends TimeSeriesId>>() {
-      @Override
-      public TypeToken<? extends TimeSeriesId> answer(
-          InvocationOnMock invocation) throws Throwable {
-        return Const.TS_BYTE_ID;
-      }
-    });
-    when(S1.id()).thenReturn("s1");
-    when(S2.id()).thenReturn("s2");
-    
-    when(STORE_FACTORY.parseConfig(any(ObjectMapper.class), any(TSDB.class), any(JsonNode.class)))
-    .thenAnswer(new Answer<QueryNodeConfig>() {
-      @Override
-      public QueryNodeConfig answer(InvocationOnMock invocation)
-          throws Throwable {
-        DefaultTimeSeriesDataSourceConfig.Builder builder = DefaultTimeSeriesDataSourceConfig.newBuilder();
-        
-        DefaultTimeSeriesDataSourceConfig.parseConfig
-            ((ObjectMapper) invocation.getArguments()[0], 
-                invocation.getArgumentAt(1, TSDB.class), 
-                (JsonNode) invocation.getArguments()[2],
-                (BaseTimeSeriesDataSourceConfig.Builder) builder);
-        return builder.build();
-      }
-    });
-    
+
     QueryNodeConfig sink_config = mock(QueryNodeConfig.class);
     when(sink_config.getId()).thenReturn("SINK");
     when(SINK.config()).thenReturn(sink_config);
@@ -198,8 +118,6 @@ public class TestExpressionFactory {
     when(context.queryContext()).thenReturn(mock(QueryContext.class));
     
     STORE_NODES.clear();
-    when(STORE_FACTORY.supportsPushdown(any(Class.class)))
-      .thenReturn(false);
   }
   
   @Test
@@ -729,6 +647,8 @@ public class TestExpressionFactory {
           .setDataSource("m1")
           .setId("m1")
           .addSource("ha_m1")
+          .setMode(MergeMode.HA)
+          .setSortedDataSources(Lists.newArrayList("m1"))
           .build(),
         DownsampleConfig.newBuilder()
           .setAggregator("sum")
@@ -754,6 +674,8 @@ public class TestExpressionFactory {
         .build();
     
     when(context.query()).thenReturn(query);
+    when(context.downstreamQueryResultIds(any(QueryNode.class)))
+            .thenReturn(Lists.newArrayList(new DefaultQueryResultId("m1", "m1")));
     
     DefaultQueryPlanner planner = 
         new DefaultQueryPlanner(context, SINK);

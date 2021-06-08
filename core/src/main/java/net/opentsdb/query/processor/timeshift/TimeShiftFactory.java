@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019 The OpenTSDB Authors.
+// Copyright (C) 2019-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
@@ -46,13 +45,16 @@ import org.slf4j.LoggerFactory;
  * <b>NOTE:</b> This isn't meant to be used by an end-user query, rather the
  * TimeSeriesDataSourceConfig nodes should instantiate this in the graph when
  * it's needed.
- * 
+ *
+ * <b>NOTE:</b> Shifts are funny. They have to appear in the graph immediately
+ * after the data source because other nodes will use the data source timestamps
+ * without accounting for the shift. THEREFORE the shift <b>MUST</b> be added by
+ * the data source at graph setup and NOT be pushed down (unless it really wants to).
  * @since 3.0
  */
 public class TimeShiftFactory extends BaseQueryNodeFactory<TimeShiftConfig, TimeShift> {
   public static final String TYPE = "Timeshift";
   private static final Logger LOG = LoggerFactory.getLogger(TimeShiftFactory.class);
-
 
   public TimeShiftFactory() {
     super();

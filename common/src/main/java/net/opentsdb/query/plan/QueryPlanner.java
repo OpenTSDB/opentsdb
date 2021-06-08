@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -123,4 +124,33 @@ public interface QueryPlanner {
    */
   public String getMetricForDataSource(final QueryNodeConfig node,
                                        final String data_source_id);
+
+  /**
+   * Walks up the graph from the given node and computes any adjustements the
+   * source needs to make to satisfy manipulations upstream.
+   * @param config The non-null config to walk up from.
+   * @return An optional time adjustment object. If no adjustments are needed
+   * the result is a null.
+   */
+  public TimeAdjustments getAdjustments(final TimeSeriesDataSourceConfig config);
+
+  /**
+   * The base implementation for time series sources to setup their node. It will
+   * walk up the graph for time adjustments and set the start and end timestamps
+   * of the config.
+   * @param context The non-null context the config belongs to.
+   * @param config The non-null config to update.
+   */
+  public void baseSetupGraph(final QueryPipelineContext context,
+                             final TimeSeriesDataSourceConfig config);
+
+  /**
+   * A class holding various time adjustments for use by a TimeSeriesDataSourceConfig.
+   */
+  public class TimeAdjustments {
+    public String downsampleInterval;
+    public String windowInterval;
+    public int previousIntervals;
+  }
+
 }

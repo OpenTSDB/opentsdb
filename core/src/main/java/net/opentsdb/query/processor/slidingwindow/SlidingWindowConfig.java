@@ -30,6 +30,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfigOptions;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -95,8 +96,7 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig<SlidingWindowConfig
 
   @Override
   public boolean pushDown() {
-    // TODO Auto-generated method stub
-    return false;
+    return true;
   }
   
   @Override
@@ -105,13 +105,23 @@ public class SlidingWindowConfig extends BaseQueryNodeConfig<SlidingWindowConfig
   }
 
   @Override
+  public <T> T nodeOption(final QueryNodeConfigOptions option) {
+    switch (option) {
+      case PADDING_WINDOW:
+        return (T) window_size;
+      default:
+        return null;
+    }
+  }
+
+  @Override
   public Builder toBuilder() {
-    return new Builder()
+    SlidingWindowConfig.Builder builder = new Builder()
         .setAggregator(aggregator)
         .setWindowSize(window_size)
-        .setInfectiousNan(infectious_nan)
-        .setSources(Lists.newArrayList(sources))
-        .setId(id);
+        .setInfectiousNan(infectious_nan);
+    super.toBuilder(builder);
+    return builder;
   }
 
   @Override

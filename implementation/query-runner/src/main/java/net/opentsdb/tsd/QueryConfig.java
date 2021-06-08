@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2019  The OpenTSDB Authors.
+// Copyright (C) 2019-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -111,7 +111,11 @@ public class QueryConfig implements TimerTask {
   
   /** The list of callbacks. */
   protected List<ResponseCallback> callbacks;
-  
+
+  /**
+   * Builder ctor.
+   * @param builder The non-null builder.
+   */
   private QueryConfig(final Builder builder) {
     this.id = builder.id;
     this.endpoints = builder.endpoints;

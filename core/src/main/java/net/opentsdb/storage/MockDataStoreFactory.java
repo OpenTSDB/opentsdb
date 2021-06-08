@@ -16,6 +16,7 @@ package net.opentsdb.storage;
 
 import java.util.List;
 
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,10 +75,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   public void setupGraph(final QueryPipelineContext context, 
                          final TimeSeriesDataSourceConfig config,
                          final QueryPlanner planner) {
-    if (config.hasBeenSetup()) {
-      // all done.
-      return;
-    }
+    planner.baseSetupGraph(context, config);
   }
 
   @Override
@@ -100,9 +98,6 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
         } catch (NoSuchRollupForIntervalException e) {
           // ignore, we'll use raw.
         }
-        // TODO compute the padding
-        builder.setPrePadding("1h");
-        builder.setPostPadding("30m");
       }
       return mds.new LocalNode(context, (TimeSeriesDataSourceConfig) builder.build());
     }

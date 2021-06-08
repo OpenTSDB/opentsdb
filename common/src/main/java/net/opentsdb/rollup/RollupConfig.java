@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018 The OpenTSDB Authors.
+// Copyright (C) 2018-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,11 +55,31 @@ public interface RollupConfig {
   public List<String> getPossibleIntervals(final String interval);
 
   /**
+   * Fetches the RollupInterval corresponding to the integer interval in seconds.
+   * It returns a list of matching RollupInterval and best next matches in
+   * order. It will help to search on the next best rollup tables.
+   * It is guaranteed that it return a non-empty list
+   * For example if the interval is 1 day
+   *  then it may return RollupInterval objects in the order
+   *    1 day, 1 hour, 10 minutes, 1 minute
+   * @param interval The interval in seconds to lookup
+   * @param str_interval String representation of the  interval, for logging
+   * @param skip_default Whether or not to include the default interval
+   * the results.
+   * @return A list of rollup intervals sorted by the highest index to the
+   * lowest resolution to highest. May be empty if no intervals matched.
+   * @throws IllegalArgumentException if the interval is null or empty
+   */
+  public List<RollupInterval> getRollupIntervals(final long interval,
+                                                 final String str_interval,
+                                                 final boolean skip_default);
+
+  /**
    * Fetches the RollupInterval corresponding to the forward interval string map
    * @param interval The interval to lookup
-   * @return The RollupInterval object configured for the given interval
+   * @return The RollupInterval object configured for the given interval or null
+   * if no interval exists.
    * @throws IllegalArgumentException if the interval is null or empty
-   * @throws NoSuchRollupForIntervalException if the interval was not configured
    */
   public RollupInterval getRollupInterval(final String interval);
 

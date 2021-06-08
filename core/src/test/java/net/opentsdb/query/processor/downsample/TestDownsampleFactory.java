@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2020  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
@@ -331,6 +332,8 @@ public class TestDownsampleFactory {
           .setMetric(MetricLiteralFilter.newBuilder()
               .setMetric("sys.cpu.user")
               .build())
+          .setStartTimeStamp(new SecondTimeStamp(1514764800))
+          .setEndTimeStamp(new SecondTimeStamp(1514768400))
           .setId("m1")
           .build();
     
@@ -412,8 +415,6 @@ public class TestDownsampleFactory {
     assertEquals("1m", ((DownsampleConfig) new_node).getInterval());
 
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
-    assertNull(node.getPrePadding());
-    assertNull(node.getPostPadding());
     assertEquals("1m", node.getSummaryInterval());
     assertEquals(1, node.getSummaryAggregations().size());
     assertTrue(node.getSummaryAggregations().contains("sum"));
@@ -444,6 +445,8 @@ public class TestDownsampleFactory {
           .setMetric(MetricLiteralFilter.newBuilder()
               .setMetric("sys.cpu.user")
               .build())
+          .setStartTimeStamp(new SecondTimeStamp(1514764800))
+          .setEndTimeStamp(new SecondTimeStamp(1514768400))
           .setId("m1")
           .build();
     
@@ -525,8 +528,6 @@ public class TestDownsampleFactory {
     assertFalse(((DownsampleConfig) new_node).getRunAll());
 
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
-    assertNull(node.getPrePadding());
-    assertNull(node.getPostPadding());
     assertEquals(2, node.getSummaryAggregations().size());
     assertTrue(node.getSummaryAggregations().contains("sum"));
     assertTrue(node.getSummaryAggregations().contains("count"));
@@ -558,6 +559,8 @@ public class TestDownsampleFactory {
           .setMetric(MetricLiteralFilter.newBuilder()
               .setMetric("sys.cpu.user")
               .build())
+          .setStartTimeStamp(new SecondTimeStamp(1514764800))
+          .setEndTimeStamp(new SecondTimeStamp(1514768400))
           .setId("m1")
           .build();
     
@@ -640,8 +643,6 @@ public class TestDownsampleFactory {
     assertTrue(((DownsampleConfig) new_node).getRunAll());
 
     TimeSeriesDataSourceConfig node = (TimeSeriesDataSourceConfig) graph.get(0);
-    assertNull(node.getPrePadding());
-    assertNull(node.getPostPadding());
     assertEquals(1, node.getSummaryAggregations().size());
     assertTrue(node.getSummaryAggregations().contains("sum"));
     assertTrue(node.getRollupIntervals().isEmpty());

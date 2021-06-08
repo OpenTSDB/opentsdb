@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,21 +45,36 @@ public class TestMergerConfig {
   @Test
   public void builder() throws Exception {
     MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
+        .setMode(MergerConfig.MergeMode.HA)
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addSource("m1")
         .setDataSource("m1")
         .setId("ClusterMerge")
         .build();
-    
+
+    assertEquals(MergerConfig.MergeMode.HA, config.getMode());
     assertEquals("sum", config.getAggregator());
     assertSame(numeric_config, config.getInterpolatorConfigs().iterator().next());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
     assertEquals("ClusterMerge", config.getId());
-    
+
     try {
       MergerConfig.newBuilder()
+              //.setMergeMode(MergerConfig.MergeMode.HA)
+              .setAggregator("sum")
+              .addInterpolatorConfig(numeric_config)
+              .addSource("m1")
+              .setDataSource("m1")
+              .setId("ClusterMerge")
+              .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+
+    try {
+      MergerConfig.newBuilder()
+          .setMode(MergerConfig.MergeMode.HA)
           //.setAggregator("sum")
           .addInterpolatorConfig(numeric_config)
           .addSource("m1")
@@ -68,6 +86,7 @@ public class TestMergerConfig {
     
     try {
       MergerConfig.newBuilder()
+          .setMode(MergerConfig.MergeMode.HA)
           .setAggregator("sum")
           .addInterpolatorConfig(numeric_config)
           .addSource("m1")
@@ -79,6 +98,7 @@ public class TestMergerConfig {
     
     try {
       MergerConfig.newBuilder()
+          .setMode(MergerConfig.MergeMode.HA)
           .setAggregator("sum")
           .addInterpolatorConfig(numeric_config)
           .addSource("m1")
@@ -92,6 +112,7 @@ public class TestMergerConfig {
   @Test
   public void serdes() throws Exception {
     MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
+        .setMode(MergerConfig.MergeMode.HA)
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .addSource("m1")
@@ -100,15 +121,28 @@ public class TestMergerConfig {
         .build();
     
     String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"mode\":\"HA\""));
     assertTrue(json.contains("\"id\":\"ClusterMerge\""));
     assertTrue(json.contains("\"type\":\"Merger\""));
     assertTrue(json.contains(",\"sources\":[\"m1\"]"));
     assertTrue(json.contains("\"aggregator\":\"sum\""));
+
+    MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
+    JsonNode node = JSON.getMapper().readTree(json);
+    config = MergerConfig.parse(JSON.getMapper(), tsdb, node);
+
+    assertEquals(MergerConfig.MergeMode.HA, config.getMode());
+    assertEquals("sum", config.getAggregator());
+    assertEquals(numeric_config, config.getInterpolatorConfigs().iterator().next());
+    assertEquals(1, config.getSources().size());
+    assertEquals("m1", config.getSources().get(0));
+    assertEquals("ClusterMerge", config.getId());
   }
   
   @Test
   public void equality() throws Exception {
     MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")
@@ -117,6 +151,7 @@ public class TestMergerConfig {
             .build();
 
     MergerConfig config2 = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")
@@ -125,7 +160,8 @@ public class TestMergerConfig {
             .build();
 
     MergerConfig config3 = (MergerConfig) MergerConfig.newBuilder()
-            .setAggregator("avg")
+            .setMode(MergerConfig.MergeMode.SPLIT) // <-- DIFF
+            .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")
             .setDataSource("m1")
@@ -139,6 +175,18 @@ public class TestMergerConfig {
     assertNotEquals(config.hashCode(), config3.hashCode());
 
     config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergerConfig.MergeMode.HA)
+            .setAggregator("avg") // <-- DIFF
+            .addInterpolatorConfig(numeric_config)
+            .addSource("m1")
+            .setDataSource("m1")
+            .setId("ClusterMerge")
+            .build();
+    assertTrue(!config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
 //            .addInterpolatorConfig(numeric_config)
             .addSource("m1")
@@ -150,6 +198,7 @@ public class TestMergerConfig {
     assertNotEquals(config.hashCode(), config3.hashCode());
 
     config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m2")
@@ -161,6 +210,7 @@ public class TestMergerConfig {
     assertNotEquals(config.hashCode(), config3.hashCode());
 
     config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
             .addInterpolatorConfig(numeric_config)
             .addSource("m1")

@@ -128,6 +128,9 @@ public class TestDefaultTimeSeriesDataSourceConfig {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.use")
             .build())
+        .setDataSource("mym1")
+        .setStartTimeStamp(new SecondTimeStamp(1))
+        .setEndTimeStamp(new SecondTimeStamp(2))
         .addResultId(new DefaultQueryResultId("m1", "m1"))
         .build();
     
@@ -143,6 +146,9 @@ public class TestDefaultTimeSeriesDataSourceConfig {
     assertEquals(new DefaultQueryResultId("m1", "m1"), build.resultIds().get(0));
     assertEquals(new Pair<Boolean, TemporalAmount>(
         true, DateTime.parseDuration2("1h")), build.timeShifts());
+    assertEquals("mym1", build.getDataSource());
+    assertEquals(1, build.startTimestamp().epoch());
+    assertEquals(2, build.endTimestamp().epoch());
   }
 
   @Test
@@ -388,8 +394,9 @@ public class TestDefaultTimeSeriesDataSourceConfig {
                     .setMetric(MetricLiteralFilter.newBuilder()
                             .setMetric("system.cpu.use")
                             .build())
-                    .setStartOverrideTimeStamp(new SecondTimeStamp(1609372800))
-                    .setEndOverrideTimeStamp(new SecondTimeStamp(1609416000))
+                    .setDataSource("m1")
+                    .setStartTimeStamp(new SecondTimeStamp(1609372800))
+                    .setEndTimeStamp(new SecondTimeStamp(1609416000))
                     .build();
 
     final String json = JSON.serializeToString(build);
@@ -398,6 +405,7 @@ public class TestDefaultTimeSeriesDataSourceConfig {
     assertTrue(json.contains("\"namespace\":\"Verizon\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.use\""));
     assertTrue(json.contains("\"sourceId\":\"HBase\""));
+    assertTrue(json.contains("\"dataSource\":\"m1\""));
     assertTrue(json.contains("\"startOverrideMs\":1609372800000"));
     assertTrue(json.contains("\"endOverrideMs\":1609416000000"));
 
@@ -408,9 +416,11 @@ public class TestDefaultTimeSeriesDataSourceConfig {
     assertEquals("UT", build.getId());
     assertEquals("TimeSeriesDataSource", build.getType());
     assertEquals(1, build.resultIds().size());
-    assertEquals(new DefaultQueryResultId("UT", "UT"), build.resultIds().get(0));
-    assertEquals(1609372800, build.startOverrideTimestamp().epoch());
-    assertEquals(1609416000, build.endOverrideTimestamp().epoch());
+    assertEquals(new DefaultQueryResultId("UT", "m1"),
+            build.resultIds().get(0));
+    assertEquals("m1", build.getDataSource());
+    assertEquals(1609372800, build.startTimestamp().epoch());
+    assertEquals(1609416000, build.endTimestamp().epoch());
   }
 
 }

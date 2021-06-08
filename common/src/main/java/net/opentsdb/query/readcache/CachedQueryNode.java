@@ -25,6 +25,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfigOptions;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
@@ -84,6 +85,16 @@ public class CachedQueryNode implements QueryNode, QueryNodeConfig {
   @Override
   public boolean joins() {
     return false;
+  }
+
+  @Override
+  public boolean nodeFlag(QueryNodeConfigOptions option) {
+    return false;
+  }
+
+  @Override
+  public Object nodeOption(QueryNodeConfigOptions option) {
+    return null;
   }
 
   @Override

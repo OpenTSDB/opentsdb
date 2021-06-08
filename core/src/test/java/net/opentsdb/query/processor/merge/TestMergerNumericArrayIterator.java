@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -81,6 +82,7 @@ public class TestMergerNumericArrayIterator {
     config = (MergerConfig) MergerConfig.newBuilder()
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
+        .setMode(MergeMode.HA)
         .setDataSource("m1")
         .setId("Testing")
         .build();
@@ -180,6 +182,7 @@ public class TestMergerNumericArrayIterator {
         .setAggregator("nosuchagg")
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
@@ -361,6 +364,7 @@ public class TestMergerNumericArrayIterator {
         .setAggregator("sum")
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);
@@ -407,6 +411,7 @@ public class TestMergerNumericArrayIterator {
         .setInfectiousNan(true)
         .addInterpolatorConfig(numeric_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     when(node.config()).thenReturn(config);

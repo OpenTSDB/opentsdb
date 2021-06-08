@@ -24,8 +24,16 @@ import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.Pair;
 
 /**
- * The base class for a data source, including ddata types, filters and the metric we want.
+ * The interface for a source that returns time series or observability data.
+ * <b>NOTE:</b> because all source queries are time-bound, the
+ * {@link #startTimestamp()} and {@link #endTimestamp()} <b>MUST</b> be set by
+ * the {@link net.opentsdb.query.plan.QueryPlanner} in order for nodes to fetch
+ * the proper data. These timestamps must include time shifts, moving windows,
+ * intervals to compute rates, etc.
+ * See the core MockDataStoreFactory class' setupGraph() method for an example
+ * of the methods to call to set these timestamps.
  *
+ * TODO - traces may not be time-bound, depending on the method of querying.
  * @since 3.0
  */
 public interface TimeSeriesDataSourceConfig<
@@ -75,13 +83,7 @@ public interface TimeSeriesDataSourceConfig<
   public List<QueryNodeConfig> getPushDownNodes();
   
   public Collection<String> pushDownSinks();
-  
-  /** @return An optional pre-query start time padding string as a duration. */
-  public String getPrePadding();
-  
-  /** @return An optional post-query end time padding string as a duration. */
-  public String getPostPadding();
-  
+
   /** @return An optional time shift interval for emitting additional time series
    * with the same metric + filters but at additional offsets. Useful for 
    * period over period plots. In the TSDB duration format, e.g. "1w". */
@@ -95,21 +97,26 @@ public interface TimeSeriesDataSourceConfig<
    * loops when configuring the graph. */
   public boolean hasBeenSetup();
 
-  /** @return An optional timestamp when the source is querying for a slice of
-   * the overall query time. */
-  public TimeStamp startOverrideTimestamp();
+  /** @return The non-null start time for data to be queried and returned from
+   *  the source. This can match the query start time but it may also be altered
+   *  depending on if the query is split across sources, has time shifts,
+   *  requires a moving window of some kind, etc. */
+  public TimeStamp startTimestamp();
 
-  /** @return The optional start override timestamp in milliseconds. 0 if not
-   * set. */
+  /** @return The time-adjusted (time shifts, rates, downsamples) query start
+   * time. This will be set when the query has been planned. */
   public long getStartOverrideMs();
 
-  /** @return An optional timestamp when the source is querying for a slice of
-   * the overall query time. */
-  public TimeStamp endOverrideTimestamp();
+  /** @return The time-adjusted (time shifts, rates, downsamples) query end
+   * time. This will be set when the query has been planned. */
+  public TimeStamp endTimestamp();
 
   /** @return The optional end override timestamp in milliseconds. 0 if not
    * set. */
   public long getEndOverrideMs();
+
+  /** @return Optional data source override for splits or HA queries. */
+  public String getDataSource();
   
   /**
    * A base builder interface for data source configs.
@@ -148,25 +155,32 @@ public interface TimeSeriesDataSourceConfig<
     B addPushDownNode(final QueryNodeConfig node);
 
     B setPushDownNodes(final List<QueryNodeConfig> push_down_nodes);
-    
-    B setPrePadding(final String pre_padding);
-    
-    B setPostPadding(final String post_padding);
-    
+
     B setTimeShiftInterval(final String interval);
-    
-    B setTimeShifts(final Pair<Boolean, TemporalAmount> amounts);
     
     B setHasBeenSetup(final boolean has_been_setup);
 
-    B setStartOverrideTimeStamp(final TimeStamp start_override);
+    B setStartTimeStamp(final TimeStamp start);
 
-    B setEndOverrideTimeStamp(final TimeStamp end_override);
+    B setEndTimeStamp(final TimeStamp end);
+
+    B setDataSource(final String dataSource);
 
     String id();
     
     String sourceId();
-    
+
+    TimeStamp startOverrideTimeStamp();
+
+    TimeStamp endOverrideTimeStamp();
+
+    Pair<Boolean, TemporalAmount> timeShifts();
+
+    List<QueryNodeConfig> pushDowns();
+
+    List<String> types();
+
+    String dataSource();
   }
 
   /**

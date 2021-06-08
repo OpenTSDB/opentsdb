@@ -95,7 +95,7 @@ public class TestBaseQueryNodeConfig {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
   @Test
   public void serialize() throws Exception {
     QueryNodeConfig config = new TestConfig.Builder()

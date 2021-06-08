@@ -94,6 +94,17 @@ public interface QueryPipelineContext extends QueryNode {
    * empty if the node is a terminal node.
    */
   public Collection<TimeSeriesDataSource> downstreamSources(final QueryNode node);
+
+  /**
+   * Looks for the common source given the current node. Throws if there are
+   * more than one source with different timestamps.
+   * @param node The non-null node to find the common source for.
+   * @return The common source if found or an exception if the timestamps are
+   * missmatched.
+   * @throws IllegalStateException if there are more than one sources and the
+   * timestamps do not match.
+   */
+  public TimeSeriesDataSourceConfig commonSourceConfig(final QueryNode node);
   
   /**
    * Returns the downstream source nodes for the requested node.
@@ -103,6 +114,14 @@ public interface QueryPipelineContext extends QueryNode {
    * just the node's ID is returned.
    */
   public Collection<String> downstreamSourcesIds(final QueryNode node);
+
+  /**
+   * Returns the downstream query result IDs of the immediate ancestors for the
+   * requested node.
+   * @param node A non-null query node.
+   * @return A non-null collection of downstream query result IDs.
+   */
+  public Collection<QueryResultId> downstreamQueryResultIds(final QueryNode node);
   
   /**
    * Returns the a collection of the <b>first</b> instance of the given

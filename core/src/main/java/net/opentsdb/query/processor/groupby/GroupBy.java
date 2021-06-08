@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -91,6 +92,14 @@ public class GroupBy extends AbstractQueryNode {
     return super.initialize(span)
         .addCallback(
             arg -> {
+              // TODO - this is brittle and assumes the next node is a downsample
+              // whereas it can be further down.
+
+              // correct way is to recursively look for the node that feeds this
+              // one and...
+              // TODO - for the planner recursion call, make sure to check pushdowns
+              // in the sources. BUT make sure to iterate over them in the reverse
+              // order as we need to maintain the graph flow.
               for (QueryNode node : (Collection<QueryNode>) this.downstream) {
                 if (node instanceof TimeSeriesDataSource) {
                   TimeSeriesDataSource timeSeriesDataSource = (TimeSeriesDataSource) node;
@@ -112,10 +121,23 @@ public class GroupBy extends AbstractQueryNode {
               }
               
               if (downsampleConfig != null) {
+                final int intervals;
+                if (downsampleConfig.getStart() == null) {
+                  // pushdown that wasn't initialized. So we need to use the query
+                  // time for now. This is for UTs right now so we don't need to
+                  // worry about the source timestamps.
+                  // TODO - assuming seconds
+                  final long timespan = context.query().endTime().epoch() -
+                          context.query().startTime().epoch();
+                  intervals = (int) (timespan /
+                          downsampleConfig.interval().get(ChronoUnit.SECONDS));
+                } else {
+                  intervals = downsampleConfig.intervals();
+                }
                 agg_config = DefaultArrayAggregatorConfig.newBuilder()
-                    .setArraySize(downsampleConfig.intervals())
-                    .setInfectiousNaN(config.getInfectiousNan())
-                    .build();
+                        .setArraySize(intervals)
+                        .setInfectiousNaN(config.getInfectiousNan())
+                        .build();
               }
               return null;
             });

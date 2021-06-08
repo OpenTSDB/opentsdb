@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ public class MergerResult implements QueryResult {
   /** Errors or exceptions from downstream. */
   protected String error;
   protected Throwable exception;
+  protected final List<String> sources;
   
   /**
    * The default ctor.
@@ -82,7 +83,15 @@ public class MergerResult implements QueryResult {
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     this.next = Lists.newArrayList();
-    this.next.add(next);
+    sources = ((MergerConfig) node.config()).sortedSources();
+    for (int i = 0; i < sources.size(); i++) {
+      String id = sources.get(i);
+      if (id.equals(next.dataSource().dataSource())) {
+        this.next.add(next);
+      } else {
+        this.next.add(null);
+      }
+    }
     time_spec = next.timeSpecification();
     rollup_config = next.rollupConfig();
   }
@@ -92,7 +101,21 @@ public class MergerResult implements QueryResult {
    * @param next
    */
   void add(final QueryResult next) {
-    this.next.add(next);
+    boolean set = false;
+    for (int i = 0; i < sources.size(); i++) {
+      String id = sources.get(i);
+      if (id.equals(next.dataSource().dataSource())) {
+        this.next.set(i, next);
+        set = true;
+        break;
+      }
+    }
+
+    if (!set) {
+      throw new IllegalArgumentException("Result " + next.dataSource()
+              + " wasn't in our list: " + sources);
+    }
+
     if (time_spec == null && next.timeSpecification() != null) {
       time_spec = next.timeSpecification();
     }
