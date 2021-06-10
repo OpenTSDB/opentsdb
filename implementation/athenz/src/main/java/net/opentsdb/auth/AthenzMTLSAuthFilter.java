@@ -120,7 +120,7 @@ public class AthenzMTLSAuthFilter extends BaseAuthenticationPlugin {
       chain.doFilter(wrapper, servletResponse);
     }
 
-    sendResponse((HttpServletResponse) servletResponse, 403,
+    sendResponse((HttpServletResponse) servletResponse, 401,
             "Missing or invalid certificate.");
   }
 
