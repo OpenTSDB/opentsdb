@@ -16,6 +16,7 @@ package net.opentsdb.storage;
 
 import java.io.InputStream;
 
+import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 
@@ -66,7 +67,6 @@ public interface WritingTimeSeriesDataConverter {
    * @param source A non-null and non-empty byte array.
    * @return A non-null iterable instance.
    */
-  
   public TimeSeriesSharedTagsAndTimeData convertShared(final byte[] source);
   
   /**
@@ -78,4 +78,21 @@ public interface WritingTimeSeriesDataConverter {
    * @return A non-null iterable instance.
    */
   public TimeSeriesSharedTagsAndTimeData convertShared(final InputStream source);
+
+  /**
+   * Convert the byte array to an iterable low level interface.
+   * @param source A non-null and non-empty byte array.
+   * @return A non-null iterable instance.
+   */
+  public LowLevelTimeSeriesData convertLowLevelData(final byte[] source);
+
+  /**
+   * Convert the input stream to an iterable low level interface.
+   * @param source A non-null stream ready for reading. Note that on
+   * return, the source may need to be reset if reading has to happen a
+   * second time.
+   * @return A non-null iterable instance.
+   */
+  public LowLevelTimeSeriesData convertLowLevelData(final InputStream source);
+
 }

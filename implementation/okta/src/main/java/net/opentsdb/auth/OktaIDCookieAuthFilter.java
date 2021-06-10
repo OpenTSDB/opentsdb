@@ -235,7 +235,7 @@ public class OktaIDCookieAuthFilter extends BaseAuthenticationPlugin {
         expireCookie(id_cookie, response);
         expireCookie(at_cookie, response);
         LOG.error("Failed to validate Okta token", e);
-        sendResponse(response, 403, "Cookie validation failed.");
+        sendResponse(response, 401, "Cookie validation failed.");
         stats.incrementCounter(PLUGIN_ERROR, tags);
         return;
       }

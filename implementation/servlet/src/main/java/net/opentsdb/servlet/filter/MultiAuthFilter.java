@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.servlet.filter;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -51,8 +52,10 @@ public class MultiAuthFilter extends BaseAuthenticationPlugin {
 
   public static final String TYPE = "MultiAuthFilter";
   public static final String FILTERS_KEY = "multiauth.filter.filters";
+  public static final String DEFAULT_FILTER_KEY = "multiauth.filter.default";
 
   private List<AuthFilter> filters;
+  private AuthFilter defaultFilter;
 
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -67,6 +70,8 @@ public class MultiAuthFilter extends BaseAuthenticationPlugin {
                   "Filter IDs list must have one or more entries."));
         }
         filters = Lists.newArrayListWithExpectedSize(filterIds.size());
+        final String defaultFilterName = tsdb.getConfig().getString(DEFAULT_FILTER_KEY);
+
         for (final String plugin : filterIds) {
           final AuthFilter authFilter = tsdb.getRegistry().getPlugin(AuthFilter.class, plugin);
           if (authFilter == null) {
@@ -82,6 +87,11 @@ public class MultiAuthFilter extends BaseAuthenticationPlugin {
           }
 
           filters.add(authFilter);
+          if (!Strings.isNullOrEmpty(defaultFilterName) &&
+              plugin.equals(defaultFilterName)) {
+            defaultFilter = authFilter;
+          }
+
           LOG.info("Loaded plugin {} for multi-auth.", plugin);
         }
         return null;
@@ -118,7 +128,11 @@ public class MultiAuthFilter extends BaseAuthenticationPlugin {
     }
 
     // nothing so re-do the last one.
-    filters.get(filters.size() - 1).doFilter(servletRequest, servletResponse, chain);
+    if (defaultFilter != null) {
+      defaultFilter.doFilter(servletRequest, servletResponse, chain);
+    } else {
+      filters.get(filters.size() - 1).doFilter(servletRequest, servletResponse, chain);
+    }
   }
 
   @Override
@@ -143,6 +157,12 @@ public class MultiAuthFilter extends BaseAuthenticationPlugin {
                       "processed in order.")
               .setType(List.class)
               .build());
+    }
+    if (!tsdb.getConfig().hasProperty(DEFAULT_FILTER_KEY)) {
+      tsdb.getConfig().register(DEFAULT_FILTER_KEY, null, false,
+              "An optional default filter to call if none of the " +
+                      "filters were satisfied. If not supplied, the last one in " +
+                      "the list is called.");
     }
   }
 
