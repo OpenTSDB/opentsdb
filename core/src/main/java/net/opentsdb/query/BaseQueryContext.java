@@ -373,8 +373,8 @@ public abstract class BaseQueryContext implements QueryContext {
       if (logs == null) {
         logs = Lists.newArrayList();
       }
-      logs.add(buf.toString());
     }
+    logs.add(buf.toString());
   }
   
   /**
