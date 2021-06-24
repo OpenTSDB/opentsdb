@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.Principal;
 
+
 /**
  * A filter that processes MTLS certificates from Athenz to authenticate a
  * caller.
@@ -48,6 +49,7 @@ public class EnvoyHeaderAuthFilter extends BaseAuthenticationPlugin {
   public static final String TYPE = "EnvoyHeaderAuthFilter";
   public static final String TOKEN_TYPE = "X509";
   public Principal principal;
+
 
 
   @Override
@@ -110,20 +112,37 @@ public class EnvoyHeaderAuthFilter extends BaseAuthenticationPlugin {
   @Override
   public AuthState authenticate(final ServletRequest servletRequest) {
 
-    String header=((HttpServletRequest ) servletRequest ).getHeader(tsdb.getConfig().getString(ENVOY_HEADER_KEY));
-    if (header != null){
-      String commonName=header.split(";")[2].split(",")[0].split("=")[2];
-      principal = new Principal() {
-        @Override
-        public String getName() {
-          return commonName;
+    String header = ((HttpServletRequest) servletRequest).getHeader(tsdb.getConfig().getString(ENVOY_HEADER_KEY));
+    if (header != null) {
+      if (header.contains("Subject")){
+        String headerSplit=header.substring(header.indexOf("Subject"),header.length());
+        if (headerSplit.contains("CN")){
+          String metaInfo=headerSplit.substring(headerSplit.indexOf("CN"),headerSplit.indexOf(","));
+          String commonName=metaInfo.split("=")[1];
+
+          principal = new Principal() {
+            @Override
+            public String getName() {
+              return commonName;
+            }
+          };
+
+          return new HeaderAuthState(principal);
         }
-      };
-      return new HeaderAuthState(principal);
+        else {
+          LOG.debug("Missing the Common name in the header");
+          return null;
+        }
+      }
+      else{
+        LOG.debug("Missing the Subject name in the header");
+        return null;
+      }
+
     }
+    LOG.debug("Missing header");
     return null;
   }
-
 
 
   /**
@@ -204,4 +223,3 @@ public class EnvoyHeaderAuthFilter extends BaseAuthenticationPlugin {
     }
   }
 }
-
