@@ -117,9 +117,8 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     Tsdb1xHBaseDataStore store = 
         new Tsdb1xHBaseDataStore(factory, "UT", schema);
     Whitebox.setInternalState(store, "use_dp_timestamp", false);
-    WriteStatus state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
+    store.write(null, TimeSeriesDatum.wrap(id, value), null);
 
-    assertEquals(WriteState.OK, state.state());
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
         store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY, 
@@ -127,8 +126,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
 
     // appends
     Whitebox.setInternalState(store, "write_appends", true);
-    state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
-    assertEquals(WriteState.OK, state.state());
+    store.write(null, TimeSeriesDatum.wrap(id, value), null);
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
         store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY, 
         NumericCodec.APPEND_QUALIFIER));
@@ -136,8 +134,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     Whitebox.setInternalState(store, "write_appends", false);
     Whitebox.setInternalState(store, "encode_as_appends", true);
     value.resetValue(1);
-    state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
-    assertEquals(WriteState.OK, state.state());
+    store.write(null, TimeSeriesDatum.wrap(id, value), null);
     // overwrites
     assertArrayEquals(new byte[] { 0, 0, 1 }, storage.getColumn(
         store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY, 
@@ -148,8 +145,8 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
         .setMetric(METRIC_STRING_EX)
         .addTags(TAGK_STRING, TAGV_STRING)
         .build();
-    state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
-    assertEquals(WriteState.ERROR, state.state());
+    store.write(null, TimeSeriesDatum.wrap(id, value), null);
+    // TODO - validate
   }
 
   @Test
@@ -180,11 +177,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     Tsdb1xHBaseDataStore store =
             new Tsdb1xHBaseDataStore(factory, "UT", schema);
     Whitebox.setInternalState(store, "use_dp_timestamp", false);
-    List<WriteStatus> statuses = store.write(null, shared, null).join();
-
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, shared, null);
 
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
@@ -198,10 +191,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
 
     // appends
     Whitebox.setInternalState(store, "write_appends", true);
-    statuses = store.write(null, shared, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, shared, null);
 
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
@@ -218,10 +208,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     ((MutableNumericValue) data.get(0).value()).resetValue(1);
     ((MutableNumericValue) data.get(1).value()).resetValue(2);
 
-    statuses = store.write(null, shared, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, shared, null);
 
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 0, 0, 1 }, storage.getColumn(
@@ -243,11 +230,8 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     shared =
             TimeSeriesSharedTagsAndTimeData.fromCollection(data);
 
-    statuses = store.write(null, shared, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.ERROR, statuses.get(0).state());
-    assertTrue(statuses.get(0).exception() instanceof StorageException);
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, shared, null);
+    // TODO - validate
   }
 
   @Test
@@ -275,11 +259,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     Tsdb1xHBaseDataStore store =
             new Tsdb1xHBaseDataStore(factory, "UT", schema);
     Whitebox.setInternalState(store, "use_dp_timestamp", false);
-    List<WriteStatus> statuses = store.write(null, data, null).join();
-
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, data, null);
 
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
@@ -294,10 +274,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     // appends
     data = lowLevel(datum_1, datum_2);
     Whitebox.setInternalState(store, "write_appends", true);
-    statuses = store.write(null, data, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, data, null);
 
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
@@ -315,10 +292,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     ((MutableNumericValue) datum_1.value()).resetValue(1);
     ((MutableNumericValue) datum_2.value()).resetValue(2);
 
-    statuses = store.write(null, data, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, data, null);
 
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 0, 0, 1 }, storage.getColumn(
@@ -339,11 +313,8 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     datum_1 = TimeSeriesDatum.wrap(id, dp);
     data = lowLevel(datum_1, datum_2);
 
-    statuses = store.write(null, data, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.ERROR, statuses.get(0).state());
-    assertTrue(statuses.get(0).exception() instanceof StorageException);
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, data, null);
+    // TODO - validate
   }
 
   @Test
@@ -357,8 +328,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
 
     Tsdb1xHBaseDataStore store =
             new Tsdb1xHBaseDataStore(factory, "UT", schema);
-    WriteStatus state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
-    assertEquals(WriteState.OK, state.state());
+    store.write(null, TimeSeriesDatum.wrap(id, value), null);
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
             store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
@@ -368,8 +338,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     // now without the timestamp
     value.resetValue(24);
     Whitebox.setInternalState(store, "use_dp_timestamp", false);
-    state = store.write(null, TimeSeriesDatum.wrap(id, value), null).join();
-    assertEquals(WriteState.OK, state.state());
+    store.write(null, TimeSeriesDatum.wrap(id, value), null);
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 24 }, storage.getColumn(
             store.dataTable(), row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
@@ -397,9 +366,8 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     Tsdb1xHBaseDataStore store =
             new Tsdb1xHBaseDataStore(factory, "UT", schema);
     Whitebox.setInternalState(store, "use_dp_timestamp", false);
-    WriteStatus state = store.write(null, value, null).join();
+    store.write(null, value, null);
 
-    assertEquals(WriteState.OK, state.state());
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
             ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
@@ -416,8 +384,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
 
     // appends
     Whitebox.setInternalState(store, "write_appends", true);
-    state = store.write(null, value, null).join();
-    assertEquals(WriteState.OK, state.state());
+    store.write(null, value, null);
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
             ROLLUP_TABLE, row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
             new byte[] { 0 }));
@@ -467,10 +434,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     Tsdb1xHBaseDataStore store =
             new Tsdb1xHBaseDataStore(factory, "UT", schema);
     Whitebox.setInternalState(store, "use_dp_timestamp", false);
-    List<WriteStatus> statuses = store.write(null, shared, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, shared, null);
 
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
@@ -490,10 +454,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
 
     // appends
     Whitebox.setInternalState(store, "write_appends", true);
-    statuses = store.write(null, shared, null).join();
-    assertEquals(2, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
+    store.write(null, shared, null);
 
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
@@ -542,14 +503,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     Tsdb1xHBaseDataStore store =
             new Tsdb1xHBaseDataStore(factory, "UT", schema);
     Whitebox.setInternalState(store, "use_dp_timestamp", false);
-    List<WriteStatus> statuses = store.write(null, data, null).join();
-
-    assertEquals(4, statuses.size());
-    System.out.println(statuses.get(0));
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
-    assertEquals(WriteState.OK, statuses.get(2).state());
-    assertEquals(WriteState.OK, statuses.get(3).state());
+    store.write(null, data, null);
 
     byte[] row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 42 }, storage.getColumn(
@@ -570,12 +524,7 @@ public class TestTsdb1xHBaseDataStore extends UTBase {
     // appends
     data = lowLevelRollup(datum_1, datum_2);
     Whitebox.setInternalState(store, "write_appends", true);
-    statuses = store.write(null, data, null).join();
-    assertEquals(4, statuses.size());
-    assertEquals(WriteState.OK, statuses.get(0).state());
-    assertEquals(WriteState.OK, statuses.get(1).state());
-    assertEquals(WriteState.OK, statuses.get(2).state());
-    assertEquals(WriteState.OK, statuses.get(3).state());
+    store.write(null, data, null);
 
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(

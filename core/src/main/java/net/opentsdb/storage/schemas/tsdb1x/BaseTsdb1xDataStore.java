@@ -1,3 +1,17 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2021  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
 import com.google.common.base.Strings;
@@ -25,6 +39,7 @@ import net.opentsdb.rollup.RollupDatum;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
+import net.opentsdb.storage.TimeSeriesDataConsumer.WriteCallback;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.UniqueIdStore;
@@ -71,16 +86,16 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
   }
 
   @Override
-  public Deferred<WriteStatus> write(final AuthState state,
-                                     final TimeSeriesDatum datum,
-                                     final Span span) {
+  public void write(final AuthState state,
+                    final TimeSeriesDatum datum,
+                    final WriteCallback callback) {
     final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-              .start();
-    } else {
+//    if (span != null && span.isDebug()) {
+//      child = span.newChild(getClass().getName() + ".write")
+//              .start();
+//    } else {
       child = null;
-    }
+//    }
 
     class RowKeyCB implements Callback<Deferred<WriteStatus>, IdOrError> {
 
@@ -199,29 +214,32 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
 
     }
 
-    return schema.createRowKey(state, datum, null, child)
+    schema.createRowKey(state, datum, null, child)
             .addCallbackDeferring(new RowKeyCB())
-            .addErrback(new WriteErrorCB(child));
+            .addErrback(new WriteErrorCB(callback, child));
   }
 
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final TimeSeriesSharedTagsAndTimeData data,
-                                           final Span span) {
+  public void write(final AuthState state,
+                    final TimeSeriesSharedTagsAndTimeData data,
+                    final WriteCallback callback) {
     final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-              .start();
-    } else {
+//    if (span != null && span.isDebug()) {
+//      child = span.newChild(getClass().getName() + ".write")
+//              .start();
+//    } else {
       child = null;
-    }
+//    }
 
     final Iterator<TimeSeriesDatum> iterator = data.iterator();
     if (!iterator.hasNext()) {
       if (child != null) {
         child.finish();
       }
-      return Deferred.fromResult(Collections.emptyList());
+      if (callback != null) {
+        callback.success();
+      }
+      return;
     }
 
     long temp_time = data.timestamp().epoch();
@@ -390,51 +408,57 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
         deferreds.add(schema.createRowMetric(state,
                 (TimeSeriesDatumStringId) datum.id(), child)
                 .addCallbackDeferring(new MetricCB(datum, tag_ioe))
-                .addErrback(new WriteErrorCB(child)));
+                .addErrback(new WriteErrorCB(callback, child)));
         int index = 1;
         while (iterator.hasNext()) {
           TimeSeriesDatum seriesDatum = iterator.next();
           deferreds.add(schema.createRowMetric(state,
-                  (TimeSeriesDatumStringId) seriesDatum.id(), span)
+                  (TimeSeriesDatumStringId) seriesDatum.id(), null)
                   .addCallbackDeferring(new MetricCB(seriesDatum, tag_ioe))
-                  .addErrback(new WriteErrorCB(child)));
+                  .addErrback(new WriteErrorCB(callback, child)));
         }
         return Deferred.group(deferreds).addCallback(new GroupCB());
       }
     }
 
-    return schema.createRowTags(state,
-            ((TimeSeriesDatumStringId) datum.id()).metric(),
-            ((TimeSeriesDatumStringId) datum.id()).tags(),
-            span)
-            .addCallbackDeferring(new TagCB());
+    schema.createRowTags(state,
+        ((TimeSeriesDatumStringId) datum.id()).metric(),
+        ((TimeSeriesDatumStringId) datum.id()).tags(),
+        null)
+        .addCallbackDeferring(new TagCB());
   }
 
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final LowLevelTimeSeriesData data,
-                                           final Span span) {
+  public void write(final AuthState state,
+                    final LowLevelTimeSeriesData data,
+                    final WriteCallback callback) {
     final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".write")
-              .start();
-    } else {
+//    if (span != null && span.isDebug()) {
+//      child = span.newChild(getClass().getName() + ".write")
+//              .start();
+//    } else {
       child = null;
-    }
+//    }
 
     if (!(data instanceof LowLevelMetricData)) {
       if (child != null) {
         child.finish();
       }
-      return Deferred.fromError(new UnsupportedOperationException(
-              "Not supporting instances of " + data.getClass() + " at this time."));
+      if (callback != null) {
+        callback.exception(new UnsupportedOperationException(
+                "Not supporting instances of " + data.getClass() + " at this time."));
+      }
+      return;
     }
 
     if (!data.advance()) {
       if (child != null) {
         child.finish();
       }
-      return Deferred.fromResult(Collections.emptyList());
+      if (callback != null) {
+        callback.success();
+      }
+      return;
     }
 
     long temp_time = data.timestamp().epoch();
@@ -650,7 +674,7 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
             deferred.addCallbackDeferring(new MetricCB(
                     ((LowLevelMetricData) data).longValue(), tag_ioe));
         }
-        deferreds.add(deferred.addErrback(new WriteErrorCB(child)));
+        deferreds.add(deferred.addErrback(new WriteErrorCB(callback, child)));
         int index = 1;
         while (data.advance()) {
           deferred = schema.createRowMetric(state,
@@ -672,20 +696,20 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
               deferred.addCallbackDeferring(new MetricCB(
                       ((LowLevelMetricData) data).longValue(), tag_ioe));
           }
-          deferreds.add(deferred.addErrback(new WriteErrorCB(child)));
+          deferreds.add(deferred.addErrback(new WriteErrorCB(callback, child)));
         }
         return Deferred.groupInOrder(deferreds).addCallback(new GroupCB());
       }
     }
 
-    return schema.createRowTags(state,
-            new String(((LowLevelMetricData) data).metricBuffer(),
-                    ((LowLevelMetricData) data).metricStart(),
-                    ((LowLevelMetricData) data).metricLength(),
-                    Const.UTF8_CHARSET),
-            tags,
-            span)
-            .addCallbackDeferring(new TagCB());
+    schema.createRowTags(state,
+        new String(((LowLevelMetricData) data).metricBuffer(),
+                ((LowLevelMetricData) data).metricStart(),
+                ((LowLevelMetricData) data).metricLength(),
+                Const.UTF8_CHARSET),
+        tags,
+        null)
+        .addCallbackDeferring(new TagCB());
   }
 
   protected class SuccessCB implements Callback<WriteStatus, Object> {
@@ -705,9 +729,11 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
   }
 
   protected class WriteErrorCB implements Callback<WriteStatus, Exception> {
+    final WriteCallback callback;
     final Span child;
 
-    public WriteErrorCB(final Span child) {
+    public WriteErrorCB(final WriteCallback callback, final Span child) {
+      this.callback = callback;
       this.child = child;
     }
 
@@ -719,14 +745,22 @@ public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
           child.setErrorTags(ex)
                   .finish();
         }
-        return WriteStatus.RETRY;
+        if (callback != null) {
+          callback.exception(ex);
+        }
+        return null;
       }
       if (child != null) {
         child.setErrorTags(ex)
                 .finish();
       }
       // TODO - watch out, garbage here.
-      return WriteStatus.error(ex.getMessage(), ex);
+      if (callback != null) {
+        callback.exception(ex);
+      } else {
+        return WriteStatus.error(ex.getMessage(), ex);
+      }
+      return null;
     }
   }
 

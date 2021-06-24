@@ -66,6 +66,18 @@ public interface LowLevelMetricData extends LowLevelTimeSeriesData{
     public long metricHash();
   }
 
+  public interface RetriedLowLevelMetricData extends
+          RetriedLowLevelTimeSeriesData,
+          LowLevelMetricData{
+
+  }
+
+  public interface RetriedHashedLowLevelMetricData extends
+          RetriedLowLevelMetricData,
+          RetriedHashedLowLevelTimeSeriesData {
+
+  }
+
   /**
    * A low level interface for rollup values. If multiple aggregates are present
    * in the source then {@link LowLevelTimeSeriesData#advance()} should return
@@ -94,6 +106,31 @@ public interface LowLevelMetricData extends LowLevelTimeSeriesData{
      * configuration. -1 if not set in which case use {@link #groupByAggregatorString()}.
      */
     public int groupByAggregator();
+
+  }
+
+  /**
+   * Extension for rollup data.
+   */
+  public interface HashedLowLevelRollupMetricData extends
+          LowLevelRollupMetricData,
+          HashedLowLevelMetricData {
+
+  }
+
+  /**
+   * Extension for retried rollup data.
+   */
+  public interface RetriedLowLevelRollupMetricData extends RetriedLowLevelMetricData {
+
+  }
+
+  /**
+   * Extension for retried rollup data.
+   */
+  public interface RetriedHashedLowLevelRollupMetricData extends
+          RetriedLowLevelMetricData,
+          HashedLowLevelRollupMetricData {
 
   }
 }

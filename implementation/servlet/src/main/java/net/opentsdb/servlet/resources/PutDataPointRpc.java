@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2018  The OpenTSDB Authors.
+// Copyright (C) 2010-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,13 +14,9 @@
 // limitations under the License.
 package net.opentsdb.servlet.resources;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.ServletConfig;
@@ -35,16 +31,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.TimeoutException;
 
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.Authentication;
-import net.opentsdb.auth.Authorization;
-import net.opentsdb.auth.Permissions;
+import net.opentsdb.storage.TimeSeriesDataConsumer;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,8 +50,6 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.IncomingDataPoint;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
-import net.opentsdb.storage.WritableTimeSeriesDataStore;
-import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -398,9 +386,9 @@ public class PutDataPointRpc {
       
     }
     
-    WritableTimeSeriesDataStoreFactory f = tsdb.getRegistry()
-        .getDefaultPlugin(WritableTimeSeriesDataStoreFactory.class);
-    WritableTimeSeriesDataStore store = f.newStoreInstance(tsdb, null);
+    TimeSeriesDataConsumerFactory f = tsdb.getRegistry()
+        .getDefaultPlugin(TimeSeriesDataConsumerFactory.class);
+    TimeSeriesDataConsumer store = f.consumer();
     
     for (final IncomingDataPoint dp : dps) {
       store.write(null, TimeSeriesDatum.wrap(new IDWrapper(dp), new ValueWrapper(dp)), null);

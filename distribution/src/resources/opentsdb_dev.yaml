@@ -46,8 +46,7 @@ tsd.plugin.config:
       isDefault: true
       type: net.opentsdb.meta.MetaDataStorageSchema
       
-    -
-      plugin: net.opentsdb.storage.MockDataStoreFactory
+    - plugin: net.opentsdb.storage.MockDataStoreFactory
       isDefault: true
       type: net.opentsdb.data.TimeSeriesDataSourceFactory
   

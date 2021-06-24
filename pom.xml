@@ -108,6 +108,7 @@
     <module>storage/asynchbase</module>
     <module>storage/bigtable</module>
     <module>storage/googlepubsub</module>
+    <module>storage/kafka-0.8</module>
     <module>distribution</module>
   </modules>
 

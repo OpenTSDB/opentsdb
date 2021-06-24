@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2020  The OpenTSDB Authors.
+// Copyright (C) 2020-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import net.opentsdb.storage.TimeSeriesDataConsumer;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +40,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.servlet.resources.ServletResource;
-import net.opentsdb.storage.WritableTimeSeriesDataStore;
-import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 
 /**
  * Handles a 1.x InfluxDB call with data in the line protocol format.
@@ -66,7 +66,7 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
   
   protected String data_store_id;
   protected boolean compute_hash;
-  protected WritableTimeSeriesDataStore data_store;
+  protected TimeSeriesDataConsumer data_store;
   protected ObjectPool parser_pool;
   protected boolean async;
   
@@ -77,14 +77,14 @@ public class InfluxWriteResource extends BaseTSDBPlugin implements ServletResour
     registerConfigs(tsdb);
     
     data_store_id = tsdb.getConfig().getString(getConfigKey(DATA_STORE_ID));
-    WritableTimeSeriesDataStoreFactory factory = tsdb.getRegistry()
-        .getPlugin(WritableTimeSeriesDataStoreFactory.class, data_store_id);
+    TimeSeriesDataConsumerFactory factory = tsdb.getRegistry()
+        .getPlugin(TimeSeriesDataConsumerFactory.class, data_store_id);
     if (factory == null) {
       return Deferred.fromError(new IllegalStateException(
           "Unable to find a default data store factory for ID: " 
               + (data_store_id == null ? "Default" : data_store_id)));
     }
-    data_store = factory.newStoreInstance(tsdb, null);
+    data_store = factory.consumer();
     if (data_store == null) {
       return Deferred.fromError(new IllegalStateException(
           "Unable to find a default data store for ID: " 

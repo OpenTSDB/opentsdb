@@ -514,7 +514,7 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
             qualifier,
             value,
             use_dp_timestamp ? timestamp.msEpoch() : Long.MAX_VALUE))
-            .addCallbacks(new SuccessCB(span), new WriteErrorCB(span));
+            .addCallbacks(new SuccessCB(span), new WriteErrorCB(null, span));
   }
 
   @Override
@@ -538,7 +538,7 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
             DATA_FAMILY,
             qualifier,
             value))
-            .addCallbacks(new SuccessCB(span), new WriteErrorCB(span));
+            .addCallbacks(new SuccessCB(span), new WriteErrorCB(null, span));
   }
 
   class ClientStatsWrapper {
