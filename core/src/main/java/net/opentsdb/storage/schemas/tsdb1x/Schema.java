@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -55,13 +54,11 @@ import net.opentsdb.pools.ByteArrayPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.StorageException;
-import net.opentsdb.storage.WritableTimeSeriesDataStore;
+import net.opentsdb.storage.TimeSeriesDataConsumer;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.storage.DatumIdValidator;
@@ -85,7 +82,7 @@ import net.opentsdb.utils.XXHash;
  * 
  * @since 3.0
  */
-public class Schema implements WritableTimeSeriesDataStore {
+public class Schema implements TimeSeriesDataConsumer {
 
   public static final byte APPENDS_PREFIX = 5;
   
@@ -267,22 +264,23 @@ public class Schema implements WritableTimeSeriesDataStore {
         DatumIdValidator.class);
     pool_cache = Maps.newConcurrentMap();
   }
-  
+
   @Override
-  public Deferred<WriteStatus> write(final AuthState state, 
-                                     final TimeSeriesDatum datum, 
-                                     final Span span) {
+  public void write(AuthState state, TimeSeriesDatum datum, WriteCallback callback) {
+    // TODO - redoo since we can chain now
     final String error = id_validator.validate(datum.id());
     if (error != null) {
-      return Deferred.fromResult(WriteStatus.rejected(error));
+      if (callback != null) {
+        callback.failAll(WriteStatus.REJECTED);
+      }
+      return;
     }
-    return data_store.write(state, datum, span);
+    data_store.write(state, datum, callback);
   }
-  
+
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state, 
-                                           final TimeSeriesSharedTagsAndTimeData data, 
-                                           final Span span) {
+  public void write(AuthState state, TimeSeriesSharedTagsAndTimeData data, WriteCallback callback) {
+    // TODO - redo!
     final List<WriteStatus> status = Lists.newArrayList();
     final List<TimeSeriesDatum> forwards = Lists.newArrayList();
     String error = null;
@@ -297,48 +295,30 @@ public class Schema implements WritableTimeSeriesDataStore {
         forwards.add(datum);
       }
     }
-    
+
     if (errors < 1) {
-      return data_store.write(state, data, span);
+      data_store.write(state, data, callback);
+      return;
     } else if (forwards.isEmpty()) {
       // don't even bother calling downstream.
-      return Deferred.fromResult(status);
-    }
-    
-    class WriteCB implements Callback<List<WriteStatus>, List<WriteStatus>> {
-      @Override
-      public List<WriteStatus> call(final List<WriteStatus> results) 
-            throws Exception {
-        if (results.size() != forwards.size()) {
-          throw new StorageException("Expected " + forwards.size() 
-            + " but only received " + results.size() + " responses!");
-        }
-        final Iterator<WriteStatus> iterator = results.iterator();
-        for (int i = 0; i < status.size(); i++) {
-          if (status.get(i) != null) {
-            continue;
-          }
-          status.set(i, iterator.next());
-        }
-        return status;
+      if (callback != null) {
+        callback.failAll(WriteStatus.REJECTED);
       }
+      return;
     }
-    
+
     // aww, have to follow the complex path
-    return data_store.write(state, 
-        TimeSeriesSharedTagsAndTimeData.fromCollection(forwards), 
-        span)
-          .addCallback(new WriteCB());
+    data_store.write(state,
+            TimeSeriesSharedTagsAndTimeData.fromCollection(forwards),
+            callback);
   }
-  
+
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final LowLevelTimeSeriesData data,
-                                           final Span span) {
+  public void write(AuthState state, LowLevelTimeSeriesData data, WriteCallback callback) {
     // TODO - pass this info through the validator.
-    return data_store.write(state, data, span);
+    data_store.write(state, data, callback);
   }
-  
+
   /**
    * Strips the salt and timestamp out of a key to get the TSUID of the
    * series.

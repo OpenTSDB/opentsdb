@@ -65,7 +65,6 @@ public class TestMockDataStore {
   @Test
   public void initialize() throws Exception {
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
-    
     for (final Entry<TimeSeriesDatumStringId, MockSpan> series : 
           mds.getDatabase().entrySet()) {
       assertEquals(24, series.getValue().rows().size());

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2020  The OpenTSDB Authors.
+// Copyright (C) 2020-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -191,4 +191,43 @@ public interface LowLevelTimeSeriesData extends Closeable {
     public long namespaceHash();
     
   }
+
+  /**
+   * Extension with the timestamp the payload was first requeued so that the
+   * consumers can know when to drop constantly circulating data.
+   */
+  public interface RetriedLowLevelTimeSeriesData extends LowLevelTimeSeriesData {
+
+    /** @return The initial message receipt epoch timestamp so that if a message
+     * keeps circulating in a retry buffer it can be dropped after so much time. */
+    public int initialEpoch();
+
+  }
+
+  /**
+   * Extension with the timestamp the payload was first requeued so that the
+   * consumers can know when to drop constantly circulating data.
+   */
+  public interface RetriedHashedLowLevelTimeSeriesData extends HashedLowLevelTimeSeriesData {
+
+    /** @return The initial message receipt epoch timestamp so that if a message
+     * keeps circulating in a retry buffer it can be dropped after so much time. */
+    public int initialEpoch();
+
+  }
+
+  /**
+   * Extension with the timestamp the payload was first requeued so that the
+   * consumers can know when to drop constantly circulating data.
+   */
+  public interface NamespacedRetriedHashedLowLevelTimeSeriesData extends
+          NamespacedLowLevelTimeSeriesData,
+          HashedLowLevelTimeSeriesData{
+
+    /** @return The initial message receipt epoch timestamp so that if a message
+     * keeps circulating in a retry buffer it can be dropped after so much time. */
+    public int initialEpoch();
+
+  }
+
 }

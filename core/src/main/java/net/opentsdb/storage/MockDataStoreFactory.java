@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ import net.opentsdb.stats.Span;
  */
 public class MockDataStoreFactory extends BaseTSDBPlugin 
   implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode>,
-             WritableTimeSeriesDataStoreFactory {
+             TimeSeriesDataConsumerFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       MockDataStoreFactory.class);
   
@@ -138,7 +138,7 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
     }
     
     if (tsdb.getConfig().getBoolean("MockDataStore.register.writer")) {
-      tsdb.getRegistry().registerPlugin(WritableTimeSeriesDataStoreFactory.class, 
+      tsdb.getRegistry().registerPlugin(TimeSeriesDataConsumerFactory.class,
           this.id.equals(TYPE) ? null : this.id, this);
       LOG.info("Registered Mock Data Store writer as: " 
           + (this.id.equals(TYPE) ? null : this.id));
@@ -179,14 +179,12 @@ public class MockDataStoreFactory extends BaseTSDBPlugin
   }
 
   @Override
-  public WritableTimeSeriesDataStore newStoreInstance(
-      final TSDB tsdb, 
-      final String id) {
+  public TimeSeriesDataConsumer consumer() {
     return mds;
   }
 
   MockDataStore mds() {
     return mds;
   }
-  
+
 }

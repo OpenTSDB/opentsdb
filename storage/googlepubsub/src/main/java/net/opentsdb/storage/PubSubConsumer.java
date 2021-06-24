@@ -19,6 +19,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
+import net.opentsdb.storage.TimeSeriesDataConsumer.WriteCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,6 @@ import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -42,12 +42,9 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.query.serdes.TimeSeriesDataSerdes;
-import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.utils.Deferreds;
 
-public class PubSubConsumer extends BaseTSDBPlugin implements 
-    TimeSeriesDataConsumer, MessageReceiver {
+public class PubSubConsumer extends BaseTSDBPlugin implements MessageReceiver {
   protected static final Logger LOG = LoggerFactory.getLogger(
       PubSubConsumer.class);
   
@@ -63,7 +60,7 @@ public class PubSubConsumer extends BaseTSDBPlugin implements
   public static final String SHARED_DATA_KEY = "google.pubsub.data.shared";
 
   /** The serdes implementation to use. */
-  protected TimeSeriesDataSerdes serdes;
+  protected TimeSeriesDataConverter serdes;
   
   /** The subscription name. */
   protected ProjectSubscriptionName subscription;
@@ -72,7 +69,7 @@ public class PubSubConsumer extends BaseTSDBPlugin implements
   protected List<Subscriber> subscribers;
   
   /** The data store to write to. */
-  protected WritableTimeSeriesDataStore data_store;
+  protected TimeSeriesDataConsumer data_store;
   
   /** Whether or not to ack messages immediately or wait for the store. */
   protected boolean ack_immediately;
@@ -120,16 +117,22 @@ public class PubSubConsumer extends BaseTSDBPlugin implements
     final int consumers = tsdb.getConfig().getInt(CONSUMER_COUNT_KEY);
     shared_data = tsdb.getConfig().getBoolean(SHARED_DATA_KEY);
     
-    serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataSerdes.class);
+    serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataConverter.class);
     if (serdes == null) {
       return Deferred.fromError(new IllegalArgumentException(
           "Serdes can't be null."));
     }
-    
-    data_store = ((DefaultRegistry) tsdb.getRegistry()).getDefaultWriteStore();
+
+    TimeSeriesDataConsumerFactory factory = tsdb.getRegistry().getDefaultPlugin(
+            TimeSeriesDataConsumerFactory.class);
+    if (factory == null) {
+      return Deferred.fromError(new IllegalArgumentException(
+              "No default data consumer factory found."));
+    }
+    data_store = factory.consumer();
     if (data_store == null) {
       return Deferred.fromError(new IllegalArgumentException(
-          "No default data store found."));
+          "No default data consumer found."));
     }
     
     subscription = ProjectSubscriptionName.of(project_id, subcription_id);
@@ -238,62 +241,49 @@ public class PubSubConsumer extends BaseTSDBPlugin implements
   public void receiveMessage(final PubsubMessage message, 
                              final AckReplyConsumer consumer) {
     try {
+      class WriteCB implements WriteCallback {
+
+        @Override
+        public void success() {
+          consumer.ack();
+        }
+
+        @Override
+        public void partialSuccess(WriteStatus[] status, int length) {
+          // TODO - Handle it.
+          consumer.ack();
+        }
+
+        @Override
+        public void retryAll() {
+          // TODO - Handle it.
+          consumer.ack();
+        }
+
+        @Override
+        public void failAll(WriteStatus status) {
+          // TODO - Handle it.
+          consumer.ack();
+        }
+
+        @Override
+        public void exception(Throwable t) {
+          // TODO - Handle it.
+          consumer.ack();
+        }
+      }
+
       if (shared_data) {
         final TimeSeriesSharedTagsAndTimeData data = 
-            serdes.deserializeShared(null, 
-                message.getData().newInput(), null);
-        class ResultCB implements Callback<Object, List<WriteStatus>> {
-          @Override
-          public Object call(final List<WriteStatus> results) throws Exception {
-            // TODO - requeue
-            if (results.get(0).state() != WriteState.OK) {
-              LOG.error("FAILED TO WRITE: " + results.get(0).message());
-            }
-            consumer.ack();
-            return null;
-          }
-        }
-        
-        data_store.write(null, data, null).addCallback(new ResultCB())
-          .addErrback(new Callback<Object, Exception>() {
+            serdes.convertShared(message.getData().newInput());
 
-          @Override
-          public Object call(Exception arg) throws Exception {
-            LOG.error("WTF??!?!?!", arg);
-            return null;
-          }
-          
-        });
-        
+        data_store.write(null, data, ack_immediately ? null : new WriteCB());
         if (ack_immediately) {
           consumer.ack();
         }
       } else {
-        final TimeSeriesDatum datum = serdes.deserializeDatum(null, 
-            message.getData().newInput(), null);
-        
-        class ResultCB implements Callback<Object, WriteStatus> {
-          @Override
-          public Object call(final WriteStatus results) throws Exception {
-            // TODO - requeue
-            if (results.state() != WriteState.OK) {
-              LOG.error("FAILED TO WRITE: " + results.message());
-            }
-            consumer.ack();
-            return null;
-          }
-        }
-        
-        data_store.write(null, datum, null).addCallback(new ResultCB())
-        .addErrback(new Callback<Object, Exception>() {
-
-          @Override
-          public Object call(Exception arg) throws Exception {
-            LOG.error("WTF??!?!?!", arg);
-            return null;
-          }
-          
-        });
+        final TimeSeriesDatum datum = serdes.convert(message.getData().newInput());
+        data_store.write(null, datum, ack_immediately ? null : new WriteCB());
         if (ack_immediately) {
           consumer.ack();
         }

@@ -220,7 +220,7 @@ public class TimeRouterConfigEntry {
         if (end_relative ? sourceStart >= now - end : sourceStart >= end) {
           return MatchType.NONE;
         } else if (match == MatchType.FULL &&
-                (end_relative ? sourceEnd < now - end : sourceEnd < end)) {
+            (end_relative ? sourceEnd < now - end : sourceEnd < end)) {
           // full though we leave it at partial if the start was out of bound.
         } else {
           match = MatchType.PARTIAL;
