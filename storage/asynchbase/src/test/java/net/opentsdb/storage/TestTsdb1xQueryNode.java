@@ -754,6 +754,50 @@ public class TestTsdb1xQueryNode extends UTBase {
     verify(upstream_a, times(1)).onError(any(NoSuchUniqueName.class));
     verify(upstream_b, times(1)).onError(any(NoSuchUniqueName.class));
   }
+
+  @Test
+  public void resolveMetaStringMetricNSUNAllowed() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    query = SemanticQuery.newBuilder()
+            .setMode(QueryMode.SINGLE)
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setExecutionGraph(Collections.emptyList())
+            .build();
+    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
+            .setMetric(MetricLiteralFilter.newBuilder()
+                    .setMetric(METRIC_STRING)
+                    .build())
+            .addOverride(Tsdb1xHBaseDataStore.SKIP_NSUN_METRIC_KEY, "true")
+            .setId("m1")
+            .build();
+
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+            .setMetric(NSUN_METRIC)
+            .addTags(TAGK_STRING, TAGV_STRING)
+            .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+            .setMetric(NSUN_METRIC)
+            .addTags(TAGK_STRING, TAGV_B_STRING)
+            .build());
+
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
+            data_store, context, source_config);
+    node.initialize(null);
+
+    node.resolveMeta(meta_result, null);
+
+    assertNull(node.executor);
+    assertTrue(node.initialized.get());
+    verify(upstream_a, never()).onError(any(NoSuchUniqueName.class));
+    verify(upstream_b, never()).onError(any(NoSuchUniqueName.class));
+    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
+  }
   
   @Test
   public void resolveMetaStringTagkNSUN() throws Exception {

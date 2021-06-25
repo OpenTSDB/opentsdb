@@ -187,6 +187,11 @@ public class MockLowLevelMetricData implements LowLevelMetricData {
   }
 
   @Override
+  public boolean commonTags() {
+    return false;
+  }
+
+  @Override
   public void close() throws IOException {
 
   }

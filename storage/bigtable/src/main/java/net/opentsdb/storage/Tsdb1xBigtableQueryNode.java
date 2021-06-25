@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xQueryNode;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xQueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -721,6 +722,19 @@ public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
       class MetricCB implements Callback<Object, byte[]> {
         @Override
         public Object call(final byte[] uid) throws Exception {
+          boolean skip = false;
+          if (config.hasKey(Tsdb1xBigtableDataStore.SKIP_NSUN_METRIC_KEY)) {
+            skip = config.getBoolean(context.tsdb().getConfig(),
+                    Tsdb1xBigtableDataStore.SKIP_NSUN_METRIC_KEY);
+          } else {
+            skip = parent
+                    .dynamicBoolean(Tsdb1xBigtableDataStore.SKIP_NSUN_METRIC_KEY);
+          }
+          if (skip) {
+            // return empty result
+            return false;
+          }
+
           if (uid == null) {
             final NoSuchUniqueName ex = 
                 new NoSuchUniqueName(Schema.METRIC_TYPE, metric);
@@ -734,7 +748,7 @@ public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
           for (int i = 0; i < uid.length; i++) {
             metric_uid[i] = uid[i];
           }
-          return null;
+          return true;
         }
       }
       
@@ -802,6 +816,22 @@ public class Tsdb1xBigtableQueryNode implements SourceNode, Tsdb1xQueryNode {
       class GroupCB implements Callback<Object, ArrayList<Object>> {
         @Override
         public Object call(final ArrayList<Object> ignored) throws Exception {
+          // ok, fun is.. so we are returning a boolean from the metric CB and
+          // if we're skipping we fail here.
+          Object metric_resolved = ignored.get(0);
+          if (!(Boolean) metric_resolved) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("No UID found for metric {], returning an empty result.", metric);
+            }
+            synchronized (this) {
+              initialized.compareAndSet(false, true);
+              sendUpstream(new Tsdb1xQueryResult(0, Tsdb1xBigtableQueryNode.this,
+                      parent.schema()));
+              completeUpstream(0, 0);
+              return null;
+            }
+          }
+
           // TODO - maybe a better way but the TSUIDs have to be sorted
           // on the key values.
           final ByteMap<byte[]> sorter = new ByteMap<byte[]>();

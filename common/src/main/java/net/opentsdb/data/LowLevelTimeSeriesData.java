@@ -124,6 +124,9 @@ public interface LowLevelTimeSeriesData extends Closeable {
   
   /** @return the length of the current tag value in bytes. */
   public int tagValueLength();
+
+  /** @return Whether or not the tags are common across all metrics. */
+  public boolean commonTags();
   
   /**
    * A time series data interface that computes hashes on the various time series
