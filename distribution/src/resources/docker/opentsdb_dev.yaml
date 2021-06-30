@@ -42,6 +42,10 @@ tsd.network.port: 4242
 # that determines what plugins to load and in what order.
 tsd.plugin.config:
   configs:
+    - plugin: net.opentsdb.storage.MockDataMeta
+      isDefault: true
+      type: net.opentsdb.meta.MetaDataStorageSchema
+      
     -
       plugin: net.opentsdb.storage.MockDataStoreFactory
       isDefault: true
