@@ -32,6 +32,7 @@ import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
@@ -697,9 +698,16 @@ public class RefreshingSSLContext implements TimerTask {
    * @return The CN.
    */
   private static String getCN(final X509Certificate cert) {
-    String cn = cert.getSubjectX500Principal().getName()
-                    .replace("CN=", "");
-    cn = cn.substring(0, cn.indexOf(","));
+    String cn = cert.getSubjectX500Principal().getName();
+    int idx = cn.indexOf("CN=");
+    if (idx < 0) {
+      throw new IllegalStateException("No index found for 'CN='");
+    }
+    int end = cn.indexOf(",", idx + 3);
+    if (end < 0) {
+      end = cn.length();
+    }
+    cn = cn.substring(idx + 3, end);
     return cn;
   }
   
@@ -712,9 +720,18 @@ public class RefreshingSSLContext implements TimerTask {
   private static boolean isServerCert(final X509Certificate cert) {
     boolean[] uses = cert.getKeyUsage();
     if (uses == null) {
+      try {
+        List<String> extendedUses = cert.getExtendedKeyUsage();
+        if (extendedUses.contains("1.3.6.1.5.5.7.3.1")) {
+          // That's the OID for TLS web server auth.
+          return true;
+        }
+      } catch (CertificateParsingException e) {
+        LOG.error("Failed to parse cert", e);
+      }
       throw new IllegalStateException("The given certificate didn't "
           + "have any usage extensions. This shouldn't happen with certs "
-          + "used for TLS: " + getCN(cert));
+          + "used for TLS: " + getCN(cert) + "\nCERT: " + cert);
     }
     return (uses[0] && uses[2]);
   }
