@@ -17,10 +17,16 @@ package net.opentsdb.utils;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class TestStringUtils {
 
@@ -124,4 +130,46 @@ public class TestStringUtils {
     }
 
   }
+
+  // some strings from https://www.w3.org/2001/06/utf-8-test/UTF-8-demo.html
+  private static Stream<Arguments> utfStrings() {
+    return Stream.of(
+      Arguments.arguments("Hello world!"),
+      Arguments.arguments("᾿Απ᾿ τὰ κόκκαλα βγαλμένη"),
+      Arguments.arguments("๏ แผ่นดินฮั่นเสื่อมโทรมแสนสังเวช"),
+      Arguments.arguments("Οὐχὶ ταὐτὰ παρίσταταί μοι γιγνώσκειν, ὦ ἄνδρες ᾿Αθηναῖοι,"),
+      Arguments.arguments("გთხოვთ ახლავე გაიაროთ რეგისტრაცია Unicode-ის"),
+      Arguments.arguments("Интернета и Unicode, локализации"),
+      Arguments.arguments("ሲተረጉሙ ይደረግሙ።"),
+      Arguments.arguments("ᛚᚪᚾᛞᛖ ᚾᚩᚱᚦᚹᛖᚪᚱᛞᚢᛗ ᚹᛁᚦ ᚦᚪ ᚹᛖᛥᚫ"),
+      Arguments.arguments("⡌⠁⠧⠑ ⠼⠁⠒  ⡍⠜⠇⠑⠹⠰⠎ ⡣⠕⠌"),
+      Arguments.arguments("ABCDEFGHIJKLMNOPQRSTUVWXYZ /0123456789"),
+      Arguments.arguments("abcdefghijklmnopqrstuvwxyz £©µÀÆÖÞßéöÿ"),
+      Arguments.arguments("–—‘“”„†•…‰™œŠŸž€ ΑΒΓΔΩαβγδω АБВГДабвгд"),
+      Arguments.arguments("∀∂∈ℝ∧∪≡∞ ↑↗↨↻⇣ ┐┼╔╘░►☺♀ ﬁ�⑀₂ἠḂӥẄɐː⍎אԱა"),
+      Arguments.arguments("Καλημέρα κόσμε"),
+      Arguments.arguments("コンニチハ"),
+      Arguments.arguments("∮ E⋅da = Q,  n → ∞, ∑ f(i) = ∏ g(i), ∀x∈ℝ: ⌈x⌉ = −⌊−x⌋, α ∧ ¬β = ¬(¬α ∨ β),"),
+      Arguments.arguments("ℕ ⊆ ℕ₀ ⊂ ℤ ⊂ ℚ ⊂ ℝ ⊂ ℂ, ⊥ < a ≠ b ≡ c ≤ d ≪ ⊤ ⇒ (A ⇔ B),"),
+      Arguments.arguments("2H₂ + O₂ ⇌ 2H₂O, R = 4.7 kΩ, ⌀ 200 mm"),
+      Arguments.arguments("ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃn"),
+      Arguments.arguments("Y [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]"),
+      Arguments.arguments("((V⍳V)=⍳⍴V)/V←,V    ⌷←⍳→⍴∆∇⊃‾⍎⍕⌈"),
+      Arguments.arguments("14.95 €")
+    );
+  }
+
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("utfStrings")
+  public void stringToUTF8Bytes(String string) {
+    int encodedLength = StringUtils.stringToUTF8BytesLength(string);
+    byte[] buf = new byte[encodedLength];
+    int written = StringUtils.stringToUTF8Bytes(string, buf, 0);
+    assertEquals(encodedLength, written);
+    byte[] java = string.getBytes(StandardCharsets.UTF_8);
+    assertArrayEquals(buf, java);
+    String backTo16 = new String(buf, StandardCharsets.UTF_8);
+    assertEquals(string, backTo16);
+  }
+
 }
