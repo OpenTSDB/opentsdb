@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -161,7 +162,7 @@ public class TestStringUtils {
 
   @ParameterizedTest(name = "[{index}] {0}")
   @MethodSource("utfStrings")
-  public void stringToUTF8Bytes(String string) {
+  public void stringToUTF8Bytes(String string) throws Exception {
     int encodedLength = StringUtils.stringToUTF8BytesLength(string);
     byte[] buf = new byte[encodedLength];
     int written = StringUtils.stringToUTF8Bytes(string, buf, 0);
@@ -172,4 +173,18 @@ public class TestStringUtils {
     assertEquals(string, backTo16);
   }
 
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("utfStrings")
+  public void stringToUTF8BytesStream(String string) throws Exception {
+    int encodedLength = StringUtils.stringToUTF8BytesLength(string);
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    int written = StringUtils.stringToUTF8Bytes(string, stream);
+    assertEquals(encodedLength, written);
+    byte[] java = string.getBytes(StandardCharsets.UTF_8);
+    byte[] buf = stream.toByteArray();
+    assertArrayEquals(buf, java);
+    String backTo16 = new String(buf, StandardCharsets.UTF_8);
+    assertEquals(string, backTo16);
+
+  }
 }

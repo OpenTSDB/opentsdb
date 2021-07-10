@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
@@ -212,6 +214,41 @@ public class StringUtils {
       }
     }
     return offset - start;
+  }
+
+  /**
+   * Encodes the UTF-16 Java string to UTF-8 in the byte array at the given
+   * offset.
+   * @param string The string to encode.
+   * @param stream The non-null and opened stream. If sizing is required, see
+   * {@link #stringToUTF8Bytes(String, byte[], int)}
+   * @return The length of bytes encoded. 0 if the string was null or empty.
+   * @throws IOException if the stream throws during writing.
+   */
+  public static int stringToUTF8Bytes(final String string,
+                                      final OutputStream stream) throws IOException {
+    if (string == null) {
+      return 0;
+    }
+
+    int len = 0;
+    for (int i = 0; i < string.length(); i++) {
+      final int c = string.charAt(i);
+      if (c < 0x80) {
+        stream.write((byte) c);
+        ++len;
+      } else if (c > 0x07FF) {
+        stream.write((byte) (0xE0 | (c >> 12 & 0x0F)));
+        stream.write((byte) (0x80 | (c >> 6 & 0x3F)));
+        stream.write((byte) (0x80 | (c & 0x3F)));
+        len += 3;
+      } else {
+        stream.write((byte) (0xC0 | (c >> 6)));
+        stream.write((byte) (0x80 | (c & 0x3F)));
+        len += 2;
+      }
+    }
+    return len;
   }
 }
 
