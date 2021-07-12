@@ -16,10 +16,12 @@ package net.opentsdb.data;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericType;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -31,9 +33,17 @@ public class MockLowLevelMetricData implements LowLevelMetricData {
   protected int[] tagBits = new int[8];
   protected int tagBitsIndex;
   protected int tagBitsReadIndex;
+  protected boolean commonTimestamp = true;
+  protected boolean commonTags = true;
 
   public void add(TimeSeriesDatum datum) {
     data.add(datum);
+    isCommon();
+  }
+
+  public void add(Collection<TimeSeriesDatum> data) {
+    this.data.addAll(data);
+    isCommon();
   }
 
   @Override
@@ -81,6 +91,7 @@ public class MockLowLevelMetricData implements LowLevelMetricData {
   @Override
   public boolean advance() {
     if (++readIndex >= data.size()) {
+      readIndex = -1;
       return false;
     }
     currentId = (TimeSeriesDatumStringId) data.get(readIndex).id();
@@ -124,7 +135,7 @@ public class MockLowLevelMetricData implements LowLevelMetricData {
 
   @Override
   public TimeStamp timestamp() {
-    return data.get(readIndex).value().timestamp();
+    return data.get(readIndex < 0 ? 0 : readIndex).value().timestamp();
   }
 
   @Override
@@ -188,11 +199,31 @@ public class MockLowLevelMetricData implements LowLevelMetricData {
 
   @Override
   public boolean commonTags() {
-    return false;
+    return commonTags;
+  }
+
+  @Override
+  public boolean commonTimestamp() {
+    return commonTimestamp;
   }
 
   @Override
   public void close() throws IOException {
 
+  }
+
+  void isCommon() {
+    for (int i = 1; i < data.size(); i++) {
+      TimeSeriesDatum prev = data.get(i - 1);
+      TimeSeriesDatum cur = data.get(i);
+      if (!((TimeSeriesDatumStringId) prev.id()).tags().equals(
+              ((TimeSeriesDatumStringId) cur.id()).tags())) {
+        commonTags = false;
+      }
+
+      if (cur.value().timestamp().compare(Op.NE, prev.value().timestamp())) {
+        commonTimestamp = false;
+      }
+    }
   }
 }

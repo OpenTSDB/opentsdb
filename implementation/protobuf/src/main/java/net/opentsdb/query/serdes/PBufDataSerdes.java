@@ -278,12 +278,12 @@ public class PBufDataSerdes extends BaseTSDBPlugin implements
   }
 
   @Override
-  public void serialize(TimeSeriesDatum datum, byte[] buffer, int offset) {
+  public int serialize(TimeSeriesDatum datum, byte[] buffer, int offset) {
     throw new UnsupportedOperationException("TODO");
   }
 
   @Override
-  public void serialize(TimeSeriesDatum datum, OutputStream stream) {
+  public int serialize(TimeSeriesDatum datum, OutputStream stream) {
     throw new UnsupportedOperationException("TODO");
   }
 
@@ -313,12 +313,12 @@ public class PBufDataSerdes extends BaseTSDBPlugin implements
   }
 
   @Override
-  public void serialize(TimeSeriesSharedTagsAndTimeData data, byte[] buffer, int offset) {
+  public int serialize(TimeSeriesSharedTagsAndTimeData data, byte[] buffer, int offset) {
     throw new UnsupportedOperationException("TODO");
   }
 
   @Override
-  public void serialize(TimeSeriesSharedTagsAndTimeData data, OutputStream stream) {
+  public int serialize(TimeSeriesSharedTagsAndTimeData data, OutputStream stream) {
     throw new UnsupportedOperationException("TODO");
   }
 
@@ -343,12 +343,12 @@ public class PBufDataSerdes extends BaseTSDBPlugin implements
   }
 
   @Override
-  public void serialize(LowLevelTimeSeriesData data, byte[] buffer, int offset) {
+  public int serialize(LowLevelTimeSeriesData data, byte[] buffer, int offset) {
     throw new UnsupportedOperationException("TODO");
   }
 
   @Override
-  public void serialize(LowLevelTimeSeriesData data, OutputStream stream) {
-
+  public int serialize(LowLevelTimeSeriesData data, OutputStream stream) {
+    throw new UnsupportedOperationException("TODO");
   }
 }

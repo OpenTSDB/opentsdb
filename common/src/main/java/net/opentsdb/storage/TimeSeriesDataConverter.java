@@ -78,10 +78,12 @@ public interface TimeSeriesDataConverter {
    * @param datum The non-null datum to serialize.
    * @param buffer The non-null buffer to write to.
    * @param offset The offset into the buffer at which to start writing.
+   * @return The number of bytes written. A value less than 0 means there was
+   * an error and the payload should be skipped.
    */
-  public void serialize(final TimeSeriesDatum datum,
-                        final byte[] buffer,
-                        final int offset);
+  public int serialize(final TimeSeriesDatum datum,
+                       final byte[] buffer,
+                       final int offset);
 
   /**
    * Writes the given datum to the input stream. Call
@@ -89,9 +91,11 @@ public interface TimeSeriesDataConverter {
    * sized prior to writing.
    * @param datum The non-null datum to serialize.
    * @param stream The non-null and open stream to write to.
+   * @return The number of bytes written. A value less than 0 means there was
+   * an error and the payload should be skipped.
    */
-  public void serialize(final TimeSeriesDatum datum,
-                        final OutputStream stream);
+  public int serialize(final TimeSeriesDatum datum,
+                       final OutputStream stream);
   
   /**
    * Convert the string to an instance of time series data that share a common
@@ -145,10 +149,12 @@ public interface TimeSeriesDataConverter {
    * @param data The non-null data to serialize.
    * @param buffer The non-null buffer to write to.
    * @param offset The offset into the buffer at which to start writing.
+   * @return The number of bytes written. A value less than 0 means there was
+   * an error and the payload should be skipped.
    */
-  public void serialize(final TimeSeriesSharedTagsAndTimeData data,
-                        final byte[] buffer,
-                        final int offset);
+  public int serialize(final TimeSeriesSharedTagsAndTimeData data,
+                       final byte[] buffer,
+                       final int offset);
 
   /**
    * Writes the given datu to the byte array starting at the given offset.
@@ -156,9 +162,11 @@ public interface TimeSeriesDataConverter {
    * if the stream needs to be sized.
    * @param data The non-null data to serialize.
    * @param stream The non-null and open stream to write to.
+   * @return The number of bytes written. A value less than 0 means there was
+   * an error and the payload should be skipped.
    */
-  public void serialize(final TimeSeriesSharedTagsAndTimeData data,
-                        final OutputStream stream);
+  public int serialize(final TimeSeriesSharedTagsAndTimeData data,
+                       final OutputStream stream);
 
   /**
    * Convert the byte array to an iterable low level instance.
@@ -201,10 +209,12 @@ public interface TimeSeriesDataConverter {
    * @param data The non-null data to serialize.
    * @param buffer The non-null buffer to write to.
    * @param offset The offset into the buffer at which to start writing.
+   * @return The number of bytes written. A value less than 0 means there was
+   * an error and the payload should be skipped.
    */
-  public void serialize(final LowLevelTimeSeriesData data,
-                        final byte[] buffer,
-                        final int offset);
+  public int serialize(final LowLevelTimeSeriesData data,
+                       final byte[] buffer,
+                       final int offset);
 
   /**
    * Writes the given datu to the byte array starting at the given offset.
@@ -212,7 +222,9 @@ public interface TimeSeriesDataConverter {
    * first if the stream needs sizing.
    * @param data The non-null data to serialize.
    * @param stream The non-null and open stream to write to.
+   * @return The number of bytes written. A value less than 0 means there was
+   * an error and the payload should be skipped.
    */
-  public void serialize(final LowLevelTimeSeriesData data,
-                        final OutputStream stream);
+  public int serialize(final LowLevelTimeSeriesData data,
+                       final OutputStream stream);
 }

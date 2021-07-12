@@ -205,6 +205,11 @@ public class DefaultHashedLowLevelMetricDataWrapper implements
   }
 
   @Override
+  public boolean commonTimestamp() {
+    return data.commonTimestamp();
+  }
+
+  @Override
   public long timeSeriesHash() {
     return data.timeSeriesHash();
   }
