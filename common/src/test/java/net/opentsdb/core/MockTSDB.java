@@ -28,6 +28,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.stumbleupon.async.Deferred;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -129,7 +130,17 @@ public class MockTSDB implements TSDB {
   public Timer getQueryTimer() {
     return query_timer;
   }
-  
+
+  @Override
+  public Deferred<Object> initializeRegistry(boolean loadPlugins) {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
+  }
+
   @Override
   public boolean registerRunningQuery(final long hash, 
                                       final QueryContext context) {
