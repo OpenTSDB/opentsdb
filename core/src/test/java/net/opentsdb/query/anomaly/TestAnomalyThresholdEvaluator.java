@@ -694,6 +694,160 @@ public class TestAnomalyThresholdEvaluator {
   }
   
   @Test
+  public void numericBadAndWarnThreshold() throws Exception {
+    MockConfig config = MockConfig.newBuilder()
+        .setSerializeObserved(true)
+        .setSerializeThresholds(true)
+        .setSerializeDeltas(true)
+        .setLowerThresholdBad(25)
+        .setLowerThresholdWarn(20)
+        .setUpperThresholdBad(25)
+        .setUpperThresholdWarn(20)
+        .setMode(ExecutionMode.EVALUATE)
+        .addInterpolatorConfig(INTERPOLATOR)
+        .addSource("ds")
+        .setId("egads")
+        .build();
+    
+    TimeSeries source = new MockNumericTimeSeries(ID);
+    ((MockNumericTimeSeries) source).add(BASE_TIME, 25);
+    ((MockNumericTimeSeries) source).add(BASE_TIME + 60, 50);
+    ((MockNumericTimeSeries) source).add(BASE_TIME + 120, 75);
+    ((MockNumericTimeSeries) source).add(BASE_TIME + 180, 50);
+    ((MockNumericTimeSeries) source).add(BASE_TIME + 240, 25);
+    
+    TimeSeries prediction = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) prediction).add(25);
+    ((NumericArrayTimeSeries) prediction).add(50);
+    ((NumericArrayTimeSeries) prediction).add(75);
+    ((NumericArrayTimeSeries) prediction).add(50);
+    ((NumericArrayTimeSeries) prediction).add(25);
+    
+    QueryResult result = mockResult(BASE_TIME, BASE_TIME + 300);
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[5], eval.deltas, 0.001);
+    assertNull(eval.alerts());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(1);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, -49, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.LOWER_BAD, eval.alerts().get(0).thresholdType());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(39);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, -11, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.LOWER_WARN, eval.alerts().get(0).thresholdType());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(99);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, 49, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.UPPER_BAD, eval.alerts().get(0).thresholdType());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(61);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, 11, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.UPPER_WARN, eval.alerts().get(0).thresholdType());
+  }
+  
+  @Test
   public void arrayOneAligned() throws Exception {
     TimeSeries source = new NumericArrayTimeSeries(ID, 
         new SecondTimeStamp(BASE_TIME));
@@ -1275,6 +1429,161 @@ public class TestAnomalyThresholdEvaluator {
         Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN }, 
         eval.deltas, 0.001);
     assertNull(eval.alerts());
+  }
+  
+  @Test
+  public void arrayBadAndWarnThreshold() throws Exception {
+    MockConfig config = MockConfig.newBuilder()
+        .setSerializeObserved(true)
+        .setSerializeThresholds(true)
+        .setSerializeDeltas(true)
+        .setLowerThresholdBad(25)
+        .setLowerThresholdWarn(20)
+        .setUpperThresholdBad(25)
+        .setUpperThresholdWarn(20)
+        .setMode(ExecutionMode.EVALUATE)
+        .addInterpolatorConfig(INTERPOLATOR)
+        .addSource("ds")
+        .setId("egads")
+        .build();
+    
+    TimeSeries source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    TimeSeries prediction = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) prediction).add(25);
+    ((NumericArrayTimeSeries) prediction).add(50);
+    ((NumericArrayTimeSeries) prediction).add(75);
+    ((NumericArrayTimeSeries) prediction).add(50);
+    ((NumericArrayTimeSeries) prediction).add(25);
+    
+    QueryResult result = mockResult(BASE_TIME, BASE_TIME + 300);
+    AnomalyThresholdEvaluator eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[5], eval.deltas, 0.001);
+    assertNull(eval.alerts());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(1);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, -49, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.LOWER_BAD, eval.alerts().get(0).thresholdType());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(39);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, -11, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.LOWER_WARN, eval.alerts().get(0).thresholdType());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(99);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, 49, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.UPPER_BAD, eval.alerts().get(0).thresholdType());
+    
+    source = new NumericArrayTimeSeries(ID, 
+        new SecondTimeStamp(BASE_TIME));
+    ((NumericArrayTimeSeries) source).add(25);
+    ((NumericArrayTimeSeries) source).add(50);
+    ((NumericArrayTimeSeries) source).add(75);
+    ((NumericArrayTimeSeries) source).add(61);
+    ((NumericArrayTimeSeries) source).add(25);
+    
+    eval = new AnomalyThresholdEvaluator(config, 5, 
+        source,
+        result,
+        new TimeSeries[] { prediction },
+        new QueryResult[] { result });
+    eval.evaluate();
+    assertArrayEquals(new double[] { 31.25, 62.5, 93.75, 62.5, 31.25 }, 
+        eval.upper_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 30, 60, 90, 60, 30 }, 
+        eval.upper_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 18.75, 37.5, 56.25, 37.5, 18.75 }, 
+        eval.lower_bad_thresholds, 0.001);
+    assertArrayEquals(new double[] { 20, 40, 60, 40, 20 }, 
+        eval.lower_warn_thresholds, 0.001);
+    assertArrayEquals(new double[] { 0, 0, 0, 11, 0 }, eval.deltas, 0.001);
+    assertEquals(1, eval.alerts().size());
+    assertEquals(AnomalyThresholdEvaluator.UPPER_WARN, eval.alerts().get(0).thresholdType());
   }
   
   // TODO - summary tests

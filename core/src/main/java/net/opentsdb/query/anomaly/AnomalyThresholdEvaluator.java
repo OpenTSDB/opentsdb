@@ -498,24 +498,28 @@ public class AnomalyThresholdEvaluator {
       }
       if (config.getSerializeAlerts() && 
           config.isUpperIsScalar() && current > threshold) {
-        result = AlertValue.newBuilder()
-            .setState(State.WARN)
-            .setDataPoint(current)
-            .setMessage("** TEMP " + current + " is > " + threshold)
-            .setTimestamp(timestamp)
-            .setThreshold(threshold)
-            .setThresholdType(UPPER_WARN)
-            .build();
+        if (result == null) {
+          result = AlertValue.newBuilder()
+              .setState(State.WARN)
+              .setDataPoint(current)
+              .setMessage("** TEMP " + current + " is > " + threshold)
+              .setTimestamp(timestamp)
+              .setThreshold(threshold)
+              .setThresholdType(UPPER_WARN)
+              .build();
+        }
       } else if (config.getSerializeAlerts() && current > threshold) {
-        result = AlertValue.newBuilder()
-            .setState(State.WARN)
-            .setDataPoint(current)
-            .setMessage("** TEMP " + current + " is greater than " + threshold 
-                + " which is > than " + config.getUpperThresholdWarn() + "%")
-            .setTimestamp(timestamp)
-            .setThreshold(threshold)
-            .setThresholdType(UPPER_WARN)
-            .build();
+        if (result == null) {
+          result = AlertValue.newBuilder()
+              .setState(State.WARN)
+              .setDataPoint(current)
+              .setMessage("** TEMP " + current + " is greater than " + threshold 
+                  + " which is > than " + config.getUpperThresholdWarn() + "%")
+              .setTimestamp(timestamp)
+              .setThreshold(threshold)
+              .setThresholdType(UPPER_WARN)
+              .build();
+        }
       }
       
       if (config.getSerializeThresholds()) {
