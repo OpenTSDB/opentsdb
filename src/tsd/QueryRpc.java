@@ -570,6 +570,10 @@ final class QueryRpc implements HttpRpc {
     if (query.hasQueryStringParam("show_summary")) {
         data_query.setShowSummary(true);
     }
+  
+    if (query.hasQueryStringParam("drop_empty_tsuids")) {
+      data_query.setDropEmptyDataPoints(true);
+    }
     
     // handle tsuid queries first
     if (query.hasQueryStringParam("tsuid")) {
@@ -586,7 +590,7 @@ final class QueryRpc implements HttpRpc {
       }
     }
     
-    // TODO - testing out the graphite style expressions here with the "exp" 
+    // TODO - testing out the graphite style expressions here with the "exp"
     // param that could stand for experimental or expression ;)
     if (expressions != null) {
       if (query.hasQueryStringParam("exp")) {

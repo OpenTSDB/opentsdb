@@ -924,17 +924,37 @@ class HttpJsonSerializer extends HttpSerializer {
 
     }
     
+    class CheckDataPoints {
+      /**
+       * Check if DPs are valid to requested time range
+       * @param dps DPs to Check
+       * @return False iff all DPs are out of requested time range
+       */
+      boolean isValidDPs(final DataPoints dps) {
+        for (final DataPoint dp : dps) {
+          if (dp.timestamp() < data_query.startTime() ||
+                  dp.timestamp() > data_query.endTime()) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+
     // We want the serializer to execute serially so we need to create a callback
     // chain so that when one DPsResolver is finished, it triggers the next to
     // start serializing.
+    final CheckDataPoints dp_checker = new CheckDataPoints();
     final Deferred<Object> cb_chain = new Deferred<Object>();
 
     for (DataPoints[] separate_dps : results) {
       for (DataPoints dps : separate_dps) {
-        try {
-          cb_chain.addCallback(new DPsResolver(dps));
-        } catch (Exception e) {
-          throw new RuntimeException("Unexpected error durring resolution", e);
+        if (!(data_query.dropEmptyDataPoints() && !dp_checker.isValidDPs(dps))) {
+          try {
+            cb_chain.addCallback(new DPsResolver(dps));
+          } catch (Exception e) {
+            throw new RuntimeException("Unexpected error durring resolution", e);
+          }
         }
       }
     }
