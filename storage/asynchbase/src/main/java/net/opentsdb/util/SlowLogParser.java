@@ -37,6 +37,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -170,71 +171,123 @@ public class SlowLogParser {
   }
 
   void parseLine(byte[] lineBuf, int len) {
-    int idx = 0;
-    // lines start with timestamp e.g.: '2021-06-13 13:07:04,484 :'
-    idx += 26;
+    try {
+      int idx = 0;
+      // lines start with timestamp e.g.: '2021-06-13 13:07:04,484 :'
+      idx += 26;
 
-    // skip whatever this is, says 'SV' for us.
-    idx = nextData(lineBuf, idx, len);
+      // skip whatever this is, says 'SV' for us.
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // skip user
-    idx = nextData(lineBuf, idx, len);
+      // skip user
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // ? mark?
-    idx = nextData(lineBuf, idx, len);
+      // ? mark?
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // T? What's that?
-    idx = nextData(lineBuf, idx, len);
+      // T? What's that?
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // IP, don't need it yet
-    idx = nextData(lineBuf, idx, len);
+      // IP, don't need it yet
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // Time or size 1
-    idx = nextData(lineBuf, idx, len);
+      // Time or size 1
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // time or size 2
-    idx = nextData(lineBuf, idx, len);
+      // time or size 2
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // time or size 3
-    idx = nextData(lineBuf, idx, len);
+      // time or size 3
+      idx = nextData(lineBuf, idx, len);
+      if (idx < 0) {
+        return;
+      }
 
-    // op
-    int start = idx;
-    idx = nextData(lineBuf, idx, len);
-    String op = new String(lineBuf, start, idx - start - 1);
-    if (op.equalsIgnoreCase("scan")) {
-      processScan(lineBuf, idx, len);
-    } else if (op.equalsIgnoreCase("multi")) {
-      processMulti(lineBuf, idx, len);
-    } else {
-      System.out.println("Unhandled op: " + op);
+      // op
+      int start = idx;
+      idx = nextData(lineBuf, idx, len);
+      String op = new String(lineBuf, start, idx - start - 1);
+      if (op.equalsIgnoreCase("scan")) {
+        processScan(lineBuf, idx, len);
+      } else if (op.equalsIgnoreCase("multi")) {
+        processMulti(lineBuf, idx, len);
+      } else {
+        System.out.println("Unhandled op: " + op);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Bad line:\n" + new String(lineBuf, 0, len, StandardCharsets.UTF_8), e);
     }
   }
 
   void processScan(byte[] lineBuf, int idx, int len) {
     // table
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
 
     // region hash
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
 
     // space?
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
 
     // filter maybe?
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
 
     // ?
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
 
     // ?
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
 
     // ?
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
 
     // filter name in format `name: "class"`
     idx = nextData(lineBuf, idx, len);
+    if (idx < 0) {
+      return;
+    }
     // EOL
   }
 
