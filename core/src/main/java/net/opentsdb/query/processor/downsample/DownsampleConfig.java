@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2020  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -157,112 +157,133 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     } else {
       original_interval = builder.original_interval;
     }
+    start = builder.start;
+    end = builder.end;
 
-    if (!Strings.isNullOrEmpty(builder.start)) {
+    if (!Strings.isNullOrEmpty(start)) {
       start_time = new MillisecondTimeStamp(
-              DateTime.parseDateTimeString(builder.start, builder.timezone));
+              DateTime.parseDateTimeString(start, builder.timezone));
     } else {
       start_time = null;
     }
-    if (!Strings.isNullOrEmpty(builder.end)) {
+    if (!Strings.isNullOrEmpty(end)) {
       end_time = new MillisecondTimeStamp(
-              DateTime.parseDateTimeString(builder.end, builder.timezone));
+              DateTime.parseDateTimeString(end, builder.timezone));
     } else {
       end_time = new MillisecondTimeStamp(DateTime.currentTimeMillis());
     }
 
-    if (!run_all) {
-      // try for auto.
-      if (builder.interval.equalsIgnoreCase("auto")) {
-        if (start_time != null && end_time != null) {
-          if (intervals == null) {
-            throw new IllegalArgumentException("Auto downsampling is not "
-                    + "configured or enabled.");
-          }
-          // TODO - handle smaller scales
-          final long delta = end_time.msEpoch() - start_time.msEpoch();
-          interval = DownsampleFactory.getAutoInterval(delta, intervals, min_interval);
-        } else {
-          // we've just been parsed, not setup, so set back to auto.
-          interval = "auto";
-        }
-      } else {
-        interval = builder.interval;
-      }
-
-      if (interval.equalsIgnoreCase("auto")) {
-        interval_part = DateTime.getDurationInterval("1m");
-        units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits("1m"));
-        duration = DateTime.parseDuration2("1m");
-      } else {
-        final TemporalAmount duration = DateTime.parseDuration2(interval);
-        if (start_time != null && end_time != null && 
-           duration.equals(Duration.of(
-               end_time.epoch() - start_time.epoch(), ChronoUnit.SECONDS))) {
-          // implicit run-all
-          run_all = true;
-          interval = "0all";
-          interval_part = 0;
-          units = null;
-          this.duration = null;
-        } else {
-          interval_part = DateTime.getDurationInterval(interval);
-          units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
-          this.duration = duration;
-        }
-      }
-    } else {
+    // straight forward case. We just need to agg everything between start
+    // and end.
+    if (run_all) {
       interval = "0all";
       interval_part = 0;
       units = null;
       duration = null;
-    }
-    
-    start = builder.start;
-    if (!Strings.isNullOrEmpty(builder.start)) {
-      if (!run_all) {
-        final TimeStamp original = start_time.getCopy();
-        start_time.snapToPreviousInterval(interval_part, units);
-        if (start_time.compare(Op.LT, original)) {
-          start_time.add(duration);
-        }
+      if (reporting_interval_ms > 0) {
+        dps_in_interval = (int) ((end_time.msEpoch() - start_time.msEpoch()) /
+                reporting_interval_ms);
+      } else {
+        dps_in_interval = 0;
       }
+      return;
     }
 
-    end = builder.end;
-    if (!Strings.isNullOrEmpty(builder.end) && !run_all) {
-      end_time.snapToPreviousInterval(interval_part, units);
-      // TODO - fall to next interval?
-    } else if (!run_all) {
-      end_time.snapToPreviousInterval(interval_part, units);
-    }
-        
-    if (reporting_interval_ms > 0) {
-      if (interval.equalsIgnoreCase("0all")) {
-        dps_in_interval = (int) ((end_time.msEpoch() - start_time.msEpoch()) / reporting_interval_ms);
-      } else if (interval.equalsIgnoreCase("auto")) {
-        dps_in_interval = 0;
-      } else {
-        final long ds = DateTime.parseDuration(interval);
-        if ((ds % reporting_interval_ms) != 0) {
-          throw new IllegalArgumentException("The interval must be an multiple of "
-              + "the reporting interval.");
+    // Keep in mind there are two modes here:
+    // 1) parsing only where the start and end values are NOT set so we don't
+    //    do much validation
+    // 2) setup and validation mode where we need to make sure it's a valid
+    //    config.
+    if (builder.interval.equalsIgnoreCase("auto")) {
+      if (start_time != null && end_time != null) {
+        // validate auto
+        if (intervals == null) {
+          throw new IllegalArgumentException("Auto downsampling is not "
+                  + "configured or enabled.");
         }
-        dps_in_interval = (int) (ds / reporting_interval_ms);
+        // TODO - handle smaller scales if we go to nanos
+        final long delta = end_time.msEpoch() - start_time.msEpoch();
+        interval = DownsampleFactory.getAutoInterval(delta, intervals, min_interval);
+      } else {
+        // just parsing so we can skip the rest for now.
+        interval = builder.interval;
+        interval_part = -1;
+        units = null;
+        duration = null;
+        dps_in_interval = 0;
+        return;
       }
+    } else {
+      interval = builder.interval;
+    }
+
+    final TemporalAmount duration = DateTime.parseDuration2(interval);
+    if (start_time != null && end_time != null &&
+            duration.equals(Duration.of(
+                    end_time.epoch() - start_time.epoch(), ChronoUnit.SECONDS))) {
+      // implicit run-all
+      run_all = true;
+      interval = "0all";
+      interval_part = 0;
+      units = null;
+      this.duration = null;
+      if (reporting_interval_ms > 0) {
+        dps_in_interval = (int) ((end_time.msEpoch() - start_time.msEpoch()) /
+                reporting_interval_ms);
+      } else {
+        dps_in_interval = 0;
+      }
+      return;
+    } else {
+      interval_part = DateTime.getDurationInterval(interval);
+      units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
+      this.duration = duration;
+    }
+
+    if (reporting_interval_ms > 0) {
+      final long ds = DateTime.parseDuration(interval);
+      if ((ds % reporting_interval_ms) != 0) {
+        throw new IllegalArgumentException("The interval must be an multiple of "
+                + "the reporting interval.");
+      }
+      dps_in_interval = (int) (ds / reporting_interval_ms);
     } else {
       dps_in_interval = 0;
     }
-    
+
+    TimeStamp originalStart = null;
+    if (start_time != null) {
+      originalStart = start_time.getCopy();
+      start_time.snapToPreviousInterval(interval_part, units);
+      if (start_time.compare(Op.LT, originalStart)) {
+        start_time.add(duration);
+      }
+    }
+
+    TimeStamp originalEnd = end_time.getCopy();
+    if (end_time != null) {
+      end_time.snapToPreviousInterval(interval_part, units);
+      // TODO - fall to next interval?
+    } else {
+      end_time.snapToPreviousInterval(interval_part, units);
+    }
+
     // make sure we have at least one interval in our range
-    // TODO - propper difference function
-    if (!run_all && start_time != null && end_time.msEpoch() - start_time.msEpoch() <
-            DateTime.parseDuration(interval)) {
-      throw new IllegalArgumentException("The start and stop times of "
-              + "the query must be greater than the interval provided: " + interval 
-              + ". Difference after alignment was " 
-              + (end_time.msEpoch() - start_time.msEpoch()) + " with start=" 
-              + start_time.msEpoch() + " and end=" + end_time.msEpoch());
+    if (start_time != null) {
+      if (start_time.compare(Op.LT, originalStart)){
+        throw new IllegalArgumentException("The aligned start interval ("
+                + start_time.epoch() + "s) must be greater than or equal to the "
+                + "start of the query: " + originalStart.epoch() + "s. Given or "
+                + "auto interval: " + interval);
+      } else if (end_time.compare(Op.GT, originalEnd)) {
+        throw new IllegalArgumentException("The aligned end interval ("
+                + end_time.epoch() + "s) must be less than or equal to the "
+                + "end of the query: " + originalEnd.epoch() + "s. Given or "
+                + "auto interval: " + interval);
+      } else if (end_time.compare(Op.LTE, start_time)) {
+        throw new IllegalArgumentException("No intervals found for the given or "
+                + "auto interval: " + interval + " within the query time range.");
+      }
     }
   }
 
@@ -519,6 +540,50 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     hashes.add(hc);
 
     return Hashing.combineOrdered(hashes);
+  }
+
+  @Override
+  public String toString() {
+    return new StringBuilder()
+            .append("interval=")
+            .append(interval)
+            .append(", aggregator=")
+            .append(aggregator)
+            .append(", runAll=")
+            .append(run_all)
+            .append(", fill=")
+            .append(fill)
+            .append(", infectiousNaN=")
+            .append(infectious_nan)
+            .append(", intervalPart=")
+            .append(interval_part)
+            .append(", units=")
+            .append(units)
+            .append(", duration=")
+            .append(duration)
+            .append(", startString=")
+            .append(start)
+            .append(", endString=")
+            .append(end)
+            .append(", start=")
+            .append(start_time)
+            .append(", end=")
+            .append(end_time)
+            .append(", autoIntervals=")
+            .append(intervals)
+            .append(", originalInterval=")
+            .append(original_interval)
+            .append(", minInterval=")
+            .append(min_interval)
+            .append(", reportingInterval=")
+            .append(reporting_interval)
+            .append(", reportingIntervalMs=")
+            .append(reporting_interval_ms)
+            .append(", dpsInInterval=")
+            .append(dps_in_interval)
+            .append(", tz=")
+            .append(timezone)
+            .toString();
   }
 
   public static Builder newBuilder() {
