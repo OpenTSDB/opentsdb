@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -151,6 +151,20 @@ public class TestDownsampleConfig {
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+
+    try {
+      DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("boo")
+        .setTimeZone("UTC")
+        .setInterval("7d")
+        .setRunAll(false)
+        .setStart("1624752000000")
+        .setEnd("1625097600000")
+        .addInterpolatorConfig(numeric_config)
+        .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
     
     // run all
     config = (DownsampleConfig) DownsampleConfig.newBuilder()
@@ -235,7 +249,7 @@ public class TestDownsampleConfig {
     
     // delta to small for auto
     try {
-      DownsampleConfig.newBuilder()
+      config = DownsampleConfig.newBuilder()
           .setAggregator("sum")
           .setId("foo")
           .setInterval("auto")
@@ -246,6 +260,7 @@ public class TestDownsampleConfig {
           .addInterpolatorConfig(summary_config)
           .addSource("m1")
           .build();
+      System.out.println(config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
