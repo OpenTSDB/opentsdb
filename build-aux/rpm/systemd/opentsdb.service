@@ -1,0 +1,14 @@
+[Unit]
+Description=OpenTSDB
+After=network-online.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+User=opentsdb
+Group=opentsdb
+LimitNOFILE=65535
+Environment='JVMARGS=-DLOG_FILE=/var/log/opentsdb/opentsdb.log -DQUERY_LOG=/var/log/opentsdb/queries.log -XX:+ExitOnOutOfMemoryError -enableassertions -enablesystemassertions'
+ExecStart=/usr/bin/tsdb tsd --config /usr/share/opentsdb/etc/opentsdb/opentsdb.conf
+Restart=always
+StandardOutput=journal
