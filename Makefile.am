@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2021  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,7 @@ dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
   src/mygnuplot.bat src/opentsdb.conf tools/opentsdb_restart.py src/logback.xml
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb \
+  build-aux/rpm/systemd/opentsdb.service \
   build-aux/rpm/systemd/opentsdb@.service
 tsdb_SRC := \
 	src/core/AbstractSpanGroup.java \
@@ -734,6 +735,7 @@ install-data-etc:
 	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \
 	echo " $(INSTALL_SCRIPT)" $$init_file "$$destdatainitdir" ; \
 	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1; \
+	systemd_file="$(top_srcdir)/build-aux/rpm/systemd/opentsdb.service" ; \
 	systemd_file="$(top_srcdir)/build-aux/rpm/systemd/opentsdb@.service" ; \
 	echo " $(INSTALL_SCRIPT)" $$systemd_file "$$destdatasystemddir" ; \
 	$(INSTALL_SCRIPT) $$systemd_file "$$destdatasystemddir" || exit 1;
