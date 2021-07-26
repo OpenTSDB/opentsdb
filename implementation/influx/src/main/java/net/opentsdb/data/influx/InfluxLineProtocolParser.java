@@ -438,6 +438,16 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
   }
 
   @Override
+  public boolean commonTags() {
+    return false;
+  }
+
+  @Override
+  public boolean commonTimestamp() {
+    return false;
+  }
+
+  @Override
   public int tagBufferStart() {
     return 0;
   }

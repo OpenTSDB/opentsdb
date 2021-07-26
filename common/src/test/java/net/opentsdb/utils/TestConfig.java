@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.Properties;
 
 import org.junit.Test;
@@ -92,28 +93,21 @@ public final class TestConfig {
   public void constructorNullFile() throws Exception {
     new Config((String) null);
   }
+  
+  @Test(expected = NullPointerException.class)
+  public void constructorNullInputStream() throws Exception {
+    new Config((InputStream) null);
+  }
 
   @Test(expected = FileNotFoundException.class)
   public void constructorEmptyFile() throws Exception {
     new Config("");
   }
 
-  @Test (expected = FileNotFoundException.class)
-  public void loadConfigNotFound() throws Exception {
-    Config c = new Config(false);
-    c.loadConfig("/tmp/filedoesnotexist.conf");
-  }
-
   @Test(expected = NullPointerException.class)
   public void loadConfigNull() throws Exception {
     final Config config = new Config(false);
     config.loadConfig(null);
-  }
-
-  @Test(expected = FileNotFoundException.class)
-  public void loadConfigEmpty() throws Exception {
-    final Config config = new Config(false);
-    config.loadConfig("");
   }
 
   @Test

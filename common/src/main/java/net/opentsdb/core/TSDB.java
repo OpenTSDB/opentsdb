@@ -16,6 +16,7 @@ package net.opentsdb.core;
 
 import java.util.concurrent.ExecutorService;
 
+import com.stumbleupon.async.Deferred;
 import io.netty.util.Timer;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.query.QueryContext;
@@ -65,6 +66,21 @@ public interface TSDB {
    * @return A non-null timer.
    */
   public Timer getQueryTimer();
+
+  /**
+   * Initializes the registry, loading built-in classes for use by the TSDB.
+   * Optionally loads and initializes plugins if configured.
+   * @param loadPlugins Whether or not to load plugins.
+   * @return A deferred to wait on until the initialization is complete. Do not
+   * use the registry until this is finished.
+   */
+  public Deferred<Object> initializeRegistry(final boolean loadPlugins);
+
+  /**
+   * Releases all resources and shuts-down threads/executors/plugins etc.
+   * @return A non-null deferred.to wait on until the shutdown is complete.
+   */
+  public Deferred<Object> shutdown();
   
   /**
    * Adds a running query to the tracking map so we can clean up resources.

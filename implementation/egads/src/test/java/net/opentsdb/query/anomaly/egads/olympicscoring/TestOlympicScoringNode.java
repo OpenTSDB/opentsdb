@@ -21,50 +21,34 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
-import java.util.Map;
 
+import net.opentsdb.storage.TimeSeriesDataConsumer;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.PluginConfigValidator;
-import net.opentsdb.core.PluginsConfig;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
-import net.opentsdb.core.PluginsConfig.PluginConfig;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumStringId;
-import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.alert.AlertType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
@@ -73,8 +57,6 @@ import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
-import net.opentsdb.query.anomaly.AnomalyPredictionState.State;
-import net.opentsdb.query.anomaly.AnomalyPredictionState;
 import net.opentsdb.query.anomaly.MemoryPredictionCache;
 import net.opentsdb.query.anomaly.PredictionCache;
 import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesOptions;
@@ -89,11 +71,7 @@ import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
 import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
-import net.opentsdb.stats.BlackholeStatsCollector;
 import net.opentsdb.storage.MockDataStoreFactory;
-import net.opentsdb.storage.WritableTimeSeriesDataStore;
-import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
-import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 public class TestOlympicScoringNode {
@@ -744,8 +722,8 @@ public class TestOlympicScoringNode {
   }
   
   static void storeHourlyData() throws Exception {
-    WritableTimeSeriesDataStoreFactory factory = TSDB.getRegistry().getDefaultPlugin(WritableTimeSeriesDataStoreFactory.class);
-    WritableTimeSeriesDataStore store = factory.newStoreInstance(TSDB, null);
+    TimeSeriesDataConsumerFactory factory = TSDB.getRegistry().getDefaultPlugin(TimeSeriesDataConsumerFactory.class);
+    TimeSeriesDataConsumer store = factory.consumer();
     
     TimeSeriesDatumStringId id_a = BaseTimeSeriesDatumStringId.newBuilder()
         .setMetric(HOULRY_METRIC)
@@ -767,10 +745,10 @@ public class TestOlympicScoringNode {
         if (ts == 1546340580) {
           v = new MutableNumericValue(new SecondTimeStamp(1546340610), value * 10);
         }
-        store.write(null, TimeSeriesDatum.wrap(id_a, v), null).join();
+        store.write(null, TimeSeriesDatum.wrap(id_a, v), null);
                 
         v = new MutableNumericValue(new SecondTimeStamp(ts), value * 10);
-        store.write(null, TimeSeriesDatum.wrap(id_b, v), null).join();
+        store.write(null, TimeSeriesDatum.wrap(id_b, v), null);
         ts += 60;
         //System.out.println(ts + "  " + v.doubleValue());
         wrote++;
@@ -780,8 +758,8 @@ public class TestOlympicScoringNode {
   }
   
   static void storeWeeklyData() throws Exception {
-    WritableTimeSeriesDataStoreFactory factory = TSDB.getRegistry().getDefaultPlugin(WritableTimeSeriesDataStoreFactory.class);
-    WritableTimeSeriesDataStore store = factory.newStoreInstance(TSDB, null);
+    TimeSeriesDataConsumerFactory factory = TSDB.getRegistry().getDefaultPlugin(TimeSeriesDataConsumerFactory.class);
+    TimeSeriesDataConsumer store = factory.consumer();
     
     TimeSeriesDatumStringId id_a = BaseTimeSeriesDatumStringId.newBuilder()
         .setMetric(HOULRY_METRIC)
@@ -801,10 +779,10 @@ public class TestOlympicScoringNode {
         
         MutableNumericValue v = 
             new MutableNumericValue(new SecondTimeStamp(ts), value);
-        store.write(null, TimeSeriesDatum.wrap(id_a, v), null).join();
+        store.write(null, TimeSeriesDatum.wrap(id_a, v), null);
                 
         v = new MutableNumericValue(new SecondTimeStamp(ts), value * 10);
-        store.write(null, TimeSeriesDatum.wrap(id_b, v), null).join();
+        store.write(null, TimeSeriesDatum.wrap(id_b, v), null);
         ts += 60;
         wrote++;
       }

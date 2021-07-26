@@ -28,6 +28,8 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.KeyStore;
@@ -105,6 +107,25 @@ public class AthenzMTLSAuthFilter extends BaseAuthenticationPlugin {
   protected void runFilter(final ServletRequest servletRequest,
                            final ServletResponse servletResponse,
                            final FilterChain chain) throws IOException, ServletException {
+    final AuthState state = authenticate(servletRequest);
+    if (state != null) {
+      servletRequest.setAttribute(AUTH_STATE_KEY, state);
+      HttpServletRequestWrapper wrapper =
+              new HttpServletRequestWrapper((HttpServletRequest) servletRequest) {
+                @Override
+                public java.security.Principal getUserPrincipal() {
+                  return state.getPrincipal();
+                }
+              };
+      chain.doFilter(wrapper, servletResponse);
+    }
+
+    sendResponse((HttpServletResponse) servletResponse, 401,
+            "Missing or invalid certificate.");
+  }
+
+  @Override
+  public AuthState authenticate(final ServletRequest servletRequest) {
     X509Certificate[] certs = (X509Certificate[]) servletRequest.getAttribute(
             JAVAX_CERT_ATTR);
     StringBuilder errorMsg = new StringBuilder();
@@ -124,18 +145,12 @@ public class AthenzMTLSAuthFilter extends BaseAuthenticationPlugin {
       }
 
       if (!matched) {
-        sendResponse((HttpServletResponse) servletResponse, 403,
-                "Invalid certificate.");
-        return;
+        return null;
       }
 
-      final AthenzAuthState state = new AthenzAuthState(principal);
-      servletRequest.setAttribute(AUTH_STATE_KEY, state);
-      chain.doFilter(servletRequest, servletResponse);
+      return new AthenzAuthState(principal);
     }
-
-    sendResponse((HttpServletResponse) servletResponse, 403,
-            "Missing certificate.");
+    return null;
   }
 
   /**

@@ -789,11 +789,24 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
         @Override
         public Object call(final byte[] uid) throws Exception {
           if (uid == null) {
-            final NoSuchUniqueName ex = 
-                new NoSuchUniqueName(Schema.METRIC_TYPE, metric);
+            boolean skip = false;
+            if (config.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_METRIC_KEY)) {
+              skip = config.getBoolean(context.tsdb().getConfig(),
+                      Tsdb1xHBaseDataStore.SKIP_NSUN_METRIC_KEY);
+            } else {
+              skip = parent
+                      .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_METRIC_KEY);
+            }
+            if (skip) {
+              // return empty result
+              return false;
+            }
+
+            final NoSuchUniqueName ex =
+                    new NoSuchUniqueName(Schema.METRIC_TYPE, metric);
             if (child != null) {
               child.setErrorTags(ex)
-                   .finish();
+                      .finish();
             }
             throw new QueryExecutionException(ex.getMessage(), 400, ex);
           }
@@ -801,7 +814,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
           for (int i = 0; i < uid.length; i++) {
             metric_uid[i] = uid[i];
           }
-          return null;
+          return true;
         }
       }
       
@@ -869,6 +882,22 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
       class GroupCB implements Callback<Object, ArrayList<Object>> {
         @Override
         public Object call(final ArrayList<Object> ignored) throws Exception {
+          // ok, fun is.. so we are returning a boolean from the metric CB and
+          // if we're skipping we fail here.
+          Object metric_resolved = ignored.get(0);
+          if (!(Boolean) metric_resolved) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("No UID found for metric {], returning an empty result.", metric);
+            }
+            synchronized (this) {
+              initialized.compareAndSet(false, true);
+              sendUpstream(new Tsdb1xQueryResult(0, Tsdb1xHBaseQueryNode.this,
+                      parent.schema()));
+              completeUpstream(0, 0);
+              return null;
+            }
+          }
+
           // TODO - maybe a better way but the TSUIDs have to be sorted
           // on the key values.
           final ByteMap<byte[]> sorter = new ByteMap<byte[]>();
@@ -961,7 +990,7 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
       deferreds.add(parent.schema()
           .getIds(UniqueIdType.TAGV, tagvs, span)
             .addCallback(new TagCB(true)));
-      Deferred.group(deferreds)
+      Deferred.groupInOrder(deferreds)
         .addCallback(new GroupCB())
         .addErrback(new ErrorCB());
     }

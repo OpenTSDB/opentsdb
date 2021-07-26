@@ -843,122 +843,122 @@ public class TestSchema extends SchemaBase {
     } catch (StorageException e) { }
   }
 
-  @Test
-  public void writeDatum() throws Exception {
-    Schema schema = schema();
-    when(id_validator.validate(any(TimeSeriesDatumId.class)))
-      .thenReturn(null);
-    when(store.write(any(AuthState.class), any(TimeSeriesDatum.class), 
-        any(net.opentsdb.stats.Span.class)))
-      .thenReturn(Deferred.fromResult(WriteStatus.OK));
-    assertEquals(WriteStatus.OK, schema.write(null, 
-        mock(TimeSeriesDatum.class), null).join());
-    verify(store, times(1)).write(any(AuthState.class), any(TimeSeriesDatum.class), 
-        any(net.opentsdb.stats.Span.class));
-    
-    when(id_validator.validate(any(TimeSeriesDatumId.class)))
-      .thenReturn("Ooops");
-    
-    WriteStatus status = schema.write(null, 
-        mock(TimeSeriesDatum.class), null).join();
-    assertEquals(WriteState.REJECTED, status.state());
-    assertEquals("Ooops", status.message());
-    verify(store, times(1)).write(any(AuthState.class), any(TimeSeriesDatum.class), 
-        any(net.opentsdb.stats.Span.class));
-  }
+//  @Test
+//  public void writeDatum() throws Exception {
+//    Schema schema = schema();
+//    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+//      .thenReturn(null);
+//    when(store.write(any(AuthState.class), any(TimeSeriesDatum.class), 
+//        any(net.opentsdb.stats.Span.class)))
+//      .thenReturn(Deferred.fromResult(WriteStatus.OK));
+//    assertEquals(WriteStatus.OK, schema.write(null, 
+//        mock(TimeSeriesDatum.class), null).join());
+//    verify(store, times(1)).write(any(AuthState.class), any(TimeSeriesDatum.class), 
+//        any(net.opentsdb.stats.Span.class));
+//    
+//    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+//      .thenReturn("Ooops");
+//    
+//    WriteStatus status = schema.write(null, 
+//        mock(TimeSeriesDatum.class), null).join();
+//    assertEquals(WriteState.REJECTED, status.state());
+//    assertEquals("Ooops", status.message());
+//    verify(store, times(1)).write(any(AuthState.class), any(TimeSeriesDatum.class), 
+//        any(net.opentsdb.stats.Span.class));
+//  }
   
-  @Test
-  public void writeData() throws Exception {
-    Schema schema = schema();
-    when(id_validator.validate(any(TimeSeriesDatumId.class)))
-      .thenReturn(null);
-    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class)))
-      .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          WriteStatus.OK, 
-          WriteStatus.OK)));
-    
-    TimeSeriesDatumStringId id_a = BaseTimeSeriesDatumStringId.newBuilder()
-        .setMetric(METRIC_STRING)
-        .addTags(TAGK_STRING, TAGV_STRING)
-        .build();
-    TimeSeriesDatumStringId id_b = BaseTimeSeriesDatumStringId.newBuilder()
-        .setMetric(METRIC_B_STRING)
-        .addTags(TAGK_STRING, TAGV_STRING)
-        .build();
-    TimeStamp ts = new SecondTimeStamp(1262304000);
-    MutableNumericValue value_a = new MutableNumericValue(ts, 42);
-    MutableNumericValue value_b = new MutableNumericValue(ts, 24);
-    
-    List<TimeSeriesDatum> data = Lists.newArrayList(
-        TimeSeriesDatum.wrap(id_a, value_a),
-        TimeSeriesDatum.wrap(id_b, value_b));
-    
-    List<WriteStatus> status = schema.write(null, 
-        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
-    assertEquals(2, status.size());
-    assertEquals(WriteStatus.OK, status.get(0));
-    assertEquals(WriteStatus.OK, status.get(1));
-    verify(store, times(1)).write(any(AuthState.class), 
-        any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class));
-    
-    // fail the first
-    when(id_validator.validate(any(TimeSeriesDatumId.class)))
-      .thenReturn("Ooops!")
-      .thenReturn(null);
-    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class)))
-      .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          WriteStatus.OK)));
-    
-    status = schema.write(null, 
-        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
-    assertEquals(2, status.size());
-    assertEquals(WriteState.REJECTED, status.get(0).state());
-    assertEquals(WriteStatus.OK, status.get(1));
-    verify(store, times(2)).write(any(AuthState.class), 
-        any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class));
-    
-    // fail the second
-    when(id_validator.validate(any(TimeSeriesDatumId.class)))
-      .thenReturn(null)
-      .thenReturn("Ooops!");
-    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class)))
-      .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          WriteStatus.OK)));
-    
-    status = schema.write(null, 
-        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
-    assertEquals(2, status.size());    
-    assertEquals(WriteStatus.OK, status.get(0));
-    assertEquals(WriteState.REJECTED, status.get(1).state());
-    verify(store, times(3)).write(any(AuthState.class), 
-        any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class));
-    
-    // fail all
-    when(id_validator.validate(any(TimeSeriesDatumId.class)))
-      .thenReturn("Ooops!")
-      .thenReturn("Ooops!");
-    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class)))
-      .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          WriteStatus.OK)));
-    
-    status = schema.write(null, 
-        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
-    assertEquals(2, status.size());    
-    assertEquals(WriteState.REJECTED, status.get(0).state());
-    assertEquals(WriteState.REJECTED, status.get(1).state());
-    
-    // not called here
-    verify(store, times(3)).write(any(AuthState.class), 
-        any(TimeSeriesSharedTagsAndTimeData.class), 
-        any(net.opentsdb.stats.Span.class));
-  }
+//  @Test
+//  public void writeData() throws Exception {
+//    Schema schema = schema();
+//    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+//      .thenReturn(null);
+//    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class)))
+//      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+//          WriteStatus.OK, 
+//          WriteStatus.OK)));
+//    
+//    TimeSeriesDatumStringId id_a = BaseTimeSeriesDatumStringId.newBuilder()
+//        .setMetric(METRIC_STRING)
+//        .addTags(TAGK_STRING, TAGV_STRING)
+//        .build();
+//    TimeSeriesDatumStringId id_b = BaseTimeSeriesDatumStringId.newBuilder()
+//        .setMetric(METRIC_B_STRING)
+//        .addTags(TAGK_STRING, TAGV_STRING)
+//        .build();
+//    TimeStamp ts = new SecondTimeStamp(1262304000);
+//    MutableNumericValue value_a = new MutableNumericValue(ts, 42);
+//    MutableNumericValue value_b = new MutableNumericValue(ts, 24);
+//    
+//    List<TimeSeriesDatum> data = Lists.newArrayList(
+//        TimeSeriesDatum.wrap(id_a, value_a),
+//        TimeSeriesDatum.wrap(id_b, value_b));
+//    
+//    List<WriteStatus> status = schema.write(null, 
+//        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
+//    assertEquals(2, status.size());
+//    assertEquals(WriteStatus.OK, status.get(0));
+//    assertEquals(WriteStatus.OK, status.get(1));
+//    verify(store, times(1)).write(any(AuthState.class), 
+//        any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class));
+//    
+//    // fail the first
+//    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+//      .thenReturn("Ooops!")
+//      .thenReturn(null);
+//    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class)))
+//      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+//          WriteStatus.OK)));
+//    
+//    status = schema.write(null, 
+//        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
+//    assertEquals(2, status.size());
+//    assertEquals(WriteState.REJECTED, status.get(0).state());
+//    assertEquals(WriteStatus.OK, status.get(1));
+//    verify(store, times(2)).write(any(AuthState.class), 
+//        any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class));
+//    
+//    // fail the second
+//    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+//      .thenReturn(null)
+//      .thenReturn("Ooops!");
+//    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class)))
+//      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+//          WriteStatus.OK)));
+//    
+//    status = schema.write(null, 
+//        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
+//    assertEquals(2, status.size());    
+//    assertEquals(WriteStatus.OK, status.get(0));
+//    assertEquals(WriteState.REJECTED, status.get(1).state());
+//    verify(store, times(3)).write(any(AuthState.class), 
+//        any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class));
+//    
+//    // fail all
+//    when(id_validator.validate(any(TimeSeriesDatumId.class)))
+//      .thenReturn("Ooops!")
+//      .thenReturn("Ooops!");
+//    when(store.write(any(AuthState.class), any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class)))
+//      .thenReturn(Deferred.fromResult(Lists.newArrayList(
+//          WriteStatus.OK)));
+//    
+//    status = schema.write(null, 
+//        TimeSeriesSharedTagsAndTimeData.fromCollection(data), null).join(); 
+//    assertEquals(2, status.size());    
+//    assertEquals(WriteState.REJECTED, status.get(0).state());
+//    assertEquals(WriteState.REJECTED, status.get(1).state());
+//    
+//    // not called here
+//    verify(store, times(3)).write(any(AuthState.class), 
+//        any(TimeSeriesSharedTagsAndTimeData.class), 
+//        any(net.opentsdb.stats.Span.class));
+//  }
 
   @Test
   public void createRowKeySuccess() throws Exception {

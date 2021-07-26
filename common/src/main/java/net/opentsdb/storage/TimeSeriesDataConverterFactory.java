@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,18 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 
 /**
- * The interface used for implementing a data store that can accept 
- * writes via the OpenTSDB APIs.
- * 
+ * A factory for instantiating converters.
+ *
  * @since 3.0
  */
-public interface WritableTimeSeriesDataStoreFactory extends TSDBPlugin{
-  
+public interface TimeSeriesDataConverterFactory extends TSDBPlugin  {
+
   /**
-   * Returns a reference to a specific data store instance with the 
-   * given ID. If the ID is null or empty it's the "default" instance.
-   * @param tsdb A non-null TSD to pull configs from.
-   * @param id An optional ID.
-   * @return An instantiated time series data store.
+   * @return A new (or reusable) instance of the converter.
    */
-  public WritableTimeSeriesDataStore newStoreInstance(final TSDB tsdb, 
-                                                      final String id);
-  
+  public TimeSeriesDataConverter newInstance();
+
 }

@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
 /**
@@ -152,6 +155,100 @@ public class StringUtils {
     }
     result[i] = new String(chars, start, pos - start);
     return result;
+  }
+
+  /**
+   * Determines the number of bytes needed to encode the UTF-16 Java string to
+   * UTF-8 for serialization.
+   * @param string The string to encode.
+   * @return The length of the encoded value in bytes. 0 if the string was null
+   * or empty.
+   */
+  public static int stringToUTF8BytesLength(final String string) {
+    if (string == null) {
+      return 0;
+    }
+
+    int len = 0;
+    for (int i = 0; i < string.length(); i++) {
+      final int c = string.charAt(i);
+      if (c < 0x80) {
+        len++;
+      } else if (c > 0x07FF) {
+        len += 3;
+      } else {
+        len += 2;
+      }
+    }
+    return len;
+  }
+
+  /**
+   * Encodes the UTF-16 Java string to UTF-8 in the byte array at the given
+   * offset.
+   * @param string The string to encode.
+   * @param buffer The non-null buffer sized properly. See
+   * {@link #stringToUTF8Bytes(String, byte[], int)}
+   * @param offset The offset in which to start encoding.
+   * @return The length of bytes encoded. 0 if the string was null or empty.
+   */
+  public static int stringToUTF8Bytes(final String string,
+                                      final byte[] buffer,
+                                      int offset) {
+    if (string == null) {
+      return 0;
+    }
+
+    int start = offset;
+    for (int i = 0; i < string.length(); i++) {
+      final int c = string.charAt(i);
+      if (c < 0x80) {
+        buffer[offset++] = (byte) c;
+      } else if (c > 0x07FF) {
+        buffer[offset++] = (byte) (0xE0 | (c >> 12 & 0x0F));
+        buffer[offset++] = (byte) (0x80 | (c >> 6 & 0x3F));
+        buffer[offset++] = (byte) (0x80 | (c & 0x3F));
+      } else {
+        buffer[offset++] = (byte) (0xC0 | (c >> 6));
+        buffer[offset++] = (byte) (0x80 | (c & 0x3F));
+      }
+    }
+    return offset - start;
+  }
+
+  /**
+   * Encodes the UTF-16 Java string to UTF-8 in the byte array at the given
+   * offset.
+   * @param string The string to encode.
+   * @param stream The non-null and opened stream. If sizing is required, see
+   * {@link #stringToUTF8Bytes(String, byte[], int)}
+   * @return The length of bytes encoded. 0 if the string was null or empty.
+   * @throws IOException if the stream throws during writing.
+   */
+  public static int stringToUTF8Bytes(final String string,
+                                      final OutputStream stream) throws IOException {
+    if (string == null) {
+      return 0;
+    }
+
+    int len = 0;
+    for (int i = 0; i < string.length(); i++) {
+      final int c = string.charAt(i);
+      if (c < 0x80) {
+        stream.write((byte) c);
+        ++len;
+      } else if (c > 0x07FF) {
+        stream.write((byte) (0xE0 | (c >> 12 & 0x0F)));
+        stream.write((byte) (0x80 | (c >> 6 & 0x3F)));
+        stream.write((byte) (0x80 | (c & 0x3F)));
+        len += 3;
+      } else {
+        stream.write((byte) (0xC0 | (c >> 6)));
+        stream.write((byte) (0x80 | (c & 0x3F)));
+        len += 2;
+      }
+    }
+    return len;
   }
 }
 

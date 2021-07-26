@@ -23,60 +23,62 @@ import com.google.common.base.Strings;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.utils.DateTime;
 
+import java.time.temporal.TemporalAmount;
 import java.util.List;
 
 /**
  * A config that represents a single data source.
- * 
+ *
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TimeRouterConfigEntry.Builder.class)
 public class TimeRouterConfigEntry {
-  
+
   /** Enum to determine if the results matched or not. */
   static enum MatchType {
     FULL,
     PARTIAL,
     NONE
   }
-  
+
   /** The original config string for re-serializing. */
   private final String start_string;
-  
+
   /** The converted start time in seconds (relative or epoch) */
   private final long start;
-  
+
   /** Whether or not the start time is relative. */
   private final boolean start_relative;
-  
+
   /** The original config string for re-serializing. */
   private final String end_string;
-  
+
   /** The converted end time in seconds (relative or epoch) */
   private final long end;
-  
+
   /** Whether or not the end time is relative. */
   private final boolean end_relative;
-  
+
   /** An optional time zone for absolute timestamps. */
   private final String time_zone;
-  
+
   /** Whether or not this source should return results only when the
    * entire query range is encompassed by the config range. */
   private final boolean full_only;
 
   private final String data_type;
-  
+
   /** The ID of the data source. */
   private final String source_id;
-  
+
   private TimeSeriesDataSourceFactory factory;
-  
+
   /**
    * Default protected ctor.
    * @param builder The non-null builder.
@@ -91,14 +93,14 @@ public class TimeRouterConfigEntry {
       start_string = builder.start;
       if (DateTime.isRelativeDate(start_string)) {
         start_relative = true;
-        start = DateTime.parseDuration(start_string.substring(0, 
-            start_string.indexOf("-ago"))) / 1000;
+        start = DateTime.parseDuration(start_string.substring(0,
+                start_string.indexOf("-ago"))) / 1000;
       } else {
         start_relative = false;
         start = DateTime.parseDateTimeString(start_string, time_zone) / 1000;
       }
     }
-    
+
     if (Strings.isNullOrEmpty(builder.end)) {
       end_string = null;
       end = 0;
@@ -107,14 +109,14 @@ public class TimeRouterConfigEntry {
       end_string = builder.end;
       if (DateTime.isRelativeDate(end_string)) {
         end_relative = true;
-        end = DateTime.parseDuration(end_string.substring(0, 
-            end_string.indexOf("-ago"))) / 1000;
+        end = DateTime.parseDuration(end_string.substring(0,
+                end_string.indexOf("-ago"))) / 1000;
       } else {
         end_relative = false;
         end = DateTime.parseDateTimeString(end_string, time_zone) / 1000;
       }
     }
-    
+
     if (end != 0 && start != 0) {
       if (start_relative && end_relative && end >= start) {
         throw new IllegalArgumentException("The end time must be >= start time.");
@@ -122,12 +124,12 @@ public class TimeRouterConfigEntry {
     } else if (!start_relative && !end_relative && end <= start) {
       throw new IllegalArgumentException("The end time must be >= start time.");
     }
-    
+
     full_only = builder.fullOnly;
     data_type = builder.dataType;
     source_id = builder.sourceId;
   }
-  
+
   public String getStartString() {
     return start_string;
   }
@@ -155,7 +157,7 @@ public class TimeRouterConfigEntry {
   public String getTimeZone() {
     return time_zone;
   }
-  
+
   public boolean isFullOnly() {
     return full_only;
   }
@@ -169,63 +171,76 @@ public class TimeRouterConfigEntry {
   }
 
   /**
-   * Package private to allow the factory to determine if this node 
+   * Package private to allow the factory to determine if this node
    * matches the query.
    * @param context The non-null query context to pull the time from.
-   * @param config The non-null config to send to the factory for 
+   * @param config The non-null config to send to the factory for
    * validation.
    * @param tsdb The non-null TSDB.
    * @param now The Unix epoch time in seconds.
    * @return The type of match made.
    */
-  MatchType match(final QueryPipelineContext context, 
-                  final TimeSeriesDataSourceConfig config, 
+  MatchType match(final QueryPipelineContext context,
+                  final TimeSeriesDataSourceConfig config,
                   final TSDB tsdb,
                   final int now) {
     // time match first
     MatchType match = MatchType.FULL;
     if (start != 0 || end != 0) { // 0,0 == all time
+      // NOTE: We need to handle time shifts.
+      final long sourceStart;
+      final long sourceEnd;
+      if (config.timeShifts() != null) {
+        TimeStamp temp = context.query().startTime().getCopy();
+        temp.subtract((TemporalAmount) config.timeShifts().getValue());
+        sourceStart = temp.epoch();
+
+        temp = context.query().endTime().getCopy();
+        temp.subtract((TemporalAmount) config.timeShifts().getValue());
+        sourceEnd = temp.epoch();
+      } else {
+        sourceStart = context.query().startTime().epoch();
+        sourceEnd = context.query().endTime().epoch();
+      }
+
       // assume start & end in the query have been set and validated.
       // first check for out of bounds.
       if (start != 0) {
-        if (start_relative ? context.query().endTime().epoch() < now - start : 
-          context.query().endTime().epoch() < start) {
+        if (start_relative ? sourceEnd < now - start : sourceEnd < start) {
           return MatchType.NONE;
-        } else if (start_relative ? context.query().startTime().epoch() >= now - start : 
-          context.query().startTime().epoch() >= start) {
+        } else if (start_relative ? sourceStart >= now - start :
+                sourceStart >= start) {
           // full
         } else {
           match = MatchType.PARTIAL;
         }
       }
-    
+
       if (end != 0) {
-        if (end_relative ? context.query().startTime().epoch() >= now - end : 
-          context.query().startTime().epoch() >= end) {
+        if (end_relative ? sourceStart >= now - end : sourceStart >= end) {
           return MatchType.NONE;
-        } else if (match == MatchType.FULL && 
-            (end_relative ? context.query().endTime().epoch() < now - end :
-              context.query().endTime().epoch() < end)) {
+        } else if (match == MatchType.FULL &&
+            (end_relative ? sourceEnd < now - end : sourceEnd < end)) {
           // full though we leave it at partial if the start was out of bound.
         } else {
           match = MatchType.PARTIAL;
         }
       }
     }
-    
+
     if (full_only && match != MatchType.FULL) {
       return MatchType.NONE;
     }
-    
+
     // time matched, check the factory now.
     if (factory == null) {
       synchronized (this) {
         if (factory == null) {
           factory = tsdb.getRegistry().getPlugin(
-              TimeSeriesDataSourceFactory.class, source_id);
+                  TimeSeriesDataSourceFactory.class, source_id);
           if (factory == null) {
-            throw new IllegalArgumentException("No factory found for source: " 
-                + (Strings.isNullOrEmpty(source_id) ? "Default" : source_id));
+            throw new IllegalArgumentException("No factory found for source: "
+                    + (Strings.isNullOrEmpty(source_id) ? "Default" : source_id));
           }
         }
       }
@@ -238,7 +253,7 @@ public class TimeRouterConfigEntry {
     } else {
       type = null;
     }
-    
+
     if (!Strings.isNullOrEmpty(type) || !Strings.isNullOrEmpty(data_type)) {
       if (Strings.isNullOrEmpty(type)) {
         type = "metric";
@@ -258,11 +273,11 @@ public class TimeRouterConfigEntry {
     }
     return match;
   }
-  
+
   public static Builder newBuilder() {
     return new Builder();
   }
-  
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     @JsonProperty
@@ -277,22 +292,22 @@ public class TimeRouterConfigEntry {
     private String dataType;
     @JsonProperty
     private String sourceId;
-    
+
     public Builder setStart(final String start) {
       this.start = start;
       return this;
     }
-    
+
     public Builder setEnd(final String end) {
       this.end = end;
       return this;
     }
-    
+
     public Builder setTimeZone(final String time_zone) {
       timeZone = time_zone;
       return this;
     }
-    
+
     public Builder setFullOnly(final boolean full_only) {
       fullOnly = full_only;
       return this;
@@ -307,7 +322,7 @@ public class TimeRouterConfigEntry {
       sourceId = source_id;
       return this;
     }
-    
+
     public TimeRouterConfigEntry build() {
       return new TimeRouterConfigEntry(this);
     }

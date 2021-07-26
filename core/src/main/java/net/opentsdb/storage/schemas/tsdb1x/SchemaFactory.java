@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,8 +37,8 @@ import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.WritableTimeSeriesDataStore;
-import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
+import net.opentsdb.storage.TimeSeriesDataConsumer;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import net.opentsdb.uid.UniqueIdType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +53,7 @@ import java.util.List;
  */
 public class SchemaFactory extends BaseTSDBPlugin 
                            implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, Tsdb1xQueryNode>,
-                                      WritableTimeSeriesDataStoreFactory {
+                                      TimeSeriesDataConsumerFactory {
   private static final Logger LOG = LoggerFactory.getLogger(SchemaFactory.class);
 
   public static final String TYPE = "Tsdb1xSchemaFactory";
@@ -69,8 +69,7 @@ public class SchemaFactory extends BaseTSDBPlugin
   protected DefaultRollupConfig rollup_config;
   
   @Override
-  public WritableTimeSeriesDataStore newStoreInstance(final TSDB tsdb, 
-                                                      final String id) {
+  public TimeSeriesDataConsumer consumer() {
     return schema;
   }
   
@@ -239,4 +238,5 @@ public class SchemaFactory extends BaseTSDBPlugin
         "" : id + ".")
       + suffix;
   }
+
 }

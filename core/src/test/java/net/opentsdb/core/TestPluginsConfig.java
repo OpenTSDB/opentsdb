@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.util.List;
 
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,7 +49,6 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.readcache.GuavaLRUCache;
 import net.opentsdb.query.readcache.QueryReadCache;
-import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
 import net.opentsdb.utils.JSON;
@@ -57,7 +57,7 @@ import net.opentsdb.utils.PluginLoader;
 /**
  * <B>NOTE:</b> This class depends on the behavior of {@link PluginLoader} from
  * the TSDB common class as well as
- * {@link DefaultRegistry#registerPlugin(Class, String, BaseTSDBPlugin)}'s behavior.
+ * {@link DefaultRegistry#registerPlugin(Class, String, TSDBPlugin)}'s behavior.
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ PluginsConfig.class, Schema.class,
@@ -75,8 +75,8 @@ public class TestPluginsConfig {
     config = spy(new PluginsConfig());
     Whitebox.setInternalState(tsdb.registry, "plugins", config);
     
-    when(tsdb.getRegistry().getDefaultPlugin(WritableTimeSeriesDataStoreFactory.class))
-      .thenReturn((WritableTimeSeriesDataStoreFactory) mock(SchemaFactory.class));
+    when(tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataConsumerFactory.class))
+      .thenReturn((TimeSeriesDataConsumerFactory) mock(SchemaFactory.class));
     when(tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataSourceFactory.class))
       .thenReturn((TimeSeriesDataSourceFactory) mock(SchemaFactory.class));
     Schema schema = mock(Schema.class);

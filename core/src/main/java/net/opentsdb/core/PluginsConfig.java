@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,8 +38,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.pojo.Validatable;
-import net.opentsdb.storage.WritableTimeSeriesDataStore;
-import net.opentsdb.storage.WritableTimeSeriesDataStoreFactory;
 import net.opentsdb.utils.Deferreds;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
@@ -305,7 +303,6 @@ public class PluginsConfig extends Validatable {
   /**
    * Retrieves the plugin with the given class type and ID.
    * @param clazz The type of plugin to be fetched.
-   * @param id An optional ID, may be null if the default is fetched.
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
@@ -466,43 +463,14 @@ public class PluginsConfig extends Validatable {
               
               LOG.info("Loaded plugin " + plugin.id() + " version: " 
                   + plugin.version());
-              
-              class DataStoreCB implements Callback<Object, Object> {
-                @Override
-                public Object call(final Object ignored) throws Exception {
-                  final String id = plugin_config.getIsDefault() ? null : plugin_config.getId();
-                  if (plugin_config.instantiated_plugin instanceof WritableTimeSeriesDataStoreFactory &&
-                      ((DefaultRegistry) tsdb.getRegistry()).getWriteStore(id) == null) {
-                    WritableTimeSeriesDataStore store = ((WritableTimeSeriesDataStoreFactory) 
-                        plugin_config.instantiated_plugin).newStoreInstance(tsdb, id);
-                    ((DefaultRegistry) tsdb.getRegistry()).registerWriteStore(store, id);
-                  }
-                  return null;
-                }
-              }
-              
+
               if (downstream != null) {
-                if (plugin_config.instantiated_plugin instanceof 
-                        WritableTimeSeriesDataStoreFactory) {
-                  plugin.initialize(tsdb, plugin_config.getId())
-                    .addCallback(new DataStoreCB())
-                    .addCallback(downstream)
-                    .addErrback(new ErrorCB(index, downstream));
-                } else {
-                  plugin.initialize(tsdb, plugin_config.getId())
-                    .addCallback(downstream)
-                    .addErrback(new ErrorCB(index, downstream));
-                }
+                plugin.initialize(tsdb, plugin_config.getId())
+                        .addCallback(downstream)
+                        .addErrback(new ErrorCB(index, downstream));
               } else {
-                if (plugin_config.instantiated_plugin instanceof 
-                        WritableTimeSeriesDataStoreFactory) {
-                  plugin.initialize(tsdb, plugin_config.getId())
-                    .addCallback(new DataStoreCB())
-                    .addErrback(new ErrorCB(-1, null));
-                } else {
-                  plugin.initialize(tsdb, plugin_config.getId())
-                  .addErrback(new ErrorCB(-1, null));
-                }
+                plugin.initialize(tsdb, plugin_config.getId())
+                      .addErrback(new ErrorCB(-1, null));
               }
             } else {
               // load all plugins of a type.

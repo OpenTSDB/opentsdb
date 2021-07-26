@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2020  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -110,7 +110,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 
  * @since 3.0
  */
-public class MockDataStore implements WritableTimeSeriesDataStore {
+public class MockDataStore implements TimeSeriesDataConsumer {
   private static final Logger LOG = LoggerFactory.getLogger(MockDataStore.class);
   
   public static final long ROW_WIDTH = 3600000;
@@ -216,10 +216,11 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     
     generateMockData();
   }
-  
-  public Deferred<WriteStatus> write(final AuthState state, 
-                                     final TimeSeriesDatum datum, 
-                                     final Span span) {
+
+  @Override
+  public void write(final AuthState state,
+                    final TimeSeriesDatum datum,
+                    final WriteCallback callback) {
     // route it
     if (datum.value().type() == NumericSummaryType.TYPE) {
       MockSpan data_span = rollup_database.get((TimeSeriesDatumStringId) datum.id());
@@ -228,7 +229,10 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         rollup_database.put((TimeSeriesDatumStringId) datum.id(), data_span);
       }
       data_span.addValue(datum.value());
-      return Deferred.fromResult(WriteStatus.OK);
+      if (callback != null) {
+        callback.success();
+      }
+      return;
     } else if (datum.value().type() == NumericType.TYPE) {
       MockSpan data_span = database.get((TimeSeriesDatumStringId) datum.id());
       if (data_span == null) {
@@ -236,17 +240,21 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         database.put((TimeSeriesDatumStringId) datum.id(), data_span);
       }
       data_span.addValue(datum.value());
-      return Deferred.fromResult(WriteStatus.OK);
+      if (callback != null) {
+        callback.success();
+      }
     } else {
-      return Deferred.fromError(new IllegalArgumentException(
-          "Not supporting " + datum.value().type() + " yet."));
+      if (callback != null) {
+        callback.exception(new IllegalArgumentException(
+                "Not supporting " + datum.value().type() + " yet."));
+      }
     }
   }
-  
-  public Deferred<List<WriteStatus>> write(
-      final AuthState state, 
-      final TimeSeriesSharedTagsAndTimeData data, 
-      final Span span) {
+
+  @Override
+  public void write(final AuthState state,
+                    final TimeSeriesSharedTagsAndTimeData data,
+                    final WriteCallback callback) {
     int i = 0;
     for (final TimeSeriesDatum datum : data) {
       if (datum.value().type() == NumericSummaryType.TYPE) {
@@ -264,24 +272,29 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         }
         data_span.addValue(datum.value());
       } else {
-         Deferred.fromError(new IllegalArgumentException(
-            "Not supporting " + datum.value().type() + " yet."));
+         if (callback != null) {
+           callback.exception(new IllegalArgumentException(
+                   "Not supporting " + datum.value().type() + " yet."));
+         }
+         return;
       }
       i++;
     }
-    final List<WriteStatus> states = Lists.newArrayListWithExpectedSize(i);
-    for (int x = 0; x < i; x++) {
-      states.add(WriteStatus.OK);
+    // TODO - partial writes, etc.
+    if (callback != null) {
+      callback.success();
     }
-    return Deferred.fromResult(states);
   }
   
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final LowLevelTimeSeriesData data,
-                                           final Span span) {
+  public void write(final AuthState state,
+                    final LowLevelTimeSeriesData data,
+                    final WriteCallback callback) {
     if (!(data instanceof LowLevelMetricData)) {
-      return Deferred.fromError(new UnsupportedOperationException("TODO"));
+      if (callback != null) {
+        callback.exception(new UnsupportedOperationException("TODO"));
+      }
+      return;
     }
 
     // TODO - rollups
@@ -349,16 +362,17 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
         }
         count++;
       }
-      
-      // TODO pool and resize the write status'
-      List<WriteStatus> status = Lists.newArrayListWithExpectedSize(count);
-      for (int i = 0; i < count; i++) {
-        status.add(WriteStatus.OK);
+
+      if (callback != null) {
+        callback.success();
       }
-      return Deferred.fromResult(status);
+      return ;
     } catch (Exception t) {
       t.printStackTrace();
-      return Deferred.fromError(t);
+      if (callback != null) {
+        callback.exception(t);
+      }
+      return;
     }
   }
   
@@ -1599,7 +1613,7 @@ public class MockDataStore implements WritableTimeSeriesDataStore {
     /**
      * Alternate ctor to set sorting.
      * @param id A non-null Id.
-     * @param sort Whether or not to sort on timestamps on the output.
+     * @param base_timestamp The base timestamp.
      */
     public MockTimeSeries(final TimeSeriesStringId id, final long base_timestamp) {
       if (id == null) {

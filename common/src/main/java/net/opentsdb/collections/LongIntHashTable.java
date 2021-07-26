@@ -57,6 +57,18 @@ public class LongIntHashTable implements Closeable {
     resize();
   }
 
+  private LongIntHashTable(final LongIntHashTable parent,
+                           final DirectByteArray table) {
+    this.table = table;
+    this.slotSz = KEY_SZ + VALUE_SZ;
+    slots = parent.slots;
+    threshold = parent.threshold;
+    arrayLength = parent.arrayLength;
+    sz = parent.sz;
+    address = table.getAddress();
+    name = parent.name;
+  }
+
   @Override
   public void close() {
     if (table != null) {
@@ -205,14 +217,7 @@ public class LongIntHashTable implements Closeable {
     final DirectByteArray newTable = new DirectByteArray(arrayLength, false);
     final Unsafe unsafe = UnsafeHelper.unsafe;
     unsafe.copyMemory(table.getAddress(), newTable.getAddress(), arrayLength);
-    LongIntHashTable newLIHT = new LongIntHashTable(slots, name);
-    newLIHT.slots = slots;
-    newLIHT.threshold = threshold;
-    newLIHT.arrayLength = arrayLength;
-    newLIHT.sz = sz;
-    newLIHT.name = name;
-    newLIHT.table = newTable;
-    return newLIHT;
+    return new LongIntHashTable(this, newTable);
   }
 
   public LongIntIterator iterator() {

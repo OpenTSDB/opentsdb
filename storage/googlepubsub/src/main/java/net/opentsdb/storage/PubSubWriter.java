@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -43,7 +42,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.query.serdes.TimeSeriesDataSerdes;
 import net.opentsdb.stats.Span;
 
 /**
@@ -54,8 +52,8 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class PubSubWriter extends BaseTSDBPlugin implements 
-    WritableTimeSeriesDataStore {
+public class PubSubWriter extends BaseTSDBPlugin implements
+        TimeSeriesDataConsumer {
   protected static final Logger LOG = LoggerFactory.getLogger(PubSubWriter.class);
   
   public static final String TYPE = "GooglePubSubWriter";
@@ -72,7 +70,7 @@ public class PubSubWriter extends BaseTSDBPlugin implements
   protected ProjectTopicName topic;
   
   /** The serdes implementation to use. */
-  protected TimeSeriesDataSerdes serdes;
+  protected TimeSeriesDataConverter serdes;
   
   /**
    * Default ctor.
@@ -81,22 +79,22 @@ public class PubSubWriter extends BaseTSDBPlugin implements
   }
   
   @Override
-  public Deferred<WriteStatus> write(final AuthState state, 
-                                     final TimeSeriesDatum datum,
-                                     final Span span) {
+  public void write(final AuthState state,
+                    final TimeSeriesDatum datum,
+                    final WriteCallback callback) {
     final Span child;
-    if (span != null) {
-      child = span.newChild(getClass().getName() + ".write").start();
-    } else {
+//    if (span != null) {
+//      child = span.newChild(getClass().getName() + ".write").start();
+//    } else {
       child = null;
-    }
-    
-    final Deferred<WriteStatus> deferred = new Deferred<WriteStatus>();
+//    }
+
     try {
-      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      serdes.serialize(null, datum, baos, null);
+      int size = serdes.serializationSize(datum);
+      byte[] payload = new byte[size];
+      serdes.serialize(datum, payload, 0);
       final PubsubMessage message = PubsubMessage.newBuilder()
-          .setData(ByteString.copyFrom(baos.toByteArray()))
+          .setData(ByteString.copyFrom(payload)) // TODO - wrap
           .build();
       
       final ApiFuture<String> future = publisher.publish(message);
@@ -114,16 +112,18 @@ public class PubSubWriter extends BaseTSDBPlugin implements
           if (throwable instanceof ApiException) {
             final ApiException api_exception = ((ApiException) throwable);
             if (api_exception.isRetryable()) {
-              deferred.callback(WriteStatus.retry(
-                  api_exception.getStatusCode().getCode().toString()));
+              if (callback != null) {
+                callback.retryAll();
+              }
             } else {
-              deferred.callback(WriteStatus.error(
-                  api_exception.getStatusCode().getCode().toString(), 
-                  throwable));
+              if (callback != null) {
+                callback.exception(throwable);
+              }
             }
           } else {
-            deferred.callback(WriteStatus.error(
-                throwable.getMessage(), throwable));
+            if (callback != null) {
+              callback.exception(throwable);
+            }
           }
         }
   
@@ -132,38 +132,39 @@ public class PubSubWriter extends BaseTSDBPlugin implements
           if (child != null) {
             child.setSuccessTags().finish();
           }
-          deferred.callback(WriteStatus.OK);
+          if (callback != null) {
+            callback.success();
+          }
         }
       });
-      return deferred;
     } catch (Exception e) {
       if (child != null) {
         child.setErrorTags(e).finish();
       }
       LOG.error("Unexpected exception publishing message", e);
-      return Deferred.fromResult(WriteStatus.error(e.getMessage(), e));
+      if (callback != null) {
+        callback.exception(e);
+      }
     }
   }
 
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final TimeSeriesSharedTagsAndTimeData data, 
-                                           final Span span) {
+  public void write(final AuthState state,
+                    final TimeSeriesSharedTagsAndTimeData data,
+                    final WriteCallback callback) {
     final Span child;
-    if (span != null) {
-      child = span.newChild(getClass().getName() + ".write").start();
-    } else {
+//    if (span != null) {
+//      child = span.newChild(getClass().getName() + ".write").start();
+//    } else {
       child = null;
-    }
-    
-    final Deferred<List<WriteStatus>> deferred = 
-        new Deferred<List<WriteStatus>>();
-    
+//    }
+
     try {
-      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      serdes.serialize(null, data, baos, null);
+      int size = serdes.serializationSize(data);
+      byte[] payload = new byte[size];
+      serdes.serialize(data, payload, 0);
       final PubsubMessage message = PubsubMessage.newBuilder()
-          .setData(ByteString.copyFrom(baos.toByteArray()))
+          .setData(ByteString.copyFrom(payload))
           .build();
       
       final ApiFuture<String> future = publisher.publish(message);
@@ -181,18 +182,19 @@ public class PubSubWriter extends BaseTSDBPlugin implements
           if (throwable instanceof ApiException) {
             final ApiException api_exception = ((ApiException) throwable);
             if (api_exception.isRetryable()) {
-              deferred.callback(buildList(WriteStatus.retry(
-                  api_exception.getStatusCode().getCode().toString()), 
-                  data.size()));
+              // meh, all or nothing
+              if (callback != null) {
+                callback.retryAll();
+              }
             } else {
-              deferred.callback(buildList(WriteStatus.error(
-                  api_exception.getStatusCode().getCode().toString(), 
-                    throwable), 
-                  data.size()));
+              if (callback != null) {
+                callback.exception(throwable);
+              }
             }
           } else {
-            deferred.callback(buildList(WriteStatus.error(
-                throwable.getMessage(), throwable), data.size()));
+            if (callback != null) {
+              callback.exception(throwable);
+            }
           }
         }
   
@@ -201,26 +203,29 @@ public class PubSubWriter extends BaseTSDBPlugin implements
           if (child != null) {
             child.setSuccessTags().finish();
           }
-          deferred.callback(buildList(WriteStatus.OK, data.size()));
+          if (callback != null) {
+            callback.success();
+          }
         }
       });
-      return deferred;
     } catch (Exception e) {
       if (child != null) {
         child.setErrorTags(e).finish();
       }
       LOG.error("Unexpected exception publishing message", e);
-      return Deferred.fromResult(buildList(
-          WriteStatus.error(e.getMessage(), e),
-          data.size()));
+      if (callback != null) {
+        callback.exception(e);
+      }
     }
   }
 
   @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final LowLevelTimeSeriesData data,
-                                           final Span span) {
-    return Deferred.fromError(new UnsupportedOperationException("TODO"));
+  public void write(final AuthState state,
+                    final LowLevelTimeSeriesData data,
+                    final WriteCallback callback) {
+    if (callback != null) {
+      callback.exception(new UnsupportedOperationException("TODO"));
+    }
   }
   
   @Override
@@ -248,7 +253,7 @@ public class PubSubWriter extends BaseTSDBPlugin implements
           "Json key path cannot be null or empty."));
     }
     
-    serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataSerdes.class);
+    serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataConverter.class);
     if (serdes == null) {
       return Deferred.fromError(new IllegalArgumentException(
           "Serdes can't be null."));

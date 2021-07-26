@@ -448,4 +448,51 @@ public class TestTimeRouterConfigEntry {
     } catch (IllegalArgumentException e) { }
 
   }
+
+  @Test
+  public void matchTimeShift() throws Exception {
+    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("sys.cpu.user")
+                            .build())
+                    .setTimeShiftInterval("10m")
+                    .setId("m1")
+                    .build();
+
+    TimeSeriesQuery query = mock(TimeSeriesQuery.class);
+    TimeStamp start = new SecondTimeStamp(7200);
+    TimeStamp end = new SecondTimeStamp(9000);
+    when(query.startTime()).thenReturn(start);
+    when(query.endTime()).thenReturn(end);
+
+    TimeRouterConfigEntry entry = TimeRouterConfigEntry.newBuilder()
+            .setSourceId("mock")
+            .setStart("1h-ago")
+            .build();
+
+    QueryPipelineContext context = mock(QueryPipelineContext.class);
+    when(context.query()).thenReturn(query);
+    assertEquals(MatchType.FULL, entry.match(context, config, tsdb, 9000));
+
+    config = (TimeSeriesDataSourceConfig)
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("sys.cpu.user")
+                            .build())
+                    .setTimeShiftInterval("1h")
+                    .setId("m1")
+                    .build();
+    assertEquals(MatchType.PARTIAL, entry.match(context, config, tsdb, 9000));
+
+    config = (TimeSeriesDataSourceConfig)
+            DefaultTimeSeriesDataSourceConfig.newBuilder()
+                    .setMetric(MetricLiteralFilter.newBuilder()
+                            .setMetric("sys.cpu.user")
+                            .build())
+                    .setTimeShiftInterval("2h")
+                    .setId("m1")
+                    .build();
+    assertEquals(MatchType.NONE, entry.match(context, config, tsdb, 9000));
+  }
 }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,20 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import java.util.List;
-
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.data.LowLevelTimeSeriesData;
 import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.stats.Span;
 
 /**
  * Simple writer that just dumps the data into the bit-bucket in the sky.
  * 
  * @since 3.0
  */
-public class BlackHoleWriter extends BaseTSDBPlugin implements 
-    WritableTimeSeriesDataStore,
-    WritableTimeSeriesDataStoreFactory {
+public class BlackHoleWriter extends BaseTSDBPlugin implements
+        TimeSeriesDataConsumer,
+        TimeSeriesDataConsumerFactory {
 
   public static final String TYPE = "BlackHoleWriter";
   
@@ -56,42 +49,34 @@ public class BlackHoleWriter extends BaseTSDBPlugin implements
   }
 
   @Override
-  public Deferred<WriteStatus> write(final AuthState state, 
-                                     final TimeSeriesDatum datum,
-                                     final Span span) {
-    return Deferred.fromResult(WriteStatus.OK);
-  }
-
-  @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final TimeSeriesSharedTagsAndTimeData data, 
-                                           final Span span) {
-    final List<WriteStatus> list = Lists.newArrayListWithExpectedSize(data.size());
-    for (int i = 0; i < data.size(); i++) {
-      list.add(WriteStatus.OK);
-    }
-    return Deferred.fromResult(list);
-  }
-
-  @Override
-  public Deferred<List<WriteStatus>> write(final AuthState state,
-                                           final LowLevelTimeSeriesData data,
-                                           final Span span) {
-    int count = 0;
-    while (data.advance()) {
-      count++;
-    }
-    // TODO - use a pool and custom list implementation that we can re-size.
-    final List<WriteStatus> list = Lists.newArrayListWithExpectedSize(count);
-    for (int i = 0; i < count; i++) {
-      list.add(WriteStatus.OK);
-    }
-    return Deferred.fromResult(list);
-  }
-  
-  @Override
-  public WritableTimeSeriesDataStore newStoreInstance(TSDB tsdb, String id) {
+  public TimeSeriesDataConsumer consumer() {
     return this;
   }
 
+  @Override
+  public void write(final AuthState state,
+                    final TimeSeriesDatum datum,
+                    final WriteCallback callback) {
+    if (callback != null) {
+      callback.success();
+    }
+  }
+
+  @Override
+  public void write(final AuthState state,
+                    final TimeSeriesSharedTagsAndTimeData data,
+                    final WriteCallback callback) {
+    if (callback != null) {
+      callback.success();
+    }
+  }
+
+  @Override
+  public void write(final AuthState state,
+                    final LowLevelTimeSeriesData data,
+                    final WriteCallback callback) {
+    if (callback != null) {
+      callback.success();
+    }
+  }
 }

@@ -92,6 +92,7 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
       "tsd.query.rollups.default_usage";
   public static final String SKIP_NSUN_TAGK_KEY = "tsd.query.skip_unresolved_tagks";
   public static final String SKIP_NSUN_TAGV_KEY = "tsd.query.skip_unresolved_tagvs";
+  public static final String SKIP_NSUN_METRIC_KEY = "tsd.query.skip_unresolved_metrics";
   public static final String SKIP_NSUI_KEY = "tsd.query.skip_unresolved_ids";
   public static final String ALLOW_DELETE_KEY = "tsd.query.allow_delete";
   public static final String DELETE_KEY = "tsd.query.delete";
@@ -483,6 +484,11 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
         config.register(SKIP_NSUN_TAGV_KEY, "false", true,
             "Whether or not to simply drop tag values from query filters "
             + "that have not been assigned UIDs and try to fetch data anyway.");
+      }
+      if (!config.hasProperty(SKIP_NSUN_METRIC_KEY)) {
+        config.register(SKIP_NSUN_METRIC_KEY, "false", true,
+                "Whether or not to throw an error if a metric fails to " +
+                        "resolve to a UID (false) or return an empty response (true).");
       }
       if (!config.hasProperty(SKIP_NSUI_KEY)) {
         config.register(SKIP_NSUI_KEY, "false", true,

@@ -15,7 +15,9 @@
 package net.opentsdb.servlet.filter;
 
 import javax.servlet.Filter;
+import javax.servlet.ServletRequest;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 
 /**
@@ -28,5 +30,17 @@ public interface AuthFilter extends Filter, Authentication {
 
   /** The key used to lookup the AuthState object in the request attributes. */
   public static String AUTH_STATE_KEY = "tsdb.authstate";
-  
+
+  /**
+   * Method used for multi-auth where the plugin must try to auth and return a
+   * null the required data wasn't found or an auth state if something _was_
+   * found to attempt authentication.
+   *
+   * @param servletRequest The non-null servlet request to look at for auth
+   *                       data.
+   * @return Null if not enough data was found, a non-null auth state if enough
+   * data was found to make a judgement. The state could be good or bad.
+   */
+  public AuthState authenticate(final ServletRequest servletRequest);
+
 }
