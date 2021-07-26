@@ -469,7 +469,8 @@ public class ExpressionParser extends DefaultErrorStrategy
     
     if ((text.charAt(0) >= '0' &&
         text.charAt(0) <= '9') ||
-        text.charAt(0) == '-') {
+        text.charAt(0) == '-'  ||
+        text.charAt(0) == '.') {
       // starts with a digit
       if (text.contains(".")) {
         try {
