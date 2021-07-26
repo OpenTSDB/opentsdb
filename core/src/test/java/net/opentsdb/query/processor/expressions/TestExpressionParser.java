@@ -304,7 +304,46 @@ public class TestExpressionParser {
     assertEquals("a.metric", nodes.get(0).getLeft());
     assertNull(nodes.get(0).getRightId());
   }
-  
+
+  @Test
+  public void parseDoubleValues() {
+
+    ExpressionParser parser = new ExpressionParser(config("a.metric * 0.021"));
+    List<ExpressionParseNode> nodes = parser.parse();
+    assertEquals(1, nodes.size());
+    assertEquals(0.021, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertNull(nodes.get(0).getRightId());
+
+    parser = new ExpressionParser(config("a.metric % .021"));
+    nodes = parser.parse();
+    assertEquals(1, nodes.size());
+    assertEquals(0.021, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertNull(nodes.get(0).getRightId());
+
+    parser = new ExpressionParser(config("a.metric  +  .022 / 2"));
+    nodes = parser.parse();
+    assertEquals(1, nodes.size());
+    assertEquals(0.011, ((NumericLiteral) nodes.get(0).getRight()).doubleValue(), 0.001);
+    assertEquals("a.metric", nodes.get(0).getLeft());
+    assertNull(nodes.get(0).getRightId());
+
+    parser = new ExpressionParser(config(".021 * a.metric"));
+    nodes = parser.parse();
+    assertEquals(1, nodes.size());
+    assertEquals(0.021, ((NumericLiteral) nodes.get(0).getLeft()).doubleValue(), 0.001);
+    assertEquals("a.metric", nodes.get(0).getRight());
+    assertNull(nodes.get(0).getRightId());
+
+    parser = new ExpressionParser(config("021 * a.metric"));
+    nodes = parser.parse();
+    assertEquals(1, nodes.size());
+    assertEquals(21, ((NumericLiteral) nodes.get(0).getLeft()).longValue(), 0.001);
+    assertEquals("a.metric", nodes.get(0).getRight());
+    assertNull(nodes.get(0).getRightId());
+  }
+
   @Test
   public void parseBinaryRelational() throws Exception {
     ExpressionParser parser = new ExpressionParser(
