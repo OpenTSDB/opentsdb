@@ -194,22 +194,24 @@ public class QueryExecutor {
     ts_query.setQueries(subs);
     
     // setup expressions
-    for (final Expression expression : query.getExpressions()) {
-      // TODO - flags
-      
-      // TODO - get a default from the configs
-      final SetOperator operator = expression.getJoin() != null ? 
-          expression.getJoin().getOperator() : SetOperator.UNION;
-      final boolean qts = expression.getJoin() == null ? false : expression.getJoin().getUseQueryTags();
-      final boolean ats = expression.getJoin() == null ? true : expression.getJoin().getIncludeAggTags();
-      final ExpressionIterator iterator = 
-          new ExpressionIterator(expression.getId(), expression.getExpr(), 
-          operator, qts, ats);
-      if (expression.getFillPolicy() != null) {
-        iterator.setFillPolicy(expression.getFillPolicy());
+    if (query.getExpressions() != null) {
+      for (final Expression expression : query.getExpressions()) {
+        // TODO - flags
+
+        // TODO - get a default from the configs
+        final SetOperator operator = expression.getJoin() != null ?
+                expression.getJoin().getOperator() : SetOperator.UNION;
+        final boolean qts = expression.getJoin() == null ? false : expression.getJoin().getUseQueryTags();
+        final boolean ats = expression.getJoin() == null ? true : expression.getJoin().getIncludeAggTags();
+        final ExpressionIterator iterator =
+                new ExpressionIterator(expression.getId(), expression.getExpr(),
+                        operator, qts, ats);
+        if (expression.getFillPolicy() != null) {
+          iterator.setFillPolicy(expression.getFillPolicy());
+        }
+        expressions.put(expression.getId(), iterator);
+
       }
-      expressions.put(expression.getId(), iterator);
-      
     }
 
     ts_query.validateAndSetQuery();
@@ -263,19 +265,21 @@ public class QueryExecutor {
             final Entry<String, TSSubQuery> entry = it.next();
             if (entry.getValue().equals(sub)) {
               sub_query_results.put(entry.getKey(), query_results.get(i));
-              for (final ExpressionIterator ei : expressions.values()) {
-                if (ei.getVariableNames().contains(entry.getKey())) {
-                  final TimeSyncedIterator tsi = new TimeSyncedIterator(
-                      entry.getKey(), sub.getFilterTagKs(), 
-                      query_results.get(i));
-                  final NumericFillPolicy fill = fills.get(entry.getKey());
-                  if (fill != null) {
-                    tsi.setFillPolicy(fill);
-                  }
-                  ei.addResults(entry.getKey(), tsi);
-                  if (LOG.isDebugEnabled()) {
-                    LOG.debug("Added results for " + entry.getKey() + 
-                        " to " + ei.getId());
+              if (expressions != null) {
+                for (final ExpressionIterator ei : expressions.values()) {
+                  if (ei.getVariableNames().contains(entry.getKey())) {
+                    final TimeSyncedIterator tsi = new TimeSyncedIterator(
+                            entry.getKey(), sub.getFilterTagKs(),
+                            query_results.get(i));
+                    final NumericFillPolicy fill = fills.get(entry.getKey());
+                    if (fill != null) {
+                      tsi.setFillPolicy(fill);
+                    }
+                    ei.addResults(entry.getKey(), tsi);
+                    if (LOG.isDebugEnabled()) {
+                      LOG.debug("Added results for " + entry.getKey() +
+                              " to " + ei.getId());
+                    }
                   }
                 }
               }
@@ -287,74 +291,76 @@ public class QueryExecutor {
         final DirectedAcyclicGraph<String, DefaultEdge> graph = 
             new DirectedAcyclicGraph<String, DefaultEdge>(DefaultEdge.class);
 
-        for (final Entry<String, ExpressionIterator> eii : expressions.entrySet()) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(String.format("Expression entry key is %s, value is %s", 
-                eii.getKey(), eii.getValue().toString()));
-            LOG.debug(String.format("Time to loop through the variable names "
-                + "for %s", eii.getKey()));
-          }
-
-          if (!graph.containsVertex(eii.getKey())) {
+        if (expressions != null) {
+          for (final Entry<String, ExpressionIterator> eii : expressions.entrySet()) {
             if (LOG.isDebugEnabled()) {
-              LOG.debug("Adding vertex " + eii.getKey());
-            }
-            graph.addVertex(eii.getKey());
-          }
-
-          for (final String var : eii.getValue().getVariableNames()) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug(String.format("var is %s", var));
+              LOG.debug(String.format("Expression entry key is %s, value is %s",
+                      eii.getKey(), eii.getValue().toString()));
+              LOG.debug(String.format("Time to loop through the variable names "
+                      + "for %s", eii.getKey()));
             }
 
-            final ExpressionIterator ei = expressions.get(var);
-
-            if (ei != null) {
+            if (!graph.containsVertex(eii.getKey())) {
               if (LOG.isDebugEnabled()) {
-                LOG.debug(String.format("The expression iterator for %s is %s", 
-                    var, ei.toString()));
+                LOG.debug("Adding vertex " + eii.getKey());
               }
+              graph.addVertex(eii.getKey());
+            }
 
-              // TODO - really ought to calculate this earlier
-              if (eii.getKey().equals(var)) {
-                throw new IllegalArgumentException(
-                    "Self referencing expression found: " + eii.getKey());
-              }
-
+            for (final String var : eii.getValue().getVariableNames()) {
               if (LOG.isDebugEnabled()) {
-                LOG.debug("Nested expression detected. " + eii.getKey() + 
-                    " depends on " + var);
+                LOG.debug(String.format("var is %s", var));
               }
 
-              if (!graph.containsVertex(eii.getKey())) {
+              final ExpressionIterator ei = expressions.get(var);
+
+              if (ei != null) {
                 if (LOG.isDebugEnabled()) {
-                  LOG.debug("Added vertex " + eii.getKey());
+                  LOG.debug(String.format("The expression iterator for %s is %s",
+                          var, ei.toString()));
                 }
-                graph.addVertex(eii.getKey());
+
+                // TODO - really ought to calculate this earlier
+                if (eii.getKey().equals(var)) {
+                  throw new IllegalArgumentException(
+                          "Self referencing expression found: " + eii.getKey());
+                }
+
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Nested expression detected. " + eii.getKey() +
+                          " depends on " + var);
+                }
+
+                if (!graph.containsVertex(eii.getKey())) {
+                  if (LOG.isDebugEnabled()) {
+                    LOG.debug("Added vertex " + eii.getKey());
+                  }
+                  graph.addVertex(eii.getKey());
+                } else if (LOG.isDebugEnabled()) {
+                  LOG.debug("Already contains vertex " + eii.getKey());
+                }
+
+                if (!graph.containsVertex(var)) {
+                  if (LOG.isDebugEnabled()) {
+                    LOG.debug("Added vertex " + var);
+                  }
+                  graph.addVertex(var);
+                } else if (LOG.isDebugEnabled()) {
+                  LOG.debug("Already contains vertex " + var);
+                }
+
+                try {
+                  if (LOG.isDebugEnabled()) {
+                    LOG.debug("Added Edge " + eii.getKey() + " - " + var);
+                  }
+                  graph.addDagEdge(eii.getKey(), var);
+                } catch (CycleFoundException cfe) {
+                  throw new IllegalArgumentException("Circular reference found: " +
+                          eii.getKey(), cfe);
+                }
               } else if (LOG.isDebugEnabled()) {
-                LOG.debug("Already contains vertex " + eii.getKey());
+                LOG.debug(String.format("The expression iterator for %s is null", var));
               }
-
-              if (!graph.containsVertex(var)) {
-                if (LOG.isDebugEnabled()) {
-                  LOG.debug("Added vertex " + var);
-                }
-                graph.addVertex(var);
-              } else if (LOG.isDebugEnabled()) {
-                LOG.debug("Already contains vertex " + var);
-              }
-
-              try {
-                if (LOG.isDebugEnabled()) {
-                  LOG.debug("Added Edge " + eii.getKey() + " - " + var);
-                }
-                graph.addDagEdge(eii.getKey(), var);
-              } catch (CycleFoundException cfe) {
-                throw new IllegalArgumentException("Circular reference found: " + 
-                    eii.getKey(), cfe);
-              }
-            } else if (LOG.isDebugEnabled()) {
-              LOG.debug(String.format("The expression iterator for %s is null", var));
             }
           }
         }
@@ -362,8 +368,8 @@ public class QueryExecutor {
         // compile all of the expressions
         final long intersect_start = DateTime.currentTimeMillis();
 
-        final Integer expressionLength = expressions.size();
-        final ExpressionIterator[] compile_stack = 
+        final int expressionLength = expressions == null ? 0 : expressions.size();
+        final ExpressionIterator[] compile_stack =
             new ExpressionIterator[expressionLength];
         final TopologicalOrderIterator<String, DefaultEdge> it = 
             new TopologicalOrderIterator<String, DefaultEdge>(graph);
