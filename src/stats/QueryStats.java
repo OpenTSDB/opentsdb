@@ -249,7 +249,7 @@ public class QueryStats {
     executed = 1;
     query_start_ns = DateTime.nanoTime();
     query_start_ms = DateTime.currentTimeMillis();
-    overall_stats = new HashMap<QueryStat, Long>();
+    overall_stats = new ConcurrentHashMap<QueryStat, Long>();
     query_stats = new ConcurrentHashMap<Integer, Map<QueryStat, Long>>(1);
     scanner_stats = new ConcurrentHashMap<Integer, 
         Map<Integer, Map<QueryStat, Long>>>(1);
