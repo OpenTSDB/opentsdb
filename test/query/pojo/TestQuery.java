@@ -215,6 +215,18 @@ public class TestQuery {
     // TODO - finish the assertions
   }
 
+  @Test
+  public void justMetrics() throws Exception {
+    Query query = Query.Builder()
+            .setMetrics(Arrays.asList(metric))
+            .setName("q1")
+            .setTime(time)
+            .build();
+    query.validate();
+    assertEquals(metric.getMetric(), query.getMetrics().get(0).getMetric());
+  }
+
+
   private Query.Builder getDefaultQueryBuilder() {
     return Query.Builder().setExpressions(Arrays.asList(expression))
           .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
