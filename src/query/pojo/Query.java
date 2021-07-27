@@ -122,20 +122,24 @@ public class Query extends Validatable {
 
     final Set<String> filter_ids = new HashSet<String>();
 
-    for (Filter filter : filters) {
-      if (filter_ids.contains(filter.getId())) {
-        throw new IllegalArgumentException("duplicated filter id: "
-            + filter.getId());
+    if (filters != null) {
+      for (Filter filter : filters) {
+        if (filter_ids.contains(filter.getId())) {
+          throw new IllegalArgumentException("duplicated filter id: "
+                  + filter.getId());
+        }
+        filter_ids.add(filter.getId());
       }
-      filter_ids.add(filter.getId());
     }
-    
-    for (Expression expression : expressions) {
-      if (variable_ids.contains(expression.getId())) {
-        throw new IllegalArgumentException("Duplicated variable or expression id: "
-            + expression.getId());
+
+    if (expressions != null) {
+      for (Expression expression : expressions) {
+        if (variable_ids.contains(expression.getId())) {
+          throw new IllegalArgumentException("Duplicated variable or expression id: "
+                  + expression.getId());
+        }
+        variable_ids.add(expression.getId());
       }
-      variable_ids.add(expression.getId());
     }
 
     validateCollection(metrics, "metric");
@@ -172,6 +176,10 @@ public class Query extends Validatable {
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
   private void validateFilters() {
+    if (filters == null) {
+      return;
+    }
+
     Set<String> ids = new HashSet<String>();
     for (Filter filter : filters) {
       ids.add(filter.getId());
