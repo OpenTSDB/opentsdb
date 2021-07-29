@@ -88,7 +88,7 @@ public class TestTSQuery {
     assertFalse(query.getTime().isRate());
     
     assertEquals(2, query.getFilters().size());
-    assertEquals("f1", query.getFilters().get(0).getId());
+    assertEquals("f0", query.getFilters().get(0).getId());
     assertEquals(2, query.getFilters().get(0).getTags().size());
     assertEquals("host", query.getFilters().get(0).getTags().get(0).getTagk());
     assertEquals("*", query.getFilters().get(0).getTags().get(0).getFilter());
@@ -100,7 +100,7 @@ public class TestTSQuery {
     assertFalse(query.getFilters().get(0).getTags().get(1).isGroupBy());
     assertTrue(query.getFilters().get(0).getExplicitTags());
     
-    assertEquals("f2", query.getFilters().get(1).getId());
+    assertEquals("f1", query.getFilters().get(1).getId());
     assertEquals(1, query.getFilters().get(1).getTags().size());
     assertEquals("colo", query.getFilters().get(1).getTags().get(0).getTagk());
     assertEquals("phx", query.getFilters().get(1).getTags().get(0).getFilter());
@@ -109,8 +109,8 @@ public class TestTSQuery {
     assertFalse(query.getFilters().get(1).getExplicitTags());
     
     assertEquals(2, query.getMetrics().size());
-    assertEquals("m1", query.getMetrics().get(0).getId());
-    assertEquals("f1", query.getMetrics().get(0).getFilter());
+    assertEquals("m0", query.getMetrics().get(0).getId());
+    assertEquals("f0", query.getMetrics().get(0).getFilter());
     assertEquals("sys.cpu.idle", query.getMetrics().get(0).getMetric());
     assertEquals("sum", query.getMetrics().get(0).getAggregator());
     assertEquals("60m", query.getMetrics().get(0).getDownsampler().getInterval());
@@ -119,8 +119,8 @@ public class TestTSQuery {
     assertTrue(query.getMetrics().get(0).getRateOptions().isCounter());
     assertEquals(1024, query.getMetrics().get(0).getRateOptions().getCounterMax());
     
-    assertEquals("m2", query.getMetrics().get(1).getId());
-    assertEquals("f2", query.getMetrics().get(1).getFilter());
+    assertEquals("m1", query.getMetrics().get(1).getId());
+    assertEquals("f1", query.getMetrics().get(1).getFilter());
     assertEquals("sys.cpu.busy", query.getMetrics().get(1).getMetric());
     assertEquals("avg", query.getMetrics().get(1).getAggregator());
     assertNull(query.getMetrics().get(1).getDownsampler());
@@ -164,7 +164,7 @@ public class TestTSQuery {
     assertFalse(query.getTime().isRate());
     
     assertEquals(1, query.getFilters().size());
-    assertEquals("f1", query.getFilters().get(0).getId());
+    assertEquals("f0", query.getFilters().get(0).getId());
     assertEquals(1, query.getFilters().get(0).getTags().size());
     assertEquals("colo", query.getFilters().get(0).getTags().get(0).getTagk());
     assertEquals("phx", query.getFilters().get(0).getTags().get(0).getFilter());
@@ -173,7 +173,7 @@ public class TestTSQuery {
     assertFalse(query.getFilters().get(0).getExplicitTags());
     
     assertEquals(2, query.getMetrics().size());
-    assertEquals("m1", query.getMetrics().get(0).getId());
+    assertEquals("m0", query.getMetrics().get(0).getId());
     assertNull(query.getMetrics().get(0).getFilter());
     assertEquals("sys.cpu.idle", query.getMetrics().get(0).getMetric());
     assertEquals("sum", query.getMetrics().get(0).getAggregator());
@@ -183,8 +183,8 @@ public class TestTSQuery {
     assertTrue(query.getMetrics().get(0).getRateOptions().isCounter());
     assertEquals(1024, query.getMetrics().get(0).getRateOptions().getCounterMax());
     
-    assertEquals("m2", query.getMetrics().get(1).getId());
-    assertEquals("f1", query.getMetrics().get(1).getFilter());
+    assertEquals("m1", query.getMetrics().get(1).getId());
+    assertEquals("f0", query.getMetrics().get(1).getFilter());
     assertEquals("sys.cpu.busy", query.getMetrics().get(1).getMetric());
     assertEquals("avg", query.getMetrics().get(1).getAggregator());
     assertNull(query.getMetrics().get(1).getDownsampler());
