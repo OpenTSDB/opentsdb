@@ -943,6 +943,7 @@ public class TimeSeriesQuery extends Validatable
       
       if (gb_config != null) {
         gb_config.setTagKeys(join_keys)
+                 .setFullMerge(true)
                  .setAggregator(agg)
                  .addSource(parent.getId());
         return gb_config.build();
@@ -960,6 +961,7 @@ public class TimeSeriesQuery extends Validatable
               .setType(interpolator)
               .setDataType(NumericType.TYPE.toString())
               .build())
+              .setFullMerge(true)
           .setId(metric.getId() + "_GroupBy");
           
       gb_config.setAggregator(agg)

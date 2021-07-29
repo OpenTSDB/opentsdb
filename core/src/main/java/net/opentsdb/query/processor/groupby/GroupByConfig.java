@@ -303,7 +303,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators<GroupByC
      * @return The builder.
      */
     public Builder setMergeIds(final boolean merge_ids) {
-      mergeIds = merge_ids;
+      this.mergeIds = merge_ids;
       return this;
     }
     
@@ -313,7 +313,7 @@ public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators<GroupByC
      * @return The builder.
      */
     public Builder setFullMerge(final boolean full_merge) {
-      fullMerge = full_merge;
+      this.fullMerge = full_merge;
       return this;
     }
     
