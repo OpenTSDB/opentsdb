@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.serdes.SerdesOptions;
 
 /**
@@ -47,6 +48,8 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
   
   /** The number of time series necessary to switch to parallel mode. */
   private int parallel_threshold;
+
+  private TSQuery tsQuery;
   
   /**
    * Default ctor.
@@ -60,6 +63,7 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     show_stats = builder.showStats;
     show_summary = builder.showSummary;
     parallel_threshold = builder.parallelThreshold;
+    tsQuery = builder.tsQuery;
   }
   
   public boolean getShowTsuids() {
@@ -85,7 +89,11 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
   public int getParallelThreshold() {
     return parallel_threshold;
   }
-  
+
+  public TSQuery getTsQuery() {
+    return tsQuery;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -104,6 +112,8 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     private boolean showSummary;
     @JsonProperty
     private int parallelThreshold;
+    @JsonProperty
+    private TSQuery tsQuery;
     
     protected Builder() {
       setType(JsonV2QuerySerdesFactory.TYPE);
@@ -136,6 +146,11 @@ public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
     
     public Builder setParallelThreshold(final int parallelThreshold) {
       this.parallelThreshold = parallelThreshold;
+      return this;
+    }
+
+    public Builder setTSQuery(final TSQuery tsQuery) {
+      this.tsQuery = tsQuery;
       return this;
     }
     

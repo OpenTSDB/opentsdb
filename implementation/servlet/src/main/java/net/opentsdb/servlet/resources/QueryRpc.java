@@ -346,6 +346,7 @@ final public class QueryRpc {
           .setShowQuery(ts_query.getShowQuery())
           .setShowStats(ts_query.getShowStats())
           .setShowSummary(ts_query.getShowSummary())
+          .setTSQuery(ts_query)
           .setId("JsonV2QuerySerdes")
           .build();
     }
