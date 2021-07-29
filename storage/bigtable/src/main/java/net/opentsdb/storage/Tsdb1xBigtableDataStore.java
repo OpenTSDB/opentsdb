@@ -192,7 +192,7 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
       throw new StorageException("Unexpected exception: " + e.getMessage(), e);
     }
     
-    uid_store = new Tsdb1xBigtableUniqueIdStore(this);
+    uid_store = new Tsdb1xBigtableUniqueIdStore(this, id);
     tsdb.getRegistry().registerSharedObject(Strings.isNullOrEmpty(id) ? 
         "default_uidstore" : id + "_uidstore", uid_store);
   }

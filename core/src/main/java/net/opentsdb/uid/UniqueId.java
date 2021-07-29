@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -241,6 +241,16 @@ public interface UniqueId {
   public Deferred<Object> rename(final String oldname, 
                                  final String newname, 
                                  final Span span);
+
+  /**
+   * Attempts to add the value to the forward and reverse caches. Checks to make
+   * sure existing mappings are the same if present.
+   * @param name The non-null value.
+   * @param id The non-null ID.
+   * @throws IllegalStateException if a mapping was already present but pointed
+   * to different values.
+   */
+  public void addToCache(final String name, final byte[] id);
   
   /**
    * Attempts to remove the mappings for the given string from the UID table

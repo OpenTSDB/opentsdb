@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -134,7 +134,21 @@ public interface UniqueIdStore {
   public Deferred<List<String>> getNames(final UniqueIdType type, 
                                          final List<byte[]> ids,
                                          final Span span);
-  
+
+  /**
+   * A super simple prefix based suggest API from TSDB 1 to 2x.
+   * @param type The non-null type.
+   * @param query An optional prefix query. Always anchored at the start. If
+   *              null then just return up to max entries.
+   * @param max   An optional number of results to return. If less than or equal
+   *              to zero, we return a default of ??? 24 I think?
+   * @return A Deferred resolving to an error or a list of alphabetically sorted
+   * strings matching the query.
+   */
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String query,
+                                        final int max);
+
   /**
    * Fetch the character set for the given type.
    * @param type A non-null ID type.
