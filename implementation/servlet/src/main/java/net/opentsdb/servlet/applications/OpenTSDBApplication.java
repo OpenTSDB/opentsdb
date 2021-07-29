@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import net.opentsdb.servlet.resources.RawQueryRpc;
 import net.opentsdb.servlet.resources.RegistryRpc;
 import net.opentsdb.servlet.resources.ServletResource;
 
+import net.opentsdb.servlet.resources.SuggestRpc;
 import org.glassfish.jersey.server.ResourceConfig;
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.configuration.Configuration;
@@ -81,6 +82,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       register(JMXResource.class);
       register(RegistryRpc.class);
       register(GenericExceptionMapper.class);
+      register(new SuggestRpc(tsdb));
       register(new MetaRpc(tsdb));
       register(new QueryExecutionExceptionMapper(false, 1024));
       

@@ -372,7 +372,7 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
     
     // TODO - probably a better way. We may want to make the UniqueIdStore
     // it's own self-contained storage system.
-    uid_store = new Tsdb1xUniqueIdStore(this);
+    uid_store = new Tsdb1xUniqueIdStore(this, id);
     tsdb.getRegistry().registerSharedObject(Strings.isNullOrEmpty(id) ? 
         "default_uidstore" : id + "_uidstore", uid_store);
 

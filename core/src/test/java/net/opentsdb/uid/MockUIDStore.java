@@ -190,7 +190,12 @@ public class MockUIDStore implements UniqueIdStore {
     }
     return Deferred.fromResult(names);
   }
-  
+
+  @Override
+  public Deferred<List<String>> suggest(UniqueIdType type, String query, int max) {
+    return Deferred.fromError(new UnsupportedOperationException("TODO"));
+  }
+
   @Override
   public Charset characterSet(final UniqueIdType type) {
     return charset;

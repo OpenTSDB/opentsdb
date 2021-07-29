@@ -12,11 +12,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.storage;
+package net.opentsdb.uid;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -32,12 +33,8 @@ import com.stumbleupon.async.Deferred;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 
-import org.hbase.async.AtomicIncrementRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.GetResultOrException;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
+import net.opentsdb.storage.StorageException;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,16 +56,25 @@ import net.opentsdb.utils.Bytes;
  * <p>
  * Don't attempt to use {@code equals()} or {@code hashCode()} on
  * this class.
- * 
- * TODO - Use cache assignments in the UID cache.
- * 
+ *
  * @since 1.0
  */
-public class Tsdb1xUniqueIdStore implements UniqueIdStore {
-  private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xUniqueIdStore.class);
-  
+public abstract class Base1xUniqueIdStore implements UniqueIdStore {
+  private static final Logger LOG = LoggerFactory.getLogger(Base1xUniqueIdStore.class);
+
+  public static final byte[] EMPTY_ARRAY = new byte[0];
+
+  /** The start row to scan on empty search strings.  `!' = first printable ASCII char.
+   * NOTE: Use only for suggest which is ASCII only. */
+  protected static final byte[] START_ROW = new byte[] { '!' };
+
+  /** The end row to scan on empty search strings.  `~' = last printable ASCII char.
+   * NOTE: Use only for suggest which is ASCII only. */
+  protected static final byte[] END_ROW = new byte[] { '~' };
+
+
   /** A map of the various config UID types. */
-  protected static final Map<UniqueIdType, String> CONFIG_PREFIX = 
+  public static final Map<UniqueIdType, String> CONFIG_PREFIX =
       Maps.newHashMapWithExpectedSize(UniqueIdType.values().length);
   static {
     for (final UniqueIdType type : UniqueIdType.values()) {
@@ -107,11 +113,12 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
   public static final short DEFAULT_ATTEMPTS_ASSIGN_RANDOM_ID = 10;
 //  /** Initial delay in ms for exponential backoff to retry failed RPCs. */
 //  private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
-//  /** Maximum number of results to return in suggest(). */
-//  private static final short MAX_SUGGESTIONS = 25;
-  
-  /** The data store we belong to. */
-  protected final Tsdb1xHBaseDataStore data_store; 
+  /** Maximum number of results to return in suggest(). */
+  public static final short MAX_SUGGESTIONS = 25;
+
+  public final Schema schema;
+  public final TSDB tsdb;
+  public final String id;
   
   /** The authorizer pulled from the registry. */
   protected final UniqueIdAssignmentAuthorizer authorizer;
@@ -137,42 +144,41 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
   protected final boolean randomize_tagk_ids;
   protected final boolean randomize_tagv_ids;
 
-  public Tsdb1xUniqueIdStore(final Tsdb1xHBaseDataStore data_store) {
-    if (data_store == null) {
-      throw new IllegalArgumentException("Data store cannot be null.");
-    }
-    this.data_store = data_store;
-    registerConfigs(data_store.tsdb());
+  public Base1xUniqueIdStore(final Schema schema, final TSDB tsdb, final String id) {
+    this.schema = schema;
+    this.tsdb = tsdb;
+    this.id = id;
+    registerConfigs(tsdb);
     
-    authorizer = data_store.tsdb().getRegistry()
+    authorizer = tsdb.getRegistry()
         .getDefaultPlugin(UniqueIdAssignmentAuthorizer.class);
     
-    metric_character_set = Charset.forName(data_store.tsdb().getConfig()
-        .getString(data_store.getConfigKey(
+    metric_character_set = Charset.forName(tsdb.getConfig()
+        .getString(configKey(
             CONFIG_PREFIX.get(UniqueIdType.METRIC) + CHARACTER_SET_KEY)));
-    tagk_character_set = Charset.forName(data_store.tsdb().getConfig()
-        .getString(data_store.getConfigKey(
+    tagk_character_set = Charset.forName(tsdb.getConfig()
+        .getString(configKey(
             CONFIG_PREFIX.get(UniqueIdType.TAGK) + CHARACTER_SET_KEY)));
-    tagv_character_set = Charset.forName(data_store.tsdb().getConfig()
-        .getString(data_store.getConfigKey(
+    tagv_character_set = Charset.forName(tsdb.getConfig()
+        .getString(configKey(
             CONFIG_PREFIX.get(UniqueIdType.TAGV) + CHARACTER_SET_KEY)));
     
-    randomize_metric_ids = data_store.tsdb().getConfig()
-        .getBoolean(data_store.getConfigKey(
+    randomize_metric_ids = tsdb.getConfig()
+        .getBoolean(configKey(
             CONFIG_PREFIX.get(UniqueIdType.METRIC) + RANDOM_ASSIGNMENT_KEY));
-    randomize_tagk_ids = data_store.tsdb().getConfig()
-        .getBoolean(data_store.getConfigKey(
+    randomize_tagk_ids = tsdb.getConfig()
+        .getBoolean(configKey(
             CONFIG_PREFIX.get(UniqueIdType.TAGK) + RANDOM_ASSIGNMENT_KEY));
-    randomize_tagv_ids = data_store.tsdb().getConfig()
-        .getBoolean(data_store.getConfigKey(
+    randomize_tagv_ids = tsdb.getConfig()
+        .getBoolean(configKey(
             CONFIG_PREFIX.get(UniqueIdType.TAGV) + RANDOM_ASSIGNMENT_KEY));
     
-    assign_and_retry = data_store.tsdb().getConfig()
-        .getBoolean(data_store.getConfigKey(ASSIGN_AND_RETRY_KEY));
-    max_attempts_assign = (short) data_store.tsdb().getConfig()
-        .getInt(data_store.getConfigKey(ATTEMPTS_KEY));
-    max_attempts_assign_random = (short) data_store.tsdb().getConfig()
-        .getInt(data_store.getConfigKey(RANDOM_ATTEMPTS_KEY));
+    assign_and_retry = tsdb.getConfig()
+        .getBoolean(configKey(ASSIGN_AND_RETRY_KEY));
+    max_attempts_assign = (short) tsdb.getConfig()
+        .getInt(configKey(ATTEMPTS_KEY));
+    max_attempts_assign_random = (short) tsdb.getConfig()
+        .getInt(configKey(RANDOM_ATTEMPTS_KEY));
     
     // It's important to create maps here.
     pending_assignments = Maps.newHashMapWithExpectedSize(
@@ -224,7 +230,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
     final Span child;
     if (span != null && span.isDebug()) {
       child = span.newChild(getClass().getName() + ".getName")
-          .withTag("dataStore", data_store.id())
+          .withTag("dataStore", this.id)
           .withTag("type", type.toString())
           .withTag("id", net.opentsdb.uid.UniqueId.uidToString(id))
           .start();
@@ -256,7 +262,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
     }
     
     try {
-      return hbaseGet(type, id, NAME_FAMILY)
+      return get(type, id, NAME_FAMILY)
           .addCallbacks(new NameFromHBaseCB(), new ErrorCB());
     } catch (Exception e) {
       if (child != null) {
@@ -269,121 +275,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
     }
   }
   
-  @Override
-  public Deferred<List<String>> getNames(final UniqueIdType type, 
-                                         final List<byte[]> ids,
-                                         final Span span) {
-    if (type == null) {
-      throw new IllegalArgumentException("Type cannot be null.");
-    }
-    if (ids == null || ids.isEmpty()) {
-      throw new IllegalArgumentException("IDs cannot be null or empty.");
-    }
-    
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".getNames")
-          .withTag("dataStore", data_store.id())
-          .withTag("type", type.toString())
-          //.withTag("ids", /* TODO - an array to hex method */ "")
-          .start();
-    } else {
-      child = null;
-    }
-    
-    final byte[] qualifier;
-    switch(type) {
-    case METRIC:
-      qualifier = METRICS_QUAL;
-      break;
-    case TAGK:
-      qualifier = TAG_NAME_QUAL;
-      break;
-    case TAGV:
-      qualifier = TAG_VALUE_QUAL;
-      break;
-    default:
-      throw new IllegalArgumentException("This data store does not "
-          + "handle Unique IDs of type: " + type);
-    }
-    
-    final List<GetRequest> requests = Lists.newArrayListWithCapacity(ids.size());
-    for (final byte[] id : ids) {
-      if (Bytes.isNullOrEmpty(id)) {
-        throw new IllegalArgumentException("A null or empty ID was "
-            + "found in the list.");
-      }
-      requests.add(new GetRequest(data_store.uidTable(), 
-                                  id, 
-                                  NAME_FAMILY, 
-                                  qualifier));
-    }
-    
-    class ErrorCB implements Callback<List<byte[]>, Exception> {
-      @Override
-      public List<byte[]> call(Exception ex) throws Exception {
-        if (child != null) {
-          child.setErrorTags()
-            .log("Exception", ex)
-            .finish();
-        }
-        throw new StorageException("Failed to fetch names.", ex);
-      }
-    }
-    
-    class ResultCB implements Callback<List<String>, List<GetResultOrException>> {
-      @Override
-      public List<String> call(final List<GetResultOrException> results)
-          throws Exception {
-        if (results == null) {
-          throw new StorageException("Result list returned was null");
-        }
-        if (results.size() != ids.size()) {
-          throw new StorageException("Result size was: " 
-              + results.size() + " when the names size was: " 
-              + ids.size() + ". Should never happen!");
-        }
-        
-        final List<String> names = Lists.newArrayListWithCapacity(results.size());
-        for (int i = 0; i < results.size(); i++) {
-          if (results.get(i).getException() != null) {
-            if (child != null) {
-              child.setErrorTags()
-                .log("Exception", results.get(i).getException())
-                .finish();
-            }
-            throw new StorageException("UID resolution failed for ID " 
-                + UniqueId.uidToString(ids.get(i)), results.get(i).getException());
-          } else if (results.get(i).getCells() == null ||
-                     results.get(i).getCells().isEmpty()) {
-            names.add(null);
-          } else {
-            names.add(new String(results.get(i).getCells().get(0).value(), 
-                characterSet(type)));
-          }
-        }
-        
-        if (child != null) {
-          child.setSuccessTags()
-            .finish();
-        }
-        return names;
-      }
-    }
-    
-    try {
-      return data_store.client().get(requests)
-          .addCallbacks(new ResultCB(), new ErrorCB());
-    } catch (Exception e) {
-      if (child != null) {
-        child.setErrorTags()
-          .log("Exception", e)
-          .finish();
-      }
-      return Deferred.fromError(new StorageException(
-          "Unexpected exception from storage", e));
-    }
-  }
+
   
   @Override
   public Deferred<byte[]> getId(final UniqueIdType type, 
@@ -399,7 +291,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
     final Span child;
     if (span != null && span.isDebug()) {
       child = span.newChild(getClass().getName() + ".getId")
-          .withTag("dataStore", data_store.id())
+          .withTag("dataStore", id)
           .withTag("type", type.toString())
           .withTag("name", name)
           .start();
@@ -430,10 +322,10 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
 
     try {
       if (child != null) {
-        return hbaseGet(type, name.getBytes(characterSet(type)), ID_FAMILY)
+        return get(type, name.getBytes(characterSet(type)), ID_FAMILY)
             .addCallbacks(new SpanCB(), new ErrorCB());
       }
-      return hbaseGet(type, name.getBytes(characterSet(type)), ID_FAMILY)
+      return get(type, name.getBytes(characterSet(type)), ID_FAMILY)
           .addErrback(new ErrorCB());
     } catch (Exception e) {
       if (child != null) {
@@ -445,122 +337,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           "Unexpected exception from storage", e));
     }
   }
-  
-  @Override
-  public Deferred<List<byte[]>> getIds(final UniqueIdType type, 
-                                       final List<String> names,
-                                       final Span span) {
-    if (type == null) {
-      throw new IllegalArgumentException("Type cannot be null.");
-    }
-    if (names == null || names.isEmpty()) {
-      throw new IllegalArgumentException("Names cannot be null or empty.");
-    }
-    
-    final Span child;
-    if (span != null && span.isDebug()) {
-      child = span.newChild(getClass().getName() + ".getIds")
-          .withTag("dataStore", data_store.id())
-          .withTag("type", type.toString())
-          .withTag("names", names.toString())
-          .start();
-    } else {
-      child = null;
-    }
-    
-    final byte[] qualifier;
-    switch(type) {
-    case METRIC:
-      qualifier = METRICS_QUAL;
-      break;
-    case TAGK:
-      qualifier = TAG_NAME_QUAL;
-      break;
-    case TAGV:
-      qualifier = TAG_VALUE_QUAL;
-      break;
-    default:
-      throw new IllegalArgumentException("This data store does not "
-          + "handle Unique IDs of type: " + type);
-    }
-    
-    final List<GetRequest> requests = Lists.newArrayListWithCapacity(names.size());
-    for (final String name : names) {
-      if (Strings.isNullOrEmpty(name)) {
-        throw new IllegalArgumentException("A null or empty name was "
-            + "found in the list.");
-      }
-      requests.add(new GetRequest(data_store.uidTable(), 
-                                  name.getBytes(characterSet(type)), 
-                                  ID_FAMILY, 
-                                  qualifier));
-    }
-    
-    class ErrorCB implements Callback<List<byte[]>, Exception> {
-      @Override
-      public List<byte[]> call(Exception ex) throws Exception {
-        if (child != null) {
-          child.setErrorTags()
-            .log("Exception", ex)
-            .finish();
-        }
-        throw new StorageException("Failed to fetch ID.", ex);
-      }
-    }
-    
-    class ResultCB implements Callback<List<byte[]>, List<GetResultOrException>> {
-      @Override
-      public List<byte[]> call(final List<GetResultOrException> results)
-          throws Exception {
-        if (results == null) {
-          throw new StorageException("Result list returned was null");
-        }
-        if (results.size() != names.size()) {
-          throw new StorageException("Result size was: " 
-              + results.size() + " when the names size was: " 
-              + names.size() + ". Should never happen!");
-        }
-        
-        final List<byte[]> uids = Lists.newArrayListWithCapacity(results.size());
-        for (int i = 0; i < results.size(); i++) {
-          if (results.get(i).getException() != null) {
-            if (child != null) {
-              child.setErrorTags()
-                .log("Exception", results.get(i).getException())
-                .finish();
-            }
-            throw new StorageException("UID resolution failed for name " 
-                + names.get(i), results.get(i).getException());
-          } else if (results.get(i).getCells() != null &&
-                     !results.get(i).getCells().isEmpty()) {
-            uids.add(results.get(i).getCells().get(0).value());
-          } else {
-            uids.add(null);
-          }
-        }
-        
-        if (child != null) {
-          child.setSuccessTags()
-            .finish();
-        }
-        return uids;
-      }
-    }
-    
-    try {
-      return data_store.client().get(requests)
-          .addCallbacks(new ResultCB(), new ErrorCB());
-    } catch (Exception e) {
-      if (child != null) {
-        child.setErrorTags()
-          .log("Exception", e)
-          .finish();
-      }
-      return Deferred.fromError(new StorageException(
-          "Unexpected exception from storage", e));
-    }
-  }
-  
+
   /**
    * Implements the process to allocate a new UID.
    * This callback is re-used multiple times in a four step process:
@@ -608,21 +385,21 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       case METRIC:
         randomize_id = randomize_metric_ids;
         qualifier = METRICS_QUAL;
-        id_width = data_store.schema().metricWidth();
+        id_width = schema.metricWidth();
         attempts = attempt = randomize_metric_ids ?
             max_attempts_assign_random : max_attempts_assign;
         break;
       case TAGK:
         randomize_id = randomize_tagk_ids;
         qualifier = TAG_NAME_QUAL;
-        id_width = data_store.schema().tagkWidth();
+        id_width = schema.tagkWidth();
         attempts = attempt = randomize_tagk_ids ?
             max_attempts_assign_random : max_attempts_assign;
         break;
       case TAGV:
         randomize_id = randomize_tagv_ids;
         qualifier = TAG_VALUE_QUAL;
-        id_width = data_store.schema().tagvWidth();
+        id_width = schema.tagvWidth();
         attempts = attempt = randomize_tagv_ids ?
             max_attempts_assign_random : max_attempts_assign;
         break;
@@ -738,9 +515,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       } else {
         // TODO - fix in AsyncHBase
         try {
-        return data_store.client().atomicIncrement(
-            new AtomicIncrementRequest(data_store.uidTable(), 
-                MAXID_ROW, ID_FAMILY, qualifier));
+          return increment(MAXID_ROW, ID_FAMILY, qualifier);
         } catch (ArrayIndexOutOfBoundsException e) {
           purgeWaiting();
           throw new StorageException("Atomic increment "
@@ -802,13 +577,8 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       // not reason why a KV should already exist for this UID, but just to
       // err on the safe side and catch really weird corruption cases, we do
       // a CAS instead to create the KV.
-      return data_store.client().compareAndSet(reverseMapping(), 
-                                               HBaseClient.EMPTY_ARRAY);
-    }
-
-    private PutRequest reverseMapping() {
-      return new PutRequest(data_store.uidTable(), row, NAME_FAMILY, qualifier, 
-          name.getBytes(characterSet(type)));
+      return cas(row, NAME_FAMILY, qualifier, name.getBytes(characterSet(type)),
+              EMPTY_ARRAY);
     }
 
     private Deferred<?> createForwardMapping(final Object arg) {
@@ -824,7 +594,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           //random_id_collisions++; // TODO
         } else {
           // something is really messed up then
-          LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
+          LOG.error("WTF!  Failed to CAS reverse mapping: " + name
               + " -- run an fsck against the UID table!");
         }
         attempt--;
@@ -834,14 +604,13 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       }
 
       state = DONE;
-      return data_store.client().compareAndSet(forwardMapping(), 
-                                               HBaseClient.EMPTY_ARRAY);
+      return cas(name.getBytes(characterSet(type)),
+              ID_FAMILY,
+              qualifier,
+              row,
+              EMPTY_ARRAY);
     }
 
-    private PutRequest forwardMapping() {
-        return new PutRequest(data_store.uidTable(), 
-            name.getBytes(characterSet(type)), ID_FAMILY, qualifier, row);
-    }
 
     private Deferred<IdOrError> done(final Object arg) {
       if (!(arg instanceof Boolean)) {
@@ -849,8 +618,8 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       }
       if (!((Boolean) arg)) {  // Previous CAS failed.  We lost a race.
         LOG.warn("Race condition: tried to assign ID " + id + " to "
-                 + type + ":" + name + ", but CAS failed on "
-                 + forwardMapping() + ", which indicates this UID must have"
+                 + type + ":" + name + ", but CAS failed which indicates this "
+                 + "UID must have"
                  + " been allocated concurrently by another TSD or thread. "
                  + "So ID " + id + " was leaked.");
         // If two TSDs attempted to allocate a UID for the same name at the
@@ -912,7 +681,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           ? 200 * (diff)     // 200, 400, 600, 800
               : 1000 + (1 << diff);  // 1016, 1032, 1064, 1128, 1256, 1512, ..
       run_timer = false;
-      data_store.tsdb().getMaintenanceTimer().newTimeout(this, 
+      tsdb.getMaintenanceTimer().newTimeout(this, 
           delay, TimeUnit.MILLISECONDS);
     }
     
@@ -947,7 +716,7 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
     final Span child;
     if (span != null && span.isDebug()) {
       child = span.newChild(getClass().getSimpleName() + ".getOrCreateId")
-          .withTag("dataStore", data_store.id())
+          .withTag("dataStore", this.id)
           .withTag("type", type.toString())
           .withTag("name", name)
           .withTag("id", id.toString())
@@ -991,8 +760,8 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
         }
         
         // start the assignment dance after stashing the deferred
-        if (data_store.tsdb().getConfig().hasProperty(
-                data_store.getConfigKey(LOG_ASSIGNMENT_KEY)) &&
+        if (tsdb.getConfig().hasProperty(
+                configKey(LOG_ASSIGNMENT_KEY)) &&
           LOG.isInfoEnabled()) {
           LOG.info("Assigning UID for '" + name + "' of type '" + type +
                   "' for series '" + id + "'");
@@ -1093,111 +862,8 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
     
     return Deferred.groupInOrder(deferreds).addCallback(new GroupCB());
   }
-  
-//  /**
-//   * Attempts to find suggestions of names given a search term.
-//   * <p>
-//   * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
-//   * is discouraged, please use {@link #suggestAsync} instead.
-//   * @param search The search term (possibly empty).
-//   * @return A list of known valid names that have UIDs that sort of match
-//   * the search term.  If the search term is empty, returns the first few
-//   * terms.
-//   * @throws HBaseException if there was a problem getting suggestions from
-//   * HBase.
-//   */
-//  public List<String> suggest(final String search) throws HBaseException {
-//    return suggest(search, MAX_SUGGESTIONS);
-//  }
-//      
-//  /**
-//   * Attempts to find suggestions of names given a search term.
-//   * @param search The search term (possibly empty).
-//   * @param max_results The number of results to return. Must be 1 or greater
-//   * @return A list of known valid names that have UIDs that sort of match
-//   * the search term.  If the search term is empty, returns the first few
-//   * terms.
-//   * @throws HBaseException if there was a problem getting suggestions from
-//   * HBase.
-//   * @throws IllegalArgumentException if the count was less than 1
-//   * @since 2.0
-//   */
-//  public List<String> suggest(final String search, final int max_results) 
-//    throws HBaseException {
-//    if (max_results < 1) {
-//      throw new IllegalArgumentException("Count must be greater than 0");
-//    }
-//    try {
-//      return suggestAsync(search, max_results).joinUninterruptibly();
-//    } catch (HBaseException e) {
-//      throw e;
-//    } catch (Exception e) {  // Should never happen.
-//      final String msg = "Unexpected exception caught by "
-//        + this + ".suggest(" + search + ')';
-//      LOG.error(msg, e);
-//      throw new RuntimeException(msg, e);  // Should never happen.
-//    }
-//  }
-//
-//
-//  /**
-//   * Helper callback to asynchronously scan HBase for suggestions.
-//   */
-//  private final class SuggestCB
-//    implements Callback<Object, ArrayList<ArrayList<KeyValue>>> {
-//    private final LinkedList<String> suggestions = new LinkedList<String>();
-//    private final Scanner scanner;
-//    private final int max_results;
-//
-//    SuggestCB(final String search, final int max_results) {
-//      this.max_results = max_results;
-//      this.scanner = getSuggestScanner(client, table, search, kind, max_results);
-//    }
-//
-//    @SuppressWarnings("unchecked")
-//    Deferred<List<String>> search() {
-//      return (Deferred) scanner.nextRows().addCallback(this);
-//    }
-//
-//    public Object call(final ArrayList<ArrayList<KeyValue>> rows) {
-//      if (rows == null) {  // We're done scanning.
-//        return suggestions;
-//      }
-//      
-//      for (final ArrayList<KeyValue> row : rows) {
-//        if (row.size() != 1) {
-//          LOG.error("WTF shouldn't happen!  Scanner " + scanner + " returned"
-//                    + " a row that doesn't have exactly 1 KeyValue: " + row);
-//          if (row.isEmpty()) {
-//            continue;
-//          }
-//        }
-//        final byte[] key = row.get(0).key();
-//        final String name = fromBytes(key);
-//        final byte[] id = row.get(0).value();
-//        final byte[] cached_id = name_cache.get(name);
-//        if (cached_id == null) {
-//          cacheMapping(name, id); 
-//        } else if (!Arrays.equals(id, cached_id)) {
-//          throw new IllegalStateException("WTF?  For kind=" + kind()
-//            + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
-//            + " in cache, but just scanned id=" + Arrays.toString(id));
-//        }
-//        suggestions.add(name);
-//        if ((short) suggestions.size() >= max_results) {  // We have enough.
-//          return scanner.close().addCallback(new Callback<Object, Object>() {
-//            @Override
-//            public Object call(Object ignored) throws Exception {
-//              return suggestions;
-//            }
-//          });
-//        }
-//        row.clear();  // free()
-//      }
-//      return search();  // Get more suggestions.
-//    }
-//  }
-//
+
+//  TODO - this is for deletions. Will need it for full bwc with 2.x
 //    final byte[] row = getId(oldname);
 //    final String row_string = fromBytes(row);
 //    {
@@ -1360,82 +1026,45 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
 //    return Deferred.group(deferreds).addCallbackDeferring(new GroupCB())
 //        .addErrback(new ErrCB());
 //  }
-//  
-//  /** The start row to scan on empty search strings.  `!' = first ASCII char. */
-//  private static final byte[] START_ROW = new byte[] { '!' };
-//
-//  /** The end row to scan on empty search strings.  `~' = last ASCII char. */
-//  private static final byte[] END_ROW = new byte[] { '~' };
-//
-//  /**
-//   * Creates a scanner that scans the right range of rows for suggestions.
-//   * @param client The HBase client to use.
-//   * @param tsd_uid_table Table where IDs are stored.
-//   * @param search The string to start searching at
-//   * @param kind_or_null The kind of UID to search or null for any kinds.
-//   * @param max_results The max number of results to return
-//   */
-//  private static Scanner getSuggestScanner(final HBaseClient client,
-//      final byte[] tsd_uid_table, final String search,
-//      final byte[] kind_or_null, final int max_results) {
-//    final byte[] start_row;
-//    final byte[] end_row;
-//    if (search.isEmpty()) {
-//      start_row = START_ROW;
-//      end_row = END_ROW;
-//    } else {
-//      start_row = toBytes(search);
-//      end_row = Arrays.copyOf(start_row, start_row.length);
-//      end_row[start_row.length - 1]++;
-//    }
-//    final Scanner scanner = client.newScanner(tsd_uid_table);
-//    scanner.setStartKey(start_row);
-//    scanner.setStopKey(end_row);
-//    scanner.setFamily(ID_FAMILY);
-//    if (kind_or_null != null) {
-//      scanner.setQualifier(kind_or_null);
-//    }
-//    scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
-//    return scanner;
-//  }
-//
-  /** Returns the cell of the specified row key, using family:kind. */
-  private Deferred<byte[]> hbaseGet(final UniqueIdType type, 
-                                    final byte[] key, 
-                                    final byte[] family) {
-    final GetRequest get = new GetRequest(
-        data_store.uidTable(), key, family);
-    
-    switch(type) {
-    case METRIC:
-      get.qualifier(METRICS_QUAL);
-      break;
-    case TAGK:
-      get.qualifier(TAG_NAME_QUAL);
-      break;
-    case TAGV:
-      get.qualifier(TAG_VALUE_QUAL);
-      break;
-    default:
-      throw new IllegalArgumentException("This data store does not "
-          + "handle Unique IDs of type: " + type);
-    }
-    
-    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
-      public byte[] call(final ArrayList<KeyValue> row) {
-        if (row == null || row.isEmpty()) {
-          return null;
-        }
-        return row.get(0).value();
-      }
-      
-      @Override
-      public String toString() {
-        return "HBase UniqueId Get Request Callback";
-      }
-    }
-    return data_store.client().get(get).addCallback(new GetCB());
-  }
+
+  /**
+   * Returns the cell of the specified row key, using family:kind.
+   * @param type The non-null type.
+   * @param key The non-null key.
+   * @param family The non-null column family.
+   * @return A deferred to wait on resolving to the ID or null.
+   */
+  protected abstract Deferred<byte[]> get(final UniqueIdType type,
+                                          final byte[] key,
+                                          final byte[] family);
+
+  /**
+   * Storage needs to implement this atomic increment. For HBase and Bigtable
+   * it was straight foward and other stores should have similar calls.
+   * @param key The non-null key.
+   * @param family The non-null column family.
+   * @param qualifier The non-null qualifier.
+   * @return A deferred to wait on resolving to the incremented value.
+   */
+  protected abstract Deferred<Long> increment(final byte[] key,
+                                              final byte[] family,
+                                              final byte[] qualifier);
+
+  /**
+   * Storage has to implement the compare and swap call.
+   * @param key The non-null key.
+   * @param family The non-null column family.
+   * @param qualifier The non-null qualifier.
+   * @param value The non-null value we want to set.
+   * @param expected The non-null expected value.
+   * @return A deferred resolving to true if the call succeeded and the new value
+   * was set or false if the value was not set.
+   */
+  protected abstract Deferred<Boolean> cas(final byte[] key,
+                                           final byte[] family,
+                                           byte[] qualifier,
+                                           byte[] value,
+                                           byte[] expected);
 //
 //  /**
 //   * Attempts to run the PutRequest given in argument, retrying if needed.
@@ -1751,12 +1380,16 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
   }
 
   @VisibleForTesting
-  void registerConfigs(final TSDB tsdb) {
+  public Map<UniqueIdType, Map<String, Deferred<IdOrError>>> pending() {
+    return Collections.unmodifiableMap(pending_assignments);
+  }
+
+  protected void registerConfigs(final TSDB tsdb) {
     for (final Entry<UniqueIdType, String> entry : CONFIG_PREFIX.entrySet()) {
-      if (!data_store.tsdb().getConfig().hasProperty(
-          data_store.getConfigKey(entry.getValue() + CHARACTER_SET_KEY))) {
-        data_store.tsdb().getConfig().register(
-            data_store.getConfigKey(entry.getValue() + CHARACTER_SET_KEY), 
+      if (!tsdb.getConfig().hasProperty(
+          configKey(entry.getValue() + CHARACTER_SET_KEY))) {
+        tsdb.getConfig().register(
+            configKey(entry.getValue() + CHARACTER_SET_KEY), 
             CHARACTER_SET_DEFAULT, 
             false, 
             "The character set used for encoding/decoding UID "
@@ -1764,10 +1397,10 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
             + " entries.");
       }
       
-      if (!data_store.tsdb().getConfig().hasProperty(
-          data_store.getConfigKey(entry.getValue() + RANDOM_ASSIGNMENT_KEY))) {
-        data_store.tsdb().getConfig().register(
-            data_store.getConfigKey(entry.getValue() + RANDOM_ASSIGNMENT_KEY), 
+      if (!tsdb.getConfig().hasProperty(
+          configKey(entry.getValue() + RANDOM_ASSIGNMENT_KEY))) {
+        tsdb.getConfig().register(
+            configKey(entry.getValue() + RANDOM_ASSIGNMENT_KEY), 
             false, 
             false, 
             "Whether or not to randomly assign UIDs for " 
@@ -1776,10 +1409,10 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
       }
     }
     
-    if (!data_store.tsdb().getConfig().hasProperty(
-        data_store.getConfigKey(ASSIGN_AND_RETRY_KEY))) {
-      data_store.tsdb().getConfig().register(
-          data_store.getConfigKey(ASSIGN_AND_RETRY_KEY), 
+    if (!tsdb.getConfig().hasProperty(
+        configKey(ASSIGN_AND_RETRY_KEY))) {
+      tsdb.getConfig().register(
+          configKey(ASSIGN_AND_RETRY_KEY), 
           false, 
           false, 
           "Whether or not to return with a RETRY write state immediately "
@@ -1788,19 +1421,19 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           + "is looked up it should be assigned.");
     }
 
-    if (!data_store.tsdb().getConfig().hasProperty(
-            data_store.getConfigKey(LOG_ASSIGNMENT_KEY))) {
-      data_store.tsdb().getConfig().register(
-              data_store.getConfigKey(LOG_ASSIGNMENT_KEY),
+    if (!tsdb.getConfig().hasProperty(
+            configKey(LOG_ASSIGNMENT_KEY))) {
+      tsdb.getConfig().register(
+              configKey(LOG_ASSIGNMENT_KEY),
               false,
               true,
               "Whether or not to log UID assignments at the INFO level.");
     }
     
-    if (!data_store.tsdb().getConfig().hasProperty(
-        data_store.getConfigKey(RANDOM_ATTEMPTS_KEY))) {
-      data_store.tsdb().getConfig().register(
-          data_store.getConfigKey(RANDOM_ATTEMPTS_KEY), 
+    if (!tsdb.getConfig().hasProperty(
+        configKey(RANDOM_ATTEMPTS_KEY))) {
+      tsdb.getConfig().register(
+          configKey(RANDOM_ATTEMPTS_KEY), 
           DEFAULT_ATTEMPTS_ASSIGN_RANDOM_ID, 
           false, 
           "The maximum number of attempts to make before giving up on "
@@ -1809,14 +1442,19 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
           + "mode as random IDs can collide more often.)");
     }
     
-    if (!data_store.tsdb().getConfig().hasProperty(
-        data_store.getConfigKey(ATTEMPTS_KEY))) {
-      data_store.tsdb().getConfig().register(
-          data_store.getConfigKey(ATTEMPTS_KEY), 
+    if (!tsdb.getConfig().hasProperty(
+        configKey(ATTEMPTS_KEY))) {
+      tsdb.getConfig().register(
+          configKey(ATTEMPTS_KEY), 
           DEFAULT_ATTEMPTS_ASSIGN_ID, 
           false, 
           "The maximum number of attempts to make before giving up on "
           + "a UID assignment and return a RETRY error.");
     }
+  }
+
+  public String configKey(final String suffix) {
+    return "tsd.storage." + (Strings.isNullOrEmpty(id) ? "" : id + ".")
+            + suffix;
   }
 }

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -60,8 +61,7 @@ public class LRUUniqueId implements UniqueId, TimerTask {
   
   /** The underlying data store implementation to call on cache miss. */
   private final UniqueIdStore store;
-  
-  
+
   private final UniqueIdType type;
   private final CacheMode mode;
   private final String id;
@@ -733,6 +733,20 @@ public class LRUUniqueId implements UniqueId, TimerTask {
   }
 
   @Override
+  public void addToCache(final String name, final byte[] id) {
+    final byte[] cached_id = name_cache.getIfPresent(name);
+    if (cached_id == null) {
+      name_cache.put(name, id);
+      // TODO -
+      id_cache.put(UniqueId.uidToString(id), name);
+    } else if (Bytes.memcmp(cached_id, id) != 0) {
+      throw new IllegalStateException("WTF?  For kind=" + type
+              + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
+              + " in cache, but just scanned id=" + Arrays.toString(id));
+    }
+  }
+
+  @Override
   public Deferred<Object> delete(final String name, final Span span) {
     // TODO Auto-generated method stub
     return null;
@@ -748,7 +762,6 @@ public class LRUUniqueId implements UniqueId, TimerTask {
     return id_cache;
   }
 
-  
   @Override
   public void run(final Timeout ignored) throws Exception {
     String id = this.id == null ? "default" : this.id;

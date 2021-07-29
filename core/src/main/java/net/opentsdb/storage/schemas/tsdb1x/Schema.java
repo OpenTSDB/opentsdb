@@ -554,7 +554,35 @@ public class Schema implements TimeSeriesDataConsumer {
       throw new IllegalArgumentException("Unsupported type: " + type);
     }
   }
-  
+
+  /**
+   * Checks and adds the value to the cache if it does not exist. The check
+   * involved is that if the value exists with a DIFFERENT mapping then we'll
+   * throw an exception.
+   * @param type The non-null type.
+   * @param name The non-null name for the UID.
+   * @param id The non-null UID to map to.
+   * @throws IllegalStateException if the mapping is different.
+   */
+  public void addToCache(final UniqueIdType type,
+                         final String name,
+                         final byte[] id) {
+    switch(type) {
+      case METRIC:
+        metrics.addToCache(name, id);
+        break;
+      case TAGK:
+        tag_names.addToCache(name, id);
+        break;
+      case TAGV:
+        tag_values.addToCache(name, id);
+        break;
+      default:
+        throw new IllegalArgumentException("This data store does not "
+                + "handle Unique IDs of type: " + type);
+    }
+  }
+
   /** @return The number of buckets to spread data into. */
   public int saltBuckets() {
     return salt_buckets;
@@ -1111,6 +1139,22 @@ public class Schema implements TimeSeriesDataConsumer {
   /** @return The meta schema if implemented and assigned, null if not. */
   public MetaDataStorageSchema metaSchema() {
     return meta_schema;
+  }
+
+  /**
+   * A super simple prefix based suggest API from TSDB 1 to 2x.
+   * @param type The non-null type.
+   * @param query An optional prefix query. Always anchored at the start. If
+   *              null then just return up to max entries.
+   * @param max   An optional number of results to return. If less than or equal
+   *              to zero, we return a default of ??? 24 I think?
+   * @return A Deferred resolving to an error or a list of alphabetically sorted
+   * strings matching the query.
+   */
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String query,
+                                        final int max) {
+    return uid_store.suggest(type, query, max);
   }
 
   String configKey(final String suffix) {

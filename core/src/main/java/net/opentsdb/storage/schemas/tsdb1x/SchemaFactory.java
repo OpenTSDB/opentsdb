@@ -214,7 +214,14 @@ public class SchemaFactory extends BaseTSDBPlugin
   public RollupConfig rollupConfig() {
     return rollup_config;
   }
-  
+
+  /**
+   * @return The non-null schema singleton.
+   */
+  public Schema schema() {
+    return schema;
+  }
+
   void registerConfigs(final TSDB tsdb) {
     if (!tsdb.getConfig().hasProperty(getConfigKey(ROLLUP_KEY))) {
       tsdb.getConfig().register(
