@@ -14,8 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.anomaly;
 
-import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -32,13 +31,13 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.alert.AlertType;
 import net.opentsdb.data.types.alert.AlertValue;
 import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.query.QueryResult;
+import net.opentsdb.data.types.numeric.aggregators.ArrayAggregatorUtils;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 
 /**
  * A time series used to store the predictions generated off a baseline via a 
@@ -50,77 +49,68 @@ import net.opentsdb.query.QueryResult;
  * @since 3.0
  */
 public class AnomalyPredictionTimeSeries implements TimeSeries {
-  protected final TimeSeries[] sources;
   protected final TimeSeriesId id;
   protected final TimeStamp timestamp;
-  protected final double[] results;
+  protected final NumericArrayAggregator aggregator;
   protected List<AlertValue> alerts;
-  
-  public AnomalyPredictionTimeSeries(final TimeSeriesId id, 
-                                   final double[] results, 
-                                   final TimeStamp timestamp) {
-    this.sources = null;
+
+  /**
+   * CTor used when instantiating new predictions that have been computed
+   * from a baseline or if the full prediction is already known.
+   * @param id The non-null ID for the prediction series.
+   * @param aggregator The optional aggregator. If null or empty then the
+   *                   returned iterators will always return false on
+   *                   {@link TypedTimeSeriesIterator#hasNext()}.
+   * @param timestamp The non-null timestamp.
+   */
+  public AnomalyPredictionTimeSeries(final TimeSeriesId id,
+                                     final NumericArrayAggregator aggregator,
+                                     final TimeStamp timestamp) {
     this.id = id;
-    this.results = results;
+    this.aggregator = aggregator;
     this.timestamp = timestamp;
   }
-  
-  public AnomalyPredictionTimeSeries(final TimeSeries[] sources, 
-                                   final QueryResult[] predictions,
-                                   final String suffix, 
-                                   final String model) {
-    this.sources = sources;
+
+  /**
+   * Ctor used when joining cached predictions that were split across time
+   * segments and need to be presented as a "unified" result. Overlaps are
+   * accounted for. Each series MUST support the {@link NumericArrayType} and
+   * the timestamp for each must be correct. That timestamp is used to accumulate
+   * into the proper index of the agg array.
+   *
+   * @param sources A non-null array of one or more time series to accumulate.
+   * @param node The non-null base node used to fetch the aggregator and model
+   *             ID.
+   * @param result The non-null anomaly result that will hold this time series.
+   *               It is used to index into the aggregator properly.
+   * @param suffix The suffix to append to the metric name in the {@link TimeSeriesId}.
+   */
+  public AnomalyPredictionTimeSeries(final TimeSeries[] sources,
+                                     final BaseAnomalyNode node,
+                                     final AnomalyQueryResult result,
+                                     final String suffix) {
+    this.aggregator = node.newAggregator();
     // TODO - handle byte IDs somehow.
     TimeSeriesStringId string_id = null;
-    if (sources.length == 1) {
-      string_id = (TimeSeriesStringId) sources[0].id();
-      this.results = null;
-      this.timestamp = null;
-    } else {
-      TimeSpecification spec = null;
-      for (int i = 0; i < sources.length; i++) {
-        if (sources[i] == null) {
-          continue;
-        }
-        
-        string_id = (TimeSeriesStringId) sources[i].id();
-        spec = predictions[i].timeSpecification();
-        break;
+    timestamp = result.timeSpecification().start();
+    for (int i = 0; i < sources.length; i++) {
+      if (sources[i] == null) {
+        continue;
       }
-      
-      // blech, we need to merge these predictions into one array for now.
-      // TODO - note that right now we're assuming all of the results have the
-      // same length.
-      long dps = (spec.end().epoch() - spec.start().epoch()) / 
-          spec.interval().get(ChronoUnit.SECONDS);
-      results = new double[(int) dps * sources.length];
-      // TODO - proper timestamp back-dated if we're missing the first preds.
-      timestamp = spec.start().getCopy();
-      Arrays.fill(results, Double.NaN);
-      int write_idx = 0;
-      for (int i = 0; i < sources.length; i++) {
-        if (sources[i] == null) {
-          write_idx += dps;
-          continue;
-        }
-        
-        Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op =
-            sources[i].iterator(NumericArrayType.TYPE);
-        if (!op.isPresent()) {
-          write_idx += dps;
-          continue;
-        }
-        
-        TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = op.get();
-        if (!iterator.hasNext()) {
-          write_idx += dps;
-          continue;
-        }
-        
-        TimeSeriesValue<NumericArrayType> value = (TimeSeriesValue<NumericArrayType>) iterator.next();
-        final int length = value.value().end() - value.value().offset();
-        System.arraycopy(value.value().doubleArray(), value.value().offset(), results, write_idx, length);
-        write_idx += length;
+
+      string_id = (TimeSeriesStringId) sources[i].id();
+      break;
+    }
+
+    for (int i = 0; i < sources.length; i++) {
+      final ArrayAggregatorUtils.AccumulateState state =
+              ArrayAggregatorUtils.accumulateInAggregatorArray(aggregator,
+                      result.timeSpecification().start(),
+                      result.timeSpecification().end(),
+                      result.timeSpecification().interval(),
+                      sources[i]);
+      if (state != ArrayAggregatorUtils.AccumulateState.SUCCESS) {
+        // TODO - what should we do?
       }
     }
     BaseTimeSeriesStringId.Builder builder = BaseTimeSeriesStringId.newBuilder()
@@ -133,15 +123,27 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
     if (string_id.tags() != null) {
       tags.putAll(string_id.tags());
     }
-    tags.put(AnomalyTimeSeries.MODEL_TAG_KEY, model);
+    tags.put(AnomalyTimeSeries.MODEL_TAG_KEY, node.modelId());
     builder.setTags(tags);
     this.id = builder.build();
   }
-  
+
+  /**
+   * Replaces the reference to an alerts list.
+   * <b>NOTE:</b> The list must be sorted in ascending time order.
+   * @param results A populated alerts list or null to remove any alerts
+   *                associated with this time series.
+   */
   public void addAlerts(final List<AlertValue> results) {
     alerts = results;
   }
-  
+
+  /**
+   * Adds an alert to the list. <b>NOTE:</b> no sorting is performed so please
+   * add in the proper order. Also, if {@link #addAlerts(List)} was called, this
+   * WILL mutate the original list.
+   * @param alert A non-null alert to add.
+   */
   public void addAlert(final AlertValue alert) {
     if (alerts == null) {
       alerts = Lists.newArrayList();
@@ -158,9 +160,6 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
   public Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterator(
       TypeToken<? extends TimeSeriesDataType> type) {
     if (type == NumericArrayType.TYPE) {
-      if (sources != null && sources.length == 1) {
-        return sources[0].iterator(type);
-      }
       return Optional.of(new ArrayIterator());
     } else if (type == AlertType.TYPE && alerts != null && !alerts.isEmpty()) {
       return Optional.of(new AlertIterator());
@@ -172,15 +171,7 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
   public Collection<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> iterators() {
     final List<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> its = 
         Lists.newArrayList();
-    if (sources != null && sources.length == 1) {
-      final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op = 
-          sources[0].iterator(NumericArrayType.TYPE);
-      if (op.isPresent()) {
-        its.add(op.get());
-      }
-    } else {
       its.add(new ArrayIterator());
-    }
     if (alerts != null && !alerts.isEmpty()) {
       its.add(new AlertIterator());
     }
@@ -198,9 +189,11 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
 
   @Override
   public void close() {
-    if (sources != null) {
-      for (int i = 0; i < sources.length; i++) {
-        sources[i].close();
+    if (aggregator != null) {
+      try {
+        aggregator.close();
+      } catch (IOException e) {
+        e.printStackTrace();
       }
     }
   }
@@ -231,9 +224,9 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
   }
   
   class ArrayIterator implements TypedTimeSeriesIterator<NumericArrayType>, 
-    TimeSeriesValue<NumericArrayType>, NumericArrayType {
+    TimeSeriesValue<NumericArrayType> {
 
-    boolean flipflop = (results != null && results.length > 0) ? true : false;
+    boolean flipflop = (aggregator != null && aggregator.end() > aggregator.offset()) ? true : false;
     
     @Override
     public boolean hasNext() {
@@ -244,31 +237,6 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
     public TimeSeriesValue<NumericArrayType> next() {
       flipflop = false;
       return this;
-    }
-
-    @Override
-    public int offset() {
-      return 0;
-    }
-
-    @Override
-    public int end() {
-      return results.length;
-    }
-
-    @Override
-    public boolean isInteger() {
-      return false;
-    }
-
-    @Override
-    public long[] longArray() {
-      return null;
-    }
-
-    @Override
-    public double[] doubleArray() {
-      return results;
     }
 
     @Override
@@ -293,7 +261,7 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
 
     @Override
     public NumericArrayType value() {
-      return this;
+      return aggregator;
     }
     
   }
