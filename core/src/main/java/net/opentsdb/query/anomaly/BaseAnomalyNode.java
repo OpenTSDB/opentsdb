@@ -25,6 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorConfig;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +90,8 @@ public class BaseAnomalyNode extends AbstractQueryNode {
   protected final String ds_interval;
   protected volatile QueryResult[] predictions;
   protected volatile QueryResult current;
+  protected volatile NumericArrayAggregatorConfig aggregatorConfig;
+  protected volatile NumericArrayAggregatorFactory aggregatorFactory;
   protected TrainingQuery training_query;
   protected volatile QueryResult training_data;
 
@@ -99,6 +105,9 @@ public class BaseAnomalyNode extends AbstractQueryNode {
     failed = new AtomicBoolean();
     cache_error = new AtomicBoolean();
     building_prediction = new AtomicBoolean();
+
+    aggregatorFactory = context.tsdb().getRegistry().getPlugin(
+            NumericArrayAggregatorFactory.class, "MAX");
 
     // TODO - find the proper ds in graph in order
     DownsampleConfig ds = null;
@@ -270,6 +279,13 @@ public class BaseAnomalyNode extends AbstractQueryNode {
   public void onNext(final QueryResult next) {
     synchronized (this) {
       current = next;
+      // TODO - we better have a time spec here or something is very wrong.
+      long intervals = next.timeSpecification().interval().get(ChronoUnit.SECONDS);
+      intervals = (next.timeSpecification().end().epoch() -
+      next.timeSpecification().start().epoch()) / intervals;
+      aggregatorConfig = DefaultArrayAggregatorConfig.newBuilder()
+              .setArraySize((int) intervals)
+              .build();
     }
     countdown();
   }
@@ -636,7 +652,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       eval.evaluate();
       
       final AnomalyPredictionTimeSeries pred_ts = new AnomalyPredictionTimeSeries(
-          preds, predictions, "prediction", factory.id());
+          preds, this, result, "prediction");
       if (eval.alerts() != null && !eval.alerts().isEmpty()) {
         pred_ts.addAlerts(eval.alerts());
       }
@@ -698,7 +714,15 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       }
     }
   }
-  
+
+  public NumericArrayAggregator newAggregator() {
+    return (NumericArrayAggregator) aggregatorFactory.newAggregator(aggregatorConfig);
+  }
+
+  protected String modelId() {
+    return factory().id();
+  }
+
   protected void writeCache(final QueryResult result, final int prediction_index) {
     if (cache_hits[prediction_index] || cache == null) {
       return;

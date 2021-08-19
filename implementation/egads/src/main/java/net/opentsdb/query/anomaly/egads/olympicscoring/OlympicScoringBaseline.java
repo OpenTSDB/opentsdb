@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Properties;
 
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,11 +115,12 @@ public class OlympicScoringBaseline {
     
     final com.yahoo.egads.data.TimeSeries prediction = 
         new com.yahoo.egads.data.TimeSeries();
-    final double[] results = new double[(int) node.predictionIntervals()];
+    //final double[] results = new double[(int) node.predictionIntervals()];
+    NumericArrayAggregator agg = node.newAggregator();
     
     // fill the prediction with nans at the proper timestamps
     long ts = prediction_start;
-    for (int i = 0; i < results.length; i++) {
+    for (int i = 0; i < node.predictionIntervals(); i++) {
       try {
         prediction.append(ts, Float.NaN);
       } catch (Exception e) {
@@ -149,11 +151,12 @@ public class OlympicScoringBaseline {
             + ") didn't match the expected timestamp " + ts);
         continue;
       }
-      results[i++] = entry.value;
+      //results[i++] = entry.value;
+      agg.accumulate(entry.value, i++);
       ts += node.predictionInterval();
     }
     
-    return new AnomalyPredictionTimeSeries(id, results, 
+    return new AnomalyPredictionTimeSeries(id, agg,
         new SecondTimeStamp(prediction_start));
   }
 

@@ -23,6 +23,9 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.util.Properties;
 
+import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory;
+import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory.ArrayMax;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -55,6 +58,12 @@ public class TestOlympicScoringBaseline {
   public void before() throws Exception {
     node = mock(OlympicScoringNode.class);
     result = mock(QueryResult.class);
+    ArrayMaxFactory factory = new ArrayMaxFactory();
+    when(node.newAggregator()).thenReturn(factory.newAggregator(
+            DefaultArrayAggregatorConfig.newBuilder()
+                    .setArraySize(60)
+                    .build()
+    ));
   }
   
   @Test
