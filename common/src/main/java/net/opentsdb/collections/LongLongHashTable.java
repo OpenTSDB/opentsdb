@@ -24,6 +24,12 @@ import java.math.BigInteger;
 /**
  * A linear probing primitive Map for long keys and long values. Stores data off heap.
  *
+ * NOTE: There is now a hacky, ugly way to rehash the map without resizing when
+ * deletes start to result in too many scans for missed entries. If the average
+ * number of scans per operation (any operation) exceeds the scan rehash threshold
+ * then we'll pick the next prime number from the primes set to hash with. It will
+ * roll over but by that time the key set should hopefully be fairly new.
+ *
  * @see DirectByteArray
  * @see LongLongIterator
  */
@@ -32,8 +38,13 @@ public class LongLongHashTable implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(LongLongHashTable.class);
 
   private static final float DEFAULT_LOAD_FACTOR = 0.75f;
+  private static final double DEFAULT_SCAN_REHASH_THRESHOLD = 25.5;
   private static final int KEY_SZ = 8;
   private static final int VALUE_SZ = 8;
+  public static final int[] PRIMES_FOR_HASHING = new int[] {
+          193, 769, 1543, 3079, 6151, 12289, 24593, 49157, 98317, 196613, 393241,
+          786433, 1572869, 3145739, 6291469, 12582917, 25165843, 50331653,
+          100663319, 201326611, 402653189, 805306457, 1610612741};
   public static final long NOT_FOUND = Long.MIN_VALUE;
 
   private final int slotSz;
@@ -43,6 +54,10 @@ public class LongLongHashTable implements Closeable {
   private int sz;
   private String name;
   private long address;
+  private int primeIndex;
+  private int prime;
+  private long scans;
+  private long opCount;
   private DirectByteArray table;
 
   public LongLongHashTable(final int initialCapacity, final String name) {
@@ -54,6 +69,7 @@ public class LongLongHashTable implements Closeable {
     this.slotSz = KEY_SZ + VALUE_SZ;
     this.slots = initialCapacity;
     this.name = name;
+    prime = PRIMES_FOR_HASHING[0];
     resize();
   }
 
@@ -65,6 +81,9 @@ public class LongLongHashTable implements Closeable {
     threshold = parent.threshold;
     arrayLength = parent.arrayLength;
     sz = parent.sz;
+    prime = parent.prime;
+    primeIndex = parent.primeIndex;
+    // purposely leaving scans and ops out.
     address = table.getAddress();
     name = parent.name;
   }
@@ -78,7 +97,8 @@ public class LongLongHashTable implements Closeable {
   }
 
   private void resize() {
-
+    long start = System.nanoTime();
+    int oldLength = arrayLength;
     int oldCap = slots;
     int newCap = oldCap;
     if (table != null) { // growing the table;
@@ -102,6 +122,8 @@ public class LongLongHashTable implements Closeable {
     this.sz = 0;
     this.slots = newCap;
     this.threshold = newThr;
+    scans = 0;
+    opCount = 0;
     if (oldTable != null) {
       for (int i = 0; i < oldCap; i++) {
         int offset = i * slotSz;
@@ -112,9 +134,47 @@ public class LongLongHashTable implements Closeable {
       }
       oldTable.free();
     }
+    long end = System.nanoTime();
+    LOGGER.info("Resized {} from {} to {} in {} ns", name, oldLength, arrayLength, (end - start));
+  }
+
+  private void rehash() {
+    long start = System.nanoTime();
+    if (primeIndex + 1 >= PRIMES_FOR_HASHING.length) {
+      primeIndex = 0;
+    } else {
+      primeIndex++;
+    }
+    prime = PRIMES_FOR_HASHING[primeIndex];
+    scans = 0;
+    opCount = 0;
+
+    DirectByteArray oldTable = null;
+    if (table == null) {
+      this.table = new DirectByteArray(arrayLength, false);
+    } else {
+      long oldAddress = table.init(arrayLength, false);
+      oldTable = new DirectByteArray(oldAddress, false, slots * slotSz);
+    }
+    this.address = table.getAddress();
+    this.sz = 0;
+    if (oldTable != null) {
+      for (int i = 0; i < slots; i++) {
+        int offset = i * slotSz;
+        long key = oldTable.getLong(offset);
+        if (key != 0 && key != -1) {
+          put(key, oldTable.getLong(offset + KEY_SZ));
+        }
+      }
+      oldTable.free();
+    }
+
+    long end = System.nanoTime();
+    LOGGER.info("Rehashed {} in {} ns with new prime {}", name, (end - start), prime);
   }
 
   public int put(final long key, final long value) {
+    ++opCount;
     int slot = getSlot(key);
     int scanLength = 0;
 
@@ -139,20 +199,24 @@ public class LongLongHashTable implements Closeable {
     table.setLong(offset, value);
 
     if (sz > threshold) {
-      long start = System.nanoTime();
-      int oldLength = arrayLength;
       resize();
-      long end = System.nanoTime();
-      LOGGER.info("Resized {} from {} to {} in {} ns", name, oldLength, arrayLength, (end - start));
+    } else if (scanLength > 0) {
+      scans += scanLength;
+      if (((double) scans / (double) opCount) > DEFAULT_SCAN_REHASH_THRESHOLD) {
+        rehash();
+      }
     }
     return scanLength;
   }
 
   public long get(final long key) {
+    ++opCount;
     int slot = getSlot(key);
     int offset = slot * slotSz;
     long target = table.getLong(offset);
     boolean emptySlot = target == 0;
+
+    int scanLength = 0;
     while (!emptySlot) {
       if (key == target) {
         return table.getLong(offset + KEY_SZ);
@@ -161,15 +225,25 @@ public class LongLongHashTable implements Closeable {
       offset = slot * slotSz;
       target = table.getLong(offset);
       emptySlot = target == 0;
+      scanLength++;
+    }
+
+    if (scanLength > 0) {
+      scans += scanLength;
+      if (((double) scans / (double) opCount) > DEFAULT_SCAN_REHASH_THRESHOLD) {
+        rehash();
+      }
     }
     return NOT_FOUND;
   }
 
   public long remove(final long key) {
+    ++opCount;
     int slot = getSlot(key);
     int offset = slot * slotSz;
     long target = table.getLong(offset);
     boolean emptySlot = target == 0;
+    int scanLength = 0;
     while (!emptySlot) {
       if (key == target) {
         return resetSlotByOffset(offset);
@@ -178,6 +252,14 @@ public class LongLongHashTable implements Closeable {
       offset = slot * slotSz;
       target = table.getLong(offset);
       emptySlot = target == 0;
+      scanLength++;
+    }
+
+    if (scanLength > 0) {
+      scans += scanLength;
+      if (((double) scans / (double) opCount) > DEFAULT_SCAN_REHASH_THRESHOLD) {
+        rehash();
+      }
     }
     return NOT_FOUND;
   }
@@ -187,8 +269,7 @@ public class LongLongHashTable implements Closeable {
   }
 
   private int getSlot(final long key) {
-    // a bit slow, another option is to use a size that is multiplier of 2 and bitmask it
-    return Math.abs((int) (key % slots));
+    return Math.abs((int) ((int)(key ^ prime) % slots));
   }
 
   private int nextSlot(int slot) {
