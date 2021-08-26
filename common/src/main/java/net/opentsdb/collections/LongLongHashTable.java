@@ -30,6 +30,10 @@ import java.math.BigInteger;
  * then we'll pick the next prime number from the primes set to hash with. It will
  * roll over but by that time the key set should hopefully be fairly new.
  *
+ * There is also a decay in growth to avoid simply doubling and finding a prime
+ * for the next size. We saw an issue where we only had 5.5M entries but the table
+ * grew to 192M slots! So this isn't great but it will work for our use case.
+ *
  * @see DirectByteArray
  * @see LongLongIterator
  */
@@ -38,9 +42,12 @@ public class LongLongHashTable implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(LongLongHashTable.class);
 
   private static final float DEFAULT_LOAD_FACTOR = 0.75f;
-  private static final double DEFAULT_SCAN_REHASH_THRESHOLD = 25.5;
+  private static final float DEFAULT_SCAN_REHASH_THRESHOLD = 25.5f;
+  private static final float DEFAULT_GROWTH_RATE = 0.75f;
+  private static final float DEFAULT_GROWTH_DECAY = 0.25f;
   private static final int KEY_SZ = 8;
   private static final int VALUE_SZ = 8;
+  // https://planetmath.org/goodhashtableprimes. In a quick test they seem solid.
   public static final int[] PRIMES_FOR_HASHING = new int[] {
           193, 769, 1543, 3079, 6151, 12289, 24593, 49157, 98317, 196613, 393241,
           786433, 1572869, 3145739, 6291469, 12582917, 25165843, 50331653,
@@ -58,18 +65,65 @@ public class LongLongHashTable implements Closeable {
   private int prime;
   private long scans;
   private long opCount;
+  private double scanRehashThreshold;
+  private float growthRate;
+  private float growthDecay;
   private DirectByteArray table;
 
+  /**
+   * Default ctor with a 0.75 load, 0.75 growth factor, 0.75 growth decline and
+   * scan rehash threshold of 25.5.
+   * @param initialCapacity The initial capacity of the table. Must be greater
+   *                        than or equal to 0.
+   * @param name A descriptive name for the table used in debug logs when
+   *             growing or rehashing.
+   */
   public LongLongHashTable(final int initialCapacity, final String name) {
+    this(initialCapacity,
+         name,
+         DEFAULT_GROWTH_RATE,
+         DEFAULT_GROWTH_DECAY,
+         DEFAULT_SCAN_REHASH_THRESHOLD);
+  }
+
+  /**
+   * Ctor with all of the tuning parameters.
+   * @param initialCapacity The initial capacity of the table. Must be greater
+   *                        than or equal to 0.
+   * @param name A descriptive name for the table used in debug logs when growing
+   *             or rehashing.
+   * @param growthRate The initial amount of growth when the table needs to be
+   *                   resized. Must be a floating point ratio, e.g. 0.75 means
+   *                   the table will grow by 75% of the existing size.
+   * @param growthDecay How much the growth rate should be reduced on each resize.
+   *                    This slows growth over time so it's less likely to blow
+   *                    out the resident set. E.g. if the initial growth rate is
+   *                    0.75 and the decay is 0.25, the amount of growth will be
+   *                    reduced by 25% each time. The progression would be
+   *                    0.75, 0.56, 0.42, 0.32, etc.
+   * @param scanRehashThreshold A threshold on the average number of scans per
+   *                            operation that is used to determine when to rehash
+   *                            the table.
+   */
+  public LongLongHashTable(final int initialCapacity,
+                           final String name,
+                           final float growthRate,
+                           final float growthDecay,
+                           final float scanRehashThreshold) {
 
     if (initialCapacity < 0) {
       throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
     }
 
+    // TODO - validation of rate, decay, threshold.
+
     this.slotSz = KEY_SZ + VALUE_SZ;
     this.slots = initialCapacity;
     this.name = name;
     prime = PRIMES_FOR_HASHING[0];
+    this.growthRate = growthRate;
+    this.growthDecay = growthDecay;
+    this.scanRehashThreshold = scanRehashThreshold;
     resize();
   }
 
@@ -83,6 +137,9 @@ public class LongLongHashTable implements Closeable {
     sz = parent.sz;
     prime = parent.prime;
     primeIndex = parent.primeIndex;
+    growthRate = parent.growthRate;;
+    growthDecay = parent.growthDecay;
+    scanRehashThreshold = parent.scanRehashThreshold;
     // purposely leaving scans and ops out.
     address = table.getAddress();
     name = parent.name;
@@ -102,11 +159,15 @@ public class LongLongHashTable implements Closeable {
     int oldCap = slots;
     int newCap = oldCap;
     if (table != null) { // growing the table;
-      newCap = oldCap << 1; // double the size;
+      newCap = (int) (oldCap + (oldCap * growthRate));
+      growthRate *= (1f - growthDecay);
+      if (growthRate < 0.001f) {
+        growthRate = 0.001f;
+      }
+    } else {
+      BigInteger p = BigInteger.valueOf(newCap);
+      newCap = p.nextProbablePrime().intValueExact();
     }
-
-    BigInteger p = BigInteger.valueOf(newCap);
-    newCap = p.nextProbablePrime().intValueExact();
 
     int newThr = (int) (newCap * DEFAULT_LOAD_FACTOR);
 
@@ -174,7 +235,10 @@ public class LongLongHashTable implements Closeable {
   }
 
   public int put(final long key, final long value) {
-    ++opCount;
+    if (++opCount < 0) {
+      opCount = 1;
+      scans = 0;
+    }
     int slot = getSlot(key);
     int scanLength = 0;
 
@@ -202,7 +266,7 @@ public class LongLongHashTable implements Closeable {
       resize();
     } else if (scanLength > 0) {
       scans += scanLength;
-      if (((double) scans / (double) opCount) > DEFAULT_SCAN_REHASH_THRESHOLD) {
+      if (((double) scans / (double) opCount) > scanRehashThreshold) {
         rehash();
       }
     }
@@ -210,7 +274,10 @@ public class LongLongHashTable implements Closeable {
   }
 
   public long get(final long key) {
-    ++opCount;
+    if (++opCount < 0) {
+      opCount = 1;
+      scans = 0;
+    }
     int slot = getSlot(key);
     int offset = slot * slotSz;
     long target = table.getLong(offset);
@@ -230,7 +297,7 @@ public class LongLongHashTable implements Closeable {
 
     if (scanLength > 0) {
       scans += scanLength;
-      if (((double) scans / (double) opCount) > DEFAULT_SCAN_REHASH_THRESHOLD) {
+      if (((double) scans / (double) opCount) > scanRehashThreshold) {
         rehash();
       }
     }
@@ -238,7 +305,10 @@ public class LongLongHashTable implements Closeable {
   }
 
   public long remove(final long key) {
-    ++opCount;
+    if (++opCount < 0) {
+      opCount = 1;
+      scans = 0;
+    }
     int slot = getSlot(key);
     int offset = slot * slotSz;
     long target = table.getLong(offset);
@@ -257,7 +327,7 @@ public class LongLongHashTable implements Closeable {
 
     if (scanLength > 0) {
       scans += scanLength;
-      if (((double) scans / (double) opCount) > DEFAULT_SCAN_REHASH_THRESHOLD) {
+      if (((double) scans / (double) opCount) > scanRehashThreshold) {
         rehash();
       }
     }
