@@ -89,6 +89,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
   public static final String AGGREGATOR_KEY = "hacluster.default.aggregator";
   public static final String PRIMARY_KEY = "hacluster.default.timeout.primary";
   public static final String SECONDARY_KEY = "hacluster.default.timeout.secondary";
+  public static final String FAIL_ON_ANY_ERROR = "hacluster.fail.on.any.error";
 
   /** The default sources updated on config callback. */
   protected final List<String> default_sources;
@@ -192,6 +193,10 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
       if (Strings.isNullOrEmpty(cluster_config.getSecondaryTimeout())) {
         builder.setSecondaryTimeout(tsdb.getConfig().getString(
             getConfigKey(SECONDARY_KEY)));
+      }
+      if(Strings.isNullOrEmpty(cluster_config.failOnAnyError())) {
+        builder.setFailOnAnyError(tsdb.getConfig().getString(
+            getConfigKey(FAIL_ON_ANY_ERROR)));
       }
       
       if (cluster_config.getDataSources().isEmpty() && 
@@ -727,6 +732,11 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
       tsdb.getConfig().register(getConfigKey(SECONDARY_KEY), "5s", true,
               "A duration defining how long to wait for a secondary source "
                       + "the primary source responds first.");
+    }
+    if(!tsdb.getConfig().hasProperty(getConfigKey(FAIL_ON_ANY_ERROR))) {
+      tsdb.getConfig().register(getConfigKey(FAIL_ON_ANY_ERROR), "false", true,
+              "Whether to fail the entire request if, any one of the listed sources " +
+                      "fails to return a valid result.");
     }
 
     tsdb.getConfig().bind(getConfigKey(SOURCES_KEY), new SettingsCallback());

@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import net.opentsdb.query.IncompleteStateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -209,6 +210,28 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
           }
         }
       }
+    } else {
+      //Error from downstream
+
+
+      final String log;
+      if (config.getDataSources().size() == 1  ||
+              config.getDataSources().get(0).equals(id)) {
+        log = "Primary errored out: " +
+                (next.error() == null ? "" : next.error());
+      } else {
+        log = "Secondary errored out: " +
+                (next.error() == null ? "" : next.error());
+      }
+
+      if(Boolean.parseBoolean(config.failOnAnyError())) {
+        if(next.exception() != null) {
+          onError(new IncompleteStateException(log, next.exception()));
+        } else {
+          onError(new IncompleteStateException(log));
+        }
+      }
+
     }
   }
   
@@ -269,13 +292,24 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
         // Already sent upstream, lost the race.
         return;
       }
-      if (is_primary) {        
-        context.queryContext().logWarn(HACluster.this, 
-            "Primary timed out after: " + config.getPrimaryTimeout());
+
+      final String log;
+
+      if(is_primary) {
+        log = "Primary timed out after: " + config.getPrimaryTimeout();
       } else {
-        context.queryContext().logWarn(HACluster.this, 
-            "Secondary timed out after: " + config.getSecondaryTimeout());
+        log = "Secondary timed out after: " + config.getSecondaryTimeout();
       }
+
+      if(Boolean.parseBoolean(config.failOnAnyError())) {
+        //Error out
+        onError(new IncompleteStateException(log));
+        return;
+      }
+
+      context.queryContext().logWarn(HACluster.this,
+            log);
+
       
       QueryResult good_result = null;
       for (final QueryResult result : results.values()) {
@@ -306,7 +340,7 @@ public class HACluster extends AbstractQueryNode implements TimeSeriesDataSource
     }
     
   }
-  
+
   void complete(final boolean timed_out) {
     if (!timed_out && !completed.compareAndSet(false, true)) {
       LOG.warn("HA cluster node was trying to mark as complete but has "

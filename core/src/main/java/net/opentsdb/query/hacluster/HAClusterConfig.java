@@ -68,6 +68,11 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
    * returns first. */
   private final String primary_timeout;
 
+  /**
+   * Fails if any of the sources timeout/error out
+   */
+  private final String fail_on_any_error;
+
   /** A hash that calculates and stores the hash code once. */
   private int hash;
 
@@ -86,7 +91,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
     merge_aggregator = builder.mergeAggregator;
     secondary_timeout = builder.secondaryTimeout;
     primary_timeout = builder.primaryTimeout;
-
+    fail_on_any_error = builder.failOnAnyError;
     // validate the timeouts
     if (!Strings.isNullOrEmpty(secondary_timeout)) {
       DateTime.parseDuration(secondary_timeout);
@@ -116,6 +121,11 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
   /** @return An optional timeout for the secondary (etc) sources. */
   public String getSecondaryTimeout() {
     return secondary_timeout;
+  }
+
+  /**@return */
+  public String failOnAnyError() {
+    return fail_on_any_error;
   }
 
   /** @return An optional timeout for the primary when a secondary
@@ -230,6 +240,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
         .setMergeAggregator(merge_aggregator)
         .setSecondaryTimeout(secondary_timeout)
         .setPrimaryTimeout(primary_timeout)
+        .setFailOnAnyError(fail_on_any_error)
         .setHasBeenSetup(has_been_setup);
     if (!data_sources.isEmpty()) {
       builder.setDataSources(Lists.newArrayList(data_sources));
@@ -260,6 +271,8 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
     private String secondaryTimeout;
     @JsonProperty
     private String primaryTimeout;
+    @JsonProperty
+    private String failOnAnyError;
 
     Builder() {
       setType("HAClusterConfig");
@@ -323,6 +336,11 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
      */
     public Builder setPrimaryTimeout(final String primary_timeout) {
       primaryTimeout = primary_timeout;
+      return this;
+    }
+
+    public Builder setFailOnAnyError(final String fail_on_any_error) {
+      failOnAnyError = fail_on_any_error;
       return this;
     }
 
