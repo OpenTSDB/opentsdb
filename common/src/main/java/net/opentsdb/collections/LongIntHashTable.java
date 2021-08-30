@@ -205,13 +205,8 @@ public class LongIntHashTable implements Closeable {
     scans = 0;
     opCount = 0;
 
-    DirectByteArray oldTable = null;
-    if (table == null) {
-      this.table = new DirectByteArray(arrayLength, false);
-    } else {
-      long oldAddress = table.init(arrayLength, false);
-      oldTable = new DirectByteArray(oldAddress, false, slots * slotSz);
-    }
+    long oldAddress = table.init(arrayLength, false);
+    DirectByteArray oldTable = new DirectByteArray(oldAddress, false, slots * slotSz);
     this.address = table.getAddress();
     this.sz = 0;
     if (oldTable != null) {
