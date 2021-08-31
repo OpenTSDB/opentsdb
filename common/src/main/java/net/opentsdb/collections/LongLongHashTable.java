@@ -71,7 +71,7 @@ public class LongLongHashTable implements Closeable {
   private DirectByteArray table;
 
   /**
-   * Default ctor with a 0.75 load, 0.75 growth factor, 0.75 growth decline and
+   * Default ctor with a 0.75 load, 0.75 growth factor, 0.25 growth decline and
    * scan rehash threshold of 25.5.
    * @param initialCapacity The initial capacity of the table. Must be greater
    *                        than or equal to 0.
@@ -214,16 +214,14 @@ public class LongLongHashTable implements Closeable {
     DirectByteArray oldTable = new DirectByteArray(oldAddress, false, slots * slotSz);
     this.address = table.getAddress();
     this.sz = 0;
-    if (oldTable != null) {
-      for (int i = 0; i < slots; i++) {
-        int offset = i * slotSz;
-        long key = oldTable.getLong(offset);
-        if (key != 0 && key != -1) {
-          put(key, oldTable.getLong(offset + KEY_SZ));
-        }
+    for (int i = 0; i < slots; i++) {
+      int offset = i * slotSz;
+      long key = oldTable.getLong(offset);
+      if (key != 0 && key != -1) {
+        put(key, oldTable.getLong(offset + KEY_SZ));
       }
-      oldTable.free();
     }
+    oldTable.free();
 
     long end = System.nanoTime();
     LOGGER.info("Rehashed {} in {} ns with new prime {}", name, (end - start), prime);
