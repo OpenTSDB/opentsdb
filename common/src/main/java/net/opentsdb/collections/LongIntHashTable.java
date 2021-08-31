@@ -24,8 +24,8 @@ import java.math.BigInteger;
 /**
  * A linear probing Map for long keys and int values. Stores data off heap.
  *
- * NOTE: There is now a hacky, ugly way to rehash the map without resizing when
- * deletes start to result in too many scans for missed entries. If the average
+// * NOTE: There is now a hacky, ugly way to rehash the map without resizing when
+// * deletes start to result in too many scans for missed entries. If the average
  * number of scans per operation (any operation) exceeds the scan rehash threshold
  * then we'll pick the next prime number from the primes set to hash with. It will
  * roll over but by that time the key set should hopefully be fairly new.
@@ -71,7 +71,7 @@ public class LongIntHashTable implements Closeable {
   private DirectByteArray table;
 
   /**
-   * Default ctor with a 0.75 load, 0.75 growth factor, 0.75 growth decline and
+   * Default ctor with a 0.75 load, 0.75 growth factor, 0.25 growth decline and
    * scan rehash threshold of 25.5.
    * @param initialCapacity The initial capacity of the table. Must be greater
    *                        than or equal to 0.
@@ -209,16 +209,14 @@ public class LongIntHashTable implements Closeable {
     DirectByteArray oldTable = new DirectByteArray(oldAddress, false, slots * slotSz);
     this.address = table.getAddress();
     this.sz = 0;
-    if (oldTable != null) {
-      for (int i = 0; i < slots; i++) {
-        int offset = i * slotSz;
-        long key = oldTable.getLong(offset);
-        if (key != 0 && key != -1) {
-          put(key, oldTable.getInt(offset + KEY_SZ));
-        }
+    for (int i = 0; i < slots; i++) {
+      int offset = i * slotSz;
+      long key = oldTable.getLong(offset);
+      if (key != 0 && key != -1) {
+        put(key, oldTable.getInt(offset + KEY_SZ));
       }
-      oldTable.free();
     }
+    oldTable.free();
 
     long end = System.nanoTime();
     LOGGER.info("Rehashed {} in {} ns with new prime {}", name, (end - start), prime);
