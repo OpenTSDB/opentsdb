@@ -226,7 +226,9 @@ public class BaseAnomalyNode extends AbstractQueryNode {
           LOG.info("******* Sending out to cache...");
         } else {
           LOG.info("****** Fetching training data!");
-          fetchTrainingData(0);
+          for (int i = 0; i < predictions.length; i++) {
+            fetchTrainingData(i);
+          }
         }
         return null;
       }
@@ -285,7 +287,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       
       return null;
     }
-    
+
   }
   
   public class CacheErrCB implements Callback<Void, Exception> {
