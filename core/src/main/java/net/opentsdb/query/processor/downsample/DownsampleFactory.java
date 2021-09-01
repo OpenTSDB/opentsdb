@@ -27,6 +27,8 @@ import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -265,6 +267,12 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
 
     final List<QueryNodeConfig> sources = Lists.newArrayList(
             plan.terminalSourceNodes(config));
+    TimeStamp start = null;
+    TimeStamp end = null;
+
+    // TODO - rework this a bit. Cloning of the DownsampleConfig is hinky and
+    // handling of multiple sources is wrong. Need to only post it once back to
+    // the graph as well.
     for (final QueryNodeConfig source : sources) {
       if (!(source instanceof TimeSeriesDataSourceConfig)) {
         continue;
@@ -272,11 +280,23 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
 
       final TimeSeriesDataSourceConfig tsConfig =
               (TimeSeriesDataSourceConfig) source;
+      if (start == null) {
+        start = tsConfig.startTimestamp();
+        end = tsConfig.endTimestamp();
+      } else {
+        if (start.compare(Op.GT, tsConfig.startTimestamp())) {
+          start = tsConfig.startTimestamp();
+        }
+        if (end.compare(Op.LT, tsConfig.endTimestamp())) {
+          end = tsConfig.endTimestamp();
+        }
+      }
+
       Builder builder = DownsampleConfig.newBuilder();
       DownsampleConfig.cloneBuilder(config, builder);
       DownsampleConfig newConfig = builder
-              .setStart(Long.toString(tsConfig.startTimestamp().msEpoch()))
-              .setEnd(Long.toString(tsConfig.endTimestamp().msEpoch()))
+              .setStart(Long.toString(start.msEpoch()))
+              .setEnd(Long.toString(end.msEpoch()))
               .setId(config.getId())
               .setResultIds(((DefaultQueryPlanner) plan).compileResultIds(config))
               .build();
