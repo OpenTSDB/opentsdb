@@ -1,4 +1,37 @@
 OpenTSDB - Changelog
+* Version 2.4.1 (2021-09-02)
+
+Noteworthy Changes:
+  - Add a config flag to enable splitting queries across the rollup and
+    raw data tables. Another config determines when to split the queries.
+  - Fix for CVE-2020-35476 that now validates and limits the inputs for 
+    Gnuplot query parameters to prevent remote code execution.
+  - Default log config will log CLI tools at INFO to standard out.
+  - New check_tsd_v2 script that evaluates individual metric groups given
+    a filter.
+  - Collect stats from meta cache plugins.
+  - Add a python script to list and pretty-print queries running on a TSD.
+  - Add a single, standalone TSD systemd startup script and default to that
+    instead of the multi-port TSD script.
+  
+Bug Fixes:
+  - Fix the "--sync" flag for FSCK to wait for repairs to execute against
+    storage before proceeding.
+  - Fix expression queries to allow metric only and filterless queries.
+  - Fix an NPE in /api/query/last when appends are enabled.
+  - Fix races in the salt scanner and multigets on the storage maps.
+  - Fix rollup queries that need sum and count for downsampling instead of
+    group bys.
+  - Fix fuzzy row filters for later versions of HBase by using filter pairs.
+    And allow it to be combined with a regex filter.
+  - Fix stats from the individual salt scanners and overall query stats
+    concurrency issues.
+  - Rename the stat "maxScannerUidtoStringTime" to 
+    "maxScannerUidToStringTime"
+  - Fix the min initial value for double values in the AggregationIterator
+  - Fix rollup queries producing unexpected results.
+  - Fix various UTs
+  - Support rollups in FSCK
 
 * Version 2.4.0 (2018-12-16)
 
