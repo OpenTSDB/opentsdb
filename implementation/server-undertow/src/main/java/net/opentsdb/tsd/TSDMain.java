@@ -93,7 +93,10 @@ public class TSDMain {
   public static final String READ_TO_KEY = "tsd.network.read_timeout";
   public static final String WRITE_TO_KEY = "tsd.network.write_timeout";
   public static final String NO_REQUEST_KEY = "tsd.network.no_request_timeout";
-  
+
+  public static final String ACCESS_LOG_FORMAT_KEY = "tsd.http.access_log_format";
+  public static final String RECORD_REQUEST_START_TIME = "tsd.http.record_request_start_time";
+
   /** Defaults */
   public static final String DEFAULT_PATH = "/";
   
@@ -183,6 +186,12 @@ public class TSDMain {
     config.register(NO_REQUEST_KEY, 15 * 60 * 1000, false, 
         "A timeout in milliseconds when we'll close a connection after not"
         + "receiving a request.");
+    config.register(ACCESS_LOG_FORMAT_KEY, "combined", false,
+        "A format string for the access log messages."
+        + "see: io.undertow.server.handlers.accesslog.AccessLogHandler");
+    config.register(RECORD_REQUEST_START_TIME, false, false,
+        "Whether or not to add request start time to access log."
+        + "see: io.undertow.UndertowOptions#RECORD_REQUEST_START_TIME");
     config.register(ConfigurationEntrySchema.newBuilder()
         .isNullable()
         .setSource(TSDMain.class.getCanonicalName())
@@ -349,7 +358,7 @@ public class TSDMain {
       handler = new AccessLogHandler(
           handler,
           new Slf4jAccessLogReceiver(),
-          "combined",
+          config.getString(ACCESS_LOG_FORMAT_KEY),
           TSDMain.class.getClassLoader());
       
       final Builder builder = Undertow.builder()
@@ -384,7 +393,9 @@ public class TSDMain {
       builder.setWorkerOption(Options.KEEP_ALIVE, true);
       builder.setSocketOption(Options.KEEP_ALIVE, true);
       builder.setServerOption(Options.KEEP_ALIVE, true);
-      
+
+      builder.setServerOption(UndertowOptions.RECORD_REQUEST_START_TIME, config.getBoolean(RECORD_REQUEST_START_TIME));
+
       server = builder.build();
       server.start();
       LOG.info("Undertow server successfully started, listening on " + bind + ":" + 
