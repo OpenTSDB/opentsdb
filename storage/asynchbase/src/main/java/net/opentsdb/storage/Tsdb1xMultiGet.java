@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2020  The OpenTSDB Authors.
+// Copyright (C) 2016-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,7 +62,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.rate.Rate;
-import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.QueryStats;
@@ -111,7 +110,7 @@ import net.opentsdb.utils.Pair;
  * 
  * @since 2.4
  */
-public class Tsdb1xMultiGet implements 
+public class Tsdb1xMultiGet implements
     HBaseExecutor, CloseablePooledObject, TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xMultiGet.class);
   
@@ -588,7 +587,7 @@ public class Tsdb1xMultiGet implements
 
   /**
    * A callback attached to the multi-gets that parses the results and
-   * stores them in the current results. Calls {@link MultiGet#onComplete()}.
+   * stores them in the current results.
    * <p>
    * While it would be nice to attach a tracer here, we can avoid a lot
    * of object overhead by using a singleton here.
@@ -846,10 +845,13 @@ public class Tsdb1xMultiGet implements
    */
   @VisibleForTesting
   void setInitialTimestamp() {
+    final TimeStamp start = source_config.startTimestamp();
+    final TimeStamp end = source_config.endTimestamp();
+
     if (reversed) {
-      timestamp.update(node.pipelineContext().query().endTime());
+      timestamp.update(end);
     } else {
-      timestamp.update(node.pipelineContext().query().startTime());
+      timestamp.update(start);
     }
     
     if (rollup_index >= 0 && 
@@ -862,17 +864,12 @@ public class Tsdb1xMultiGet implements
             (reversed ? timestamp.epoch() + 1 : timestamp.epoch() - 1), interval));     
       } else {
         timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-            (reversed ? node.pipelineContext().query().endTime().epoch() : 
-              node.pipelineContext().query().startTime().epoch()), interval));
+            (reversed ? end.epoch() :
+              start.epoch()), interval));
       }
+
     } else {
       long ts = timestamp.epoch();
-      if (!(Strings.isNullOrEmpty(source_config.getPrePadding()))) {
-        final long padding = DateTime.parseDuration(source_config.getPrePadding());
-        if (padding > 0) {
-          ts -= padding / 1000L;
-        }
-      }
       
       // Then snap that timestamp back to its representative value for the
       // timespan in which it appears.
@@ -882,10 +879,10 @@ public class Tsdb1xMultiGet implements
       ts = ts > 0L ? ts : 0L;
       timestamp.updateEpoch(ts);
     }
-    
+
     if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
+      final Pair<Boolean, TemporalAmount> pair =
+              source_config.timeShifts();
       if (pair.getKey()) {
         timestamp.subtract(pair.getValue());
       } else {
@@ -1110,22 +1107,19 @@ public class Tsdb1xMultiGet implements
    */
   private void setEndTimestamps() {
     if (reversed) {
-      end_timestamp.update(node.pipelineContext().query().startTime());
+      end_timestamp.update(source_config.startTimestamp());
     } else {
-      end_timestamp.update(node.pipelineContext().query().endTime());
+      end_timestamp.update(source_config.endTimestamp());
     }
+
     if (source_config.timeShifts() != null) {
-      final Pair<Boolean, TemporalAmount> pair = 
-          source_config.timeShifts();
+      final Pair<Boolean, TemporalAmount> pair =
+              source_config.timeShifts();
       if (pair.getKey()) {
         end_timestamp.subtract(pair.getValue());
       } else {
         end_timestamp.add(pair.getValue());
       }
-    }
-    
-    if (!Strings.isNullOrEmpty(source_config.getPostPadding())) {
-      end_timestamp.add(DateTime.parseDuration2(source_config.getPostPadding()));
     }
   }
 }

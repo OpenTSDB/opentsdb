@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2019  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -139,9 +139,9 @@ public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConf
   
   /** 
    * Fetches the next "good" host if possible.
-   * @return A non-null and non-empty string containing the host.
-   * @throws IllegalStateException if all hosts have been iterated over and all
-   * of them were bad.
+   * @return A non-null and non-empty string containing the host IF a valid
+   * host was found. IF not, returns null and the caller must handle that as
+   * a "No hosts were found in a healthy state" error.
    */
   public String nextHost() {
     synchronized (hosts) {
@@ -155,9 +155,8 @@ public abstract class BaseHttpExecutorFactory<C extends TimeSeriesDataSourceConf
         }
       }
     }
-    
-    throw new IllegalStateException("No hosts were found in a healthy state "
-        + "to satisfy the query.");
+
+    return null;
   }
   
   /** @return Whether or not we should retry the status code. */

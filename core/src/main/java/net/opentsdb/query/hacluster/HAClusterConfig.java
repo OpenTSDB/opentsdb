@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.utils.Comparators;
 import net.opentsdb.utils.DateTime;
 
@@ -54,9 +53,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
 
   /** The non-null and non-empty list of sources to query. */
   private final List<String> data_sources;
-
-  /** A list of custom, fully defined data sources. */
-  private final List<TimeSeriesDataSourceConfig> data_source_configs;
 
   /** The non-null and non-empty aggregator to use to merge results. */
   private final String merge_aggregator;
@@ -81,8 +77,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
     super(builder);
     data_sources = builder.dataSources == null ?
         Collections.emptyList() : builder.dataSources;
-    data_source_configs = builder.dataSourceConfigs == null ?
-        Collections.emptyList() : builder.dataSourceConfigs;
     merge_aggregator = builder.mergeAggregator;
     secondary_timeout = builder.secondaryTimeout;
     primary_timeout = builder.primaryTimeout;
@@ -101,11 +95,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
    * primary. */
   public List<String> getDataSources() {
     return data_sources;
-  }
-
-  /** @return The non-null list of data source config overrides. */
-  public List<TimeSeriesDataSourceConfig> getDataSourceConfigs() {
-    return data_source_configs;
   }
 
   /** @return The non-null and non-empty aggregator to use to merge results. */
@@ -175,10 +164,10 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
       return false;
     }
 
-    // comparing data sources configs
-    if (!Comparators.ListComparison.equalLists(data_source_configs, haconfig.getDataSourceConfigs())) {
-      return false;
-    }
+//    // comparing data sources configs
+//    if (!Comparators.ListComparison.equalLists(data_source_configs, haconfig.getDataSourceConfigs())) {
+//      return false;
+//    }
 
     return true;
   }
@@ -200,8 +189,7 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
             .putString(Strings.nullToEmpty(secondary_timeout), Const.UTF8_CHARSET)
             .putString(Strings.nullToEmpty(primary_timeout), Const.UTF8_CHARSET);
     final List<HashCode> hashes =
-            Lists.newArrayListWithCapacity(2 +
-                    (data_source_configs != null ? data_source_configs.size() : 0));
+            Lists.newArrayListWithCapacity(2);
 
     hashes.add(super.buildHashCode());
 
@@ -214,11 +202,11 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
       hashes.add(hc.hash());
     }
 
-    if (data_source_configs != null) {
-      for (final TimeSeriesDataSourceConfig node : data_source_configs) {
-        hashes.add(node.buildHashCode());
-      }
-    }
+//    if (data_source_configs != null) {
+//      for (final TimeSeriesDataSourceConfig node : data_source_configs) {
+//        hashes.add(node.buildHashCode());
+//      }
+//    }
 
     cached_hash = Hashing.combineOrdered(hashes);
     return cached_hash;
@@ -234,9 +222,9 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
     if (!data_sources.isEmpty()) {
       builder.setDataSources(Lists.newArrayList(data_sources));
     }
-    if (!data_source_configs.isEmpty()) {
-      builder.setDataSourceConfigs(Lists.newArrayList(data_source_configs));
-    }
+//    if (!data_source_configs.isEmpty()) {
+//      builder.setDataSourceConfigs(Lists.newArrayList(data_source_configs));
+//    }
     BaseTimeSeriesDataSourceConfig.cloneBuilder(this, builder);
     return builder;
   }
@@ -252,8 +240,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
       Builder, HAClusterConfig> {
     @JsonProperty
     private List<String> dataSources;
-    @JsonProperty
-    private List<TimeSeriesDataSourceConfig> dataSourceConfigs;
     @JsonProperty
     private String mergeAggregator;
     @JsonProperty
@@ -279,20 +265,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
         dataSources = Lists.newArrayList();
       }
       dataSources.add(source);
-      return this;
-    }
-
-    public Builder setDataSourceConfigs(
-        final List<TimeSeriesDataSourceConfig> data_source_configs) {
-      dataSourceConfigs = data_source_configs;
-      return this;
-    }
-
-    public Builder addDataSourceConfig(final TimeSeriesDataSourceConfig config) {
-      if (dataSourceConfigs == null) {
-        dataSourceConfigs = Lists.newArrayList();
-      }
-      dataSourceConfigs.add(config);
       return this;
     }
 
@@ -328,10 +300,6 @@ public class HAClusterConfig extends BaseTimeSeriesDataSourceConfig<
 
     public List<String> dataSources() {
       return dataSources == null ? Collections.emptyList() : dataSources;
-    }
-
-    public List<TimeSeriesDataSourceConfig> dataSourceConfigs() {
-      return dataSourceConfigs == null ? Collections.emptyList() : dataSourceConfigs;
     }
 
     @Override

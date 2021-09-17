@@ -1544,6 +1544,11 @@ public class JsonReadCacheSerdes implements ReadCacheSerdes,
       }
 
       @Override
+      public List<RollupInterval> getRollupIntervals(long interval, String str_interval, boolean skip_default) {
+        return null;
+      }
+
+      @Override
       public RollupInterval getRollupInterval(String interval) {
         throw new UnsupportedOperationException("TODO");
       }

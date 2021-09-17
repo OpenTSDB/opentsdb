@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2020  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,12 +27,16 @@ import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
@@ -72,8 +76,11 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
   public static final TypeReference<Map<String, String>> AUTO_REF = 
       new TypeReference<Map<String, String>>() { };
   
-  /** The auto downsample intervals. */
-  private List<Pair<Long, String>> intervals;
+  /** The auto downsample intervals.
+   * TODO - dumbth. Better to use a tree map so we can jump to the proper entry
+   * first.
+   */
+  private volatile List<Pair<Long, String>> intervals;
   
   private boolean processAsArrays;
   
@@ -115,7 +122,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
 
   @Override
   public Downsample newNode(final QueryPipelineContext context,
-                           final DownsampleConfig config) {
+                            final DownsampleConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
@@ -257,29 +264,47 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
       }
       return;
     }
-    
-    Builder builder = DownsampleConfig.newBuilder();
-    DownsampleConfig.cloneBuilder(config, builder);
-    DownsampleConfig newConfig = builder
-        .setStart(context.query().getStart())
-        .setEnd(context.query().getEnd())
-        .setId(config.getId())
-        .setResultIds(((DefaultQueryPlanner) plan).compileResultIds(config))
-        .build();
 
-    // and we need to find our sources if we have a rollup as well as set the 
-    // padding.
     final List<QueryNodeConfig> sources = Lists.newArrayList(
-        plan.terminalSourceNodes(config));
+            plan.terminalSourceNodes(config));
+    TimeStamp start = null;
+    TimeStamp end = null;
+
+    // TODO - rework this a bit. Cloning of the DownsampleConfig is hinky and
+    // handling of multiple sources is wrong. Need to only post it once back to
+    // the graph as well.
     for (final QueryNodeConfig source : sources) {
       if (!(source instanceof TimeSeriesDataSourceConfig)) {
         continue;
       }
-      
-      if (((TimeSeriesDataSourceConfig) source).getSummaryAggregations() == null ||
-          ((TimeSeriesDataSourceConfig) source).getSummaryAggregations().isEmpty()) {
-        final TimeSeriesDataSourceConfig.Builder new_source = 
-            (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
+
+      final TimeSeriesDataSourceConfig tsConfig =
+              (TimeSeriesDataSourceConfig) source;
+      if (start == null) {
+        start = tsConfig.startTimestamp();
+        end = tsConfig.endTimestamp();
+      } else {
+        if (start.compare(Op.GT, tsConfig.startTimestamp())) {
+          start = tsConfig.startTimestamp();
+        }
+        if (end.compare(Op.LT, tsConfig.endTimestamp())) {
+          end = tsConfig.endTimestamp();
+        }
+      }
+
+      Builder builder = DownsampleConfig.newBuilder();
+      DownsampleConfig.cloneBuilder(config, builder);
+      DownsampleConfig newConfig = builder
+              .setStart(Long.toString(start.msEpoch()))
+              .setEnd(Long.toString(end.msEpoch()))
+              .setId(config.getId())
+              .setResultIds(((DefaultQueryPlanner) plan).compileResultIds(config))
+              .build();
+
+      if (tsConfig.getSummaryAggregations() == null ||
+          tsConfig.getSummaryAggregations().isEmpty()) {
+        final TimeSeriesDataSourceConfig.Builder new_source =
+                (TimeSeriesDataSourceConfig.Builder) source.toBuilder();
         new_source.setSummaryInterval(newConfig.getInterval());
         if (config.getAggregator().equalsIgnoreCase("avg")) {
           new_source.addSummaryAggregation("sum");
@@ -288,10 +313,10 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
           new_source.addSummaryAggregation(newConfig.getAggregator());
         }
         plan.replace(source, new_source.build());
-      }      
+      }
+
+      plan.replace(config, newConfig);
     }
-    
-    plan.replace(config, newConfig);
   }
   
   /**
@@ -315,22 +340,39 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
   public static String getAutoInterval(final long delta, 
                                        final List<Pair<Long, String>> intervals,
                                        final String min_interval) {
-    synchronized (intervals) {
-      for (final Pair<Long, String> interval : intervals) {
-        if (delta >= interval.getKey()) {
-          if (!Strings.isNullOrEmpty(min_interval)) {
-            final long min = DateTime.parseDuration(min_interval);
-            final long iv = DateTime.parseDuration(interval.getValue());
-            if (min > iv) {
-              return min_interval;
-            }
+    for (final Pair<Long, String> interval : intervals) {
+      if (delta >= interval.getKey()) {
+        if (!Strings.isNullOrEmpty(min_interval)) {
+          final long min = DateTime.parseDuration(min_interval);
+          final long iv = DateTime.parseDuration(interval.getValue());
+          if (min > iv) {
+            return min_interval;
           }
-          return interval.getValue();
         }
+        return interval.getValue();
       }
     }
     throw new IllegalStateException("The host is miss configured and was "
         + "unable to find a default auto downsample interval.");
+  }
+
+  public static String getAutoInterval(final TSDB tsdb,
+                                       final long delta,
+                                       final String min_interval) {
+    // can happen as the DS hasn't been initialized yet.
+    final QueryNodeFactory factory =
+            tsdb.getRegistry().getQueryNodeFactory("downsample");
+    if (factory == null) {
+      throw new QueryExecutionException("Downsample was set to 'auto' " +
+              "but no downsample factory could be found.", 400);
+    }
+    final List<Pair<Long, String>> intervals =
+            ((DownsampleFactory) factory).intervals();
+    if (intervals == null) {
+      throw new QueryExecutionException("Downsample was set to 'auto' " +
+              "but no intervals were configured.", 400);
+    }
+    return getAutoInterval(delta, intervals, min_interval);
   }
   
   @Override
@@ -406,52 +448,10 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
             return;
           }
         }
-        
-        // all good, sync it. Ugly yeah but this should run infrequently and only
-        // have up to a dozen entries.
-        synchronized (intervals) {
-          for (final Pair<Long, String> entry : pairs) {
-            boolean present = false;
-            final Iterator<Pair<Long, String>> iterator = intervals.iterator();
-            while (iterator.hasNext()) {
-              final Pair<Long, String> extant = iterator.next();
-              if (extant.getKey() == entry.getKey() && 
-                  !extant.getValue().equalsIgnoreCase(entry.getValue())) {
-                // value changed so we need to update it
-                extant.setValue(entry.getValue());
-                present = true;
-                break;
-              } else if (extant.getKey() == entry.getKey()) {
-                present = true;
-                break;
-              }
-            }
-            
-            if (!present) {
-              intervals.add(entry);
-            }
-          }
-          
-          // yank the stragglers
-          final Iterator<Pair<Long, String>> iterator = intervals.iterator();
-          while (iterator.hasNext()) {
-            final Pair<Long, String> extant = iterator.next();
-            boolean present = false;
-            for (final Pair<Long, String> new_entry : pairs) {
-              if (extant.getKey() == new_entry.getKey()) {
-                present = true;
-                break;
-              }
-            }
-            
-            if (!present) {
-              iterator.remove();
-            }
-          }
-          
-          Collections.sort(intervals, REVERSE_PAIR_CMP);
-          LOG.info("Updated auto downsample intervals: " + intervals);
-        }
+
+        Collections.sort(pairs, REVERSE_PAIR_CMP);
+        intervals = pairs;
+        LOG.info("Updated auto downsample intervals: " + intervals);
       } else if (key.equals(ARRAY_PROCESS_KEY)) {
         if (value != null) {
           processAsArrays = Boolean.valueOf(value.toString());

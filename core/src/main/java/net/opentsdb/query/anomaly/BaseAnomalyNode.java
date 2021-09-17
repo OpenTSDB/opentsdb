@@ -1,14 +1,35 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2021  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.query.anomaly;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorConfig;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +68,8 @@ import net.opentsdb.utils.JSON;
 
 public class BaseAnomalyNode extends AbstractQueryNode {
   private static final Logger LOG = LoggerFactory.getLogger(BaseAnomalyNode.class);
-  
+
+  protected final TimeSeriesDataSourceConfig dataSourceConfig;
   protected final BaseAnomalyConfig config;
   protected final PredictionCache cache;
   protected final AtomicInteger latch;
@@ -68,6 +90,8 @@ public class BaseAnomalyNode extends AbstractQueryNode {
   protected final String ds_interval;
   protected volatile QueryResult[] predictions;
   protected volatile QueryResult current;
+  protected volatile NumericArrayAggregatorConfig aggregatorConfig;
+  protected volatile NumericArrayAggregatorFactory aggregatorFactory;
   protected TrainingQuery training_query;
   protected volatile QueryResult training_data;
 
@@ -81,7 +105,10 @@ public class BaseAnomalyNode extends AbstractQueryNode {
     failed = new AtomicBoolean();
     cache_error = new AtomicBoolean();
     building_prediction = new AtomicBoolean();
-    
+
+    aggregatorFactory = context.tsdb().getRegistry().getPlugin(
+            NumericArrayAggregatorFactory.class, "MAX");
+
     // TODO - find the proper ds in graph in order
     DownsampleConfig ds = null;
     for (final QueryNodeConfig node : context.query().getExecutionGraph()) {
@@ -91,10 +118,13 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       }
     }
     if (ds == null) {
-      throw new IllegalStateException("Downsample can't be null.");
+      throw new IllegalStateException("Downsample can't be null for anomaly " +
+              "processing at this time.");
     }
-    final long query_time_span = context.query().endTime().msEpoch() - 
-        context.query().startTime().msEpoch();
+
+    dataSourceConfig = context.commonSourceConfig(this);
+    final long query_time_span = dataSourceConfig.endTimestamp().msEpoch() -
+            dataSourceConfig.startTimestamp().msEpoch();
     if (ds.getInterval().equalsIgnoreCase("AUTO")) {
       final QueryNodeFactory dsf = context.tsdb().getRegistry()
           .getQueryNodeFactory(DownsampleFactory.TYPE);
@@ -113,8 +143,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
     if (!Strings.isNullOrEmpty(config.getTrainingInterval())) {
       training_span = DateTime.parseDuration(config.getTrainingInterval()) / 1000;
     } else {
-      training_span = (context.query().endTime().epoch() - 
-          context.query().startTime().epoch()) * 3;
+      training_span = (query_time_span / 1000) * 3;
     }
     cache = ((BaseAnomalyFactory) factory).cache();
     prediction_interval = DateTime.parseDuration(ds_interval) / 1000;
@@ -123,8 +152,8 @@ public class BaseAnomalyNode extends AbstractQueryNode {
     case CONFIG:
       jitter = 0;
       model_units = null;
-      prediction_starts = new long[] { context.query().startTime().epoch() };
-      prediction_intervals = (context.query().endTime().epoch() - context.query().startTime().epoch()) / prediction_interval;
+      prediction_starts = new long[] { dataSourceConfig.startTimestamp().epoch() };
+      prediction_intervals = (query_time_span / 1000) / prediction_interval;
       threshold_dps = (int) prediction_intervals;
       cache_keys = null;
       cache_hits = new boolean[0];
@@ -142,14 +171,14 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       jitter = ((BaseAnomalyFactory) factory).jitter(context.query(), model_units);
       TemporalAmount jitter_duration = Duration.ofSeconds(jitter);
       
-      final TimeStamp start = context.query().startTime().getCopy();
+      final TimeStamp start = dataSourceConfig.startTimestamp().getCopy();
       final ChronoUnit duration = model_units;
       start.snapToPreviousInterval(1, duration);
       start.add(jitter_duration);
       // now snap to ds interval
       start.snapToPreviousInterval(DateTime.getDurationInterval(ds_interval), 
           DateTime.unitsToChronoUnit(DateTime.getDurationUnits(ds_interval)));
-      if (start.compare(Op.GT, context.query().startTime())) {
+      if (start.compare(Op.GT, dataSourceConfig.startTimestamp())) {
         start.subtract(model_units == ChronoUnit.HOURS ? 
             Duration.ofHours(1) : Duration.ofDays(1));
       }
@@ -161,7 +190,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       // range may span the boundary.
       int num_predictions = 0;
       long ts = start.epoch();
-      while (ts < context.query().endTime().epoch()) {
+      while (ts < dataSourceConfig.endTimestamp().epoch()) {
         num_predictions++;
         ts += (model_units == ChronoUnit.HOURS ? 3600 : 86400);
       }
@@ -170,12 +199,12 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       if (num_predictions > 1) {
         latch.set(num_predictions + 1);
       }
-      System.out.println("********** INITIAL LATCH: " + latch.get());
+
       prediction_attempts.set(num_predictions);
       cache_keys = new byte[num_predictions][];
       ts = start.epoch();
       int i = 0;
-      while (ts < context.query().endTime().epoch()) {
+      while (ts < dataSourceConfig.endTimestamp().epoch()) {
         prediction_starts[i] = ts;
         cache_keys[i++] = ((BaseAnomalyFactory) factory)
           .generateCacheKey(context.query(), (int) ts);
@@ -206,7 +235,6 @@ public class BaseAnomalyNode extends AbstractQueryNode {
     } else {
       config.setModelInterval('d');
     }
-    LOG.info("************ FINISHED SETTING UP PROPPHET.");
   }
 
   @Override
@@ -226,7 +254,9 @@ public class BaseAnomalyNode extends AbstractQueryNode {
           LOG.info("******* Sending out to cache...");
         } else {
           LOG.info("****** Fetching training data!");
-          fetchTrainingData(0);
+          for (int i = 0; i < predictions.length; i++) {
+            fetchTrainingData(i);
+          }
         }
         return null;
       }
@@ -249,6 +279,13 @@ public class BaseAnomalyNode extends AbstractQueryNode {
   public void onNext(final QueryResult next) {
     synchronized (this) {
       current = next;
+      // TODO - we better have a time spec here or something is very wrong.
+      long intervals = next.timeSpecification().interval().get(ChronoUnit.SECONDS);
+      intervals = (next.timeSpecification().end().epoch() -
+      next.timeSpecification().start().epoch()) / intervals;
+      aggregatorConfig = DefaultArrayAggregatorConfig.newBuilder()
+              .setArraySize((int) intervals)
+              .build();
     }
     countdown();
   }
@@ -285,7 +322,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       
       return null;
     }
-    
+
   }
   
   public class CacheErrCB implements Callback<Void, Exception> {
@@ -483,8 +520,6 @@ public class BaseAnomalyNode extends AbstractQueryNode {
           "amomaly.query.prediction.baseline.query.count", 
           "model", factory.id(),
           "mode", config.getMode().toString());
-      LOG.info("***** STarted the query I hope? " + training_query.sub_context.query().startTime().epoch() + " TO "
-          + training_query.sub_context.query().endTime().epoch());
       if (config.getMode() == ExecutionMode.PREDICT) {
         // return here.
         final AnomalyPredictionState state = cache.getState(cache_keys[prediction_index]);
@@ -617,7 +652,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       eval.evaluate();
       
       final AnomalyPredictionTimeSeries pred_ts = new AnomalyPredictionTimeSeries(
-          preds, predictions, "prediction", factory.id());
+          preds, this, result, "prediction");
       if (eval.alerts() != null && !eval.alerts().isEmpty()) {
         pred_ts.addAlerts(eval.alerts());
       }
@@ -679,7 +714,15 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       }
     }
   }
-  
+
+  public NumericArrayAggregator newAggregator() {
+    return (NumericArrayAggregator) aggregatorFactory.newAggregator(aggregatorConfig);
+  }
+
+  protected String modelId() {
+    return factory().id();
+  }
+
   protected void writeCache(final QueryResult result, final int prediction_index) {
     if (cache_hits[prediction_index] || cache == null) {
       return;

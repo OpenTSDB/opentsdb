@@ -14,15 +14,25 @@
 // limitations under the License.
 package net.opentsdb.query.plan;
 
+import java.time.Duration;
+import java.time.temporal.TemporalAmount;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.annotations.VisibleForTesting;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
 import net.opentsdb.query.DefaultQueryResultId;
 
+import net.opentsdb.query.QueryNodeConfigOptions;
+import net.opentsdb.query.TimeSeriesDataSourceConfig.Builder;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
+import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
+import net.opentsdb.utils.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,8 +74,34 @@ import net.opentsdb.utils.Pair;
 
 /**
  * A query planner that handles push-down operations to data sources.
+ *
+ * <b>NOTE:</b> The planner is NOT thread safe.
+ * {@link QueryNodeFactory#setupGraph(QueryPipelineContext, QueryNodeConfig, QueryPlanner)}
+ * calls may <b>NOT</b> mutate the graph in a different thread.
  * 
- * TODO - more work and break it into an interface like the old one.
+ * TODO - Improve the performance. There are multiple iterations "up" and "down"
+ * the graph right now. We can likely track state better and reduce that, even
+ * though the vast majority of graphs would have a handful or a couple dozen
+ * nodes at the most.
+ *
+ * ID Converter - This is needed for sources like HBase that will maintain UID
+ * ID as long as possible before converting to strings, seeing as how most of
+ * the time data is grouped so most of those tags don't need resolution. When
+ * dealing with the converter, remember:
+ * <ol>
+ *   <li>It must appear before the serializer whenever one or more sources
+ *   have a byte ID.</li>
+ *   <li>If all sources have string IDs, it's not needed.</li>
+ *   <li>If one byte ID source and a string ID source <b>OR</b> a
+ *   <i>different</i> source feed into a node that <i>joins</i> two or more
+ *   sources, the converter must be before the join in the graph. E.g. two
+ *   different HBase sources in the same query will have different UIDs.</li>
+ *   <li>It's ok to feed sources into an ID that are already strings. They're
+ *   just passed through.</li>
+ *   <li>Join nodes may need the converted IDs at node initialization so we
+ *   have to walk and add the converter <i>before</i> constructing the node
+ *   graph.</li>
+ * </ol>
  * 
  * @since 3.0
  */
@@ -209,8 +245,8 @@ public class DefaultQueryPlanner implements QueryPlanner {
       
       final QueryNodeFactory factory = getFactory(node);
       if (factory == null) {
-        throw new QueryExecutionException("No data source factory found for: " 
-            + node, 400);
+        throw new QueryExecutionException("No factory found for: "
+            + node.getId(), 400);
       }
       factory.setupGraph(context, node, this);
       already_setup.add(node.hashCode());
@@ -231,8 +267,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
           config_graph.removeEdge(context_node, successor);
         }
       }
-      
-      
+
       // skip the node that's already been setup.
       return false;
     }
@@ -523,6 +558,16 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
 
     @Override
+    public boolean nodeFlag(QueryNodeConfigOptions option) {
+      return false;
+    }
+
+    @Override
+    public Object nodeOption(QueryNodeConfigOptions option) {
+      return null;
+    }
+
+    @Override
     public boolean readCacheable() {
       return false;
     }
@@ -726,7 +771,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
     } else {
       key = node.getId().toLowerCase();
     }
-    
     QueryNodeFactory factory = factory_cache.get(key);
     if (factory != null) {
       return factory;
@@ -807,7 +851,98 @@ public class DefaultQueryPlanner implements QueryPlanner {
     
     return null;
   }
-  
+
+  @Override
+  public TimeAdjustments getAdjustments(
+          final TimeSeriesDataSourceConfig config) {
+    return recursiveAdjustments(config, null);
+  }
+
+  /**
+   * Helper to traverse the graph and find the proper adjustments if any.
+   * @param config The non-null config to walk back from.
+   * @param adjustments An optional adjustment. Can be null.
+   * @return Adjustments if found, null if not.
+   */
+  protected TimeAdjustments recursiveAdjustments(final QueryNodeConfig config,
+                                                 TimeAdjustments adjustments) {
+    final Set<QueryNodeConfig> predecessors = config_graph.predecessors(config);
+    for (final QueryNodeConfig predecessor : predecessors) {
+      if (predecessor instanceof DownsampleConfig) {
+        if (adjustments == null) {
+          adjustments = new TimeAdjustments();
+          adjustments.downsampleInterval =
+                  ((DownsampleConfig) predecessor).getInterval();
+          if (adjustments.downsampleInterval.equals(DownsampleConfig.AUTO)) {
+            final long deltaSeconds = context.query().endTime().epoch() -
+                    context.query().startTime().epoch();
+            adjustments.downsampleInterval =
+                    DownsampleFactory.getAutoInterval(context().tsdb(),
+                            deltaSeconds,
+                            ((DownsampleConfig) predecessor).getMinInterval());
+          } else if (((DownsampleConfig) predecessor).getRunAll()) {
+            adjustments.downsampleInterval = null;
+          }
+        }
+
+        adjustments = recursiveAdjustments(predecessor, adjustments);
+        continue;
+      }
+
+      final Integer paddingIntervals = (Integer) predecessor.nodeOption(
+              QueryNodeConfigOptions.PREVIOUS_INTERVALS);
+      if (paddingIntervals != null) {
+        if (adjustments == null) {
+          adjustments = new TimeAdjustments();
+        }
+        if (paddingIntervals > adjustments.previousIntervals) {
+          adjustments.previousIntervals = paddingIntervals;
+        }
+      }
+
+      final String paddingWindow = (String) predecessor.nodeOption(
+              QueryNodeConfigOptions.PADDING_WINDOW);
+      if (paddingWindow != null) {
+        if (adjustments == null) {
+          adjustments = new TimeAdjustments();
+        }
+
+        if (adjustments.windowInterval == null) {
+          adjustments.windowInterval = paddingWindow;
+        } else {
+          // find the largest.
+          long extant = DateTime.parseDuration(adjustments.windowInterval);
+          long next = DateTime.parseDuration(paddingWindow);
+          if (next > extant) {
+            adjustments.windowInterval = paddingWindow;
+          }
+        }
+
+        if (adjustments.downsampleInterval != null) {
+          // validation that the sliding window is >= ds interval.
+          long ds = DateTime.parseDuration(adjustments.downsampleInterval);
+          long window = DateTime.parseDuration(adjustments.windowInterval);
+          if (window < ds) {
+            throw new IllegalArgumentException("The window of config "
+                    + predecessor.getId() + " is smaller than the first " +
+                    "downsample interval of " + adjustments.downsampleInterval
+                    + ". The window must be larger than the interval and it " +
+                    "should be a multiple of the interval.");
+          }
+        }
+      }
+
+      // TODO - figure out the best traversal for this.
+      adjustments = recursiveAdjustments(predecessor, adjustments);
+    }
+
+    return adjustments;
+  }
+
+  /**
+   * Super simple, just runs through the given list of nodes and tries to
+   * generate a DAG from the given list of sources to each node.
+   */
   protected void buildInitialConfigGraph() {
     final Map<String, QueryNodeConfig> config_map = 
         Maps.newHashMapWithExpectedSize(
@@ -875,7 +1010,12 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
     }
   }
-  
+
+  /**
+   * This is the optimizer in that it calls the
+   * {@link QueryNodeFactory#setupGraph(QueryPipelineContext, QueryNodeConfig, QueryPlanner)}
+   * method on each config object until the graph is no longer modified.
+   */
   protected void setupConfigGraph() {
     satisfied_filters = Sets.newHashSet();
     // next we walk and let the factories update the graph as needed.
@@ -904,42 +1044,28 @@ public class DefaultQueryPlanner implements QueryPlanner {
   protected List<Deferred<Void>> checkForConvertersAndInitFilters() {
     final List<Deferred<Void>> deferreds = 
         Lists.newArrayListWithExpectedSize(source_nodes.size());
-    ByteToStringIdConverterConfig.Builder converter_builder = null;
-    boolean push_mode = context.tsdb().getConfig().hasProperty("tsd.storage.enable_push") &&
-        context.tsdb().getConfig().getBoolean("tsd.storage.enable_push");
-    List<QueryResultId> ids = null;
-    for (final QueryNodeConfig c : Lists.newArrayList(source_nodes)) {
+    boolean needsTopLevelConverter = false;
+
+    for (final QueryNodeConfig config : Lists.newArrayList(source_nodes)) {
       // see if we need to insert a byte Id converter upstream.
-      if (push_mode) {
-        // TODO - If both are byte IDs and the same, we set this as a predecessor
-        // of the merger so we need to make sure it's taking the merger result IDs
-        // and not the sources.
-        TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(c));
-        if (factory.idType() != Const.TS_STRING_ID) {
-          if (converter_builder == null) {
-            converter_builder = ByteToStringIdConverterConfig.newBuilder();
-          }
-          converter_builder.addDataSourceFactory(c.getId(), factory);
-          
-          if (ids == null) {
-            ids = Lists.newArrayList();
-          }
-          ids.addAll(c.resultIds());
-        }
-      } else {
-        needByteIdConverter(c);
+      final TimeSeriesDataSourceFactory factory = ((TimeSeriesDataSourceFactory) getFactory(config));
+      if (((TimeSeriesDataSourceConfig) config).getFilter() != null) {
+        deferreds.add(((TimeSeriesDataSourceConfig) config)
+                .getFilter().initialize(null /* TODO */));
       }
-      
-      if (((TimeSeriesDataSourceConfig) c).getFilter() != null) {
-        deferreds.add(((TimeSeriesDataSourceConfig) c)
-            .getFilter().initialize(null /* TODO */));
+
+      if (!needByteIdConverter(config)) {
+        needsTopLevelConverter = factory.idType() != Const.TS_STRING_ID;
       }
     }
     
-    if (push_mode && converter_builder != null) {
-      final QueryNodeConfig converter = converter_builder
-          .setResultIds(ids)
-          .setId("IDConverter")
+    if (needsTopLevelConverter) {
+      computeSerializationSources();
+      final QueryNodeConfig converter = ByteToStringIdConverterConfig.newBuilder()
+          .setResultIds(serialization_sources)
+          // TODO - find a better unique ID.
+          .setId(globalIDConverter())
+          // sources
           .build();
       replace(context_sink_config, converter);
       addEdge(context_sink_config, converter);
@@ -965,6 +1091,11 @@ public class DefaultQueryPlanner implements QueryPlanner {
     // next, push down by walking up from the data sources.
     final List<QueryNodeConfig> copy = Lists.newArrayList(source_nodes);
     for (final QueryNodeConfig node : copy) {
+      // TODO - this COULD be ok in the future, we just need to add the feature.
+      if (sink_filter != null && sink_filter.containsKey(node.getId())) {
+        continue;
+      }
+
       final QueryNodeFactory factory = getFactory(node);
       // TODO - cleanup the source factories. ugg!!!
       if (factory == null || !(factory instanceof TimeSeriesDataSourceFactory)) {
@@ -984,6 +1115,25 @@ public class DefaultQueryPlanner implements QueryPlanner {
       }
       
       if (!push_downs.isEmpty()) {
+        // fix up sources and result IDs in case there were multiple sources feeding
+        // into the pushdown nodes.
+        for (int i = 0; i < push_downs.size(); i++) {
+          final QueryNodeConfig config = push_downs.get(i);
+          if (config.getSources().size() > 1 || config.resultIds().size() > 1) {
+            final String wanted = i > 0 ?
+                    push_downs.get(i - 1).getId() :
+                    node.getId();
+            final QueryNodeConfig.Builder builder = config.toBuilder();
+            builder.setSources(Lists.newArrayList(wanted))
+                    // TODO - WARNING - Gotcha here in that in the future if we
+                    // push down something like a summarizer -> gb -> ds we want
+                    // to serialize the summarizer && gb, we'd need to NOT remove
+                    // the gb node.
+                    .setResultIds(Lists.newArrayList(
+                            new DefaultQueryResultId(config.getId(), node.getId())));
+            push_downs.set(i, builder.build());
+          }
+        }
         // now dump the push downs into this node.
         final TimeSeriesDataSourceConfig tsDataSourceconfig = 
             (TimeSeriesDataSourceConfig) node;
@@ -1000,6 +1150,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
   }
   
   protected void computeSerializationSources() {
+    if (serialization_sources != null) {
+      return;
+    }
     serialization_sources = Lists.newArrayList();
     for (final QueryNodeConfig node : config_graph.successors(context_node)) {
       for (final QueryResultId source : (List<QueryResultId>) node.resultIds()) {
@@ -1104,7 +1257,7 @@ public class DefaultQueryPlanner implements QueryPlanner {
       // TODO clean out nodes that won't contribute to serialization.
       // compute source IDs.
       computeSerializationSources();
-      
+
       // now go and build the node graph
       return buildAndInitNodes();
     }
@@ -1118,8 +1271,14 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * by passing the source node and it will walk up to find joins.
    * 
    * @param current The non-null current node.
+   * @return True if an ID was inserted before a join in which case we may not
+   * need the top-level converter.
    */
-  private void needByteIdConverter(final QueryNodeConfig current) {
+  private boolean needByteIdConverter(final QueryNodeConfig current) {
+    if (current instanceof ByteToStringIdConverterConfig) {
+      return true;
+    }
+
     if (!(current instanceof TimeSeriesDataSourceConfig) &&
         current.joins()) {
       final Map<String, TypeToken<? extends TimeSeriesId>> source_ids = 
@@ -1140,20 +1299,27 @@ public class DefaultQueryPlanner implements QueryPlanner {
           if (successors.size() == 1 && 
               successors.iterator().next() instanceof ByteToStringIdConverterConfig) {
             // nothing to do!
+            return true;
           } else {
             // woot, add one!
-            QueryNodeConfig config = ByteToStringIdConverterConfig.newBuilder()
-                .setId(current.getId() + "_IdConverter")
-                .build();
+            QueryNodeConfig.Builder builder = ByteToStringIdConverterConfig.newBuilder()
+                .setId(current.getId() + "_IdConverter");
+            final QueryNodeConfig temp = builder.build();
             successors = Sets.newHashSet(successors);
             for (final QueryNodeConfig successor : successors) {
               removeEdge(current, successor);
-              addEdge(config, successor);
+              addEdge(temp, successor);
+              builder.addSource(successor.getId());
+              for (final QueryResultId qri : (List<QueryResultId>) successor.resultIds()) {
+                builder.addResultId(qri);
+              }
             }
-            addEdge(current, config);
+            addEdge(current, temp);
+            replace(temp, builder.build());
+            return true;
           }
         }
-        return;
+        return byte_ids > 0;
       } 
     }
     
@@ -1161,9 +1327,14 @@ public class DefaultQueryPlanner implements QueryPlanner {
     if (!predecessors.isEmpty()) {
       predecessors = Sets.newHashSet(predecessors);
     }
+
+    boolean added = false;
     for (final QueryNodeConfig predecessor : predecessors) {
-      needByteIdConverter(predecessor);
+      if (needByteIdConverter(predecessor)) {
+        added = true;
+      }
     }
+    return added;
   }
   
   /**
@@ -1174,19 +1345,24 @@ public class DefaultQueryPlanner implements QueryPlanner {
    * @param source_ids A non-null map of data source to ID types.
    */
   private void uniqueSources(final QueryNodeConfig current, 
-                     final Map<String, TypeToken<? extends TimeSeriesId>> source_ids) {
-    if (current instanceof TimeSeriesDataSourceConfig && 
-        current.getSources().isEmpty()) {
-      TimeSeriesDataSourceFactory factory = (TimeSeriesDataSourceFactory) 
-          getFactory(current);
+                             final Map<String, TypeToken<? extends TimeSeriesId>> source_ids) {
+    if (current instanceof TimeSeriesDataSourceConfig) {
+      final TimeSeriesDataSourceFactory factory =
+              (TimeSeriesDataSourceFactory) getFactory(current);
       source_ids.put(
-        Strings.isNullOrEmpty(factory.id()) ? "null" : factory.id(),
-        factory.idType());
+              Strings.isNullOrEmpty(factory.id()) ? "null" : factory.id(),
+              factory.idType());
+    } else if (current instanceof ByteToStringIdConverterConfig) {
+      // found a converter, upstream of this will be strings.
+      return;
     } else {
       for (final QueryNodeConfig successor : config_graph.successors(current)) {
         uniqueSources(successor, source_ids);
       }
     }
+
+    // TODO - what if we hit a join? For now we're walking past it and if we
+    // see that there is already a converter there, we can just walk back up.
   }
   
   /**
@@ -1258,5 +1434,150 @@ public class DefaultQueryPlanner implements QueryPlanner {
     }
     buffer.append(" -------------------------\n");
     return buffer.toString();
+  }
+
+  /** @return A unique ID for the converter that _shouldn't_ conflict with an
+   * existing node in the graph. Uses the hash Id of the planner. */
+  @VisibleForTesting
+  public String globalIDConverter() {
+    return "IDConverter_" + System.identityHashCode(this);
+  }
+
+  /**
+   * Sets the time stamps for a TimeSeriesDataSourceConfig based on the query
+   * and optional adjustments.
+   *
+   * <b>NOTE</b> Does _NOT_ account for timeshifts. Sources <b>STILL</b> need
+   * to handle shifts. The reason being that nodes will look at the config
+   * timestamps instead of the query time and we don't want every node to
+   * have to worry about whether or not they appear after the time shift node
+   * that converts the timestamps to query time.
+   *
+   * @param context The non-null context.
+   * @param config The non-null config.
+   * @param adjustments An optional adjustment object. Can be null if no
+   *                    adjustments were required.
+   * @return A non-null builder from the config with the timestamps set.
+   */
+  public static TimeSeriesDataSourceConfig.Builder setTimeOverrides(
+          final QueryPipelineContext context,
+          final TimeSeriesDataSourceConfig config,
+          final TimeAdjustments adjustments) {
+    final TimeSeriesDataSourceConfig.Builder builder =
+            (TimeSeriesDataSourceConfig.Builder) config.toBuilder();
+    // already setup. May have been sent from a middletier.
+    if (config.startTimestamp() != null && config.endTimestamp() != null) {
+      return builder;
+    }
+
+    if (adjustments != null) {
+      final TimeStamp startOverride = context.query().startTime().getCopy();
+      final TimeStamp endOverride = context.query().endTime().getCopy();
+
+      if (adjustments.windowInterval != null) {
+        // TODO - seconds only here. May need millis
+        final long windowMs = DateTime.parseDuration(adjustments.windowInterval)
+                / 1000;
+        final long paddingSeconds = windowMs *
+                (adjustments.previousIntervals > 0 ? adjustments.previousIntervals : 1);
+        // TODO - find the limit here
+        startOverride.subtract(Duration.ofSeconds(paddingSeconds));
+      }
+
+      builder.setStartTimeStamp(startOverride);
+      builder.setEndTimeStamp(endOverride);
+    } else {
+      builder.setStartTimeStamp(context.query().startTime());
+      builder.setEndTimeStamp(context.query().endTime());
+    }
+    return builder;
+  }
+
+  @Override
+  public void baseSetupGraph(final QueryPipelineContext context,
+                             final TimeSeriesDataSourceConfig config) {
+    if (config.hasBeenSetup()) {
+      // all done.
+      return;
+    }
+
+    if (config.startTimestamp() == null) {
+      TimeSeriesDataSourceConfig.Builder builder = DefaultQueryPlanner.setTimeOverrides(
+              context,
+              config,
+              getAdjustments(config)
+      );
+      builder.setHasBeenSetup(true);
+
+      // time shift
+      if (builder.timeShifts() != null) {
+        addShift(config, builder);
+      } else {
+        replace(config, builder.build());
+      }
+    } else if (config.timeShifts() != null) {
+      addShift(config, (Builder) config.toBuilder());
+    }
+  }
+
+  /**
+   * Helper to search and add a time shift node to update the graph when a
+   * time shift is in place.
+   * @param config The non-null config that is shifted.
+   * @param builder The non-null builder from the config.
+   */
+  void addShift(final TimeSeriesDataSourceConfig config,
+                final TimeSeriesDataSourceConfig.Builder builder) {
+    // if it's here, leave it be.
+    Set<QueryNodeConfig> predecessors = config_graph.predecessors(config);
+
+    // TODO - Ugly ugly hack for mergers. Generalize it.
+    MergerConfig merger = null;
+    for (final QueryNodeConfig pred : predecessors) {
+      if (pred instanceof MergerConfig) {
+        merger = (MergerConfig) pred;
+        continue;
+      }
+
+      if (pred instanceof TimeShiftConfig) {
+        // matched!
+        return;
+      }
+    }
+
+    final TimeShiftConfig shift = TimeShiftConfig.newBuilder()
+            .setTimeshiftInterval(config.getTimeShiftInterval())
+            .setId(config.getId() + "_timeShift")
+            .addResultId(new DefaultQueryResultId(config.getId() + "_timeShift",
+                    ((QueryResultId) config.resultIds().get(0)).dataSource()))
+            .addSource(config.getId())
+            .build();
+
+    // IMPORTANT if the data source is in the serdes list we need to mutate it
+    // so that it will point to this source.
+    if (sink_filter.containsKey(config.getId())) {
+      sink_filter.remove(config.getId());
+      sink_filter.put(shift.getId(), null);
+    }
+
+    final TimeSeriesDataSourceFactory factory = (TimeSeriesDataSourceFactory)
+            getFactory(config);
+    if (factory.supportsPushdown(TimeShiftConfig.class)) {
+      if (builder.pushDowns() == null) {
+        builder.setPushDownNodes(Lists.newArrayList(shift));
+      } else {
+        builder.pushDowns().add(0, shift);
+        if (builder.pushDowns().size() >= 2) {
+          final QueryNodeConfig.Builder pdBuilder =
+                  ((QueryNodeConfig) builder.pushDowns().get(1)).toBuilder();
+          pdBuilder.setSources(Lists.newArrayList(shift.getId()));
+          builder.pushDowns().set(1, pdBuilder.build());
+        }
+      }
+      replace(config, builder.build());
+    } else {
+      replace(config, shift);
+      addEdge(shift, builder.build());
+    }
   }
 }

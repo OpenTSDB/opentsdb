@@ -230,7 +230,7 @@ public abstract class BaseAnomalyFactory<C extends BaseAnomalyConfig, N extends 
   };
 
   @Override
-  public N newNode(QueryPipelineContext context) {
+  public N newNode(final QueryPipelineContext context) {
     throw new UnsupportedOperationException();
   }
 
@@ -238,7 +238,7 @@ public abstract class BaseAnomalyFactory<C extends BaseAnomalyConfig, N extends 
   public void setupGraph(final QueryPipelineContext context, 
                          final C config, 
                          final QueryPlanner planner) {
- // UGG!!! initialization order issue.
+    // UGG!!! initialization order issue.
     if (cache == null) {
       synchronized (this) {
         if (cache == null) {
@@ -366,7 +366,7 @@ public abstract class BaseAnomalyFactory<C extends BaseAnomalyConfig, N extends 
   }
   
   public int jitter(final TimeSeriesQuery query, 
-                       final ChronoUnit model_units) {
+                    final ChronoUnit model_units) {
     if (model_units == ChronoUnit.DAYS) {
       // 1 hour jitter on 1m
       return (int) Math.abs(query.buildHashCode().asLong() % 59) * 60;

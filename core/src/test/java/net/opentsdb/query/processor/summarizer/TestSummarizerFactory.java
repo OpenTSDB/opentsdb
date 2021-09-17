@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import net.opentsdb.common.Const;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -68,6 +69,7 @@ public class TestSummarizerFactory {
 
     ((DefaultRegistry) TSDB.registry).initialize(true).join(60_000);
     TimeSeriesDataSourceFactory ts_factory = mock(TimeSeriesDataSourceFactory.class);
+    when(ts_factory.idType()).thenReturn(Const.TS_STRING_ID);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, null, ts_factory);
     when(ts_factory.newNode(any(QueryPipelineContext.class), any(QueryNodeConfig.class)))
       .thenReturn(SRC_MOCK);

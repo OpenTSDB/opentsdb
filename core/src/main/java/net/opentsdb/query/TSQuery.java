@@ -499,8 +499,8 @@ public final class TSQuery {
     }
     q.setTime(time);
     
-    int metric_idx = 1;
-    int filter_idx = 1;
+    int metric_idx = 0;
+    int filter_idx = 0;
     for (final TSSubQuery sub : query.getQueries()) {
       final Metric.Builder metric = Metric.newBuilder()
           .setId("m" + metric_idx++)

@@ -105,6 +105,7 @@ public class SummarizerFactory extends BaseQueryNodeFactory<SummarizerConfig, Su
     for (final QueryNodeConfig successor : plan.configGraph().successors(config)) {
       if (sink_filters.containsKey(successor.getId())) {
         pass_through = true;
+        break;
       }
     }
     

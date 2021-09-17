@@ -32,6 +32,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfigOptions;
 import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.utils.DateTime;
@@ -59,6 +60,7 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
   public static final long DEFAULT_RESET_VALUE = 0;
   public static final String DEFAULT_INTERVAL = "1s";
   public static final long DEFAULT_COUNTER_MAX = Long.MAX_VALUE;
+  public static final Integer PREVIOUS_INTERVALS = 1;
 
   /** The ID of this config. */
   private String id;
@@ -208,7 +210,20 @@ public class RateOptions extends Validatable implements QueryNodeConfig<RateOpti
   public boolean joins() {
     return false;
   }
-  
+
+  @Override
+  public <T> T nodeOption(QueryNodeConfigOptions option) {
+    if (option == QueryNodeConfigOptions.PREVIOUS_INTERVALS) {
+      return (T) PREVIOUS_INTERVALS;
+    }
+    return null;
+  }
+
+  @Override
+  public boolean nodeFlag(QueryNodeConfigOptions option) {
+    return false;
+  }
+
   @Override
   public boolean readCacheable() {
     return true;

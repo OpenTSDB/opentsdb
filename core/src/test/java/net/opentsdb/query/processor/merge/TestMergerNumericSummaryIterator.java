@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 
@@ -96,6 +97,7 @@ public class TestMergerNumericSummaryIterator {
         .setAggregator("sum")
         .addInterpolatorConfig(interpolator_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     result = mock(QueryResult.class);
@@ -192,6 +194,7 @@ public class TestMergerNumericSummaryIterator {
         .setInfectiousNan(true)
         .addInterpolatorConfig(interpolator_config)
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     
@@ -489,6 +492,7 @@ public class TestMergerNumericSummaryIterator {
             .setDataType(NumericType.TYPE.toString())
             .build())
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     
@@ -521,6 +525,7 @@ public class TestMergerNumericSummaryIterator {
             .setDataType(NumericType.TYPE.toString())
             .build())
         .setDataSource("m1")
+        .setMode(MergeMode.HA)
         .setId("Testing")
         .build();
     

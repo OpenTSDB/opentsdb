@@ -666,9 +666,9 @@ public class MockDataStore implements TimeSeriesDataConsumer {
     }
     
     void runPartials() {
-      final TimeStamp st = context.query().startTime().getCopy();
+      final TimeStamp st = config.startTimestamp().getCopy();
       st.snapToPreviousInterval(3600, ChronoUnit.SECONDS);
-      TimeStamp e = context.query().endTime().getCopy();
+      TimeStamp e = config.endTimestamp().getCopy();
       e.snapToPreviousInterval(3600, ChronoUnit.SECONDS);
       e.add(Duration.ofSeconds(3600));
       final int total = (int) (e.epoch() - st.epoch()) / 3600;
@@ -938,14 +938,14 @@ public class MockDataStore implements TimeSeriesDataConsumer {
           config.getRollupIntervals() != null && 
           !config.getRollupIntervals().isEmpty(); 
       if (use_rollups) {
-        int ts = (int) context.query().startTime().epoch();
+        int ts = (int) config.startTimestamp().epoch();
         ts = ts - (ts % 3600);
-        if (ts < context.query().startTime().epoch()) {
+        if (ts < config.endTimestamp().epoch()) {
           ts += 3600;
         }
         SecondTimeStamp start = new SecondTimeStamp(ts);
         
-        ts = (int) context.query().endTime().epoch();
+        ts = (int) config.endTimestamp().epoch();
         ts = ts - (ts % 3600);
         SecondTimeStamp end = new SecondTimeStamp(ts);
         time_spec = new TimeSpecification() {

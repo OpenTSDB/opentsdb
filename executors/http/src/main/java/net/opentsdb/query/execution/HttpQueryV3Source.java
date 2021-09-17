@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018-2020  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.concurrent.RejectedExecutionException;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
@@ -74,7 +75,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
   private final CloseableHttpAsyncClient client;
   
   /** The hostname to post to with protocol, host and port. */
-  private final String host;
+  private String host;
   
   /** The URL endpoint. */
   private final String endpoint;
@@ -123,11 +124,31 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
 
   @Override
   public void fetchNext(final Span span) {
+    if (Strings.isNullOrEmpty(host)) {
+      // we didn't have a valid host. Check one more time as a last chance
+      host = ((BaseHttpExecutorFactory) factory).nextHost();
+      if (Strings.isNullOrEmpty(host)) {
+        context.queryContext().logWarn(this, "No valid remote " +
+                "endpoint found.");
+        sendUpstream(BadQueryResult.newBuilder()
+                .setNode(HttpQueryV3Source.this)
+                .setException(new QueryDownstreamException("No valid remote endpoint found."))
+                .setDataSource(config.resultIds().get(0))
+                .build());
+        return;
+      }
+
+      // we can move forward!
+      context.queryContext().logInfo(this, "Null host initially, " +
+              "found [" + host + "] on the actual fetch attempt.");
+      LOG.debug("Null host initially, found [" + host + "] on the actual fetch attempt.");
+    }
+
     final long start = DateTime.nanoTime();
     SemanticQuery.Builder builder = SemanticQuery.newBuilder()
         // always use the absolute time here so the queries match.
-        .setStart(Long.toString(context.query().startTime().msEpoch()))
-        .setEnd(Long.toString(context.query().endTime().msEpoch()))
+        .setStart(Long.toString(config.startTimestamp().msEpoch()))
+        .setEnd(Long.toString(config.endTimestamp().msEpoch()))
         .setMode(context.query().getMode())
         .setTimeZone(context.query().getTimezone())
         .setLogLevel(context.query().getLogLevel());
@@ -324,6 +345,18 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                 retries++;
                 try {
                   current_host[0] = ((BaseHttpExecutorFactory) factory).nextHost();
+                  if (current_host[0] == null) {
+                    context.queryContext().logWarn(HttpQueryV3Source.this,
+                            "No valid remote endpoint found.");
+                    sendUpstream(BadQueryResult.newBuilder()
+                            .setNode(HttpQueryV3Source.this)
+                            .setException(new QueryDownstreamException(
+                                    "No valid remote endpoint found."))
+                            .setDataSource(config.resultIds().get(0))
+                            .build());
+                    return;
+                  }
+
                   post.setURI(URI.create(current_host[0] + endpoint));
                   EntityUtils.consume(response.getEntity());
                   timer[0] = pipelineContext().tsdb().getStatsCollector().startTimer(
@@ -498,6 +531,18 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                 retries < ((BaseHttpExecutorFactory) factory).retries()) {
               retries++;
               current_host[0] = ((BaseHttpExecutorFactory) factory).nextHost();
+              if (current_host[0] == null) {
+                context.queryContext().logWarn(HttpQueryV3Source.this,
+                        "No valid remote endpoint found.");
+                sendUpstream(BadQueryResult.newBuilder()
+                        .setNode(HttpQueryV3Source.this)
+                        .setException(new QueryDownstreamException(
+                                "No valid remote endpoint found."))
+                        .setDataSource(config.resultIds().get(0))
+                        .build());
+                return;
+              }
+
               post.setURI(URI.create(current_host[0] + endpoint));
               timer[0] = pipelineContext().tsdb().getStatsCollector().startTimer(
                   REMOTE_LATENCY_METRIC, ChronoUnit.MILLIS);

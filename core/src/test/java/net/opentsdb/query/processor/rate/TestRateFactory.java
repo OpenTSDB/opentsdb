@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.common.Const;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -64,7 +65,6 @@ import net.opentsdb.stats.Span;
 
 public class TestRateFactory {
 
-
   private static MockTSDB TSDB;
   private static RateFactory FACTORY;
   private static NumericInterpolatorConfig NUMERIC_CONFIG;
@@ -79,11 +79,12 @@ public class TestRateFactory {
     TimeSeriesDataSourceFactory s1 = mock(TimeSeriesDataSourceFactory.class);
     when(s1.newNode(any(QueryPipelineContext.class), any(QueryNodeConfig.class)))
       .thenReturn(SRC_MOCK);
+    when(s1.idType()).thenReturn(Const.TS_STRING_ID);
     TSDB.registry.registerPlugin(TimeSeriesDataSourceFactory.class, null, s1);
     FACTORY = new RateFactory();
     FACTORY.registerConfigs(TSDB);
     FACTORY.initialize(TSDB, null).join(250);
-    
+
     NUMERIC_CONFIG = (NumericInterpolatorConfig)
         NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -274,6 +275,6 @@ public class TestRateFactory {
     
     assertEquals(3, planner.configGraph().nodes().size());
     Rate node = (Rate) planner.nodeForId("rate");
-    assertEquals("1m", node.config().getInterval());
+    assertEquals("auto", node.config().getInterval());
   }
 }

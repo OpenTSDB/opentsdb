@@ -52,19 +52,45 @@ public interface QueryNodeConfig<B extends QueryNodeConfig.Builder<B, C>, C exte
   int hashCode();
   
   /** @return Whether or not the node config can be pushed down to 
-   * the query source. */
+   * the query source.
+   * TODO - move it into the nodeOption call.
+   */
   boolean pushDown();
 
   /** @return Whether or not this type of node joins results. E.g. an
    * binary expression node will take two results from downstream and 
    * combine them into one so this would be true, vs. a group by node
-   * will group each result from downstream and pass it up. */
+   * will group each result from downstream and pass it up.
+   * TODO - move it into the nodeOption call.
+   */
   boolean joins();
+
+  /**
+   * Returns node parameters like whether or not the node is joinable, can be
+   * pushed down, etc. If a node doesn't support the given option it may return
+   * null.
+   * TODO - this generic is ugly as all get out.
+   * @param option The option to fetch from the parameters.
+   * @param <T> The type of data returned for the option.
+   * @return The option object if configured or null if not.
+   */
+  <T> T nodeOption(final QueryNodeConfigOptions option);
+
+  /**
+   * Fetches boolean node options from the parameter map.
+   * @param option The option to fetch from the parameters.
+   * @return True if the parameter is configured and is true, false if the
+   * parameter is false OR not configured.
+   */
+  boolean nodeFlag(final QueryNodeConfigOptions option);
   
-  /** @return Whether or not the data from this node is cachable. */
+  /** @return Whether or not the data from this node is cachable.
+   * TODO - move it into the nodeOption call.
+   */
   boolean readCacheable();
   
-  /** @return An optional map of query parameter overrides. May be null. */
+  /** @return An optional map of query parameter overrides. These would be
+   * set by an external source and are node specific. May be null. */
   Map<String, String> getOverrides();
   
   /**

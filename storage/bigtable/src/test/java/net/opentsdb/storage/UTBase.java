@@ -210,7 +210,7 @@ public class UTBase {
    
     when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
       .thenReturn(uid_factory);
-    uid_store = new Tsdb1xBigtableUniqueIdStore(data_store);
+    uid_store = new Tsdb1xBigtableUniqueIdStore(data_store, null);
     when(tsdb.registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);
     when(uid_factory.newInstance(eq(tsdb), anyString(), 

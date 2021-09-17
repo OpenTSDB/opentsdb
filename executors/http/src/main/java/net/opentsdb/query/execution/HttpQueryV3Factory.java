@@ -46,6 +46,7 @@ public class HttpQueryV3Factory
 
   public static final String TYPE = "HttpQueryV3";
   public static final String ROLLUP_KEY = "rollups.config";
+  public static final String SKIP_ID_PARSING = "temp.skip.id.parsing";
   
   /** The path to hit. */
   protected String endpoint;
@@ -142,7 +143,6 @@ public class HttpQueryV3Factory
 
     TimeSeriesDataSourceConfig new_config =
         (TimeSeriesDataSourceConfig) builder
-        .setTimeShifts(config.timeShifts())
         .setTimeShiftInterval(config.getTimeShiftInterval())
         .build();
 
@@ -185,7 +185,7 @@ public class HttpQueryV3Factory
 
   @Override
   public HttpQueryV3Source newNode(final QueryPipelineContext context,
-                           final TimeSeriesDataSourceConfig config) {
+                                   final TimeSeriesDataSourceConfig config) {
     return new HttpQueryV3Source(this, 
                                  context, 
                                  config,
@@ -216,6 +216,15 @@ public class HttpQueryV3Factory
           .setSource(getClass().getName())
           .build());
     }
+
+    if (!tsdb.getConfig().hasProperty(getConfigKey(SKIP_ID_PARSING))) {
+      tsdb.getConfig().register(getConfigKey(SKIP_ID_PARSING), false, true,
+              "Whether or not to skip the parsing of IDs from the " +
+                      "results and use the first given result.");
+    }
   }
-  
+
+  boolean skipIdParsing() {
+    return tsdb.getConfig().getBoolean(getConfigKey(SKIP_ID_PARSING));
+  }
 }

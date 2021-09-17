@@ -86,7 +86,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   
   /** Whether or not we've serialized the first result set. */
   private boolean initialized;
-  
+
   /**
    * Default ctor.
    */
@@ -351,6 +351,16 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       json.writeString(tag);
     }
     json.writeEndArray();
+
+    if (options.getShowQuery()) {
+      // match the result data source to the index. Ugly hack but it is
+      // deterministic.
+      final String ds = result.dataSource().dataSource().substring(1);
+      final int idx = Integer.parseInt(ds);
+      json.writeObjectField("query",
+              options.getTsQuery().getQueries().get(idx));
+    }
+
     json.writeObjectFieldStart("dps");
     
     if (iterator.getType() == NumericType.TYPE) {

@@ -17,6 +17,7 @@ package net.opentsdb.query.processor.groupby;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +57,10 @@ public class GroupByResult extends BaseWrappedQueryResult {
 
   private boolean sourceProcessInParallel;
 
+  /** Used for array processing where we need to allocate the GB array and it
+   * may be larger than the query array to account for windowing, etc. */
+  protected TimeSeriesDataSourceConfig dataSourceConfig;
+
   private int tsCountInQuery;
   
   /**
@@ -76,7 +81,6 @@ public class GroupByResult extends BaseWrappedQueryResult {
     boolean use_refs = node.pipelineContext().tsdb().getConfig()
         .getBoolean(GroupByFactory.GROUPBY_USE_REFS);
     this.sourceProcessInParallel = next.processInParallel();
-    LOG.info("PROCESS IN PARALLEL: " + this.sourceProcessInParallel);
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
@@ -131,6 +135,9 @@ public class GroupByResult extends BaseWrappedQueryResult {
         if (use_refs && series.types().contains(NumericArrayType.TYPE)) {
           // TODO - possible error here if one series has a NumericType and 
           // others have the array type.
+          if (dataSourceConfig == null) {
+            dataSourceConfig = source.pipelineContext().commonSourceConfig(result.source());
+          }
           group.addSource(series, i);
           series.close();
         } else {
@@ -194,6 +201,9 @@ public class GroupByResult extends BaseWrappedQueryResult {
         if (use_refs && series.types().contains(NumericArrayType.TYPE)) {
           // TODO - possible error here if one series has a NumericType and 
           // others have the array type.
+          if (dataSourceConfig == null) {
+            dataSourceConfig = source.pipelineContext().commonSourceConfig(result.source());
+          }
           group.addSource(series, i);
           series.close();
         } else {
@@ -205,7 +215,6 @@ public class GroupByResult extends BaseWrappedQueryResult {
       throw new RuntimeException("Unhandled time series ID type: " + next.idType());
     }
     results = Lists.newArrayList(groups.valueCollection());
-    LOG.info("GROUPS: " + results.size());
   }
   
   @Override
@@ -216,6 +225,10 @@ public class GroupByResult extends BaseWrappedQueryResult {
   /** @return The downstream result. */
   QueryResult downstreamResult() {
     return result;
+  }
+
+  TimeSeriesDataSourceConfig dataSourceConfig() {
+    return dataSourceConfig;
   }
 
   public boolean isSourceProcessInParallel() {

@@ -35,6 +35,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfigOptions;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -54,6 +55,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
   public static final long DEFAULT_RESET_VALUE = 0;
   public static final String DEFAULT_INTERVAL = "1s";
   public static final long DEFAULT_COUNTER_MAX = Long.MAX_VALUE;
+  public static final Integer PREVIOUS_INTERVALS = 1;
   
   /**
    * If true, then when calculating a rate of change assume that the metric
@@ -197,7 +199,7 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
   
   @Override
   public Builder toBuilder() {
-    return new Builder()
+    RateConfig.Builder builder = new Builder()
         .setInterval(interval)
         .setDropResets(drop_resets)
         .setCounter(counter)
@@ -205,11 +207,9 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
         .setDeltaOnly(delta_only)
         .setResetValue(reset_value)
         .setRateToCount(rate_to_count)
-        .setDataInterval(data_interval)
-        .setOverrides(overrides)
-        .setSources(sources)
-        .setType(type)
-        .setId(id);
+        .setDataInterval(data_interval);
+    super.toBuilder(builder);
+    return builder;
   }
   
   @Override
@@ -220,6 +220,14 @@ public class RateConfig extends BaseQueryNodeConfig<RateConfig.Builder, RateConf
   @Override
   public boolean joins() {
     return false;
+  }
+
+  @Override
+  public <T> T nodeOption(QueryNodeConfigOptions option) {
+    if (option == QueryNodeConfigOptions.PREVIOUS_INTERVALS) {
+      return (T) PREVIOUS_INTERVALS;
+    }
+    return null;
   }
 
   /**

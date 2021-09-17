@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import org.junit.Before;
 import org.junit.Test;
@@ -121,6 +122,8 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .setId("m1")
         .build();
     
@@ -248,8 +251,6 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
         .addRollupInterval("30m")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
         .setId("m1")
         .build();
     Tsdb1xBigtableQueryNode node = new Tsdb1xBigtableQueryNode(
@@ -404,8 +405,6 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
         .addRollupInterval("30m")
-        .setPrePadding("1h")
-        .setPostPadding("1h")
         .setId("m1")
         .build();
     Tsdb1xBigtableQueryNode node = new Tsdb1xBigtableQueryNode(
@@ -820,6 +819,8 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .addOverride(Tsdb1xBigtableDataStore.SKIP_NSUN_TAGK_KEY, "true")
         .setId("m1")
         .build();
@@ -898,6 +899,8 @@ public class TestTsdb1xBigtableQueryNode extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .addOverride(Tsdb1xBigtableDataStore.SKIP_NSUN_TAGV_KEY, "true")
         .setId("m1")
         .build();

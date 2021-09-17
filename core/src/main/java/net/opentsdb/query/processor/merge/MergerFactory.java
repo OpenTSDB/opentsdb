@@ -21,7 +21,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
@@ -33,8 +32,6 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -76,7 +73,7 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
   
   @Override
   public Merger newNode(final QueryPipelineContext context,
-                           final MergerConfig config) {
+                        final MergerConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
@@ -90,8 +87,8 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
   
   @Override
   public MergerConfig parseConfig(final ObjectMapper mapper,
-                                     final TSDB tsdb,
-                                     final JsonNode node) {
+                                  final TSDB tsdb,
+                                  final JsonNode node) {
     try {
       return mapper.treeToValue(node, MergerConfig.class);
     } catch (JsonProcessingException e) {
@@ -105,7 +102,7 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                          final QueryPlanner plan) {
     // no-op
   }
-  
+
   /**
    * The default numeric iterator factory.
    */
@@ -116,7 +113,15 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new MergerNumericIterator(node, result, sources);
+      switch (((MergerConfig) node.config()).getMode()) {
+        case HA:
+          return new MergerNumericIterator(node, result, sources);
+        case SPLIT:
+          throw new UnsupportedOperationException("TODO");
+        default:
+          throw new IllegalArgumentException("No implementation for mode: "
+                  + ((MergerConfig) node.config()).getMode());
+      }
     }
 
     @Override
@@ -124,7 +129,15 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new MergerNumericIterator(node, result, sources);
+      switch (((MergerConfig) node.config()).getMode()) {
+        case HA:
+          return new MergerNumericIterator(node, result, sources);
+        case SPLIT:
+          throw new UnsupportedOperationException("TODO");
+        default:
+          throw new IllegalArgumentException("No implementation for mode: "
+                  + ((MergerConfig) node.config()).getMode());
+      }
     }
 
     @Override
@@ -144,7 +157,15 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new MergerNumericSummaryIterator(node, result, sources);
+      switch (((MergerConfig) node.config()).getMode()) {
+        case HA:
+          return new MergerNumericSummaryIterator(node, result, sources);
+        case SPLIT:
+          throw new UnsupportedOperationException("TODO");
+        default:
+          throw new IllegalArgumentException("No implementation for mode: "
+                  + ((MergerConfig) node.config()).getMode());
+      }
     }
 
     @Override
@@ -152,7 +173,15 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new MergerNumericSummaryIterator(node, result, sources);
+      switch (((MergerConfig) node.config()).getMode()) {
+        case HA:
+          return new MergerNumericSummaryIterator(node, result, sources);
+        case SPLIT:
+          throw new UnsupportedOperationException("TODO");
+        default:
+          throw new IllegalArgumentException("No implementation for mode: "
+                  + ((MergerConfig) node.config()).getMode());
+      }
     }
     
     @Override
@@ -171,7 +200,15 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                                                final QueryResult result,
                                                final Collection<TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new MergerNumericArrayIterator(node, result, sources);
+      switch (((MergerConfig) node.config()).getMode()) {
+        case HA:
+          return new MergerNumericArrayIterator(node, result, sources);
+        case SPLIT:
+          return new SplitNumericArrayIterator(node, result, sources);
+        default:
+          throw new IllegalArgumentException("No implementation for mode: "
+                  + ((MergerConfig) node.config()).getMode());
+      }
     }
 
     @Override
@@ -179,7 +216,15 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                                                final QueryResult result,
                                                final Map<String, TimeSeries> sources,
                                                final TypeToken<? extends TimeSeriesDataType> type) {
-      return new MergerNumericArrayIterator(node, result, sources);
+      switch (((MergerConfig) node.config()).getMode()) {
+        case HA:
+          return new MergerNumericArrayIterator(node, result, sources);
+        case SPLIT:
+          return new SplitNumericArrayIterator(node, result, sources.values());
+        default:
+          throw new IllegalArgumentException("No implementation for mode: "
+                  + ((MergerConfig) node.config()).getMode());
+      }
     }
 
     @Override

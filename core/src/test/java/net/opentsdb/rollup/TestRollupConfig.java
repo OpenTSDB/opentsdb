@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2018 The OpenTSDB Authors.
+// Copyright (C) 2015-2021 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ public class TestRollupConfig {
     raw = DefaultRollupInterval.builder()
         .setTable(tsdb_table)
         .setPreAggregationTable(tsdb_table)
-        .setInterval("1m")
+        .setInterval("1s")
         .setRowSpan("1h")
         .setDefaultInterval(true)
         .build();
@@ -73,8 +73,8 @@ public class TestRollupConfig {
   public void ctor() throws Exception {
     DefaultRollupConfig config = builder.build();
     assertEquals(2, config.forward_intervals.size());
-    assertSame(raw, config.forward_intervals.get("1m"));
-    assertSame(config, config.forward_intervals.get("1m").rollupConfig());
+    assertSame(raw, config.forward_intervals.get("1s"));
+    assertSame(config, config.forward_intervals.get("1s").rollupConfig());
     assertSame(tenmin, config.forward_intervals.get("10m"));
     assertSame(config, config.forward_intervals.get("10m").rollupConfig());
     
@@ -169,7 +169,7 @@ public class TestRollupConfig {
   @Test
   public void getRollupIntervalString() throws Exception {
     final DefaultRollupConfig config = builder.build();
-    assertSame(raw, config.getRollupInterval("1m"));
+    assertSame(raw, config.getRollupInterval("1s"));
     assertSame(tenmin, config.getRollupInterval("10m"));
     
     try {
@@ -243,12 +243,9 @@ public class TestRollupConfig {
     intervals = config.getRollupIntervals(15, "15s");
     assertEquals(1, intervals.size());
     assertSame(raw, intervals.get(0));
-    
-    try {
-      config.getRollupIntervals(1, "1s", true);
-      fail("Expected NoSuchRollupForIntervalException");
-    } catch (NoSuchRollupForIntervalException e) { }
-    
+
+    assertTrue(config.getRollupIntervals(1, "1s", true).isEmpty());
+
     intervals = config.getRollupIntervals(60, "1m", true);
     assertEquals(0, intervals.size());
     
@@ -296,10 +293,7 @@ public class TestRollupConfig {
     intervals = config.getPossibleIntervals("12m");
     assertEquals(0, intervals.size());
     
-    try {
-      config.getPossibleIntervals("1s");
-      fail("Expected NoSuchRollupForIntervalException");
-    } catch (NoSuchRollupForIntervalException e) { }
+    assertTrue(config.getPossibleIntervals("1s").isEmpty());
   }
   
   @Test
@@ -308,13 +302,13 @@ public class TestRollupConfig {
     String json = JSON.serializeToString(config);
     
     assertTrue(json.contains("\"intervals\":["));
-    assertTrue(json.contains("\"interval\":\"1m\""));
+    assertTrue(json.contains("\"interval\":\"1s\""));
     assertTrue(json.contains("interval\":\"10m\""));
     assertTrue(json.contains("\"aggregationIds\":{"));
     assertTrue(json.contains("\"sum\":0"));
     assertTrue(json.contains("\"max\":1"));
     
-    json = "{\"intervals\":[{\"interval\":\"1m\",\"table\":\"tsdb\","
+    json = "{\"intervals\":[{\"interval\":\"1s\",\"table\":\"tsdb\","
         + "\"preAggregationTable\":\"tsdb\",\"defaultInterval\":true,"
         + "\"rowSpan\":\"1h\"},{\"interval\":\"10m\",\"table\":"
         + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
@@ -322,7 +316,7 @@ public class TestRollupConfig {
         + "{\"sum\":0,\"max\":1}}";
     config = JSON.parseToObject(json, DefaultRollupConfig.class);
     assertEquals(2, config.forward_intervals.size());
-    assertNotNull(config.forward_intervals.get("1m"));
+    assertNotNull(config.forward_intervals.get("1s"));
     assertNotNull(config.forward_intervals.get("10m"));
     
     assertEquals(3, config.reverse_intervals.size());

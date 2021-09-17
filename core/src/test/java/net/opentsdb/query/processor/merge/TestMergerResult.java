@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import net.opentsdb.query.QueryResultId;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -46,7 +48,9 @@ public class TestMergerResult {
   private Merger node;
   private MergerConfig config;
   private QueryResult result_a;
+  private QueryResultId id_a;
   private QueryResult result_b;
+  private QueryResultId id_b;
   private TimeSpecification time_spec;
   private RollupConfig rollup_config;
   private NumericMillisecondShard ts1;
@@ -73,19 +77,25 @@ public class TestMergerResult {
       .setDataType(NumericSummaryType.TYPE.toString())
       .build();
     
-    config = (MergerConfig) MergerConfig.newBuilder()
-        .setAggregator("sum")
-        .addInterpolatorConfig(numeric_config)
-        .addInterpolatorConfig(summary_config)
-        .setDataSource("MyMetric")
-        .setId("Testing")
-        .build();
     node = mock(Merger.class);
     result_a = mock(QueryResult.class);
+    id_a = new DefaultQueryResultId("ha1_m1", "m1_s1");
+    when(result_a.dataSource()).thenReturn(id_a);
     result_b = mock(QueryResult.class);
+    id_b = new DefaultQueryResultId("ha2_m1", "m1_s2");
+    when(result_b.dataSource()).thenReturn(id_b);
     time_spec = mock(TimeSpecification.class);
     rollup_config = mock(RollupConfig.class);
-    
+
+    config = (MergerConfig) MergerConfig.newBuilder()
+            .setAggregator("sum")
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .setDataSource("MyMetric")
+            .setMode(MergeMode.HA)
+            .setSortedDataSources(Lists.newArrayList(id_a.dataSource(), id_b.dataSource()))
+            .setId("Testing")
+            .build();
     when(node.config()).thenReturn(config);
     
     ts1 = new NumericMillisecondShard(
@@ -171,6 +181,34 @@ public class TestMergerResult {
     assertEquals(2, ts.sources().size());
     assertTrue(ts.sources.contains(ts2));
     assertTrue(ts.sources.contains(ts4));
+
+    assertEquals(result_a, merger.next.get(0));
+    assertEquals(result_b, merger.next.get(1));
+  }
+
+  @Test
+  public void fullMatchOOO() throws Exception {
+    MergerResult merger = new MergerResult(node, result_b);
+    merger.add(result_a);
+    merger.join();
+    assertEquals(42, merger.sequenceId());
+    assertSame(time_spec, merger.timeSpecification());
+    assertEquals(2, merger.results.size());
+
+    // xx hash is deterministic
+    MergerTimeSeries ts = (MergerTimeSeries)
+            getSeries(merger, ts1.id().buildHashCode());
+    assertEquals(2, ts.sources().size());
+    assertTrue(ts.sources.contains(ts1));
+    assertTrue(ts.sources.contains(ts3));
+
+    ts = (MergerTimeSeries) getSeries(merger, ts2.id().buildHashCode());
+    assertEquals(2, ts.sources().size());
+    assertTrue(ts.sources.contains(ts2));
+    assertTrue(ts.sources.contains(ts4));
+
+    assertEquals(result_a, merger.next.get(0));
+    assertEquals(result_b, merger.next.get(1));
   }
 
   @Test
@@ -290,6 +328,7 @@ public class TestMergerResult {
     
     MergerResult merger = new MergerResult(node, result_a);
     result_b = mock(QueryResult.class);
+    when(result_b.dataSource()).thenReturn(id_b);
     when(result_b.error()).thenReturn("Error");
     merger.add(result_b);
     merger.join();
@@ -310,8 +349,10 @@ public class TestMergerResult {
     result_a = mock(QueryResult.class);
     when(result_a.sequenceId()).thenReturn(42l);
     when(result_a.timeSpecification()).thenReturn(time_spec);
+    when(result_a.dataSource()).thenReturn(id_a);
     when(result_a.error()).thenReturn("ErrorA");
     result_b = mock(QueryResult.class);
+    when(result_b.dataSource()).thenReturn(id_b);
     when(result_b.error()).thenReturn("ErrorB");
     
     MergerResult merger = new MergerResult(node, result_a);

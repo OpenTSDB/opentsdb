@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2020  The OpenTSDB Authors.
+// Copyright (C) 2016-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import com.google.common.primitives.Bytes;
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
@@ -122,12 +123,7 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .setId("m1")
+    source_config = (TimeSeriesDataSourceConfig) baseTSDSConfig()
         .build();
     when(context.query()).thenReturn(query);
     when(data_store.dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)).thenReturn("Rollup_Fallback");
@@ -217,6 +213,8 @@ public class TestTsdb1xMultiGet extends UTBase {
         .addOverride(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY, "8")
         .addOverride(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY, "16")
         .addOverride(Schema.QUERY_REVERSE_KEY, "true")
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .setId("m1")
         .build();
     
@@ -242,11 +240,7 @@ public class TestTsdb1xMultiGet extends UTBase {
 
   @Test
   public void resetRollups() throws Exception {
-    source_config = (TimeSeriesDataSourceConfig) 
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseTSDSConfig()
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
@@ -291,16 +285,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertNull(mget.finished_batches_per_set);
     
     // pre-agg
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+    source_config = (TimeSeriesDataSourceConfig) baseTSDSConfig()
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
@@ -334,16 +319,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertNull(mget.finished_batches_per_set);
     
     // sum
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(START_TS))
-        .setEnd(Integer.toString(END_TS))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
+   source_config = (TimeSeriesDataSourceConfig) baseTSDSConfig()
         .addSummaryAggregation("sum")
         .addRollupInterval("1h")
         .setId("m1")
@@ -402,71 +378,13 @@ public class TestTsdb1xMultiGet extends UTBase {
 
   @Test
   public void resetTimestamps() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(END_TS))
-        .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
-    
+    source_config = (TimeSeriesDataSourceConfig) baseTSDSConfig(END_TS, END_TS + 3600)
+            .build();
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
     assertEquals(END_TS - 900, mget.timestamp.epoch());
     assertEquals(-1, mget.start_ts.epoch()); // not used
     assertEquals(END_TS + 3600, mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
-    
-    // with padding
-    source_config = (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric(METRIC_STRING)
-            .build())
-        .addSummaryAggregation("max")
-        .setPrePadding("2h")
-        .setPostPadding("2h")
-        .setId("m1")
-        .build();
-    mget = new Tsdb1xMultiGet();
-    mget.reset(node, source_config, tsuids);
-    assertEquals(END_TS - 900 - (3600 * 2), mget.timestamp.epoch());
-    assertEquals(-1, mget.start_ts.epoch()); // not used
-    assertEquals(END_TS + (3600 * 3), mget.end_timestamp.epoch()); // not used
-    assertEquals(0, mget.interval);
-    assertNull(mget.sets);
-    assertNull(mget.batches_per_set);
-    assertNull(mget.finished_batches_per_set);
-  }
-  
-  @Test
-  public void resetTimestampsOffset() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(END_TS))
-        .setEnd(Integer.toString(END_TS + 3600))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    
-    source_config = new WrappedTimeSeriesDataSourceConfig(
-        "m1-previous-P1D",
-        (TimeSeriesDataSourceConfig) DefaultTimeSeriesDataSourceConfig.newBuilder()
-            .setMetric(MetricLiteralFilter.newBuilder()
-                .setMetric(METRIC_STRING)
-                .build())
-            .addSummaryAggregation("max")
-            .setTimeShiftInterval("1d")
-            .setId("m1")
-            .build(),
-        true);
-    when(context.query()).thenReturn(query);
-    
-    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
-    mget.reset(node, source_config, tsuids);
-    assertEquals(END_TS - 900 - 86400, mget.timestamp.epoch());
-    assertEquals(END_TS + + 3600 - 86400, mget.end_timestamp.epoch()); // not used
     assertEquals(0, mget.interval);
     assertNull(mget.sets);
     assertNull(mget.batches_per_set);
@@ -536,7 +454,64 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertNull(mget.batches_per_set);
     assertNull(mget.finished_batches_per_set);
   }
-  
+
+  @Test
+  public void resetTimestampsTimeShift() throws Exception {
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+            "m1-previous-P1D",
+            (TimeSeriesDataSourceConfig) baseTSDSConfig()
+                    .setStartTimeStamp(new SecondTimeStamp(END_TS))
+                    .setEndTimeStamp(new SecondTimeStamp(END_TS + 3600))
+                    .addSummaryAggregation("max")
+                    .setTimeShiftInterval("1d")
+                    .build(),
+            true);
+    when(context.query()).thenReturn(query);
+
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    assertEquals(END_TS - 900 - 86400, mget.timestamp.epoch());
+    assertEquals(END_TS + 3600 - 86400, mget.end_timestamp.epoch()); // not used
+    assertEquals(0, mget.interval);
+    assertNull(mget.sets);
+    assertNull(mget.batches_per_set);
+    assertNull(mget.finished_batches_per_set);
+
+    when(node.rollupIntervals())
+            .thenReturn(Lists.<RollupInterval>newArrayList(DefaultRollupInterval.builder()
+                            .setInterval("1h")
+                            .setTable("tsdb-1h")
+                            .setPreAggregationTable("tsdb-agg-1h")
+                            .setRowSpan("1d")
+                            .build(),
+                    DefaultRollupInterval.builder()
+                            .setInterval("30m")
+                            .setTable("tsdb-30m")
+                            .setPreAggregationTable("tsdb-agg-30m")
+                            .setRowSpan("1d")
+                            .build()));
+    source_config = new WrappedTimeSeriesDataSourceConfig(
+            "m1-previous-P1D",
+            (TimeSeriesDataSourceConfig) baseTSDSConfig()
+                    .setStartTimeStamp(new SecondTimeStamp(END_TS))
+                    .setEndTimeStamp(new SecondTimeStamp(END_TS + (2 * 3600)))
+                    .addRollupInterval("1h")
+                    .addSummaryAggregation("max")
+                    .setTimeShiftInterval("1d")
+                    .build(),
+            true);
+    when(context.query()).thenReturn(query);
+
+    mget = new Tsdb1xMultiGet();
+    mget.reset(node, source_config, tsuids);
+    assertEquals(END_TS - 900 - 3600 - 86400, mget.timestamp.epoch());
+    assertEquals(END_TS + (2 * 3600) - 86400, mget.end_timestamp.epoch()); // not used
+    assertEquals(0, mget.interval);
+    assertNull(mget.sets);
+    assertNull(mget.batches_per_set);
+    assertNull(mget.finished_batches_per_set);
+  }
+
   @Test
   public void fetchNext() throws Exception {
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
@@ -594,8 +569,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(State.EXCEPTION, mget.state());
     verify(result, never()).decode(any(ArrayList.class), any(DefaultRollupInterval.class));
   }
-  
-  
+
   @Test
   public void fetchNextSmallEvenBatch() throws Exception {
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
@@ -700,13 +674,9 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void fetchNextNoData() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(946684800 + 900))
-        .setEnd(Integer.toString(946684800 + 900 + (3600 * 2)))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) baseTSDSConfig(946684800 + 900,
+            946684800 + 900 + (3600 * 2))
+            .build();
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
@@ -1117,13 +1087,9 @@ public class TestTsdb1xMultiGet extends UTBase {
   
   @Test
   public void fetchNextErrorFromStorage() throws Exception {
-    query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart(Integer.toString(TS_MULTI_SERIES_EX + 900))
-        .setEnd(Integer.toString(TS_MULTI_SERIES_EX + 900 + (3600 * TS_MULTI_SERIES_EX_COUNT)))
-        .setExecutionGraph(Collections.emptyList())
-        .build();
-    when(context.query()).thenReturn(query);
+    source_config = (TimeSeriesDataSourceConfig) baseTSDSConfig(TS_MULTI_SERIES_EX + 900,
+            TS_MULTI_SERIES_EX + 900 + (3600 * TS_MULTI_SERIES_EX_COUNT))
+            .build();
     final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
@@ -1366,6 +1332,8 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric(METRIC_STRING)
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(start + 900))
+        .setEndTimeStamp(new SecondTimeStamp(start + (86400 * 2) + 900))
         .addSummaryAggregation("sum")
         .addSummaryAggregation("count")
         .addRollupInterval("1h")
@@ -1373,5 +1341,20 @@ public class TestTsdb1xMultiGet extends UTBase {
         .setId("m1")
         .build();
     when(context.query()).thenReturn(query);
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseTSDSConfig() {
+    return baseTSDSConfig(START_TS, END_TS);
+  }
+
+  TimeSeriesDataSourceConfig.Builder baseTSDSConfig(int start, int end) {
+    return (TimeSeriesDataSourceConfig.Builder)
+        DefaultTimeSeriesDataSourceConfig.newBuilder()
+                .setMetric(MetricLiteralFilter.newBuilder()
+                        .setMetric(METRIC_STRING)
+                        .build())
+                .setStartTimeStamp(new SecondTimeStamp(start))
+                .setEndTimeStamp(new SecondTimeStamp(end))
+                .setId("m1");
   }
 }

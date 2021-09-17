@@ -85,6 +85,7 @@ public class PBufNumericTimeSeriesSerdes implements PBufIteratorSerdes {
                            final SerdesOptions options,
                            final QueryResult result,
                            final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator) {
+    // TODO - probably need data source timestamps instead of query timestamps.
     final long span;
     switch(result.resolution()) {
     case NANOS:

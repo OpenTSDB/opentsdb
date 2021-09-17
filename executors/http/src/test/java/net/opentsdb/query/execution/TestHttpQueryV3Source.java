@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.temporal.TemporalAmount;
 import java.util.concurrent.Future;
 
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
@@ -72,11 +72,12 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.BlackholeStatsCollector;
-import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestHttpQueryV3Source {
+
+  private static final int START_TS = 1609459200;
+  private static final int END_TS = 1609480800;
 
   private BaseHttpExecutorFactory factory;
   private QueryContext context;
@@ -139,8 +140,9 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
-    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
+    System.out.println(json);
+    assertTrue(json.contains("\"start\":\"" + (START_TS * 1000L) + "\""));
+    assertTrue(json.contains("\"end\":\"" + (END_TS * 1000L) + "\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -160,6 +162,8 @@ public class TestHttpQueryV3Source {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .addPushDownNode(DownsampleConfig.newBuilder()
             .setAggregator("max")
             .setInterval("1m")
@@ -190,8 +194,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
-    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
+    assertTrue(json.contains("\"start\":\"" + (START_TS * 1000L) + "\""));
+    assertTrue(json.contains("\"end\":\"" + (END_TS * 1000L) + "\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -220,6 +224,8 @@ public class TestHttpQueryV3Source {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .addPushDownNode(DownsampleConfig.newBuilder()
             .setAggregator("sum")
             .setInterval("auto")
@@ -251,9 +257,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    System.out.println(json);
-    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
-    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
+    assertTrue(json.contains("\"start\":\"" + (START_TS * 1000L) + "\""));
+    assertTrue(json.contains("\"end\":\"" + (END_TS * 1000L) + "\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"interval\":\"15m\""));
@@ -279,6 +284,8 @@ public class TestHttpQueryV3Source {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .addPushDownNode(DownsampleConfig.newBuilder()
             .setAggregator("max")
             .setInterval("1m")
@@ -317,8 +324,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
-    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
+    assertTrue(json.contains("\"start\":\"" + (START_TS * 1000L) + "\""));
+    assertTrue(json.contains("\"end\":\"" + (END_TS * 1000L) + "\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -346,6 +353,8 @@ public class TestHttpQueryV3Source {
             .setMetric(MetricLiteralFilter.newBuilder()
                 .setMetric("system.cpu.user")
                 .build())
+            .setStartTimeStamp(new SecondTimeStamp(START_TS))
+            .setEndTimeStamp(new SecondTimeStamp(END_TS))
             .setQueryFilter(filter)
             .setFilterId(null)
             .setId("m1")
@@ -365,8 +374,8 @@ public class TestHttpQueryV3Source {
     assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
     assertNull(request.getFirstHeader("Cookie"));
     String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.matches(".*\"start\":\"\\d{13}\".*"));
-    assertTrue(json.matches(".*\"end\":\"\\d{13}\".*"));
+    assertTrue(json.contains("\"start\":\"" + (START_TS * 1000L) + "\""));
+    assertTrue(json.contains("\"end\":\"" + (END_TS * 1000L) + "\""));
     assertTrue(json.contains("\"mode\":\"SINGLE\""));
     assertTrue(json.contains("\"id\":\"m1\""));
     assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
@@ -374,49 +383,7 @@ public class TestHttpQueryV3Source {
     assertTrue(json.contains("\"type\":\"TagValueLiteralOr\""));
     assertTrue(json.contains("\"filter\":\"web01\""));
   }
-  
-  @Test
-  public void requestOffset() throws Exception {
-    Pair<Boolean, TemporalAmount> offsets = new Pair<>(true, DateTime.parseDuration2("1h"));
-    TimeSeriesDataSourceConfig config = (TimeSeriesDataSourceConfig)
-        DefaultTimeSeriesDataSourceConfig.newBuilder()
-        .setMetric(MetricLiteralFilter.newBuilder()
-            .setMetric("system.cpu.user")
-            .build())
-        .setTimeShifts(offsets)
-        .setFilterId("f1")
-        .setId("m1-previous-P1H")
-        .build();
 
-    SemanticQuery query = SemanticQuery.newBuilder()
-        .setMode(QueryMode.SINGLE)
-        .setStart("1546304400")
-        .setEnd("1546308000")
-        .addExecutionGraphNode(config)
-        .addFilter(DefaultNamedFilter.newBuilder()
-            .setId("f1")
-            .setFilter(TagValueLiteralOrFilter.newBuilder()
-                .setFilter("web01")
-                .setKey("host")
-                .build())
-            .build())
-        .build();
-
-    when(ctx.query()).thenReturn(query);
-    HttpQueryV3Source src = new HttpQueryV3Source(factory, ctx, config, client, host, endpoint);
-    src.fetchNext(null);
-
-    verify(client, times(1)).execute(any(HttpUriRequest.class), any(FutureCallback.class));
-    assertEquals("application/json", request.getFirstHeader("Content-Type").getValue());
-    assertNull(request.getFirstHeader("Cookie"));
-    String json = EntityUtils.toString(((HttpPost) request).getEntity());
-    assertTrue(json.contains("\"start\":\"1546304400000\""));
-    assertTrue(json.contains("\"end\":\"1546308000000\""));
-    assertTrue(json.contains("\"mode\":\"SINGLE\""));
-    assertTrue(json.contains("\"id\":\"m1-previous-P1H\""));
-    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
-  }
-  
   @Test
   public void requestAuthCookie() throws Exception {
     AuthState auth = mock(AuthState.class);
@@ -654,6 +621,7 @@ public class TestHttpQueryV3Source {
   
   @Test
   public void response405JsonTwice() throws Exception {
+    when(factory.nextHost()).thenReturn("try2");
     when(factory.retriable(405)).thenReturn(true);
     String json = "{\"error\":{\"code\":405,\"message\":\"Not Allowed\","
         + "\"trace\":\"java.lang.IllegalArgumentException:Not Allowed\"}}";
@@ -697,6 +665,8 @@ public class TestHttpQueryV3Source {
   
   @Test
   public void response405JsonThrice() throws Exception {
+    when(factory.nextHost()).thenReturn("try2")
+                    .thenReturn("try3");
     when(factory.retriable(405)).thenReturn(true);
     String json = "{\"error\":{\"code\":405,\"message\":\"Not Allowed\","
         + "\"trace\":\"java.lang.IllegalArgumentException:Not Allowed\"}}";
@@ -763,6 +733,8 @@ public class TestHttpQueryV3Source {
         .setMetric(MetricLiteralFilter.newBuilder()
             .setMetric("system.cpu.user")
             .build())
+        .setStartTimeStamp(new SecondTimeStamp(START_TS))
+        .setEndTimeStamp(new SecondTimeStamp(END_TS))
         .setId("m1")
         .build();
     

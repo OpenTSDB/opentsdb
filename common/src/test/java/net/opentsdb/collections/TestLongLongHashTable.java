@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.powermock.reflect.Whitebox;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -280,13 +281,13 @@ public class TestLongLongHashTable {
     LongLongIterator it = table.iterator();
     assertTrue(it.hasNext());
     it.next();
-    assertEquals(1, it.key());
-    assertEquals(1, it.value());
+    assertEquals(5, it.key());
+    assertEquals(5, it.value());
 
     assertTrue(it.hasNext());
     it.next();
-    assertEquals(2, it.key());
-    assertEquals(2, it.value());
+    assertEquals(4, it.key());
+    assertEquals(4, it.value());
 
     // grow!
     table.put(6, 6);
@@ -333,6 +334,10 @@ public class TestLongLongHashTable {
     table.put(4l, 4l);
     table.put(5l, 5l);
 
-    assertEquals("{1=1, 2=2, 3=3, 4=4, 5=5}", table.toString());
+    assertEquals("{1=1, 3=3, 2=2, 5=5, 4=4}", table.toString());
   }
+
+  // TODO - figure out a way to test the rehash. One way, edit the offheap array
+  // to cause a scan and reflect into the object and set the scan count super high.
+
 }

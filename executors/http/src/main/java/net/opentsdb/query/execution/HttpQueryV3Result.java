@@ -30,7 +30,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.utils.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +100,7 @@ public class HttpQueryV3Result implements QueryResult {
   private RollupConfig rollup_config;
 
   /** Object Mapper for serdes. */
-  private final ObjectMapper mapper = new ObjectMapper();
+  private final ObjectMapper mapper = JSON.getMapper();
 
   /** Flag to know if we need to process series parallely */
   private boolean process_parallel = true;
@@ -137,9 +140,18 @@ public class HttpQueryV3Result implements QueryResult {
       if (src == null || src.length < 2) {
         throw new IllegalStateException("Failed to parse the source: " + n.asText());
       }
-      
-      id = new DefaultQueryResultId(src[0], src[1]);
-      
+
+      if (((HttpQueryV3Factory) node.factory()).skipIdParsing()) {
+        TimeSeriesDataSourceConfig tsdsc = (TimeSeriesDataSourceConfig) node.config();
+        if (tsdsc.getPushDownNodes() != null && !tsdsc.getPushDownNodes().isEmpty()) {
+          final List<QueryNodeConfig> pushDowns = tsdsc.getPushDownNodes();
+          id = (QueryResultId) pushDowns.get(pushDowns.size() - 1).resultIds().get(0);
+        } else {
+          id = (QueryResultId) node.config().resultIds().get(0);
+        }
+      } else {
+        id = new DefaultQueryResultId(src[0], src[1]);
+      }
       n = root.get("timeSpecification");
       if (n != null && !n.isNull()) {
         time_spec = new TimeSpec(n);
@@ -264,7 +276,8 @@ public class HttpQueryV3Result implements QueryResult {
         end = new SecondTimeStamp(node.get("end").asLong());
       }
       string_interval = node.get("interval").asText();
-      if (string_interval.toLowerCase().equals("0all")) {
+      if (string_interval.equalsIgnoreCase("0all") ||
+          string_interval.equalsIgnoreCase(DownsampleConfig.AUTO)) {
         interval = null;
       } else {
         interval = DateTime.parseDuration2(string_interval);
@@ -817,6 +830,11 @@ public class HttpQueryV3Result implements QueryResult {
     @Override
     public List<String> getPossibleIntervals(String interval) {
       // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public List<RollupInterval> getRollupIntervals(long interval, String str_interval, boolean skip_default) {
       return null;
     }
 
