@@ -160,7 +160,7 @@ public class BaseKubernetesRegistry extends BaseTSDBPlugin implements ServiceReg
             k8s_namespace = configured_kube_namespace;
         }
 
-        List<String> endpoints = new ArrayList<>();
+        Set<String> endpoints = new HashSet<>();
 
         String _continue = null;
         boolean finish = false;
@@ -302,7 +302,7 @@ public class BaseKubernetesRegistry extends BaseTSDBPlugin implements ServiceReg
             LOG.error("Error when fetching API info from kubernetes", e);
         }
 
-        return null;
+        return endpoints;
     }
     protected String getConfigKey(final String key) {
         return KEY_PREFIX + (Strings.isNullOrEmpty(id) ? "" : id + ".") + key;
