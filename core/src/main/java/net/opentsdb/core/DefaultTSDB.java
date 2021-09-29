@@ -390,7 +390,8 @@ public class DefaultTSDB implements TSDB {
       }
     }
     
-    return registry.initialize(load_plugins).addCallback(new SetStatsCollector())
+    return registry.initialize(load_plugins)
+        .addCallback(new SetStatsCollector())
         .addCallback(new SetQueryPool());
   }
   
@@ -644,6 +645,14 @@ public class DefaultTSDB implements TSDB {
   
   @Override
   public StatsCollector getStatsCollector() {
+    // Handle a race wherein plugins may try to fetch the stats collector WHILE
+    // initializing.
+    if (stats_collector instanceof BlackholeStatsCollector) {
+      final StatsCollector plugin = registry.getDefaultPlugin(StatsCollector.class);
+      if (plugin != null) {
+        return plugin;
+      }
+    }
     return stats_collector;
   }
   
