@@ -15,6 +15,7 @@
 package net.opentsdb.query.processor.merge;
 
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -30,6 +31,7 @@ import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryResultId;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.rollup.RollupConfig;
 
 /**
@@ -129,32 +131,60 @@ public class MergerResult implements QueryResult {
    */
   void join() {
     int with_error = 0;
-    // TODO - potential ordering if we wind up pushing down TopN. BUT that causes
-    // issues in that what if one colo returns A, B, C and another returns 
-    // A, C, D?
-    final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
-    for (final QueryResult next : this.next) {
-      if (!Strings.isNullOrEmpty(next.error())) {
-        with_error++;
-        continue;
-      }
-      
-      for (final TimeSeries series : next.timeSeries()) {
-        final long hash = series.id().buildHashCode();
-        TimeSeries ts = groups.get(hash);
-        if (ts == null) {
-          ts = new MergerTimeSeries(node, this);
-          groups.put(hash, ts);
+    if (((MergerConfig) node.config()).getAggregator() == null) {
+      // Shard mode without a group by so no need to join.
+      final List<TimeSeries> timeSeries = Lists.newArrayList();
+      for (final QueryResult next : this.next) {
+        if (!Strings.isNullOrEmpty(next.error())) {
+          error = next.error();
+          exception = next.exception();
+          if (((MergerConfig) node.config()).getAllowPartialResults()) {
+            with_error++;
+          } else {
+            results = Collections.emptyList();
+            return;
+          }
         }
-        ((MergerTimeSeries) ts).addSource(series);
+
+        for (final TimeSeries series : next.timeSeries()) {
+          timeSeries.add(series);
+        }
       }
+      results = timeSeries;
+    } else {
+      final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
+      for (final QueryResult next : this.next) {
+        if (!Strings.isNullOrEmpty(next.error())) {
+          error = next.error();
+          exception = next.exception();
+          if (((MergerConfig) node.config()).getAllowPartialResults() ||
+              ((MergerConfig) node.config()).getMode() == MergeMode.HA) {
+            with_error++;
+          } else {
+            results = Collections.emptyList();
+            return;
+          }
+        }
+
+        for (final TimeSeries series : next.timeSeries()) {
+          final long hash = series.id().buildHashCode();
+          TimeSeries ts = groups.get(hash);
+          if (ts == null) {
+            ts = new MergerTimeSeries(node, this);
+            groups.put(hash, ts);
+          }
+          ((MergerTimeSeries) ts).addSource(series);
+        }
+      }
+      results = Lists.newArrayList(groups.valueCollection());
     }
-    results = Lists.newArrayList(groups.valueCollection());
-    
+
     if (with_error == next.size()) {
-      // TODO - maybe find a common error, otherwise pick one.
-      error = next.get(0).error();
-      exception = next.get(0).exception();
+      results = Collections.emptyList();
+    } else {
+      // allowed due to HA or
+      error = null;
+      exception = null;
     }
   }
   
