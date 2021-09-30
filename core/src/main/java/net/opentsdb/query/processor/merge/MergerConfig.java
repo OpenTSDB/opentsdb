@@ -54,7 +54,11 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
 
     /** Multi-data center queries where each source _should_ have the same data
      * and we query both in case one or the other have problems. */
-    HA
+    HA,
+
+    /** A mode wherein we query across multiple instances that contain subsets of
+     * the data. */
+    SHARD
   }
 
   /** The mode. */
@@ -69,18 +73,22 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
   /** Whether or not NaNs are infectious. */
   private final boolean infectious_nan;
 
-  // sorted on most recent data to latest or primary and secondary, tertiary, etc
+  /** Whether or not to allow partial results from split and HA queries if one
+   * result has an error. */
+  private final boolean allowPartialResults;
+
+  /** Sorted on most recent data to latest or primary and secondary, tertiary, etc */
   private final List<String> sortedDataSources;
 
-  // matches the sorted sources.
+  /** matches the sorted sources. */
   private final List<String> timeouts;
-  
+
   protected MergerConfig(final Builder builder) {
     super(builder);
     if (builder.mode == null) {
       throw new IllegalArgumentException("Mode cannot be null.");
     }
-    if (Strings.isNullOrEmpty(builder.aggregator)) {
+    if (Strings.isNullOrEmpty(builder.aggregator) && builder.mode != MergeMode.SHARD) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
     if (Strings.isNullOrEmpty(builder.dataSource)) {
@@ -92,6 +100,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     sortedDataSources = builder.sortedDataSources;
     timeouts = builder.timeouts;
     infectious_nan = builder.infectious_nan;
+    allowPartialResults = builder.allowPartialResults;
     result_ids = Lists.newArrayList(
         new DefaultQueryResultId(id, data_source));
   }
@@ -106,7 +115,8 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     return data_source;
   }
 
-  /** @return The non-null and non-empty aggregation function name. */
+  /** @return The aggregation name. May be null or empty if the mode is set to
+   * SHARD. May not be null or empty for other nodes. */
   public String getAggregator() {
     return aggregator;
   }
@@ -125,6 +135,10 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     return timeouts;
   }
 
+  public boolean getAllowPartialResults() {
+    return allowPartialResults;
+  }
+
   @Override
   public Builder toBuilder() {
     final Builder builder = new Builder()
@@ -133,7 +147,8 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
         .setAggregator(aggregator)
         .setSortedDataSources(sortedDataSources)
         .setTimeouts(timeouts)
-        .setInfectiousNan(infectious_nan);
+        .setInfectiousNan(infectious_nan)
+        .setAllowPartialResults(allowPartialResults);
     super.toBuilder(builder);
     return builder;
   }
@@ -157,7 +172,8 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
            Objects.equal(aggregator, merger.getAggregator()) &&
            Objects.equal(infectious_nan, merger.getInfectiousNan() &&
            Objects.equal(sortedDataSources, merger.sortedSources()) &&
-           Objects.equal(timeouts, merger.timeouts()));
+           Objects.equal(timeouts, merger.timeouts())) &&
+           Objects.equal(allowPartialResults, merger.getAllowPartialResults());
 
   }
 
@@ -173,6 +189,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
             .putInt(mode.ordinal())
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
             .putBoolean(infectious_nan)
+            .putBoolean(allowPartialResults)
             .hash();
     final List<HashCode> hashes =
             Lists.newArrayListWithCapacity(2);
@@ -224,6 +241,11 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
       builder.setInfectiousNan(temp.asBoolean());
     }
 
+    temp = node.get("allowPartialResults");
+    if (temp != null && !temp.isNull()) {
+      builder.setAllowPartialResults(temp.asBoolean());
+    }
+
     return builder.build();
   }
 
@@ -242,7 +264,8 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     private String aggregator;
     @JsonProperty
     private boolean infectious_nan;
-
+    @JsonProperty
+    private boolean allowPartialResults;
     private List<String> sortedDataSources;
     private List<String> timeouts;
     
@@ -286,6 +309,11 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
 
     public Builder setTimeouts(final List<String> timeouts) {
       this.timeouts = timeouts;
+      return this;
+    }
+
+    public Builder setAllowPartialResults(final boolean allowPartialResults) {
+      this.allowPartialResults = allowPartialResults;
       return this;
     }
 

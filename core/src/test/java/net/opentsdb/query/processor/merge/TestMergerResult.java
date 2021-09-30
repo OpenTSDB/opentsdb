@@ -361,9 +361,49 @@ public class TestMergerResult {
     assertEquals(42, merger.sequenceId());
     assertSame(time_spec, merger.timeSpecification());
     assertEquals(0, merger.results.size());
-    assertEquals("ErrorA", merger.error);
+    assertEquals("ErrorB", merger.error);
   }
-  
+
+  @Test
+  public void joinShardOneErrorNotAllowed() throws Exception {
+    setConfig(MergeMode.SHARD, null, false);
+    when(result_a.timeSeries()).thenReturn(
+            Lists.<TimeSeries>newArrayList(ts2));
+
+    MergerResult merger = new MergerResult(node, result_a);
+    result_b = mock(QueryResult.class);
+    when(result_b.dataSource()).thenReturn(id_b);
+    when(result_b.error()).thenReturn("Error");
+    merger.add(result_b);
+    merger.join();
+    assertEquals(42, merger.sequenceId());
+    assertSame(time_spec, merger.timeSpecification());
+    assertEquals(0, merger.results.size());
+    assertEquals("Error", merger.error);
+  }
+
+  @Test
+  public void joinShardOneErrorAllowed() throws Exception {
+    setConfig(MergeMode.SHARD, null, true);
+    when(result_a.timeSeries()).thenReturn(
+            Lists.<TimeSeries>newArrayList(ts2));
+
+    MergerResult merger = new MergerResult(node, result_a);
+    result_b = mock(QueryResult.class);
+    when(result_b.dataSource()).thenReturn(id_b);
+    when(result_b.error()).thenReturn("Error");
+    merger.add(result_b);
+    merger.join();
+    assertEquals(42, merger.sequenceId());
+    assertSame(time_spec, merger.timeSpecification());
+    assertEquals(1, merger.results.size());
+    assertNull(merger.error());
+
+    // xx hash is deterministic
+    TimeSeries ts = getSeriesRaw(merger, ts2.id().buildHashCode());
+    assertSame(ts2, ts);
+  }
+
   private MergerTimeSeries getSeries(final MergerResult results,
                                      final long hash) {
     for (final TimeSeries result : results.results) {
@@ -372,5 +412,31 @@ public class TestMergerResult {
       }
     }
     return null;
+  }
+
+  private TimeSeries getSeriesRaw(final MergerResult results,
+                                  final long hash) {
+    for (final TimeSeries result : results.results) {
+      if (result.id().buildHashCode() == hash) {
+        return result;
+      }
+    }
+    return null;
+  }
+
+  private void setConfig(final MergeMode mode, final String agg, final boolean allowPartials) {
+    MergerConfig.Builder builder = (MergerConfig.Builder) MergerConfig.newBuilder()
+            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(summary_config)
+            .setDataSource("MyMetric")
+            .setMode(mode)
+            .setAllowPartialResults(allowPartials)
+            .setSortedDataSources(Lists.newArrayList(id_a.dataSource(), id_b.dataSource()))
+            .setId("Testing");
+    if (agg != null) {
+      builder.setAggregator(agg);
+    }
+    config = builder.build();
+    when(node.config()).thenReturn(config);
   }
 }

@@ -182,6 +182,22 @@ public class TestMerger {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
 
+    // shard mode without group by
+    MergerConfig.Builder builder = MergerConfig.newBuilder()
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setMode(MergeMode.SHARD)
+            .setDataSource("m1")
+            .setSortedDataSources(Lists.newArrayList(ID1.dataSource(), ID2.dataSource()))
+            .setId("merger")
+            .setTimeouts(Lists.newArrayList("1m", "2m"));
+
+    merger = new Merger(factory, context, builder.build());
+    when(context.downstreamQueryResultIds(merger))
+            .thenReturn(Lists.newArrayList(ID1, ID2));
+    merger.initialize(null).join(30_000);
+
+    assertNull(merger.aggregatorFactory);
+    assertNull(merger.numericAggregatorFactory);
   }
 
   @Test
@@ -359,98 +375,100 @@ public class TestMerger {
     verify(TIMEOUTS.get(0).timeout, times(1)).cancel();
   }
 
-//  @Test
-//  public void splitOnNexTimeoutsOK() throws Exception {
-//    MergerConfig config = MergerConfig.newBuilder()
-//            .setAggregator("sum")
-//            .addInterpolatorConfig(NUMERIC_CONFIG)
-//            .setMode(MergeMode.SPLIT)
-//            .setDataSource("m1")
-//            .setSortedDataSources(Lists.newArrayList(ID1, ID2, ID3))
-//            .setTimeouts(Lists.newArrayList("15s", "30s", "1m"))
-//            .setId("merger")
-//            .build();
-//
-//    Merger merger = new Merger(factory, context, config);
-//    when(context.downstreamQueryResultIds(merger))
-//            .thenReturn(Lists.newArrayList(ID1, ID2, ID3));
-//    merger.initialize(null).join();
-//
-//    QueryResult r1 = mock(QueryResult.class);
-//    when(r1.dataSource()).thenReturn(ID1);
-//    QueryResult r2 = mock(QueryResult.class);
-//    when(r2.dataSource()).thenReturn(ID2);
-//    QueryResult r3 = mock(QueryResult.class);
-//    when(r3.dataSource()).thenReturn(ID3);
-//
-//    merger.onNext(r1);
-//    Waiter waiter = merger.results.get(ID1);
-//    assertSame(r1, waiter.result);
-//    assertNull(waiter.timeout);
-//    waiter = merger.results.get(ID2);
-//    assertNull(waiter.result);
-//    assertNotNull(waiter.timeout);
-//    waiter = merger.results.get(ID3);
-//    assertNull(waiter.result);
-//    assertNotNull(waiter.timeout);
-//
-//    assertEquals(2, TIMEOUTS.size());
-//    // order is indeterminate.
-//    List<Long> timeouts = Lists.newArrayList(TIMEOUTS.get(0).time,
-//                                             TIMEOUTS.get(1).time);
-//    assertTrue(timeouts.contains(30_000L));
-//    assertTrue(timeouts.contains(60_000L));
-//    assertEquals(2, merger.outstanding.get());
-//    verify(upstream, never()).onNext(any(QueryResult.class));
-//
-//    merger.onNext(r2);
-//    waiter = merger.results.get(ID2);
-//    assertSame(r2, waiter.result);
-//    assertNull(waiter.timeout);
-//    assertEquals(1, merger.outstanding.get());
-//    verify(upstream, never()).onNext(any(QueryResult.class));
-//
-//    merger.onNext(r3);
-//    waiter = merger.results.get(ID3);
-//    assertSame(r3, waiter.result);
-//    assertNull(waiter.timeout);
-//    verify(upstream, times(1)).onNext(any(MergerResult.class));
-//    verify(TIMEOUTS.get(0).timeout, times(1)).cancel();
-//    verify(TIMEOUTS.get(1).timeout, times(1)).cancel();
-//  }
+  @Test
+  public void splitOnNexTimeoutsOK() throws Exception {
+    MergerConfig config = MergerConfig.newBuilder()
+            .setAggregator("sum")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setMode(MergeMode.SPLIT)
+            .setDataSource("m1")
+            .setSortedDataSources(Lists.newArrayList(
+                    ID1.dataSource(), ID2.dataSource(), ID3.dataSource()))
+            .setTimeouts(Lists.newArrayList("15s", "30s", "1m"))
+            .setId("merger")
+            .build();
 
-//  @Test
-//  public void splitOnNexTimeout() throws Exception {
-//    MergerConfig config = MergerConfig.newBuilder()
-//            .setAggregator("sum")
-//            .addInterpolatorConfig(NUMERIC_CONFIG)
-//            .setMode(MergeMode.SPLIT)
-//            .setDataSource("m1")
-//            .setSortedDataSources(Lists.newArrayList(ID1, ID2, ID3))
-//            .setTimeouts(Lists.newArrayList("15s", "30s", "1m"))
-//            .setId("merger")
-//            .build();
-//
-//    Merger merger = new Merger(factory, context, config);
-//    when(context.downstreamQueryResultIds(merger))
-//            .thenReturn(Lists.newArrayList(ID1, ID2, ID3));
-//    merger.initialize(null).join();
-//
-//    QueryResult r1 = mock(QueryResult.class);
-//    when(r1.dataSource()).thenReturn(ID1);
-//    QueryResult r2 = mock(QueryResult.class);
-//    when(r2.dataSource()).thenReturn(ID2);
-//    QueryResult r3 = mock(QueryResult.class);
-//    when(r3.dataSource()).thenReturn(ID3);
-//
-//    merger.onNext(r3);
-//    assertEquals(2, TIMEOUTS.size());
-//
-//    // timeout!
-//    TIMEOUTS.get(0).task.run(null);
-//    verify(upstream, never()).onNext(any(MergerResult.class));
-//    verify(upstream, times(1)).onError(any(QueryDownstreamException.class));
-//  }
+    Merger merger = new Merger(factory, context, config);
+    when(context.downstreamQueryResultIds(merger))
+            .thenReturn(Lists.newArrayList(ID1, ID2, ID3));
+    merger.initialize(null).join();
+
+    QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn(ID1);
+    QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn(ID2);
+    QueryResult r3 = mock(QueryResult.class);
+    when(r3.dataSource()).thenReturn(ID3);
+
+    merger.onNext(r1);
+    Waiter waiter = merger.results.get(ID1);
+    assertSame(r1, waiter.result);
+    assertNull(waiter.timeout);
+    waiter = merger.results.get(ID2);
+    assertNull(waiter.result);
+    assertNotNull(waiter.timeout);
+    waiter = merger.results.get(ID3);
+    assertNull(waiter.result);
+    assertNotNull(waiter.timeout);
+
+    assertEquals(2, TIMEOUTS.size());
+    // order is indeterminate.
+    List<Long> timeouts = Lists.newArrayList(TIMEOUTS.get(0).time,
+                                             TIMEOUTS.get(1).time);
+    assertTrue(timeouts.contains(30_000L));
+    assertTrue(timeouts.contains(60_000L));
+    assertEquals(2, merger.outstanding.get());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+
+    merger.onNext(r2);
+    waiter = merger.results.get(ID2);
+    assertSame(r2, waiter.result);
+    assertNull(waiter.timeout);
+    assertEquals(1, merger.outstanding.get());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+
+    merger.onNext(r3);
+    waiter = merger.results.get(ID3);
+    assertSame(r3, waiter.result);
+    assertNull(waiter.timeout);
+    verify(upstream, times(1)).onNext(any(MergerResult.class));
+    verify(TIMEOUTS.get(0).timeout, times(1)).cancel();
+    verify(TIMEOUTS.get(1).timeout, times(1)).cancel();
+  }
+
+  @Test
+  public void splitOnNexTimeout() throws Exception {
+    MergerConfig config = MergerConfig.newBuilder()
+            .setAggregator("sum")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .setMode(MergeMode.SPLIT)
+            .setDataSource("m1")
+            .setSortedDataSources(Lists.newArrayList(
+                    ID1.dataSource(), ID2.dataSource(), ID3.dataSource()))
+            .setTimeouts(Lists.newArrayList("15s", "30s", "1m"))
+            .setId("merger")
+            .build();
+
+    Merger merger = new Merger(factory, context, config);
+    when(context.downstreamQueryResultIds(merger))
+            .thenReturn(Lists.newArrayList(ID1, ID2, ID3));
+    merger.initialize(null).join();
+
+    QueryResult r1 = mock(QueryResult.class);
+    when(r1.dataSource()).thenReturn(ID1);
+    QueryResult r2 = mock(QueryResult.class);
+    when(r2.dataSource()).thenReturn(ID2);
+    QueryResult r3 = mock(QueryResult.class);
+    when(r3.dataSource()).thenReturn(ID3);
+
+    merger.onNext(r3);
+    assertEquals(2, TIMEOUTS.size());
+
+    // timeout!
+    TIMEOUTS.get(0).task.run(null);
+    verify(upstream, never()).onNext(any(MergerResult.class));
+    verify(upstream, times(1)).onError(any(QueryDownstreamException.class));
+  }
 
   MergerConfig setConfig(boolean timeouts) {
     MergerConfig.Builder builder = MergerConfig.newBuilder()

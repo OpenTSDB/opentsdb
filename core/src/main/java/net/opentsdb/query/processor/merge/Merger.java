@@ -129,10 +129,12 @@ public class Merger extends AbstractQueryNode {
       }
     }
 
-    aggregatorFactory = context.tsdb().getRegistry().getPlugin(
-            NumericArrayAggregatorFactory.class, config.getAggregator());
-    numericAggregatorFactory = context.tsdb().getRegistry().getPlugin(
-            NumericAggregatorFactory.class, config.getAggregator());
+    if (config.getAggregator() != null) {
+      aggregatorFactory = context.tsdb().getRegistry().getPlugin(
+              NumericArrayAggregatorFactory.class, config.getAggregator());
+      numericAggregatorFactory = context.tsdb().getRegistry().getPlugin(
+              NumericAggregatorFactory.class, config.getAggregator());
+    }
 
     if (LOG.isTraceEnabled()) {
       LOG.trace("Expect to have results: " + results);

@@ -17,7 +17,8 @@ package net.opentsdb.query.processor.merge;
 import com.fasterxml.jackson.databind.JsonNode;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
-import org.junit.Before;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import net.opentsdb.data.types.numeric.NumericType;
@@ -30,11 +31,11 @@ import static org.junit.Assert.*;
 
 public class TestMergerConfig {
 
-  private NumericInterpolatorConfig numeric_config;
+  private static NumericInterpolatorConfig NUMERIC_CONFIG;
   
-  @Before
-  public void before() throws Exception {
-    numeric_config = 
+  @BeforeClass
+  public static void before() throws Exception {
+    NUMERIC_CONFIG =
         (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
@@ -47,7 +48,7 @@ public class TestMergerConfig {
     MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
         .setMode(MergerConfig.MergeMode.HA)
         .setAggregator("sum")
-        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
         .addSource("m1")
         .setDataSource("m1")
         .setId("ClusterMerge")
@@ -55,16 +56,34 @@ public class TestMergerConfig {
 
     assertEquals(MergerConfig.MergeMode.HA, config.getMode());
     assertEquals("sum", config.getAggregator());
-    assertSame(numeric_config, config.getInterpolatorConfigs().iterator().next());
+    assertSame(NUMERIC_CONFIG, config.getInterpolatorConfigs().iterator().next());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
     assertEquals("ClusterMerge", config.getId());
+    assertFalse(config.getAllowPartialResults());
+
+    config = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergeMode.SHARD)
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .addSource("m1")
+            .setDataSource("m1")
+            .setAllowPartialResults(true)
+            .setId("ClusterMerge")
+            .build();
+
+    assertEquals(MergeMode.SHARD, config.getMode());
+    assertNull(config.getAggregator());
+    assertSame(NUMERIC_CONFIG, config.getInterpolatorConfigs().iterator().next());
+    assertEquals(1, config.getSources().size());
+    assertEquals("m1", config.getSources().get(0));
+    assertEquals("ClusterMerge", config.getId());
+    assertTrue(config.getAllowPartialResults());
 
     try {
       MergerConfig.newBuilder()
               //.setMergeMode(MergerConfig.MergeMode.HA)
               .setAggregator("sum")
-              .addInterpolatorConfig(numeric_config)
+              .addInterpolatorConfig(NUMERIC_CONFIG)
               .addSource("m1")
               .setDataSource("m1")
               .setId("ClusterMerge")
@@ -76,7 +95,7 @@ public class TestMergerConfig {
       MergerConfig.newBuilder()
           .setMode(MergerConfig.MergeMode.HA)
           //.setAggregator("sum")
-          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(NUMERIC_CONFIG)
           .addSource("m1")
           .setDataSource("m1")
           .setId("ClusterMerge")
@@ -88,7 +107,7 @@ public class TestMergerConfig {
       MergerConfig.newBuilder()
           .setMode(MergerConfig.MergeMode.HA)
           .setAggregator("sum")
-          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(NUMERIC_CONFIG)
           .addSource("m1")
           .setDataSource("m1")
           //.setId("ClusterMerge")
@@ -100,7 +119,7 @@ public class TestMergerConfig {
       MergerConfig.newBuilder()
           .setMode(MergerConfig.MergeMode.HA)
           .setAggregator("sum")
-          .addInterpolatorConfig(numeric_config)
+          .addInterpolatorConfig(NUMERIC_CONFIG)
           .addSource("m1")
           //.setDataSource("m1")
           .setId("ClusterMerge")
@@ -112,31 +131,34 @@ public class TestMergerConfig {
   @Test
   public void serdes() throws Exception {
     MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
-        .setMode(MergerConfig.MergeMode.HA)
+        .setMode(MergerConfig.MergeMode.SHARD)
         .setAggregator("sum")
-        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(NUMERIC_CONFIG)
         .addSource("m1")
         .setDataSource("m1")
+        .setAllowPartialResults(true)
         .setId("ClusterMerge")
         .build();
     
     String json = JSON.serializeToString(config);
-    assertTrue(json.contains("\"mode\":\"HA\""));
+    assertTrue(json.contains("\"mode\":\"SHARD\""));
     assertTrue(json.contains("\"id\":\"ClusterMerge\""));
     assertTrue(json.contains("\"type\":\"Merger\""));
     assertTrue(json.contains(",\"sources\":[\"m1\"]"));
     assertTrue(json.contains("\"aggregator\":\"sum\""));
+    assertTrue(json.contains("\"allowPartialResults\":true"));
 
     MockTSDB tsdb = MockTSDBDefault.getMockTSDB();
     JsonNode node = JSON.getMapper().readTree(json);
     config = MergerConfig.parse(JSON.getMapper(), tsdb, node);
 
-    assertEquals(MergerConfig.MergeMode.HA, config.getMode());
+    assertEquals(MergerConfig.MergeMode.SHARD, config.getMode());
     assertEquals("sum", config.getAggregator());
-    assertEquals(numeric_config, config.getInterpolatorConfigs().iterator().next());
+    assertEquals(NUMERIC_CONFIG, config.getInterpolatorConfigs().iterator().next());
     assertEquals(1, config.getSources().size());
     assertEquals("m1", config.getSources().get(0));
     assertEquals("ClusterMerge", config.getId());
+    assertTrue(config.getAllowPartialResults());
   }
   
   @Test
@@ -144,7 +166,7 @@ public class TestMergerConfig {
     MergerConfig config = (MergerConfig) MergerConfig.newBuilder()
             .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
-            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .setDataSource("m1")
             .setId("ClusterMerge")
@@ -153,7 +175,7 @@ public class TestMergerConfig {
     MergerConfig config2 = (MergerConfig) MergerConfig.newBuilder()
             .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
-            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .setDataSource("m1")
             .setId("ClusterMerge")
@@ -162,27 +184,26 @@ public class TestMergerConfig {
     MergerConfig config3 = (MergerConfig) MergerConfig.newBuilder()
             .setMode(MergerConfig.MergeMode.SPLIT) // <-- DIFF
             .setAggregator("sum")
-            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
 
-
     assertTrue(config.equals(config2));
-    assertTrue(!config.equals(config3));
+    assertFalse(config.equals(config3));
     assertEquals(config.hashCode(), config2.hashCode());
     assertNotEquals(config.hashCode(), config3.hashCode());
 
     config3 = (MergerConfig) MergerConfig.newBuilder()
             .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("avg") // <-- DIFF
-            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
-    assertTrue(!config.equals(config3));
+    assertFalse(config.equals(config3));
     assertNotEquals(config.hashCode(), config3.hashCode());
 
     config3 = (MergerConfig) MergerConfig.newBuilder()
@@ -194,31 +215,43 @@ public class TestMergerConfig {
             .setId("ClusterMerge")
             .build();
 
-    assertTrue(!config.equals(config3));
+    assertFalse(config.equals(config3));
     assertNotEquals(config.hashCode(), config3.hashCode());
 
     config3 = (MergerConfig) MergerConfig.newBuilder()
             .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
-            .addInterpolatorConfig(numeric_config)
-            .addSource("m2")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .addSource("m2") // <-- Diff
             .setDataSource("m1")
             .setId("ClusterMerge")
             .build();
 
-    assertTrue(!config.equals(config3));
+    assertFalse(config.equals(config3));
     assertNotEquals(config.hashCode(), config3.hashCode());
 
     config3 = (MergerConfig) MergerConfig.newBuilder()
             .setMode(MergerConfig.MergeMode.HA)
             .setAggregator("sum")
-            .addInterpolatorConfig(numeric_config)
+            .addInterpolatorConfig(NUMERIC_CONFIG)
             .addSource("m1")
             .setDataSource("m1")
-            .setId("Noncluster")
+            .setId("Noncluster") // <-- Diff
             .build();
 
-    assertTrue(!config.equals(config3));
+    assertFalse(config.equals(config3));
+    assertNotEquals(config.hashCode(), config3.hashCode());
+
+    config3 = (MergerConfig) MergerConfig.newBuilder()
+            .setMode(MergerConfig.MergeMode.HA)
+            .setAggregator("sum")
+            .addInterpolatorConfig(NUMERIC_CONFIG)
+            .addSource("m1")
+            .setDataSource("m1")
+            .setAllowPartialResults(true) // <-- DIFF
+            .setId("ClusterMerge")
+            .build();
+    assertFalse(config.equals(config3));
     assertNotEquals(config.hashCode(), config3.hashCode());
   }
 }
