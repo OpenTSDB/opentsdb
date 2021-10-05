@@ -1,4 +1,4 @@
-FROM openjdk:8-slim
+FROM openjdk:18-ea-16-slim-buster
 
 MAINTAINER clarsen@verizonmedia.com
 
@@ -15,6 +15,7 @@ RUN       mkdir $LOGDIR
 ADD       opentsdb-$projectVersion.tar.gz $SHAREDIR
 RUN       chown -R root $WORKDIR
 RUN       chgrp -R root $WORKDIR
+ADD       ../opentsdb-horizon/server/public $WORKDIR/static
 ADD       opentsdb.yaml $WORKDIR/conf/opentsdb.yaml
 ADD       opentsdb_dev.yaml $WORKDIR/conf/opentsdb_dev.yaml
 ADD       tsdb $WORKDIR/bin/tsdb
@@ -25,4 +26,4 @@ ENV       LOGBACK $WORKDIR/conf/logback.xml
 ENV       JAVA_OPTS="-Xms512m -Xmx2048m -enableassertions -enablesystemassertions"
 ENV       CLI_ARGS=""
 
-ENTRYPOINT /bin/sh $WORKDIR/bin/tsdb tsd --config.providers=${CONFIG} ${CLI_ARGS} > ${LOGDIR}/stdout.log 2> ${LOGDIR}/stderr.log
+ENTRYPOINT /bin/sh $WORKDIR/bin/tsdb tsd --config.providers=${CONFIG} ${CLI_ARGS}

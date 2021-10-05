@@ -15,8 +15,28 @@
     <description>The module for assembling different OpenTSDB packages.</description>
     
     <packaging>pom</packaging>
+
+    <properties>
+      <auraVersion>0.1.0-SNAPSHOT</auraVersion>
+      <alertingVersion>0.1.0-SNAPSHOT</alertingVersion>
+      <configVersion>0.1.0-SNAPSHOT</configVersion>
+    </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>2.15.61</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
     
     <dependencies>
+      <!-- Core components -->
       <dependency>
           <groupId>net.opentsdb</groupId>
           <artifactId>opentsdb-common</artifactId>
@@ -44,17 +64,25 @@
         </dependency>
         <dependency>
           <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-executors-http</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
           <artifactId>opentsdb-server-undertow</artifactId>
           <version>${project.version}</version>
         </dependency>
         <dependency>
           <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-asynchbase</artifactId>
+          <artifactId>opentsdb-query-runner</artifactId>
           <version>${project.version}</version>
         </dependency>
+
+        <!-- Plugins that we need to shuffle out into separate builds.
+         For now we're throwing everything together. -->
         <dependency>
           <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-executors-http</artifactId>
+          <artifactId>opentsdb-asynchbase</artifactId>
           <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -98,6 +126,80 @@
           <artifactId>opentsdb-ultrabrew</artifactId>
           <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-okta</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-athenz</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <!-- Aura Metrics -->
+        <dependency>
+          <groupId>net.opentsdb.aura</groupId>
+          <artifactId>opentsdb-aura-core</artifactId>
+          <version>${auraVersion}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb.aura</groupId>
+          <artifactId>opentsdb-aura-aws</artifactId>
+          <exclusions>
+            <exclusion>
+              <groupId>software.amazon.awssdk</groupId>
+              <artifactId>bom</artifactId>
+            </exclusion>
+          </exclusions>
+          <version>${auraVersion}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb.aura</groupId>
+          <artifactId>opentsdb-aura-opentsdb</artifactId>
+          <exclusions>
+            <exclusion>
+              <groupId>software.amazon.awssdk</groupId>
+              <artifactId>bom</artifactId>
+            </exclusion>
+          </exclusions>
+          <version>${auraVersion}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb.aura</groupId>
+          <artifactId>opentsdb-aura-aerospike</artifactId>
+          <version>${auraVersion}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb.aura</groupId>
+          <artifactId>opentsdb-aura-meta-grpc-client</artifactId>
+          <version>${auraVersion}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <!-- Aura Events -->
+        <dependency>
+          <groupId>net.opentsdb.aura</groupId>
+          <artifactId>opentsdb-aura-events-common</artifactId>
+          <version>${auraVersion}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb.aura</groupId>
+          <artifactId>opentsdb-aura-events-lucene</artifactId>
+          <version>${auraVersion}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
     </dependencies>
   
     <build>
@@ -131,6 +233,27 @@
         <id>docker</id>
         <build>
           <plugins>
+            <plugin>
+              <artifactId>maven-antrun-plugin</artifactId>
+              <version>3.0.0</version>
+              <executions>
+                <execution>
+                  <id>horizon-ui</id>
+                  <phase>generate-sources</phase>
+                  <goals>
+                    <goal>run</goal>
+                  </goals>
+                  <configuration>
+                    <target>
+                      <exec executable="sh">
+                        <arg value="${basedir}/src/resources/compileHorizonUI.sh"/>
+                      </exec>
+                    </target>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+
             <plugin>
               <groupId>com.spotify</groupId>
               <artifactId>docker-maven-plugin</artifactId>
