@@ -17,17 +17,6 @@ test -d "$pkgdatadir" || test -n "$abs_srcdir$abs_builddir" || {
   exit 1
 }
 
-# Use the default config with the package if it wasn't given on the command line
-conf_file=''
-for e in $@; do
-  if [[ "$e" == "--config" ]]; then
-    conf_file="found";
-  fi
-done
-if [[ $conf_file != "found" ]]; then
-  conf_file="--config=conf/opentsdb.conf";
-fi
-
 if test -n "$pkgdatadir"; then
   localdir="$pkgdatadir/bin"
   for jar in "$pkgdatadir"/*.jar; do
@@ -89,6 +78,8 @@ esac
 shift
 
 JAVA=${JAVA-'java'}
-JVMARGS=${JAVA_OPTS-'-enableassertions -enablesystemassertions'}
+if [ ! -z ${JAVA_OPTS+x} ]; then
+  JAVA_OPTS=''
+fi
 
-exec $JAVA $JVMARGS -classpath "$CLASSPATH" net.opentsdb.tsd.$MAINCLASS $conf_file "$@"
+exec $JAVA $JAVA_OPTS -classpath "$CLASSPATH" net.opentsdb.tsd.$MAINCLASS $conf_file "$@"
