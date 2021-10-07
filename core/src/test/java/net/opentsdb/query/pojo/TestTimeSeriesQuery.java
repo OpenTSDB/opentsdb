@@ -17,9 +17,12 @@ package net.opentsdb.query.pojo;
 import com.google.common.collect.Lists;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
@@ -663,7 +666,11 @@ public class TestTimeSeriesQuery {
     DownsampleConfig dsc = (DownsampleConfig) node;
     assertEquals("15m", dsc.getInterval());
     assertEquals("avg", dsc.getAggregator());
-    
+    assertTrue(dsc.getFill());
+    NumericInterpolatorConfig qic = (NumericInterpolatorConfig)
+            dsc.interpolatorConfig(NumericType.TYPE);
+    assertEquals(FillPolicy.NOT_A_NUMBER, qic.getFillPolicy());
+
     node = query.getExecutionGraph().get(2);
     assertEquals("m1_GroupBy", node.getId());
     assertEquals(GroupByFactory.TYPE, node.getType());

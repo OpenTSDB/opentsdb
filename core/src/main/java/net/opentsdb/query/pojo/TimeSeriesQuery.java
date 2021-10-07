@@ -841,7 +841,8 @@ public class TimeSeriesQuery extends Validatable
         .setAggregator(downsampler.getAggregator())
         .setInterval(downsampler.getInterval())
         .setFill(policy != null && policy != FillPolicy.NONE);
-    ds.setProcessAsArrays(false).setId("downsample_" + metric.getId())
+    ds.setProcessAsArrays(false)
+        .setId("downsample_" + metric.getId())
         .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
             .setFillPolicy(policy)
             .setRealFillPolicy(FillWithRealPolicy.NONE)

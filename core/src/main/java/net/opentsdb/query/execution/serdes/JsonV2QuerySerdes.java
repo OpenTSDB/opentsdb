@@ -384,6 +384,57 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator,
       final JsonGenerator json,
       final QueryResult result) throws IOException {
+    if (result.timeSpecification() != null) {
+      final TimeStamp timestamp = result.timeSpecification().start().getCopy();
+      while (value != null) {
+        if (value.timestamp().compare(Op.LT, start)) {
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericType>) iterator.next();
+          } else {
+            value = null;
+          }
+          continue;
+        }
+
+        if (value.timestamp().compare(Op.GT, end)) {
+          break;
+        }
+//        if (!wrote_values) {
+//          json.writeStartObject();
+//          wrote_values = true;
+//        }
+//        if (!wrote_type) {
+//          json.writeArrayFieldStart("NumericType"); // yeah, it's numeric.
+//          wrote_type = true;
+//        }
+
+        long ts = (options != null && options.getMsResolution())
+                ? value.timestamp().msEpoch()
+                : value.timestamp().msEpoch() / 1000;
+        final String ts_string = Long.toString(ts);
+
+        if (value.value() == null) {
+          json.writeNullField(ts_string);
+        } else {
+          if (value.value().isInteger()) {
+            json.writeNumberField(ts_string,
+                    value.value().longValue());
+          } else {
+            json.writeNumberField(ts_string,
+                    value.value().doubleValue());
+          }
+        }
+
+        if (iterator.hasNext()) {
+          value = (TimeSeriesValue<NumericType>) iterator.next();
+        } else {
+          value = null;
+        }
+      }
+
+      return;
+    }
+
     while (value != null) {
       if (value.timestamp().compare(Op.LT, start)) {
         if (iterator.hasNext()) {
@@ -404,12 +455,12 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
       if (value.value() == null) {
         json.writeNullField(ts_string);
       } else {
-        if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
+        if (value.value().isInteger()) {
           json.writeNumberField(ts_string, 
-              ((TimeSeriesValue<NumericType>) value).value().longValue());
+              value.value().longValue());
         } else {
           json.writeNumberField(ts_string, 
-              ((TimeSeriesValue<NumericType>) value).value().doubleValue());
+              value.value().doubleValue());
         }
       }
       
