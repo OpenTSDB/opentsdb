@@ -19,6 +19,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import net.opentsdb.query.pojo.FillPolicy;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -49,7 +50,7 @@ public class TestTSQuery {
     
     TSSubQuery sub = new TSSubQuery();
     sub.setMetric("sys.cpu.idle");
-    sub.setDownsample("60m-max");
+    sub.setDownsample("60m-max-nan");
     sub.setAggregator("sum");
     sub.setRate(true);
     sub.setRateOptions(RateOptions.newBuilder()
@@ -115,6 +116,7 @@ public class TestTSQuery {
     assertEquals("sum", query.getMetrics().get(0).getAggregator());
     assertEquals("60m", query.getMetrics().get(0).getDownsampler().getInterval());
     assertEquals("Max", query.getMetrics().get(0).getDownsampler().getAggregator());
+    assertEquals(FillPolicy.NOT_A_NUMBER, query.getMetrics().get(0).getDownsampler().getFillPolicy().getPolicy());
     assertTrue(query.getMetrics().get(0).isRate());
     assertTrue(query.getMetrics().get(0).getRateOptions().isCounter());
     assertEquals(1024, query.getMetrics().get(0).getRateOptions().getCounterMax());
