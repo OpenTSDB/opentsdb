@@ -33,6 +33,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import net.opentsdb.utils.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -234,15 +235,23 @@ public class ExpressionRpc {
         log_headers.put(name, request.getHeader(name));
       }
     }
-    
+
+    TimeSeriesQuery q = query.build();
     LOG.info("Executing new query=" + JSON.serializeToString(
         ImmutableMap.<String, Object>builder()
         .put("headers", log_headers == null ? "null" : log_headers)
         .put("traceId", trace != null ? trace.traceId() : "")
+        .put("queryId", Bytes.byteArrayToString(q.buildHashCode().asBytes()))
         .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
         .put("remote", request.getRemoteAddr())
         .put("query", ts_query)
         .build()));
+    // separate for log truncation concerns.
+    LOG.info("Converted query=" + JSON.serializeToString(
+            ImmutableMap.<String, Object>builder()
+                    .put("queryId", Bytes.byteArrayToString(q.buildHashCode().asBytes()))
+                    .put("query", q)
+                    .build()));
     if (convert_span != null) {
       convert_span.setTag("Status", "OK")
                   .setTag("finalThread", Thread.currentThread().getName())
@@ -265,8 +274,7 @@ public class ExpressionRpc {
     final AsyncContext async = request.startAsync();
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
-    
-    TimeSeriesQuery q = query.build();
+
     SerdesOptions serdes = q.getSerdesConfigs().isEmpty() ? null :
       q.getSerdesConfigs().get(0);
     if (serdes == null) {

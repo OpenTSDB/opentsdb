@@ -391,31 +391,25 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
           if (iterator.hasNext()) {
             value = (TimeSeriesValue<NumericType>) iterator.next();
           } else {
-            value = null;
+            return;
           }
           continue;
         }
 
         if (value.timestamp().compare(Op.GT, end)) {
-          break;
+          return;
         }
-//        if (!wrote_values) {
-//          json.writeStartObject();
-//          wrote_values = true;
-//        }
-//        if (!wrote_type) {
-//          json.writeArrayFieldStart("NumericType"); // yeah, it's numeric.
-//          wrote_type = true;
-//        }
 
+        break;
+      }
+
+      while (timestamp.compare(Op.LT, end)) {
         long ts = (options != null && options.getMsResolution())
-                ? value.timestamp().msEpoch()
-                : value.timestamp().msEpoch() / 1000;
+                ? timestamp.msEpoch()
+                : timestamp.msEpoch() / 1000;
         final String ts_string = Long.toString(ts);
 
-        if (value.value() == null) {
-          json.writeNullField(ts_string);
-        } else {
+        if (value != null && value.timestamp().equals(timestamp)) {
           if (value.value().isInteger()) {
             json.writeNumberField(ts_string,
                     value.value().longValue());
@@ -423,15 +417,19 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             json.writeNumberField(ts_string,
                     value.value().doubleValue());
           }
-        }
 
-        if (iterator.hasNext()) {
-          value = (TimeSeriesValue<NumericType>) iterator.next();
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericType>) iterator.next();
+          } else {
+            value = null;
+          }
         } else {
-          value = null;
+          // TODO - other than NaN based on fill policy.
+          json.writeNumberField(ts_string, Double.NaN);
         }
-      }
 
+        timestamp.add(result.timeSpecification().interval());
+      }
       return;
     }
 

@@ -309,16 +309,24 @@ final public class QueryRpc {
         log_headers.put(name, request.getHeader(name));
       }
     }
-    
+
+    // TODO - oh this is so ugly it isn't even funny.
+    final SemanticQuery q = query.convert(tsdb).build();
     LOG.info("Executing new query=" + JSON.serializeToString(
         ImmutableMap.<String, Object>builder()
         .put("headers", log_headers == null ? "null" : log_headers)
-        .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
+        .put("queryId", Bytes.byteArrayToString(q.buildHashCode().asBytes()))
         .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
         .put("traceId", trace != null ? trace.traceId() : "")
         .put("user", auth_state != null ? auth_state.getUser() : "Unkown")
         .put("remote", request.getRemoteAddr())
-        .put("query", ts_query)
+        .put("tsQuery", ts_query)
+        .build()));
+    // separate for log truncation concerns.
+    LOG.info("Converted query=" + JSON.serializeToString(
+            ImmutableMap.<String, Object>builder()
+        .put("queryId", Bytes.byteArrayToString(q.buildHashCode().asBytes()))
+        .put("query", q)
         .build()));
     
     final Span setup_span;
@@ -335,9 +343,7 @@ final public class QueryRpc {
     final AsyncContext async = request.startAsync();
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
-    
-    // TODO - oh this is so ugly it isn't even funny.
-    final SemanticQuery q = query.convert(tsdb).build();
+
     SerdesOptions serdes = q.getSerdesConfigs().isEmpty() ? null :
       q.getSerdesConfigs().get(0);
     if (serdes == null) {
