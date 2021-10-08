@@ -646,8 +646,7 @@ public class SaltScanner {
           // TODO - more efficient resolution
           // TODO - byte set instead of a string for the uid may be faster
           if (filters != null && !filters.isEmpty()) {
-            lookups.clear();
-            final String tsuid = 
+            final String tsuid =
                 UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
                 TSDB.metrics_width(), Const.TIMESTAMP_BYTES));
             if (skips.contains(tsuid)) {
