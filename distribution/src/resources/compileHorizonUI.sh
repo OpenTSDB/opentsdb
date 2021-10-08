@@ -11,3 +11,5 @@ git clone https://github.com/OpenTSDB/opentsdb-horizon.git
 cd opentsdb-horizon/frontend
 npm install
 npm run build
+cd ../..
+cp -r opentsdb-horizon/server/public src/resources/docker

@@ -15,7 +15,7 @@ RUN       mkdir $LOGDIR
 ADD       opentsdb-$projectVersion.tar.gz $SHAREDIR
 RUN       chown -R root $WORKDIR
 RUN       chgrp -R root $WORKDIR
-ADD       ../opentsdb-horizon/server/public $WORKDIR/static
+ADD       public $WORKDIR/static
 ADD       opentsdb.yaml $WORKDIR/conf/opentsdb.yaml
 ADD       opentsdb_dev.yaml $WORKDIR/conf/opentsdb_dev.yaml
 ADD       tsdb $WORKDIR/bin/tsdb
