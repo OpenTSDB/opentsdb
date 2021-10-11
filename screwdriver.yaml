@@ -20,3 +20,4 @@ jobs:
       - DOCKER_USERNAME
     annotations:
       screwdriver.cd/dockerEnabled: true
+      screwdriver.cd/ram: LOW
