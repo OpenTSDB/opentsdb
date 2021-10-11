@@ -12,4 +12,4 @@ cd opentsdb-horizon/frontend
 npm install
 npm run build
 cd ../..
-cp -r opentsdb-horizon/server/public src/resources/docker
+cp -r opentsdb-horizon/server/public src/resources/docker/
