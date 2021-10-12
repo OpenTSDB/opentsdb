@@ -21,3 +21,4 @@ jobs:
     annotations:
       screwdriver.cd/dockerEnabled: true
       screwdriver.cd/ram: HIGH
+      screwdriver.cd/dockerRam: HIGH

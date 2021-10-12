@@ -9,8 +9,6 @@ npm install -g npm@6.14.8
 npm install node-sass grunt-sass
 git clone https://github.com/OpenTSDB/opentsdb-horizon.git
 cd opentsdb-horizon/frontend
-free
-npm cache clean --force
 npm install
 export NODE_OPTIONS=--max_old_space_size=4064
 npm run build
