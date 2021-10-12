@@ -1,4 +1,4 @@
-FROM openjdk:18-ea-16-slim-buster
+FROM openjdk:8-slim
 
 MAINTAINER clarsen@verizonmedia.com
 
