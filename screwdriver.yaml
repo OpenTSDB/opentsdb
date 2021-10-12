@@ -20,5 +20,5 @@ jobs:
       - DOCKER_USERNAME
     annotations:
       screwdriver.cd/dockerEnabled: true
-      screwdriver.cd/ram: HIGH
-      screwdriver.cd/dockerRam: HIGH
+      screwdriver.cd/ram: TURBO
+      screwdriver.cd/dockerRam: TURBO
