@@ -10,7 +10,6 @@ npm install node-sass grunt-sass
 git clone https://github.com/OpenTSDB/opentsdb-horizon.git
 cd opentsdb-horizon/frontend
 npm install
-export NODE_OPTIONS=--max_old_space_size=4064
 npm run build
 cd ../..
 cp -r opentsdb-horizon/server/public src/resources/docker/
