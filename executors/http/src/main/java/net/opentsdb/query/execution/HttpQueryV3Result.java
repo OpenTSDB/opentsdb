@@ -141,7 +141,8 @@ public class HttpQueryV3Result implements QueryResult {
         throw new IllegalStateException("Failed to parse the source: " + n.asText());
       }
 
-      if (((HttpQueryV3Factory) node.factory()).skipIdParsing()) {
+      if (node.factory() instanceof HttpQueryV3Factory &&
+              ((HttpQueryV3Factory) node.factory()).skipIdParsing()) {
         TimeSeriesDataSourceConfig tsdsc = (TimeSeriesDataSourceConfig) node.config();
         if (tsdsc.getPushDownNodes() != null && !tsdsc.getPushDownNodes().isEmpty()) {
           final List<QueryNodeConfig> pushDowns = tsdsc.getPushDownNodes();

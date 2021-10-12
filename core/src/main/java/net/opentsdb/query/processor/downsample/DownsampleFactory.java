@@ -233,7 +233,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
   
   @Override
   public void setupGraph(final QueryPipelineContext context, 
-                         final DownsampleConfig config,
+                         DownsampleConfig config,
                          final QueryPlanner plan) {
     // For downsampling we need to set the config start and end times
     // to the query start and end times. The config will then align them.
@@ -316,6 +316,8 @@ public class DownsampleFactory extends BaseQueryNodeFactory<DownsampleConfig, Do
       }
 
       plan.replace(config, newConfig);
+      config = newConfig;
+      break;
     }
   }
   
