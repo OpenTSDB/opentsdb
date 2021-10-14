@@ -46,10 +46,6 @@
         <include>net.opentsdb.aura:opentsdb-aura-opentsdb</include>
         <include>net.opentsdb.aura:opentsdb-aura-aerospike</include>
         <include>net.opentsdb.aura:opentsdb-aura-meta-grpc-client</include>
-
-        <!-- Aura Metrics -->
-        <include>net.opentsdb.aura:opentsdb-aura-events-common</include>
-        <include>net.opentsdb.aura:opentsdb-aura-events-lucene</include>
       </includes>
       <outputDirectory>lib</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>

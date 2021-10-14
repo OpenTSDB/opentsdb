@@ -182,24 +182,6 @@
           </exclusions>
         </dependency>
 
-        <!-- Aura Events -->
-        <dependency>
-          <groupId>net.opentsdb.aura</groupId>
-          <artifactId>opentsdb-aura-events-common</artifactId>
-          <version>${auraVersion}</version>
-        </dependency>
-        <dependency>
-          <groupId>net.opentsdb.aura</groupId>
-          <artifactId>opentsdb-aura-events-lucene</artifactId>
-          <version>${auraVersion}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>org.apache.logging.log4j</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-
     </dependencies>
   
     <build>
