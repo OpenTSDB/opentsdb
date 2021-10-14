@@ -112,7 +112,7 @@ public class RoutingUtils {
       planner.configGraph().addNode(converterConfig);
     }
 
-    if (max_pushdowns > 0) {
+    if (max_pushdowns > 0 && pushDowns.get(max_index).size() > 0) {
       final List<String> data_sources =
               Lists.newArrayListWithExpectedSize(newSources.size());
       for (final TimeSeriesDataSourceConfig.Builder source : newSources) {
@@ -227,43 +227,31 @@ public class RoutingUtils {
       // merger -> gb_ha_m1_s1:m1 -> ha_m1_s1:m1
       //        -> gb_ha_m1_s2:m1 -> ha_m1_s1:m1
       if (builder.pushDowns() != null && !builder.pushDowns().isEmpty()) {
-       for (int x = 0; x < builder.pushDowns().size(); x++) {
-          QueryNodeConfig.Builder config = ((QueryNodeConfig) builder.pushDowns()
-                  .get(x)).toBuilder();
-          if (x + 1 == builder.pushDowns().size()) {
-            final String pushdownId = ((QueryNodeConfig) builder.pushDowns().get(x)).getId() +
-                    "_" + builder.id();
-            config.setResultIds(Lists.newArrayList(
-                    new DefaultQueryResultId(
+        for (int x = 0; x < builder.pushDowns().size(); x++) {
+           QueryNodeConfig.Builder pdBuilder = ((QueryNodeConfig) builder.pushDowns()
+                   .get(x)).toBuilder();
+           if (x + 1 == builder.pushDowns().size()) {
+             final String pushdownId = ((QueryNodeConfig) builder.pushDowns().get(x)).getId() +
+                     "_" + builder.id();
+             pdBuilder.setResultIds(Lists.newArrayList(
+                     new DefaultQueryResultId(
                             pushdownId,
                             builder.dataSource())));
-            config.setId(pushdownId);
-            // TODO - not ideal...
-//            int idx = -1;
-//            for (int y = 0; y < mergerConfig.sortedSources().size(); y++) {
-//              if (mergerConfig.sortedSources().get(y).nodeID().equals(builder.id())) {
-//                idx = y;
-//                break;
-//              }
-//            }
-//
-//            mergerConfig.sortedSources().set(idx, new DefaultQueryResultId(
-//                    pushdownId, mergerConfig.getDataSource()));
-          } else {
-            config.setResultIds(Lists.newArrayList(
-                    new DefaultQueryResultId(
-                            ((QueryNodeConfig) builder.pushDowns().get(x)).getId(),
-                            builder.dataSource())));
-          }
+             pdBuilder.setId(pushdownId);
+           } else {
+             pdBuilder.setResultIds(Lists.newArrayList(
+                     new DefaultQueryResultId(
+                             ((QueryNodeConfig) builder.pushDowns().get(x)).getId(),
+                             builder.dataSource())));
+           }
 
-          if (x == 0) {
-            config.setSources(Lists.newArrayList(builder.id()));
-          } else {
-            config.setSources(Lists.newArrayList(
-                          ((QueryNodeConfig) builder.pushDowns().get(x - 1)).getId()
-                    ));
-          }
-          builder.pushDowns().set(x, config.build());
+           if (x == 0) {
+             pdBuilder.setSources(Lists.newArrayList(builder.id()));
+           } else {
+             pdBuilder.setSources(Lists.newArrayList(
+                           ((QueryNodeConfig) builder.pushDowns().get(x - 1)).getId()));
+           }
+          builder.pushDowns().set(x, pdBuilder.build());
         }
       }
 
@@ -343,6 +331,36 @@ public class RoutingUtils {
         final List<QueryNodeConfig> source_push_downs = Lists.newArrayList();
         canPushDown(predecessor,
                 sources.get(i).factory(),
+                source_push_downs,
+                planner);
+        push_downs.add(source_push_downs);
+      }
+
+      return push_downs;
+    }
+    return Collections.emptyList();
+  }
+
+  /**
+   * Finds the potential pushdown list for each of the sources.
+   * @param config The non-null original config (to walk up the graph from)
+   * @param factories The list of non-null and non-empty factories that would
+   *                  satisfy the query.
+   * @param planner The non-null planner.
+   * @return A non-null but possibly empty list.
+   */
+  public static List<List<QueryNodeConfig>> getPotentialPushDowns(
+          final TimeSeriesDataSourceConfig config,
+          final List<TimeSeriesDataSourceFactory> factories,
+          final QueryPlanner planner) {
+    Set<QueryNodeConfig> predecessors = planner.configGraph().predecessors(config);
+    if (!predecessors.isEmpty() && predecessors.size() == 1) {
+      QueryNodeConfig predecessor = predecessors.iterator().next();
+      final List<List<QueryNodeConfig>> push_downs = Lists.newArrayList();
+      for (int i = 0; i < factories.size(); i++) {
+        final List<QueryNodeConfig> source_push_downs = Lists.newArrayList();
+        canPushDown(predecessor,
+                factories.get(i),
                 source_push_downs,
                 planner);
         push_downs.add(source_push_downs);

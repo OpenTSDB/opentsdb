@@ -202,6 +202,7 @@ public class MergerFactory extends BaseQueryNodeFactory<MergerConfig, Merger> {
                                                final TypeToken<? extends TimeSeriesDataType> type) {
       switch (((MergerConfig) node.config()).getMode()) {
         case HA:
+        case SHARD:
           return new MergerNumericArrayIterator(node, result, sources);
         case SPLIT:
           return new SplitNumericArrayIterator(node, result, sources);

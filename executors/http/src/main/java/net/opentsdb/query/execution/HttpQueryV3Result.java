@@ -127,71 +127,75 @@ public class HttpQueryV3Result implements QueryResult {
                     final JsonNode root, 
                     final RollupConfig rollup_config,
                     final Exception exception) {
-    this.exception = exception;
-    this.rollup_config = rollup_config;
-    this.node = new CachedQueryNode(node.config().getId(), node);
-    TimeSeriesDataSourceConfig cfg = (TimeSeriesDataSourceConfig) node.config();
-    if (exception == null && root != null) {
-      JsonNode n = root.get("source");
-      if (n == null || n.isNull()) {
-        throw new IllegalStateException("No source from the JSON response.");
-      }
-      String[] src = n.asText().split(":");
-      if (src == null || src.length < 2) {
-        throw new IllegalStateException("Failed to parse the source: " + n.asText());
-      }
-
-      if (node.factory() instanceof HttpQueryV3Factory &&
-              ((HttpQueryV3Factory) node.factory()).skipIdParsing()) {
-        TimeSeriesDataSourceConfig tsdsc = (TimeSeriesDataSourceConfig) node.config();
-        if (tsdsc.getPushDownNodes() != null && !tsdsc.getPushDownNodes().isEmpty()) {
-          final List<QueryNodeConfig> pushDowns = tsdsc.getPushDownNodes();
-          id = (QueryResultId) pushDowns.get(pushDowns.size() - 1).resultIds().get(0);
-        } else {
-          id = (QueryResultId) node.config().resultIds().get(0);
+    try {
+      this.exception = exception;
+      this.rollup_config = rollup_config;
+      this.node = new CachedQueryNode(node.config().getId(), node);
+      TimeSeriesDataSourceConfig cfg = (TimeSeriesDataSourceConfig) node.config();
+      if (exception == null && root != null) {
+        JsonNode n = root.get("source");
+        if (n == null || n.isNull()) {
+          throw new IllegalStateException("No source from the JSON response.");
         }
-      } else {
-        id = new DefaultQueryResultId(src[0], src[1]);
-      }
-      n = root.get("timeSpecification");
-      if (n != null && !n.isNull()) {
-        time_spec = new TimeSpec(n);
-      }
-      
-      n = root.get("data");
-      if (n != null && !n.isNull()) {
-        series = Lists.newArrayList();
-        int i = 0;
-        for (final JsonNode ts : n) {
-          series.add(new HttpTimeSeries(ts));
-          if (i++ == 0) {
-            // check for numerics
-            JsonNode rollups = ts.get("NumericSummaryType");
-            if (rollup_config == null) {
-              if (rollups != null && !rollups.isNull()) {
-                this.rollup_config = new RollupData(ts);
-              } else {
-                this.rollup_config = null;
+        String[] src = n.asText().split(":");
+        if (src == null || src.length < 2) {
+          throw new IllegalStateException("Failed to parse the source: " + n.asText());
+        }
+
+        if (node.factory() instanceof HttpQueryV3Factory &&
+                ((HttpQueryV3Factory) node.factory()).skipIdParsing()) {
+          TimeSeriesDataSourceConfig tsdsc = (TimeSeriesDataSourceConfig) node.config();
+          if (tsdsc.getPushDownNodes() != null && !tsdsc.getPushDownNodes().isEmpty()) {
+            final List<QueryNodeConfig> pushDowns = tsdsc.getPushDownNodes();
+            id = (QueryResultId) pushDowns.get(pushDowns.size() - 1).resultIds().get(0);
+          } else {
+            id = (QueryResultId) node.config().resultIds().get(0);
+          }
+        } else {
+          id = new DefaultQueryResultId(src[0], src[1]);
+        }
+        n = root.get("timeSpecification");
+        if (n != null && !n.isNull()) {
+          time_spec = new TimeSpec(n);
+        }
+
+        n = root.get("data");
+        if (n != null && !n.isNull()) {
+          series = Lists.newArrayList();
+          int i = 0;
+          for (final JsonNode ts : n) {
+            series.add(new HttpTimeSeries(ts));
+            if (i++ == 0) {
+              // check for numerics
+              JsonNode rollups = ts.get("NumericSummaryType");
+              if (rollup_config == null) {
+                if (rollups != null && !rollups.isNull()) {
+                  this.rollup_config = new RollupData(ts);
+                } else {
+                  this.rollup_config = null;
+                }
               }
             }
           }
+        } else {
+          series = Collections.emptyList();
         }
       } else {
         series = Collections.emptyList();
+        // TODO - Important! If we have a lot of results expected and some are
+        // not serializing to a result, we need to handle those.
+        if (node.config().resultIds().isEmpty()) {
+          LOG.warn("Empty result from downstream. Using the node's ID as the "
+                  + "result ID: " + cfg.getId());
+          id = new DefaultQueryResultId(cfg.getId(), cfg.getId());
+        } else {
+          id = (QueryResultId) node.config().resultIds().get(0);
+        }
       }
-    } else {
-      series = Collections.emptyList();
-      // TODO - Important! If we have a lot of results expected and some are
-      // not serializing to a result, we need to handle those.
-      if (node.config().resultIds().isEmpty()) {
-        LOG.warn("Empty result from downstream. Using the node's ID as the "
-            + "result ID: " + cfg.getId());
-        id = new DefaultQueryResultId(cfg.getId(), cfg.getId());
-      } else {
-        id = (QueryResultId) node.config().resultIds().get(0);
-      }
+    } catch (Throwable t) {
+      LOG.error("Failed parsing the result", t);
+      throw new RuntimeException(t);
     }
-    
   }
 
   @Override

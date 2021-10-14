@@ -182,8 +182,8 @@ public class TestMergerResult {
     assertTrue(ts.sources.contains(ts2));
     assertTrue(ts.sources.contains(ts4));
 
-    assertEquals(result_a, merger.next.get(0));
-    assertEquals(result_b, merger.next.get(1));
+    assertEquals(result_a, merger.queryResults.get(0));
+    assertEquals(result_b, merger.queryResults.get(1));
   }
 
   @Test
@@ -207,8 +207,8 @@ public class TestMergerResult {
     assertTrue(ts.sources.contains(ts2));
     assertTrue(ts.sources.contains(ts4));
 
-    assertEquals(result_a, merger.next.get(0));
-    assertEquals(result_b, merger.next.get(1));
+    assertEquals(result_a, merger.queryResults.get(0));
+    assertEquals(result_b, merger.queryResults.get(1));
   }
 
   @Test

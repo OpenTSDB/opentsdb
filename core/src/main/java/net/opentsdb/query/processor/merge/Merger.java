@@ -25,9 +25,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import net.opentsdb.data.AggregatorConfig;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorConfig;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.BaseWrappedQueryResult;
@@ -79,6 +82,7 @@ public class Merger extends AbstractQueryNode {
 
   protected NumericAggregatorFactory numericAggregatorFactory;
   protected NumericArrayAggregatorFactory aggregatorFactory;
+  protected NumericArrayAggregatorConfig aggConfig;
 
   /**
    * Default ctor.
@@ -121,7 +125,7 @@ public class Merger extends AbstractQueryNode {
         return Deferred.fromError(new QueryDownstreamException(
                 "Mismatch between expected sources " + expected
                         + " and the sorted list of sources "
-                        + config.sortedSources()));
+                        + config.sortedSources() + ". Looking for " + id));
       }
 
       if (config.timeouts() != null && config.timeouts().size() > i) {
@@ -134,6 +138,13 @@ public class Merger extends AbstractQueryNode {
               NumericArrayAggregatorFactory.class, config.getAggregator());
       numericAggregatorFactory = context.tsdb().getRegistry().getPlugin(
               NumericAggregatorFactory.class, config.getAggregator());
+
+      if (config.getAggregatorArraySize() > 0) {
+        aggConfig = DefaultArrayAggregatorConfig.newBuilder()
+                .setArraySize(config.getAggregatorArraySize())
+                .setInfectiousNaN(config.getInfectiousNan())
+                .build();
+      }
     }
 
     if (LOG.isTraceEnabled()) {
@@ -151,10 +162,12 @@ public class Merger extends AbstractQueryNode {
 
   @Override
   public void close() {
-    for (final Entry<QueryResultId, Waiter> entry : results.entrySet()) {
-      final Waiter waiter = entry.getValue();
-      if (waiter.timeout != null) {
-        waiter.timeout.cancel();
+    if (results != null) {
+      for (final Entry<QueryResultId, Waiter> entry : results.entrySet()) {
+        final Waiter waiter = entry.getValue();
+        if (waiter.timeout != null) {
+          waiter.timeout.cancel();
+        }
       }
     }
   }
@@ -171,7 +184,7 @@ public class Merger extends AbstractQueryNode {
     if (extant == null) {
       LOG.warn("Received a result in node " + config.getId()
               + " for an unexpected result " + next.dataSource()
-              + ". Expecting " + config.sortedSources());
+              + ". Expecting " + results);
       return;
     }
 
@@ -232,7 +245,10 @@ public class Merger extends AbstractQueryNode {
       if (entry.getValue().timeout != null) {
         entry.getValue().timeout.cancel();
       }
-      mergerResult.add(entry.getValue().result);
+      // don't add the initial value again.
+      if (entry.getValue().result != next) {
+        mergerResult.add(entry.getValue().result);
+      }
     }
     if (LOG.isTraceEnabled()) {
       LOG.trace("Received all results, joining and then sending for " + config.getId());
@@ -252,7 +268,7 @@ public class Merger extends AbstractQueryNode {
   }
 
   protected NumericArrayAggregator getNAI() {
-    return aggregatorFactory.newAggregator(false);
+    return (NumericArrayAggregator) aggregatorFactory.newAggregator(aggConfig);
   }
 
   class Waiter implements TimerTask {
