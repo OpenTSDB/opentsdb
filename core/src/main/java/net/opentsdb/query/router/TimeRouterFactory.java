@@ -655,7 +655,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
       timeouts.add(timeout);
     }
 
-    MergerConfig merger = (MergerConfig) MergerConfig.newBuilder()
+    MergerConfig.Builder mergerBuilder = (MergerConfig.Builder) MergerConfig.newBuilder()
             // TODO - want to make this configurable.
             .setAggregator("max")
             .setMode(MergerConfig.MergeMode.SPLIT)
@@ -667,11 +667,18 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
                     .setDataType(NumericType.TYPE.toString())
                     .build())
             .setDataSource(config.getId())
-            .setId(config.getId())
-            .build();
+            .setFirstDataTimestamp(newSources.get(newSources.size() - 1).startOverrideTimeStamp())
+            .setId(config.getId());
+    if (adjustments != null && adjustments.downsampleInterval != null) {
+      long interval = DateTime.parseDuration(adjustments.downsampleInterval);
+      long delta = newSources.get(0).endOverrideTimeStamp().msEpoch() -
+              newSources.get(newSources.size() - 1).startOverrideTimeStamp().msEpoch();
+      mergerBuilder.setAggregatorArraySize((int) (delta / interval))
+                   .setAggregatorInterval(adjustments.downsampleInterval);
+    }
+    MergerConfig merger = mergerBuilder.build();
     planner.replace(config, merger);
 
-    // TODO pushdowns, etc
     RoutingUtils.rebuildGraph(context, merger, needsIdConverter, pushdowns, newSources, planner);
   }
 

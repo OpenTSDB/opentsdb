@@ -35,6 +35,7 @@ import net.opentsdb.utils.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -106,6 +107,15 @@ public class TestSplitNumericArrayIterator {
     NumericTestUtils.assertArrayEqualsNaNs(
             new double[] { 1, 5, 2, 1, 4, Double.NaN, 9, 0, 2, 3, 4},
             nai.value().doubleArray(), 0.0001);
+  }
+
+  @Test
+  public void paddingBothEndsAvg() throws Exception {
+    setupQuery(BASE_TS + (60 * 2), BASE_TS + (60 * 8), "1m", "avg");
+    SplitNumericArrayIterator nai = new SplitNumericArrayIterator(node, result, overlapped());
+    assertFalse(nai.value().isInteger());
+    assertArrayEquals(new double[] { 2, 1, 4, 8, 9, 0 },
+            nai.value().doubleArray(), 0.001);
   }
 
   void setupQuery(long start, long end, String interval, String agg) throws Exception {

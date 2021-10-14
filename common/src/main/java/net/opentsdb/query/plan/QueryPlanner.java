@@ -151,6 +151,18 @@ public interface QueryPlanner {
     public String downsampleInterval;
     public String windowInterval;
     public int previousIntervals;
+
+    @Override
+    public String toString() {
+      return new StringBuilder()
+              .append("ds=")
+              .append(downsampleInterval)
+              .append(", wi=")
+              .append(windowInterval)
+              .append(", pi=")
+              .append(previousIntervals)
+              .toString();
+    }
   }
 
 }

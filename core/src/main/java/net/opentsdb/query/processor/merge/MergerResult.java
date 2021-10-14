@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -28,11 +30,13 @@ import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.utils.DateTime;
 
 /**
  * A result from the {@link Merger} node for a segment. The grouping is 
@@ -52,7 +56,7 @@ public class MergerResult implements QueryResult {
   protected final Merger node;
   
   /** The downstream result received by the group by node. */
-  protected final List<QueryResult> next;
+  protected final List<QueryResult> queryResults;
   
   /** The list of results. */
   protected List<TimeSeries> results;
@@ -81,20 +85,26 @@ public class MergerResult implements QueryResult {
     if (next == null) {
       throw new IllegalArgumentException("Query results cannot be null.");
     }
-    
+
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
-    this.next = Lists.newArrayList();
+    this.queryResults = Lists.newArrayList();
     sources = ((MergerConfig) node.config()).sortedSources();
     for (int i = 0; i < sources.size(); i++) {
       String id = sources.get(i);
       if (id.equals(next.dataSource().dataSource())) {
-        this.next.add(next);
+        this.queryResults.add(next);
       } else {
-        this.next.add(null);
+        this.queryResults.add(null);
       }
     }
-    time_spec = next.timeSpecification();
+    if (((MergerConfig) node.config()).getMode() == MergeMode.SPLIT &&
+            next.timeSpecification() != null) {
+      // it's downsampled so we need to create the time spec
+      time_spec = new MergerTimeSpec();
+    } else {
+      time_spec = next.timeSpecification();
+    }
     rollup_config = next.rollupConfig();
   }
   
@@ -107,7 +117,7 @@ public class MergerResult implements QueryResult {
     for (int i = 0; i < sources.size(); i++) {
       String id = sources.get(i);
       if (id.equals(next.dataSource().dataSource())) {
-        this.next.set(i, next);
+        this.queryResults.set(i, next);
         set = true;
         break;
       }
@@ -119,7 +129,13 @@ public class MergerResult implements QueryResult {
     }
 
     if (time_spec == null && next.timeSpecification() != null) {
-      time_spec = next.timeSpecification();
+      if (((MergerConfig) node.config()).getMode() == MergeMode.SPLIT &&
+              next.timeSpecification() != null) {
+        // it's downsampled so we need to create the time spec
+        time_spec = new MergerTimeSpec();
+      } else {
+        time_spec = next.timeSpecification();
+      }
     }
     if (rollup_config == null && next.rollupConfig() != null) {
       rollup_config = next.rollupConfig();
@@ -134,7 +150,7 @@ public class MergerResult implements QueryResult {
     if (((MergerConfig) node.config()).getAggregator() == null) {
       // Shard mode without a group by so no need to join.
       final List<TimeSeries> timeSeries = Lists.newArrayList();
-      for (final QueryResult next : this.next) {
+      for (final QueryResult next : this.queryResults) {
         if (!Strings.isNullOrEmpty(next.error())) {
           error = next.error();
           exception = next.exception();
@@ -145,7 +161,6 @@ public class MergerResult implements QueryResult {
             return;
           }
         }
-
         for (final TimeSeries series : next.timeSeries()) {
           timeSeries.add(series);
         }
@@ -153,7 +168,7 @@ public class MergerResult implements QueryResult {
       results = timeSeries;
     } else {
       final TLongObjectMap<TimeSeries> groups = new TLongObjectHashMap<TimeSeries>();
-      for (final QueryResult next : this.next) {
+      for (final QueryResult next : this.queryResults) {
         if (!Strings.isNullOrEmpty(next.error())) {
           error = next.error();
           exception = next.exception();
@@ -173,13 +188,14 @@ public class MergerResult implements QueryResult {
             ts = new MergerTimeSeries(node, this);
             groups.put(hash, ts);
           }
+
           ((MergerTimeSeries) ts).addSource(series);
         }
       }
       results = Lists.newArrayList(groups.valueCollection());
     }
 
-    if (with_error == next.size()) {
+    if (with_error == queryResults.size()) {
       results = Collections.emptyList();
     } else {
       // allowed due to HA or
@@ -210,7 +226,7 @@ public class MergerResult implements QueryResult {
   
   @Override
   public long sequenceId() {
-    return next.get(0).sequenceId();
+    return queryResults.get(0).sequenceId();
   }
   
   @Override
@@ -225,12 +241,12 @@ public class MergerResult implements QueryResult {
   
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
-    return next.get(0).idType();
+    return queryResults.get(0).idType();
   }
   
   @Override
   public ChronoUnit resolution() {
-    return next.get(0).resolution();
+    return queryResults.get(0).resolution();
   }
   
   @Override
@@ -243,7 +259,7 @@ public class MergerResult implements QueryResult {
     // NOTE - a race here. Should be idempotent.
     latch.countDown();
     if (latch.getCount() <= 0) {
-      for (final QueryResult next : this.next) {
+      for (final QueryResult next : this.queryResults) {
         next.close();
       }
     }
@@ -254,4 +270,57 @@ public class MergerResult implements QueryResult {
     return false;
   }
 
+  class MergerTimeSpec implements TimeSpecification {
+
+    private final TimeStamp end;
+    private final TemporalAmount interval;
+
+    MergerTimeSpec() {
+      end = ((MergerConfig) node.config()).firstDataTimestamp().getCopy();
+      interval = DateTime.parseDuration2(((MergerConfig) node.config()).aggregatorInterval());
+      for (int i = 0; i < ((MergerConfig) node.config()).getAggregatorArraySize(); i++) {
+        end.add(interval);
+      }
+    }
+
+    @Override
+    public TimeStamp start() {
+      return ((MergerConfig) node.config()).firstDataTimestamp();
+    }
+
+    @Override
+    public TimeStamp end() {
+      return end;
+    }
+
+    @Override
+    public TemporalAmount interval() {
+      return interval;
+    }
+
+    @Override
+    public String stringInterval() {
+      return ((MergerConfig) node.config()).aggregatorInterval();
+    }
+
+    @Override
+    public ChronoUnit units() {
+      return ChronoUnit.SECONDS;
+    }
+
+    @Override
+    public ZoneId timezone() {
+      return null;
+    }
+
+    @Override
+    public void updateTimestamp(int offset, TimeStamp timestamp) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void nextTimestamp(TimeStamp timestamp) {
+      throw new UnsupportedOperationException();
+    }
+  }
 }

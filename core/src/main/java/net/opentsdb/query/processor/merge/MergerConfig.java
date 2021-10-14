@@ -29,6 +29,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryResultId;
@@ -69,6 +70,9 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
   
   /** The raw aggregator. */
   private final String aggregator;
+  private final int aggregatorArraySize;
+  private final TimeStamp firstDataTimestamp;
+  private final String aggregatorInterval;
   
   /** Whether or not NaNs are infectious. */
   private final boolean infectious_nan;
@@ -97,6 +101,9 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     mode = builder.mode;
     data_source = builder.dataSource;
     aggregator = builder.aggregator;
+    aggregatorArraySize = builder.aggregatorArraySize;
+    firstDataTimestamp = builder.firstDataTimestamp;
+    aggregatorInterval = builder.aggregatorInterval;
     sortedDataSources = builder.sortedDataSources;
     timeouts = builder.timeouts;
     infectious_nan = builder.infectious_nan;
@@ -120,6 +127,10 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
   public String getAggregator() {
     return aggregator;
   }
+
+  public int getAggregatorArraySize() {
+    return aggregatorArraySize;
+  }
   
   /** @return Whether or not NaNs should be treated as sentinels or considered 
    * in arithmetic. */
@@ -135,6 +146,14 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     return timeouts;
   }
 
+  public TimeStamp firstDataTimestamp() {
+    return firstDataTimestamp;
+  }
+
+  public String aggregatorInterval() {
+    return aggregatorInterval;
+  }
+
   public boolean getAllowPartialResults() {
     return allowPartialResults;
   }
@@ -145,6 +164,9 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
         .setMode(mode)
         .setDataSource(data_source)
         .setAggregator(aggregator)
+        .setAggregatorArraySize(aggregatorArraySize)
+        .setAggregatorInterval(aggregatorInterval)
+        .setFirstDataTimestamp(firstDataTimestamp)
         .setSortedDataSources(sortedDataSources)
         .setTimeouts(timeouts)
         .setInfectiousNan(infectious_nan)
@@ -170,6 +192,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     return Objects.equal(mode, merger.mode) &&
            Objects.equal(id, merger.getId()) &&
            Objects.equal(aggregator, merger.getAggregator()) &&
+           Objects.equal(aggregatorArraySize, merger.getAggregatorArraySize()) &&
            Objects.equal(infectious_nan, merger.getInfectiousNan() &&
            Objects.equal(sortedDataSources, merger.sortedSources()) &&
            Objects.equal(timeouts, merger.timeouts())) &&
@@ -188,6 +211,7 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
             .putInt(mode.ordinal())
             .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
+            .putInt(aggregatorArraySize)
             .putBoolean(infectious_nan)
             .putBoolean(allowPartialResults)
             .hash();
@@ -231,6 +255,11 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
       builder.setAggregator(temp.asText());
     }
 
+    temp = node.get("aggregatorInterval");
+    if (temp != null && !temp.isNull()) {
+      builder.setAggregatorArraySize(temp.asInt());
+    }
+
     temp = node.get("dataSource");
     if (temp != null && !temp.isNull()) {
       builder.setDataSource(temp.asText());
@@ -266,6 +295,9 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
     private boolean infectious_nan;
     @JsonProperty
     private boolean allowPartialResults;
+    private int aggregatorArraySize;
+    private String aggregatorInterval;
+    private TimeStamp firstDataTimestamp;
     private List<String> sortedDataSources;
     private List<String> timeouts;
     
@@ -314,6 +346,21 @@ public class MergerConfig extends BaseQueryNodeConfigWithInterpolators<MergerCon
 
     public Builder setAllowPartialResults(final boolean allowPartialResults) {
       this.allowPartialResults = allowPartialResults;
+      return this;
+    }
+
+    public Builder setAggregatorArraySize(final int aggregatorArraySize) {
+      this.aggregatorArraySize = aggregatorArraySize;
+      return this;
+    }
+
+    public Builder setFirstDataTimestamp(final TimeStamp firstDataTimestamp) {
+      this.firstDataTimestamp = firstDataTimestamp;
+      return this;
+    }
+
+    public Builder setAggregatorInterval(final String aggregatorInterval) {
+      this.aggregatorInterval = aggregatorInterval;
       return this;
     }
 

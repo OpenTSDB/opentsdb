@@ -871,11 +871,14 @@ public class DefaultQueryPlanner implements QueryPlanner {
       if (predecessor instanceof DownsampleConfig) {
         if (adjustments == null) {
           adjustments = new TimeAdjustments();
+        }
+
+        if (adjustments.downsampleInterval == null) {
           adjustments.downsampleInterval =
                   ((DownsampleConfig) predecessor).getInterval();
           if (adjustments.downsampleInterval.equals(DownsampleConfig.AUTO)) {
-            final long deltaSeconds = context.query().endTime().epoch() -
-                    context.query().startTime().epoch();
+            final long deltaSeconds = context.query().endTime().msEpoch() -
+                    context.query().startTime().msEpoch();
             adjustments.downsampleInterval =
                     DownsampleFactory.getAutoInterval(context().tsdb(),
                             deltaSeconds,
@@ -884,8 +887,6 @@ public class DefaultQueryPlanner implements QueryPlanner {
             adjustments.downsampleInterval = null;
           }
         }
-
-        adjustments = recursiveAdjustments(predecessor, adjustments);
         continue;
       }
 
@@ -931,7 +932,9 @@ public class DefaultQueryPlanner implements QueryPlanner {
           }
         }
       }
+    }
 
+    for (final QueryNodeConfig predecessor : predecessors) {
       // TODO - figure out the best traversal for this.
       adjustments = recursiveAdjustments(predecessor, adjustments);
     }

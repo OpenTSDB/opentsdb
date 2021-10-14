@@ -171,10 +171,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
     }
 
     if (sources.size() == 1) {
-      QueryNodeConfig rebuilt = ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
-              .setSourceId(sources.get(0).getSourceId())
-              .build();
-      planner.replace(config, rebuilt);
+      TimeSeriesDataSourceConfig.Builder builder = ((TimeSeriesDataSourceConfig.Builder) config.toBuilder())
+              .setSourceId(sources.get(0).getSourceId());
+      if (config.getPushDownNodes() != null && !config.getPushDownNodes().isEmpty()) {
+        cloneAndSetPushdowns(builder, config.getPushDownNodes());
+      }
+      planner.replace(config, builder.build());
       if (context.query().isTraceEnabled()) {
         context.queryContext().logTrace("Only one route available: "
                 + sources.get(0));
@@ -199,18 +201,20 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
                       planner.getAdjustments(config)
               );
 
+      final String srcId = config.getId() + "_" + src.getSourceId();
       final QueryResultId id = new DefaultQueryResultId(
-              "ha_" + config.getId() + "_" + src.getSourceId(),
-              config.getId() + "_" + src.getSourceId());
-      sortedSourceIds.add(config.getId() + "_" + src.getSourceId());
+              "ha_" + srcId, srcId);
+      sortedSourceIds.add(srcId);
       timeouts.add(src.getTimeout());
       localBuilder.setSourceId(src.getSourceId())
-              .setDataSource(config.getId() + "_" + src.getSourceId())
+              .setDataSource(srcId)
               .setHasBeenSetup(true)
-              .setId("ha_" + config.getId() + "_" + src.getSourceId())
+              .setId("ha_" + srcId)
               .setResultIds(Lists.newArrayList(id));
-
-      if (pushdowns != null && pushdowns.get(i) != null) {
+      if (config.getPushDownNodes() != null &&
+          !config.getPushDownNodes().isEmpty()) {
+        cloneAndSetPushdowns(localBuilder, config.getPushDownNodes());
+      } else if (pushdowns != null && pushdowns.get(i) != null) {
         localBuilder.setPushDownNodes(pushdowns.get(i));
       }
       if (sources.get(i).factory().idType() != Const.TS_STRING_ID) {
@@ -219,7 +223,7 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
       newSources.add(localBuilder);
     }
 
-    MergerConfig merger = (MergerConfig) MergerConfig.newBuilder()
+    MergerConfig.Builder mergerBuilder = (MergerConfig.Builder) MergerConfig.newBuilder()
             // TODO - want to make this configurable. Particularly when we're
             // averaging or min-ing, etc.
             .setAggregator("max")
@@ -232,8 +236,9 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
                     .setDataType(NumericType.TYPE.toString())
                     .build())
             .setDataSource(config.getId())
-            .setId(config.getId())
-            .build();
+            .setId(config.getId());
+
+    MergerConfig merger = mergerBuilder.build();
     planner.replace(config, merger);
 
     RoutingUtils.rebuildGraph(context,
@@ -301,9 +306,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
   @Override
   public boolean supportsPushdown(
           final Class<? extends QueryNodeConfig> operation) {
-    // this shouldn't be called because we'll call on the actual sources.
-    throw new UnsupportedOperationException("This config should have been " +
-            "removed from the graph by now.");
+    for (int i = 0; i < sources.size(); i++) {
+      if (!sources.get(i).factory().supportsPushdown(operation)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
@@ -333,7 +341,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
   @Override
   public RollupConfig rollupConfig() {
     // TODO - need to make sure downstream returns identical configs.
-    throw new UnsupportedOperationException();
+    for (int i = 0; i < sources.size(); i++) {
+      if (sources.get(i).factory().rollupConfig() != null) {
+        return sources.get(i).factory().rollupConfig();
+      }
+    }
+    return null;
   }
 
   /**
@@ -419,4 +432,12 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
     tsdb.getConfig().bind(getConfigKey(SOURCES_KEY), new SettingsCallback());
   }
 
+  void cloneAndSetPushdowns(final TimeSeriesDataSourceConfig.Builder builder,
+                            final List<QueryNodeConfig> pushdowns) {
+    final List<QueryNodeConfig> clones = Lists.newArrayListWithExpectedSize(pushdowns.size());
+    for (int i = 0; i < pushdowns.size(); i++) {
+      clones.add(pushdowns.get(i).toBuilder().build());
+    }
+    builder.setPushDownNodes(clones);
+  }
 }
