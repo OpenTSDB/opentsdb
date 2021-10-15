@@ -78,8 +78,6 @@ esac
 shift
 
 JAVA=${JAVA-'java'}
-if [ ! -z ${JAVA_OPTS+x} ]; then
-  JAVA_OPTS=''
-fi
+VMARGS=${JAVA_OPTS-'-enableassertions -enablesystemassertions'}
 
-exec $JAVA $JAVA_OPTS -classpath "$CLASSPATH" net.opentsdb.tsd.$MAINCLASS $conf_file "$@"
+exec $JAVA $JVMARGS -classpath "$CLASSPATH" net.opentsdb.tsd.$MAINCLASS $conf_file "$@"
