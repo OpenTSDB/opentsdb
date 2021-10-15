@@ -33,6 +33,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig.Builder;
@@ -133,7 +134,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
         sendUpstream(BadQueryResult.newBuilder()
                 .setNode(HttpQueryV3Source.this)
                 .setException(new QueryDownstreamException("No valid remote endpoint found."))
-                .setDataSource(config.resultIds().get(0))
+                .setDataSource(pickId())
                 .build());
         return;
       }
@@ -312,7 +313,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                   result = BadQueryResult.newBuilder()
                           .setNode(HttpQueryV3Source.this)
                           .setException(e)
-                          .setDataSource(config.resultIds().get(0))
+                          .setDataSource(pickId())
                           .build();
                   context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
                   return;
@@ -327,7 +328,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                   result = BadQueryResult.newBuilder()
                       .setNode(HttpQueryV3Source.this)
                       .setException(e)
-                      .setDataSource(config.resultIds().get(0))
+                      .setDataSource(pickId())
                       .build();
                   context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
                   return;
@@ -352,7 +353,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                             .setNode(HttpQueryV3Source.this)
                             .setException(new QueryDownstreamException(
                                     "No valid remote endpoint found."))
-                            .setDataSource(config.resultIds().get(0))
+                            .setDataSource(pickId())
                             .build());
                     return;
                   }
@@ -377,7 +378,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                     result = BadQueryResult.newBuilder()
                         .setNode(HttpQueryV3Source.this)
                         .setException(rqee)
-                        //.setDataSource(config.getId())
+                        .setDataSource(pickId())
                         .build();
                     context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
                     return;
@@ -391,7 +392,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                 .setException(new QueryExecutionException("Unexpected exception: " 
                     + EntityUtils.toString(response.getEntity()), 
                     response.getStatusLine().getStatusCode()))
-                //.setDataSource(config.getId())
+                .setDataSource(pickId())
                 .build();
             context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
             return;
@@ -410,7 +411,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                 .setNode(HttpQueryV3Source.this)
                 .setException(new QueryExecutionException(
                     "No JSON results from: " + json, 500))
-                //.setDataSource(config.getId())
+                .setDataSource(pickId())
                 .build();
             context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
           } else {
@@ -486,7 +487,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
               HttpQueryV3Source.this.result = BadQueryResult.newBuilder()
                   .setNode(HttpQueryV3Source.this)
                   .setException(t)
-                  //.setDataSource(config.getId())
+                  .setDataSource(pickId())
                   .build();
               context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
             } catch (Exception ex) {
@@ -508,7 +509,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
               HttpQueryV3Source.this.result = BadQueryResult.newBuilder()
                   .setNode(HttpQueryV3Source.this)
                   .setException(ex)
-                  .setDataSource(config.resultIds().get(0))
+                  .setDataSource(pickId())
                   .build();
               context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
             } catch (Exception ex) {
@@ -538,7 +539,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
                         .setNode(HttpQueryV3Source.this)
                         .setException(new QueryDownstreamException(
                                 "No valid remote endpoint found."))
-                        .setDataSource(config.resultIds().get(0))
+                        .setDataSource(pickId())
                         .build());
                 return;
               }
@@ -565,7 +566,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
           HttpQueryV3Source.this.result = BadQueryResult.newBuilder()
               .setNode(HttpQueryV3Source.this)
               .setException(e)
-              .setDataSource(config.resultIds().get(0))
+              .setDataSource(pickId())
               .build();
           context.tsdb().getQueryThreadPool().submit(HttpQueryV3Source.this);
         } catch (Throwable t) {
@@ -573,7 +574,7 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
           sendUpstream(BadQueryResult.newBuilder()
               .setNode(HttpQueryV3Source.this)
               .setException(t)
-              .setDataSource(config.resultIds().get(0))
+              .setDataSource(pickId())
               .build());
         }
       }
@@ -615,5 +616,13 @@ public class HttpQueryV3Source extends AbstractQueryNode implements SourceNode, 
     } else {
       sendUpstream(exception);
     }
+  }
+
+  protected QueryResultId pickId() {
+    if (config.getPushDownNodes() != null && !config.getPushDownNodes().isEmpty()) {
+      return (QueryResultId) config.getPushDownNodes()
+              .get(config.getPushDownNodes().size() - 1).resultIds().get(0);
+    }
+    return config.resultIds().get(0);
   }
 }
