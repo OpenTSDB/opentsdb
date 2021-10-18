@@ -24,17 +24,17 @@ if test -n "$pkgdatadir"; then
   done
   # Add pkgdatadir itself so we can find logback.xml
   CLASSPATH="$CLASSPATH:$pkgdatadir"
-  
+
   if test -d "$pkgdatadir/bin"; then
     CLASSPATH="$CLASSPATH:$pkgdatadir/bin"
   fi
-  
+
   if test -d "$pkgdatadir/lib"; then
     for jar in "$pkgdatadir"/lib/*.jar; do
       CLASSPATH="$CLASSPATH:$jar"
     done
   fi
-  
+
   if test -n "$configdir" && test -d "$configdir"; then
     CLASSPATH="$CLASSPATH:$configdir"
   fi
@@ -78,6 +78,6 @@ esac
 shift
 
 JAVA=${JAVA-'java'}
-VMARGS=${JAVA_OPTS-'-enableassertions -enablesystemassertions'}
+JVMARGS=${JAVA_OPTS-'-enableassertions -enablesystemassertions'}
 
 exec $JAVA $JVMARGS -classpath "$CLASSPATH" net.opentsdb.tsd.$MAINCLASS $conf_file "$@"
