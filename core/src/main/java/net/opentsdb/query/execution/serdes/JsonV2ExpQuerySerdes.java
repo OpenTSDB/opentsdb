@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Map.Entry;
 
+
 import net.opentsdb.data.TimeSeriesDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,7 +190,9 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
             id_array[i] = ids != null ? ids.get(i) : (TimeSeriesStringId) series.id();
             series_array[i] = series;
           }
-          
+
+
+
           json.writeStartObject();
           json.writeStringField("id", result.dataSource().dataSource());
           json.writeArrayFieldStart("dps");
@@ -264,17 +267,16 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
           }
           
           json.writeEndArray();
-          
+
           // dpsMeta
           json.writeObjectFieldStart("dpsMeta");
-          json.writeNumberField("firstTimestamp", 
+          json.writeNumberField("firstTimestamp",
               first_ts.msEpoch() == Long.MAX_VALUE ? 0 : first_ts.msEpoch());
-          json.writeNumberField("lastTimestamp", 
+          json.writeNumberField("lastTimestamp",
               next_ts.msEpoch() == Long.MAX_VALUE ? 0 : next_ts.msEpoch());
           json.writeNumberField("setCount", set_count);
           json.writeNumberField("series", iterators.size());
           json.writeEndObject();
-          
           json.writeArrayFieldStart("meta");
           
           // timestamp
@@ -311,7 +313,8 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
           
           json.writeEndArray();
           json.writeEndObject();
-          
+
+
           json.flush();
           
         } catch (Exception e) {
@@ -477,6 +480,8 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
         
         if (value.offset() + index >= value.end()) {
           // done!
+          //End array before returning
+          json.writeEndArray();
           return iterators.size();
         }
         
@@ -493,6 +498,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
       } else {
         next_ts.update(result.timeSpecification().end());
       }
+
       json.writeEndArray();
       if (next_ts.compare(Op.GTE, context.query().endTime())) {
         return iterators.size();
@@ -518,6 +524,7 @@ public class JsonV2ExpQuerySerdes implements TimeSeriesSerdes {
       throw new QueryExecutionException("Failure closing serializer", 500, e);
     }
   }
+
   
   @Override
   public void deserialize(final QueryNode node,
