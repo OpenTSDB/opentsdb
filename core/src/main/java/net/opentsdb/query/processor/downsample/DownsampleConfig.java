@@ -152,7 +152,9 @@ public class DownsampleConfig extends BaseQueryNodeConfigWithInterpolators<
     timezone = builder.timezone != null ? ZoneId.of(builder.timezone) : Const.UTC;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
-    run_all = builder.run_all || builder.interval.toLowerCase().contains("all");
+    run_all = builder.run_all
+            || builder.interval.toLowerCase().contains("all")
+            || builder.interval.toLowerCase().contains("0all");
     fill = builder.fill;
     process_as_arrays = builder.process_as_arrays;
     if (Strings.isNullOrEmpty(builder.original_interval)) {
