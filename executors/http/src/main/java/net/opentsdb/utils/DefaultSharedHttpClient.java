@@ -216,7 +216,8 @@ public class DefaultSharedHttpClient extends BaseTSDBPlugin
     }
     // TODO - parse out the exception
     throw new RemoteQueryExecutionException(content, remote_host, 
-        response.getStatusLine().getStatusCode(), order);
+        response != null ? response.getStatusLine().getStatusCode() : 500,
+            order);
   }
 
   String getConfigKey(final String key) {

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2018  The OpenTSDB Authors.
+// Copyright (C) 2018-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,8 @@ import net.opentsdb.utils.Bytes.ByteMap;
  * @since 3.0
  */
 public class BaseTimeSeriesByteId implements TimeSeriesByteId {
-  
+  public static final ByteMap<byte[]> EMPTY_MAP = new ByteMap<byte[]>();
+
   /** The data store used to resolve the encoded ID to strings. */
   protected final TimeSeriesDataSourceFactory data_store; 
   
@@ -72,7 +73,11 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
   
   /** Whether or not to skip the metric during decoding. */
   protected boolean skip_metric;
-  
+
+  protected BaseTimeSeriesByteId(final TimeSeriesDataSourceFactory data_store) {
+    this.data_store = data_store;
+  }
+
   /**
    * Private CTor used by the builder. Converts the Strings to byte arrays
    * using UTF8.
@@ -157,7 +162,7 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
 
   @Override
   public ByteMap<byte[]> tags() {
-    return tags;
+    return tags == null ? EMPTY_MAP: tags;
   }
 
   @Override

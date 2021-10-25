@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,6 +82,10 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
   /** An optional total number of search hits */
   protected long hits;
 
+  protected BaseTimeSeriesStringId() {
+    // empty ctor for overrides without a builder.
+  }
+
   /**
    * Private CTor used by the builder. Converts the Strings to byte arrays
    * using UTF8.
@@ -151,7 +155,7 @@ public class BaseTimeSeriesStringId implements TimeSeriesStringId {
 
   @Override
   public Map<String, String> tags() {
-    return tags;
+    return tags == null ? Collections.emptyMap() : tags;
   }
 
   @Override

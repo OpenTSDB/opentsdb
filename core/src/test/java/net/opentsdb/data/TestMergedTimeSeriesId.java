@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017-2018  The OpenTSDB Authors.
+// Copyright (C) 2017-2021  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,12 @@ package net.opentsdb.data;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import net.opentsdb.common.Const;
 
 public class TestMergedTimeSeriesId {
   private static final byte[] BYTES_1 = "Tyrell".getBytes();
@@ -49,52 +46,7 @@ public class TestMergedTimeSeriesId {
   public void before() throws Exception {
     data_store = mock(TimeSeriesDataSourceFactory.class);
   }
-  
-  @Test
-  public void setAlias() throws Exception {
-    MergedTimeSeriesId.Builder builder = MergedTimeSeriesId.newBuilder();
-    assertNull(builder.alias);
-    
-    builder.setAlias("alias");
-    assertArrayEquals("alias".getBytes(Const.UTF8_CHARSET), builder.alias);
-    
-    builder.setAlias((String) null);
-    assertNull(builder.alias);
-    
-    builder.setAlias(new byte[] { 'h', 'i' });
-    assertArrayEquals("hi".getBytes(Const.UTF8_CHARSET), builder.alias);
-  }
-  
-  @Test
-  public void setNamespace() throws Exception {
-    MergedTimeSeriesId.Builder builder = MergedTimeSeriesId.newBuilder();
-    assertNull(builder.namespace);
-    
-    builder.setNamespace("namespace");
-    assertArrayEquals("namespace".getBytes(Const.UTF8_CHARSET), builder.namespace);
-    
-    builder.setNamespace((String) null);
-    assertNull(builder.namespace);
-    
-    builder.setNamespace(new byte[] { 'n', 's' });
-    assertArrayEquals("ns".getBytes(Const.UTF8_CHARSET), builder.namespace);
-  }
-  
-  @Test
-  public void setMetric() throws Exception {
-    MergedTimeSeriesId.Builder builder = MergedTimeSeriesId.newBuilder();
-    assertNull(builder.metric);
-    
-    builder.setMetric("metric");
-    assertArrayEquals("metric".getBytes(Const.UTF8_CHARSET), builder.metric);
-    
-    builder.setMetric((String) null);
-    assertNull(builder.metric);
-    
-    builder.setMetric(new byte[] { 'm', 'e', 't' });
-    assertArrayEquals("met".getBytes(Const.UTF8_CHARSET), builder.metric);
-  }
-  
+
   @Test
   public void addSeries() throws Exception {
     TimeSeriesStringId a = BaseTimeSeriesStringId.newBuilder()
@@ -110,22 +62,17 @@ public class TestMergedTimeSeriesId {
         .setFullMerge(true)
       .addSeries(a)
       .addSeries(b);
-    assertEquals(2, builder.ids.size());
-    assertEquals(Const.TS_STRING_ID, builder.type);
     
     try {
       builder.addSeries(mock(TimeSeriesByteId.class));
       fail("Expected RuntimeException");
     } catch (RuntimeException e) { }
-    assertEquals(2, builder.ids.size());
-    assertEquals(Const.TS_STRING_ID, builder.type);
     
     try {
       builder.addSeries(null);
       fail("Expected RuntimeException");
     } catch (RuntimeException e) { }
-    assertEquals(2, builder.ids.size());
-    assertEquals(Const.TS_STRING_ID, builder.type);
+
     
     TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .setNamespace(BYTES_1)
@@ -139,176 +86,18 @@ public class TestMergedTimeSeriesId {
         .setFullMerge(true)
         .addSeries(c)
         .addSeries(d);
-      assertEquals(2, builder.ids.size());
-      assertEquals(Const.TS_BYTE_ID, builder.type);
-      
-      d = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
-          .setNamespace(BYTES_2_ALT)
-          .setMetric(METRIC)
-          .build();
-      try {
-        MergedTimeSeriesId.newBuilder()
+
+    d = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataSourceFactory.class))
+        .setNamespace(BYTES_2_ALT)
+        .setMetric(METRIC)
+        .build();
+    MergedTimeSeriesId.newBuilder()
         .setFullMerge(true)
           .addSeries(c)
           .addSeries(d)
           .build();
-        fail("Expected RuntimeException");
-      } catch (RuntimeException e) { }
-  }
-  
-  @Test
-  public void alias() throws Exception {
-    TimeSeriesStringId a = BaseTimeSeriesStringId.newBuilder()
-        .setAlias("Series A")
-        .setMetric("ice.dragon")
-        .build();
-    TimeSeriesStringId b = BaseTimeSeriesStringId.newBuilder()
-        .setAlias("Series B")
-        .setMetric("ice.dragon")
-        .build();
-    
-    TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .build();
-    assertNull(merged.alias());
-    
-    merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .setAlias("Merged!")
-        .build();
-    assertEquals("Merged!", merged.alias());
-    
-    merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .setAlias("")
-        .build();
-    assertNull(merged.alias());
-    
-    merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .setAlias((String) null)
-        .build();
-    assertNull(merged.alias());
-    
-    merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .setAlias("Merged!")
-        .build();
-    assertEquals("Merged!", merged.alias());
-    
-    merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .setAlias("000001")
-        .build();
-    assertEquals("000001", merged.alias());
-  }
-  
-  @Test
-  public void mergeNameSpaces() throws Exception {
-    TimeSeriesStringId a = BaseTimeSeriesStringId.newBuilder()
-        .setNamespace("Tyrell")
-        .setMetric("ice.dragon")
-        .build();
-    TimeSeriesStringId b = BaseTimeSeriesStringId.newBuilder()
-        .setNamespace("Lanister")
-        .setMetric("ice.dragon")
-        .build();
-    TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .build();
-    assertEquals("Tyrell", merged.namespace());
-
-    merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .setNamespace("Dorne")
-        .build();
-    assertEquals("Dorne", merged.namespace());
-    
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
-        .setNamespace(BYTES_1)
-        .setMetric(METRIC)
-        .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
-        .setNamespace(BYTES_2)
-        .setMetric(METRIC_ALT)
-        .build();
-    TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(c)
-        .addSeries(d)
-        .build();
-    assertArrayEquals(BYTES_1, merged_bytes.namespace());
-    
-    merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .setNamespace(BYTES_3)
-        .addSeries(c)
-        .addSeries(d)
-        .build();
-    assertArrayEquals(BYTES_3, merged_bytes.namespace());
   }
 
-  @Test
-  public void mergeMetrics() throws Exception {
-    TimeSeriesStringId a = BaseTimeSeriesStringId.newBuilder()
-        .setMetric("Tyrell")
-        .build();
-    TimeSeriesStringId b = BaseTimeSeriesStringId.newBuilder()
-        .setMetric("Lanister")
-        .build();
-    TimeSeriesStringId merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .build();
-    assertEquals("Tyrell", merged.metric());
-
-    merged = (TimeSeriesStringId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(a)
-        .addSeries(b)
-        .setMetric("Stark")
-        .build();
-    assertEquals("Stark", merged.metric());
-    
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
-        .setMetric(BYTES_1)
-        .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
-        .setMetric(BYTES_2)
-        .build();
-    TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .addSeries(c)
-        .addSeries(d)
-        .build();
-    assertArrayEquals(BYTES_1, merged_bytes.metric());
-    
-    merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
-        .setFullMerge(true)
-        .setMetric(BYTES_3)
-        .addSeries(c)
-        .addSeries(d)
-        .build();
-    assertArrayEquals(BYTES_3, merged_bytes.metric());
-  }
-  
   @Test
   public void mergeTagsSame() throws Exception {
     TimeSeriesStringId a = BaseTimeSeriesStringId.newBuilder()
@@ -661,10 +450,8 @@ public class TestMergedTimeSeriesId {
         merged.tags().get("host"));
     assertTrue(merged.aggregatedTags().isEmpty());
     assertEquals(2, merged.disjointTags().size());
-    assertEquals("colo", 
-        merged.disjointTags().get(0));
-    assertEquals("owner", 
-        merged.disjointTags().get(1));
+    assertTrue(merged.disjointTags().contains("colo"));
+    assertTrue(merged.disjointTags().contains("owner"));
     
     TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
@@ -709,14 +496,10 @@ public class TestMergedTimeSeriesId {
     assertTrue(merged.tags().isEmpty());
     assertTrue(merged.aggregatedTags().isEmpty());
     assertEquals(4, merged.disjointTags().size());
-    assertEquals("colo", 
-        merged.disjointTags().get(0));
-    assertEquals("dept", 
-        merged.disjointTags().get(1));
-    assertEquals("host", 
-        merged.disjointTags().get(2));
-    assertEquals("owner", 
-        merged.disjointTags().get(3));
+    assertTrue(merged.disjointTags().contains("colo"));
+    assertTrue(merged.disjointTags().contains("dept"));
+    assertTrue(merged.disjointTags().contains("host"));
+    assertTrue(merged.disjointTags().contains("owner"));
     
     TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
@@ -966,10 +749,8 @@ public class TestMergedTimeSeriesId {
     assertEquals("host", 
         merged.aggregatedTags().get(0));
     assertEquals(2, merged.disjointTags().size());
-    assertEquals("colo", 
-        merged.disjointTags().get(0));
-    assertEquals("owner", 
-        merged.disjointTags().get(1));
+    assertTrue(merged.disjointTags().contains("colo"));
+    assertTrue(merged.disjointTags().contains("owner"));
     
     TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
@@ -1014,14 +795,10 @@ public class TestMergedTimeSeriesId {
     assertTrue(merged.tags().isEmpty());
     assertTrue(merged.aggregatedTags().isEmpty());
     assertEquals(4, merged.disjointTags().size());
-    assertEquals("colo", 
-        merged.disjointTags().get(0));
-    assertEquals("dept", 
-        merged.disjointTags().get(1));
-    assertEquals("host", 
-        merged.disjointTags().get(2));
-    assertEquals("owner", 
-        merged.disjointTags().get(3));
+    assertTrue(merged.disjointTags().contains("colo"));
+    assertTrue(merged.disjointTags().contains("dept"));
+    assertTrue(merged.disjointTags().contains("host"));
+    assertTrue(merged.disjointTags().contains("owner"));
     
     TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
@@ -1067,12 +844,9 @@ public class TestMergedTimeSeriesId {
     assertTrue(merged.tags().isEmpty());
     assertTrue(merged.aggregatedTags().isEmpty());
     assertEquals(3, merged.disjointTags().size());
-    assertEquals("colo", 
-        merged.disjointTags().get(0));
-    assertEquals("host", 
-        merged.disjointTags().get(1));
-    assertEquals("owner", 
-        merged.disjointTags().get(2));
+    assertTrue(merged.disjointTags().contains("colo"));
+    assertTrue(merged.disjointTags().contains("host"));
+    assertTrue(merged.disjointTags().contains("owner"));
     
     TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addDisjointTag(FAMILY)
