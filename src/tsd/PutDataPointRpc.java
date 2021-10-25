@@ -616,60 +616,65 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       public GroupCB(final int queued) {
         this.queued = queued;
       }
-      
+
       @Override
       public Object call(final ArrayList<Boolean> results) {
-        if (sending_response.get()) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Put data point call " + query + " was marked as timedout");
+        tsdb.response(new Runnable() {
+          @Override
+          public void run() {
+            if (sending_response.get()) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Put data point call " + query + " was marked as timedout");
+              }
+              return;
+            } else {
+              sending_response.set(true);
+              if (timeout != null) {
+                timeout.cancel();
+              }
+            }
+            int good_writes = 0;
+            int failed_writes = 0;
+            for (final boolean result : results) {
+              if (result) {
+                ++good_writes;
+              } else {
+                ++failed_writes;
+              }
+            }
+
+            final int failures = dps.size() - queued;
+            if (!show_summary && !show_details) {
+              if (failures + failed_writes > 0) {
+                query.sendReply(HttpResponseStatus.BAD_REQUEST,
+                    query.serializer().formatErrorV1(
+                        new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+                            "One or more data points had errors",
+                            "Please see the TSD logs or append \"details\" to the put request")));
+              } else {
+                query.sendReply(HttpResponseStatus.NO_CONTENT, "".getBytes());
+              }
+            } else {
+              final HashMap<String, Object> summary = new HashMap<String, Object>();
+              if (sync_timeout > 0) {
+                summary.put("timeouts", 0);
+              }
+              summary.put("success", results.isEmpty() ? queued : good_writes);
+              summary.put("failed", failures + failed_writes);
+              if (show_details) {
+                summary.put("errors", details);
+              }
+
+              if (failures > 0) {
+                query.sendReply(HttpResponseStatus.BAD_REQUEST,
+                    query.serializer().formatPutV1(summary));
+              } else {
+                query.sendReply(query.serializer().formatPutV1(summary));
+              }
+            }
           }
-          return null;
-        } else {
-          sending_response.set(true);
-          if (timeout != null) {
-            timeout.cancel();
-          }
-        }
-        int good_writes = 0;
-        int failed_writes = 0;
-        for (final boolean result : results) {
-          if (result) {
-            ++good_writes;
-          } else {
-            ++failed_writes;
-          }
-        }
-        
-        final int failures = dps.size() - queued;
-        if (!show_summary && !show_details) {
-          if (failures + failed_writes > 0) {
-            query.sendReply(HttpResponseStatus.BAD_REQUEST, 
-                query.serializer().formatErrorV1(
-                    new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-                "One or more data points had errors", 
-                "Please see the TSD logs or append \"details\" to the put request")));
-          } else {
-            query.sendReply(HttpResponseStatus.NO_CONTENT, "".getBytes());
-          }
-        } else {
-          final HashMap<String, Object> summary = new HashMap<String, Object>();
-          if (sync_timeout > 0) {
-            summary.put("timeouts", 0);
-          }
-          summary.put("success", results.isEmpty() ? queued : good_writes);
-          summary.put("failed", failures + failed_writes);
-          if (show_details) {
-            summary.put("errors", details);
-          }
-          
-          if (failures > 0) {
-            query.sendReply(HttpResponseStatus.BAD_REQUEST, 
-                query.serializer().formatPutV1(summary));
-          } else {
-            query.sendReply(query.serializer().formatPutV1(summary));
-          }
-        }
-        
+        });
+
         return null;
       }
       @Override

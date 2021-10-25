@@ -101,9 +101,27 @@ public final class TSDB {
 
   /** The operation mode (role) of the TSD. */
   public enum OperationMode {
-    READWRITE,
-    READONLY,
-    WRITEONLY
+    READWRITE(true, true),
+    READONLY(true, false),
+    WRITEONLY(false, true);
+
+    private final boolean read;
+    private final boolean write;
+
+    OperationMode(boolean read, boolean write) {
+      this.read = read;
+      this.write = write;
+    }
+
+    /** Whether this mode allows reading */
+    public boolean isRead() {
+      return read;
+    }
+
+    /** Whether this mode allows writing */
+    public boolean isWrite() {
+      return write;
+    }
   }
   
   /** Client for the HBase cluster to use.  */
@@ -133,6 +151,9 @@ public final class TSDB {
 
   /** Timer used for various tasks such as idle timeouts or query timeouts */
   private final HashedWheelTimer timer;
+
+  /** RpcResponder for doing response asynchronously*/
+  private final RpcResponder rpcResponder;
 
   /**
    * Row keys that need to be compacted.
@@ -351,7 +372,10 @@ public final class TSDB {
 
     // set any extra tags from the config for stats
     StatsCollector.setGlobalTags(config);
-    
+
+
+    rpcResponder = new RpcResponder(config);
+
     LOG.debug(config.dumpConfiguration());
   }
 
@@ -812,6 +836,13 @@ public final class TSDB {
     collector.addExtraTag("class", "IncomingDataPoints");
     try {
       collector.record("hbase.latency", IncomingDataPoints.putlatency, "method=put");
+    } finally {
+      collector.clearExtraTag("class");
+    }
+
+    collector.addExtraTag("class", "IncomingDataPoints");
+    try {
+      collector.record("uid.autometric.rejections", IncomingDataPoints.auto_metric_rejection_count, "method=put");
     } finally {
       collector.clearExtraTag("class");
     }
@@ -1673,20 +1704,43 @@ public final class TSDB {
       }
     }
 
-    final class HClientShutdown implements Callback<Deferred<Object>, ArrayList<Object>> {
-	public Deferred<Object> call(final ArrayList<Object> args) {
-        if (storage_exception_handler != null) {
-          return client.shutdown().addBoth(new SEHShutdown());
+    final class RpcResponsderShutdown implements Callback<Object, Object> {
+      @Override
+      public Object call(Object arg) throws Exception {
+        try {
+          TSDB.this.rpcResponder.close();
+        } catch (Exception e) {
+          LOG.error(
+              "Run into unknown exception while closing RpcResponder.", e);
+        } finally {
+          return arg;
         }
-        return client.shutdown().addBoth(new FinalShutdown());
       }
-	public String toString() {
+    }
+
+    final class HClientShutdown implements Callback<Deferred<Object>, ArrayList<Object>> {
+      public Deferred<Object> call(final ArrayList<Object> args) {
+        Callback<Object, Object> nextCallback;
+        if (storage_exception_handler != null) {
+          nextCallback = new SEHShutdown();
+        } else {
+          nextCallback = new FinalShutdown();
+        }
+
+        if (TSDB.this.rpcResponder.isAsync()) {
+          client.shutdown().addBoth(new RpcResponsderShutdown());
+        }
+
+        return client.shutdown().addBoth(nextCallback);
+      }
+
+      public String toString() {
         return "shutdown HBase client";
       }
     }
 
     final class ShutdownErrback implements Callback<Object, Exception> {
-	public Object call(final Exception e) {
+      public Object call(final Exception e) {
         final Logger LOG = LoggerFactory.getLogger(ShutdownErrback.class);
         if (e instanceof DeferredGroupException) {
           final DeferredGroupException ge = (DeferredGroupException) e;
@@ -1700,13 +1754,14 @@ public final class TSDB {
         }
         return new HClientShutdown().call(null);
       }
-	public String toString() {
+
+      public String toString() {
         return "shutdown HBase client after error";
       }
     }
 
     final class CompactCB implements Callback<Object, ArrayList<Object>> {
-	public Object call(ArrayList<Object> compactions) throws Exception {
+      public Object call(ArrayList<Object> compactions) throws Exception {
         return null;
       }
     }
@@ -2214,6 +2269,11 @@ public final class TSDB {
   /** Deletes the given cells from the data table. */
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
     return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
+  }
+
+  /** Do response by RpcResponder */
+  public void response(Runnable run) {
+    rpcResponder.response(run);
   }
 
 }
