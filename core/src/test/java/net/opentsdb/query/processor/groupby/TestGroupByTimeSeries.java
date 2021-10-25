@@ -134,11 +134,7 @@ public class TestGroupByTimeSeries {
   @Test
   public void ctor() throws Exception {
     GroupByTimeSeries ts = new GroupByTimeSeries(node, result);
-    try {
-      ts.id();
-      fail("Expected NullPointerException");
-    } catch (NullPointerException e) { }
-    
+
     try {
       new GroupByTimeSeries(null, result);
       fail("Expected IllegalArgumentException");
