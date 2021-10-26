@@ -42,6 +42,12 @@
            <groupId>com.yahoo.egads</groupId>
            <artifactId>egads</artifactId>
            <version>0.4.4</version>
+            <exclusions>
+               <exclusion>
+                  <groupId>org.apache.logging.log4j</groupId>
+                  <artifactId>log4j-core</artifactId>
+               </exclusion>
+            </exclusions>
          </dependency>
          <dependency>
            <groupId>org.slf4j</groupId>
