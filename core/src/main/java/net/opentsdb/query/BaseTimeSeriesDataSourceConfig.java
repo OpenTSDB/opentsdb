@@ -584,12 +584,18 @@ public abstract class BaseTimeSeriesDataSourceConfig<B extends
     // TODO - millis no good! May need time zone too!
     n = node.get("startOverrideMs");
     if (n != null && !n.isNull()) {
-      builder.setStartTimeStamp(new MillisecondTimeStamp(n.asLong()));
+      long ts = n.asLong();
+      if (ts > 0) {
+        builder.setStartTimeStamp(new MillisecondTimeStamp(ts));
+      }
     }
 
     n = node.get("endOverrideMs");
     if (n != null && !n.isNull()) {
-      builder.setEndTimeStamp(new MillisecondTimeStamp(n.asLong()));
+      long ts = n.asLong();
+      if (ts > 0) {
+        builder.setEndTimeStamp(new MillisecondTimeStamp(ts));
+      }
     }
 
     n = node.get("dataSource");
