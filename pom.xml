@@ -109,6 +109,7 @@
     <module>storage/bigtable</module>
     <module>storage/googlepubsub</module>
     <module>storage/kafka-0.8</module>
+    <module>storage/pulsar</module>
     <module>distribution</module>
   </modules>
 
