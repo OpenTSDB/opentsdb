@@ -1,1 +1,1 @@
-net.opentsdb.storage.SimpleKafkaConsumerService
+net.opentsdb.transport.PulsarConsumerService
