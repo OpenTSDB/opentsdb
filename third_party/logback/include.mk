@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-https://repo1.maven.org/maven2/ch/qos/logback/logback-classic/1.0.13/logback-classic-1.0.13.jar
-LOGBACK_VERSION := 1.0.13
+https://repo1.maven.org/maven2/ch/qos/logback/logback-classic/1.2.9/logback-classic-1.2.9.jar
+LOGBACK_VERSION := 1.2.9
 
 LOGBACK_CLASSIC_VERSION := $(LOGBACK_VERSION)
 LOGBACK_CLASSIC := third_party/logback/logback-classic-$(LOGBACK_CLASSIC_VERSION).jar
