@@ -40,7 +40,7 @@ public class NoAuthFilter implements AuthFilter {
     principal = new Principal() {
       @Override
       public String getName() {
-        return "NoAuth";
+        return "user.noauth";
       }
     };
 
