@@ -26,6 +26,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -65,13 +66,94 @@ public final class TestGraphHandler {
   }
   
   @Test  
-  public void setPlotParams() throws Exception {
+  public void setYRangeParams() throws Exception {
     Plot plot = mock(Plot.class);
     HttpQuery query = mock(HttpQuery.class);
     Map<String, List<String>> params = Maps.newHashMap();
     when(query.getQueryString()).thenReturn(params);
+
+    params.put("yrange", Lists.newArrayList("[0:1]"));
+    GraphHandler.setPlotParams(query, plot);
     
-    params.put("yrange", Lists.newArrayList("[0:42]"));
+    params.put("yrange", Lists.newArrayList("[:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:0]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:42]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:-42]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:0.8]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:-0.8]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:42.4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:-42.4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:4e4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:-4e4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:4e-4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:-4e-4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:4.2e4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[:-4.2e4]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[0:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[-5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[0.5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[-0.5:]"));
+    GraphHandler.setPlotParams(query, plot);
+
+    params.put("yrange", Lists.newArrayList("[10.5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[-10.5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[10e5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[-10e5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[10e-5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[-10e-5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[10.1e-5:]"));
+    GraphHandler.setPlotParams(query, plot);
+    
+    params.put("yrange", Lists.newArrayList("[-10.1e-5:]"));
     GraphHandler.setPlotParams(query, plot);
     
     params.put("yrange", Lists.newArrayList("[33:system('touch /tmp/poc.txt')]"));

@@ -70,8 +70,9 @@ final class GraphHandler implements HttpRpc {
   private static final boolean IS_WINDOWS =
     System.getProperty("os.name", "").contains("Windows");
 
+  private static final String RANGE_COMPONENT = "\\\"?-?\\d*\\.?(\\d+)?([eE]-?\\d+)?\\\"?";
   private static Pattern RANGE_VALIDATOR = Pattern.compile(
-      "\\[\\\"?-?\\d+\\.?(\\d+)?([eE]-?\\d+)?\\\"?:\\\"?-?(\\d+\\.?\\d+?)?([eE]-?\\d+)?\\\"?\\]");
+      "\\["+RANGE_COMPONENT+":"+RANGE_COMPONENT+"]");
   private static Pattern LABEL_VALIDATOR = Pattern.compile("[a-zA-z0-9 \\-_]");
   private static Pattern KEY_VALIDATOR = Pattern.compile(
       "(out|left|top|center|right|horiz|box|bottom)?\\s?");
