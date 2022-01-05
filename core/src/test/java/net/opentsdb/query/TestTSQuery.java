@@ -19,6 +19,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.Assert;
+
 import net.opentsdb.query.pojo.FillPolicy;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -128,6 +130,39 @@ public class TestTSQuery {
     assertNull(query.getMetrics().get(1).getDownsampler());
     assertFalse(query.getMetrics().get(1).isRate());
     assertNull(query.getMetrics().get(1).getRateOptions());
+  }
+  
+  @Test
+  public void convertQueryUndefinedLibrange() throws Exception {
+    TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1h-ago");
+    ts_query.setEnd("5m-ago");
+    
+    TSSubQuery sub = new TSSubQuery();
+    sub.setMetric("sys.cpu.idle");
+    sub.setDownsample("60m-max-nan");
+    sub.setAggregator("sum");
+    sub.setRate(true);
+    sub.setRateOptions(RateOptions.newBuilder()
+        .setCounter(true)
+        .setCounterMax(1024)
+        .build());
+    try {
+    sub.setFilters(Lists.newArrayList(new TagVFilter.Builder()
+        .setFilter("*")
+        .setType("wildcard")
+        .setTagk("host")
+        .setGroupBy(true)
+        .build(),
+        new TagVFilter.Builder()
+        .setFilter("librange://@ranglevalue")
+        .setType("literal_or")
+        .setTagk("colo")
+        .build()));
+      Assert.fail("Librange filter is not defined");
+    } catch (Exception e) {
+      assertEquals(e.getMessage(), "Could not find a tag value filter of the type: librange");
+    }
   }
   
   @Test

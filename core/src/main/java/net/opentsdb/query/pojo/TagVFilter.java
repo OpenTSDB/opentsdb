@@ -660,6 +660,14 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
             "The tagk cannot be null or empty");
       }
       
+      // V2 librange conversion
+      if (type.equals(TagVLiteralOrFilter.FILTER_NAME)) {
+        if (filter.startsWith("librange://@")) {
+          type = "librange";
+          filter = filter.substring(11, filter.length());
+        }
+      }
+      
       final Pair<Class<?>, Constructor<? extends TagVFilter>> filter_meta = 
           tagv_filter_map.get(type);
       if (filter_meta == null) {
