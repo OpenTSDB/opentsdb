@@ -249,6 +249,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
 
     boolean needsIdConverter = false;
     List<TimeRouterConfigEntry> sources = Lists.newArrayList();
+    List<TimeRouterConfigEntry> fullSources = Lists.newArrayList();
     final int now = (int) (DateTime.currentTimeMillis() / 1000);
     for (final TimeRouterConfigEntry entry : config_ref) {
       final MatchType match = entry.match(context, builder, now);
@@ -262,9 +263,10 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
           context.queryContext().logTrace("Entry " + entry
                   + " requires a full query, no match for split.");
         }
-        sources.clear();
-        sources.add(entry);
-        break;
+       // sources.clear();
+        //sources.add(entry);
+        fullSources.add(entry);
+        continue;
       }
 
       if (entry.factory().idType() != Const.TS_STRING_ID) {
@@ -318,11 +320,6 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
       }
     }
 
-    if (sources.isEmpty()) {
-      // Can't handle this query.
-      throw new QueryExecutionException("No data source found for "
-              + "config: " + config, 406);
-    }
 
     if (context.query().isDebugEnabled()) {
       StringBuilder buf = new StringBuilder();
@@ -348,11 +345,19 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
 
     final List<List<QueryNodeConfig>> pushdowns =
             RoutingUtils.potentialPushDowns(config, sources, planner);
+
+    final List<List<QueryNodeConfig>> pushdownsForFullSources =
+            RoutingUtils.potentialPushDowns(config, fullSources, planner);
+
+    pushdowns.addAll(pushdownsForFullSources);
+
     final List<TimeAdjustments> pushdownAdjustments =
             RoutingUtils.pushdownAdjustments(context,
                     pushdowns,
                     builder.startOverrideTimeStamp(),
                     builder.endOverrideTimeStamp());
+
+
     final long compareStart;
     final long compareEnd;
     if (config.timeShifts() != null) {
@@ -584,26 +589,45 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
           timestamps[tsEndIdx] = queryEnd;
         }
 
-        // Now check and see if it makes more sense to just query one source
-        // instead of two because the amount fetched from the newer source is
-        // just a small amount of the query or the query itself is so small.
-        if (i < sources.size() - 1) {
-          // easy check, overlap is >= than the current query time.
-          final long end = timestamps[tsEndIdx];
-          final long prevEnd = timestamps[tsEndIdx + 2];
-          final TimeRouterConfigEntry prev = sources.get(i + 1);
-          if (prevEnd >= end || end < prev.getEnd(now)) {
-            if (context.query().isDebugEnabled()) {
-              context.queryContext().logDebug("Dropping a source as the overlap " +
-                      "is small enough that we can query a single source: " + entry);
-            }
-            drops.add(i);
-            break;
-          }
-        }
+        // Don't do this optimization. Because we may want to query all sources and merge the results. 
+
+//         Now check and see if it makes more sense to just query one source
+//         instead of two because the amount fetched from the newer source is
+//         just a small amount of the query or the query itself is so small.
+//        if (i < sources.size() - 1) {
+//          // easy check, overlap is >= than the current query time.
+//          final long end = timestamps[tsEndIdx];
+//          final long prevEnd = timestamps[tsEndIdx + 2];
+//          final TimeRouterConfigEntry prev = sources.get(i + 1);
+//          if (prevEnd >= end || end < prev.getEnd(now)) {
+//            if (context.query().isDebugEnabled()) {
+//              context.queryContext().logDebug("Dropping a source as the overlap " +
+//                      "is small enough that we can query a single source: " + entry);
+//            }
+//            drops.add(i);
+//            break;
+//          }
+//        }
       }
     }
 
+   long[] allTimestamps = new long[timestamps.length + fullSources.size()*2];
+
+    for (int i = 0; i < timestamps.length; ) {
+      allTimestamps[i] = timestamps[i];
+      i++;
+      allTimestamps[i] = timestamps[i];
+      i++;
+    }
+    for (int i = timestamps.length; i < allTimestamps.length; ) {
+      allTimestamps[i] = queryStart;
+      i++;
+      allTimestamps[i] = queryEnd;
+      i++;
+    }
+
+    timestamps = allTimestamps;
+    sources.addAll(fullSources);
     if (sources.isEmpty()) {
       throw new QueryExecutionException("Unable to find any set of sources " +
               "to satisfy the query", 400);
@@ -661,6 +685,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
             .setMode(MergerConfig.MergeMode.SPLIT)
             .setTimeouts(timeouts)
             .setSortedDataSources(ids)
+            .setAllowPartialResults(true)
             .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
                     .setFillPolicy(FillPolicy.NONE)
                     .setRealFillPolicy(FillWithRealPolicy.NONE)

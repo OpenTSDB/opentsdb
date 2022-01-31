@@ -175,9 +175,7 @@ public class TimeRouterConfigEntry {
   }
 
   public long getStart(final long now) {
-    return start_relative ?
-            start == 0 ? 0 : now - start
-              : start;
+    return start_relative ? start == 0 ? 0 : now - start : start;
   }
 
   public boolean isStartRelative() {
