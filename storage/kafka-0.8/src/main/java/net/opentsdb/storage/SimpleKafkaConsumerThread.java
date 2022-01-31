@@ -56,6 +56,7 @@ public class SimpleKafkaConsumerThread extends Thread {
   @Override
   public void run() {
     try {
+      LOG.info("Kafka consumer properties: {}", properties);
       consumerConnector = kafka.consumer.Consumer.createJavaConsumerConnector(
               new ConsumerConfig(properties));
       final KafkaStream<byte[], byte[]> kafkaStream =
