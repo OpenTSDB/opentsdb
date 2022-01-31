@@ -40,6 +40,8 @@ import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.Exceptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A simple implementation of the TimeSeriesByteId that is instantiated
@@ -65,7 +67,10 @@ public class TSUID implements TimeSeriesByteId {
   
   /** The cached ID when decoded. */
   protected TimeSeriesStringId string_id;
-  
+
+  private static final Logger LOG = LoggerFactory.getLogger(TSUID.class);
+
+
   /**
    * Default ctor.
    * @param tsuid A non-null and non-empty TSUID of the proper length.
@@ -229,7 +234,8 @@ public class TSUID implements TimeSeriesByteId {
       for (int i = schema.metricWidth(); i < tsuid.length; i += tagkv_size) {
         ids.add(Arrays.copyOfRange(tsuid, i, i + schema.tagkWidth()));
       }
-      deferreds.add(schema.getNames(UniqueIdType.TAGK, ids, 
+
+      deferreds.add(schema.getNames(UniqueIdType.TAGK, ids,
           child != null ? child : span)
             .addCallback(new TagKeyCB()));
       
@@ -238,8 +244,8 @@ public class TSUID implements TimeSeriesByteId {
                i < tsuid.length; i += tagkv_size) {
         ids.add(Arrays.copyOfRange(tsuid, i, i + schema.tagvWidth()));
       }
-      
-      deferreds.add(schema.getNames(UniqueIdType.TAGV, ids, 
+
+      deferreds.add(schema.getNames(UniqueIdType.TAGV, ids,
           child != null ? child : span)
           .addCallback(new TagValueCB()));
       
@@ -286,7 +292,9 @@ public class TSUID implements TimeSeriesByteId {
         tags = new ByteMap<byte[]>();
         for (int i = schema.metricWidth(); i < tsuid.length; i += tagkv_size) {
           byte[] tagk = Arrays.copyOfRange(tsuid, i, i + schema.tagkWidth());
-          tags.put(tagk, Arrays.copyOfRange(tsuid, i + schema.tagvWidth(), i + tagkv_size));
+          byte[] tagv = Arrays.copyOfRange(tsuid, i + schema.tagkWidth(), i + tagkv_size);
+
+          tags.put(tagk, tagv);
         }
       }
     }
