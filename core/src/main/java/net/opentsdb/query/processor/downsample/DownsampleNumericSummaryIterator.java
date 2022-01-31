@@ -82,7 +82,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
   private final int sum_id;
   private final int count_id;
   private final int avg_id;
-  
+
   /**
    * Default ctor. This will seek to the proper source timestamp.
    * 
@@ -149,7 +149,6 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     aggregator = agg_factory.newAggregator(
         ((DownsampleConfig) node.config()).getInfectiousNan());
     interval_ts = this.result.start().getCopy();
-    
     String agg = config.getAggregator();
     if (agg.equalsIgnoreCase("AVG") && config.dpsInInterval() > 0) {
       agg = "sum";
@@ -188,7 +187,7 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
         end.add(config.interval());
       }
     }
-    
+        
   }
 
   @Override
@@ -198,6 +197,12 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
   
   @Override
   public TimeSeriesValue<? extends TimeSeriesDataType> next() {
+    TimeStamp end_interval = interval_ts.getCopy();
+    if(!config.getRunAll()) {
+      end_interval.add(config.interval());
+    } else {
+      end_interval = config.endTime();
+    }
     if (next_value.timestamp().compare(Op.LT, interval_ts) && 
         !iterator.hasNext() && 
         config.getFill()) {
@@ -209,9 +214,9 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
       has_next = interval_ts.compare(Op.LT, config.endTime());
       return dp;
     }
-    
-    if (next_value.timestamp().compare(Op.GT, interval_ts) && 
+    if (next_value.timestamp().compare(Op.GTE, end_interval) && 
         config.getFill()) {
+      // If the next value is out of the current window([startTS, endTS)), fill it with a NaN
       dp.resetTimestamp(interval_ts);
       for (int summary : dp.summariesAvailable()) {
         dp.resetValue(summary, Double.NaN);
@@ -254,10 +259,11 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
     
     while (iterator.hasNext()) {
       next_value = iterator.next();
+
       if (next_value.timestamp().compare(Op.GTE, interval_ts)) {
         break;
       }
-      
+
       if (i + 1 >= aggs[0].length) {
         // grow
         double[][] temp = new double[2][];

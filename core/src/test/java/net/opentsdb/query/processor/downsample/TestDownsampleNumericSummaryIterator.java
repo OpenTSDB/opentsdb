@@ -79,7 +79,7 @@ public class TestDownsampleNumericSummaryIterator {
   public static void beforeClass() {
     TSDB = MockTSDBDefault.getMockTSDB();
   }
-  
+
   @Before
   public void before() throws Exception {
     rollup_config = DefaultRollupConfig.newBuilder()
@@ -170,6 +170,52 @@ public class TestDownsampleNumericSummaryIterator {
     assertEquals(4, i);
   }
   
+  private MockTimeSeries getHourlyDataMock() {
+    MockTimeSeries series =
+        new MockTimeSeries(BaseTimeSeriesStringId.newBuilder().setMetric("a").build());
+
+    String[] allL = {"\"1641258000\": 3","\"1641265200\": 1","\"1641315600\": 1","\"1641513600\": 1",
+        "\"1641567600\": 1","\"1641585600\": 1","\"1641679200\": 2","\"1641682800\": 1","\"1641686400\": 2",
+        "\"1641690000\": 1","\"1641693600\": 1","\"1641729600\": 1","\"1641736800\": 1","\"1641758400\": 1",
+        "\"1641765600\": 2","\"1641769200\": 3","\"1641776400\": 5","\"1641783600\": 1","\"1641801600\": 1",
+        "\"1641808800\": 2","\"1641873600\": 1","\"1641880800\": 1","\"1641920400\": 1","\"1641924000\": 1",
+        "\"1641949200\": 1" };
+    for (String line : allL) {
+      MutableNumericSummaryValue v = new MutableNumericSummaryValue();
+      long parseLong = Long.parseLong(line.split("\"")[1].split("\"")[0]) * 1000l;
+      v.resetTimestamp(
+          new MillisecondTimeStamp(parseLong));
+      long val = Long.parseLong(line.split(":")[1].split(",")[0].trim());
+      v.resetValue(0, val);
+      v.resetValue(2, val);
+      
+      series.addValue(v);
+    }
+
+    return series;
+  }
+
+  @Test
+  public void downsampler1dAlignedAvgWithFill() throws Exception {
+    setConfig("sum", "1d", true, false, 1641254400000L, 1642032000000L);
+
+    MockTimeSeries mock = getHourlyDataMock();
+    DownsampleNumericSummaryIterator it = new DownsampleNumericSummaryIterator(node, result, mock);
+
+    int i = 0;
+    Long[] timestamps = {1641254400000L, 1641340800000L, 1641427200000L, 1641513600000L,
+        1641600000000L, 1641686400000L, 1641772800000L, 1641859200000L, 1641945600000L};
+    Double[] values = {5.0, Double.NaN, Double.NaN, 3.0, 3.0, 12.0, 9.0, 4.0, 1.0};
+    while (it.hasNext()) {
+      final TimeSeriesValue<NumericSummaryType> tsv =
+          (TimeSeriesValue<NumericSummaryType>) it.next();
+      assertEquals(timestamps[i].longValue(), tsv.timestamp().msEpoch());
+      assertEquals(values[i], Double.valueOf(tsv.value().value(0).doubleValue()));
+      i++;
+    }
+    assertEquals(9, i);
+  }
+  
   @Test
   public void downsampler1hMaxAligned() throws Exception {
     source = new MockTimeSeries(
@@ -231,7 +277,6 @@ public class TestDownsampleNumericSummaryIterator {
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
-      System.out.println(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
       assertEquals(1, tsv.value().summariesAvailable().size());
@@ -800,7 +845,6 @@ public class TestDownsampleNumericSummaryIterator {
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
-      System.out.println(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertEquals(sums[i++], tsv.value().value(0).doubleValue(), 0.001);
       assertEquals(1, tsv.value().summariesAvailable().size());
@@ -848,7 +892,6 @@ public class TestDownsampleNumericSummaryIterator {
     while (it.hasNext()) {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) it.next();
-      System.out.println(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertNull(tsv.value().value(0));
       assertNull(tsv.value().value(2));
@@ -3330,11 +3373,14 @@ public class TestDownsampleNumericSummaryIterator {
   }
   
   void setConfig(final String agg, final String interval, boolean runall, long start, long end) throws Exception {
-    setConfig(agg, interval, runall, FillPolicy.NONE, FillWithRealPolicy.NONE, start, end);
+    setConfig(agg, interval, runall, FillPolicy.NONE, FillWithRealPolicy.NONE, false, start, end);
+  }
+  void setConfig(final String agg, final String interval, boolean setFill, boolean runall, long start, long end) throws Exception {
+    setConfig(agg, interval, runall, FillPolicy.NONE, FillWithRealPolicy.NONE, setFill, start, end);
   }
   
   void setConfig(final String agg, final String interval, boolean runall, 
-      FillPolicy fill, FillWithRealPolicy real, long start, long end) throws Exception {
+      FillPolicy fill, FillWithRealPolicy real, boolean setfill, long start, long end) throws Exception {
     node = mock(QueryNode.class);
     query_context = mock(QueryContext.class);
     pipeline_context = mock(QueryPipelineContext.class);
@@ -3347,7 +3393,7 @@ public class TestDownsampleNumericSummaryIterator {
         .setId("foo")
         .setInterval(interval)
         .setRunAll(runall)
-        .setFill(fill != FillPolicy.NONE || real != FillWithRealPolicy.NONE)
+        .setFill(fill != FillPolicy.NONE || real != FillWithRealPolicy.NONE || setfill)
         .addInterpolatorConfig(NumericSummaryInterpolatorConfig.newBuilder()
                 .setDefaultFillPolicy(fill)
                 .setDefaultRealFillPolicy(real)
@@ -3359,7 +3405,6 @@ public class TestDownsampleNumericSummaryIterator {
         .setEnd(Long.toString(end))
         .build();
     when(node.config()).thenReturn(config);
-    
     TimeSeriesDataSource downstream = mock(TimeSeriesDataSource.class);
     when(pipeline_context.downstreamSources(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(downstream));
@@ -3378,6 +3423,7 @@ public class TestDownsampleNumericSummaryIterator {
     when(result.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(result.rollupConfig()).thenReturn(rollup_config);
     this.result = ds.new DownsampleResult(result);
+    
   }
   
   void setGappyData(boolean stagger) {
