@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.tsd;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Strings;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
@@ -31,7 +30,6 @@ import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.FilterInfo;
 import io.undertow.servlet.api.InstanceFactory;
 import io.undertow.servlet.api.InstanceHandle;
-import jersey.repackaged.com.google.common.collect.Maps;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
@@ -40,7 +38,9 @@ import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.servlet.filter.NoAuthFilter;
 import net.opentsdb.stats.BlackholeStatsCollector;
+import net.opentsdb.tsd.handlers.DefaultMetricsHandlerFactory;
 import net.opentsdb.tsd.handlers.QueryRegistrationHandler;
+import net.opentsdb.tsd.handlers.TSDBMetricsHandlerFactory;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.RefreshingSSLContext;
@@ -346,7 +346,11 @@ public class TSDMain {
       
       if (tsdb.getStatsCollector() != null && 
           !(tsdb.getStatsCollector() instanceof BlackholeStatsCollector)) {
-        handler = new MetricsHandler(tsdb.getStatsCollector(), handler);
+        TSDBMetricsHandlerFactory factory = tsdb.getRegistry().getDefaultPlugin(TSDBMetricsHandlerFactory.class);
+        if(factory == null) {
+          factory = new DefaultMetricsHandlerFactory();
+        }
+        handler = factory.getMetricsHandler(handler);
       }
       
       final Map<String, String> rewrite_rules = 
