@@ -113,6 +113,11 @@
     <module>distribution</module>
   </modules>
 
+  <properties>
+    <slf4j.version>1.7.35</slf4j.version>
+    <log4j.version>2.17.1</log4j.version>
+  </properties>
+
   <!-- Dependencies shared by all (or most) modules in the OpenTSDB project. -->
   <dependencyManagement>
     <dependencies>
@@ -125,14 +130,29 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.7</version>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
-            <version>1.7.7</version>
+            <version>${slf4j.version}</version>
         </dependency>
-        
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-api</artifactId>
+          <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+          <version>${log4j.version}</version>
+        </dependency>
+
         <dependency>
           <groupId>io.netty</groupId>
           <artifactId>netty-common</artifactId>
