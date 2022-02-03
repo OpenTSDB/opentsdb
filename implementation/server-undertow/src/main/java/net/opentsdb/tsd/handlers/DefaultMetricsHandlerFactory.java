@@ -44,6 +44,6 @@ public class DefaultMetricsHandlerFactory extends BaseTSDBPlugin
 
   @Override
   public HttpHandler getMetricsHandler(final HttpHandler next) {
-    return new MetricsHandler(tsdb.getStatsCollector(), next);
+    return new MetricsHandler(statsCollector, next);
   }
 }
