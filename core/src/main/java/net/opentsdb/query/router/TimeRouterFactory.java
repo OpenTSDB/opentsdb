@@ -666,7 +666,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
                     .setRealFillPolicy(FillWithRealPolicy.NONE)
                     .setDataType(NumericType.TYPE.toString())
                     .build())
-            .setDataSource(config.getId())
+            .setDataSource(config.getDataSource())
             .setFirstDataTimestamp(newSources.get(newSources.size() - 1).startOverrideTimeStamp())
             .setId(config.getId());
     if (adjustments != null && adjustments.downsampleInterval != null) {

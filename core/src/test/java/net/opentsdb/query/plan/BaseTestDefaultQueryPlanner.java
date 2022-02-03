@@ -559,6 +559,7 @@ public abstract class BaseTestDefaultQueryPlanner {
                     .build())
             .setTimeShiftInterval(timeShift)
             .setId("m1")
+            .setDataSource("m1")
             .build());
     if (nodes != null) {
       for (int i = 0; i < nodes.length; i++) {
