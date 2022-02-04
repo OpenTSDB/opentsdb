@@ -348,7 +348,7 @@ public class TSDMain {
           !(tsdb.getStatsCollector() instanceof BlackholeStatsCollector)) {
         TSDBMetricsHandlerFactory factory = tsdb.getRegistry().getDefaultPlugin(TSDBMetricsHandlerFactory.class);
         if(factory == null) {
-          factory = new DefaultMetricsHandlerFactory();
+          factory = new DefaultMetricsHandlerFactory(tsdb.getStatsCollector());
         }
         handler = factory.getMetricsHandler(handler);
       }

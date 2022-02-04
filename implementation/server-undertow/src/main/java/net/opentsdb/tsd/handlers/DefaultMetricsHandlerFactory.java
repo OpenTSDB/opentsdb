@@ -31,6 +31,12 @@ public class DefaultMetricsHandlerFactory extends BaseTSDBPlugin
 
   private StatsCollector statsCollector;
 
+  public DefaultMetricsHandlerFactory() {}
+
+  public DefaultMetricsHandlerFactory(StatsCollector statsCollector) {
+    this.statsCollector = statsCollector;
+  }
+
   @Override
   public String type() {
     return TYPE;
