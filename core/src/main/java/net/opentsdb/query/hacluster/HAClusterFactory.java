@@ -209,7 +209,8 @@ public class HAClusterFactory extends BaseQueryNodeFactory<
       localBuilder.setSourceId(src.getSourceId())
               .setDataSource(srcId)
               .setHasBeenSetup(true)
-              .setId("ha_" + srcId)
+              //.setId("ha_" + srcId)
+              .setId(srcId)
               .setResultIds(Lists.newArrayList(id));
       if (config.getPushDownNodes() != null &&
           !config.getPushDownNodes().isEmpty()) {
