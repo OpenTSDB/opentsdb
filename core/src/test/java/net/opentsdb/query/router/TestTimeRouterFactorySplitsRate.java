@@ -73,11 +73,11 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -102,11 +102,11 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -134,11 +134,11 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -179,9 +179,9 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s2", "m1_s3");
     assertSources("m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
     assertResultIds("m1_s3", "m1_s3", "m1_s3");
@@ -205,9 +205,9 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s2", "m1_s3");
     assertSources("m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
     assertResultIds("m1_s3", "m1_s3", "m1_s3");
@@ -236,11 +236,11 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -274,13 +274,13 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 2,
             TimeShiftConfig.class, "m1_s1_timeShift", "m1_s1", "m1_s1_timeShift", "m1_s1",
-            RateConfig.class, "rate_m1_s1", "m1_s1_timeShift", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1_timeShift", "rate", "m1_s1");
     assertPushdowns("m1_s2", 2,
             TimeShiftConfig.class, "m1_s2_timeShift", "m1_s2", "m1_s2_timeShift", "m1_s2",
-            RateConfig.class, "rate_m1_s2", "m1_s2_timeShift", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2_timeShift", "rate", "m1_s2");
     assertPushdowns("m1_s3", 2,
             TimeShiftConfig.class, "m1_s3_timeShift", "m1_s3", "m1_s3_timeShift", "m1_s3",
-            RateConfig.class, "rate_m1_s3", "m1_s3_timeShift", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3_timeShift", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -302,9 +302,9 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s2", "m1_s3");
     assertSources("m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
     assertResultIds("m1_s3", "m1_s3", "m1_s3");
@@ -342,11 +342,11 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -375,11 +375,11 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -417,9 +417,9 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2");
     assertSources("m1_s1", "s1", "m1_s2", "s2");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -480,10 +480,10 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertMergerExpecting("rate", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            RateConfig.class, "rate_m1_s1", "m1_s1", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "m1_s1", "rate", "m1_s1");
     assertPushdowns("m1_s2", 0);
     assertPushdowns("m1_s3", 1,
-            RateConfig.class, "rate_m1_s3", "m1_s3", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "m1_s3", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_rate", "m1_rate", "m1_s2");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
@@ -572,13 +572,13 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 2,
             RateConfig.class, "rate", "m1_s1", "rate", "m1_s1",
-            GroupByConfig.class, "gb_m1_s1", "rate", "gb_m1_s1", "m1_s1");
+            GroupByConfig.class, "gb", "rate", "gb", "m1_s1");
     assertPushdowns("m1_s2", 2,
             RateConfig.class, "rate", "m1_s2", "rate", "m1_s2",
-            GroupByConfig.class, "gb_m1_s2", "rate", "gb_m1_s2", "m1_s2");
+            GroupByConfig.class, "gb", "rate", "gb", "m1_s2");
     assertPushdowns("m1_s3", 2,
             RateConfig.class, "rate", "m1_s3", "rate", "m1_s3",
-            GroupByConfig.class, "gb_m1_s3", "rate", "gb_m1_s3", "m1_s3");
+            GroupByConfig.class, "gb", "rate", "gb", "m1_s3");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -606,12 +606,12 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 2,
             RateConfig.class, "rate", "m1_s1", "rate", "m1_s1",
-            GroupByConfig.class, "gb_m1_s1", "rate", "gb_m1_s1", "m1_s1");
+            GroupByConfig.class, "gb", "rate", "gb", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 2,
             RateConfig.class, "rate", "m1_s3", "rate", "m1_s3",
-            GroupByConfig.class, "gb_m1_s3", "rate", "gb_m1_s3", "m1_s3");
+            GroupByConfig.class, "gb", "rate", "gb", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_gb", "m1_gb", "m1_s2");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
@@ -642,10 +642,10 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 0);
     assertPushdowns("m1_s2", 1,
-            RateConfig.class, "rate_m1_s2", "m1_s2", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "m1_s2", "rate", "m1_s2");
     assertPushdowns("m1_s3", 2,
             RateConfig.class, "rate", "m1_s3", "rate", "m1_s3",
-            GroupByConfig.class, "gb_m1_s3", "rate", "gb_m1_s3", "m1_s3");
+            GroupByConfig.class, "gb", "rate", "gb", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_gb", "m1_gb", "m1_s1", "m1_gb", "m1_s2");
     assertResultIds("m1_rate", "m1_rate", "m1_s1");
@@ -673,13 +673,13 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 2,
             RateConfig.class, "rate", "m1_s1", "rate", "m1_s1",
-            DownsampleConfig.class, "ds_m1_s1", "rate", "ds_m1_s1", "m1_s1");
+            DownsampleConfig.class, "ds", "rate", "ds", "m1_s1");
     assertPushdowns("m1_s2", 2,
             RateConfig.class, "rate", "m1_s2", "rate", "m1_s2",
-            DownsampleConfig.class, "ds_m1_s2", "rate", "ds_m1_s2", "m1_s2");
+            DownsampleConfig.class, "ds", "rate", "ds", "m1_s2");
     assertPushdowns("m1_s3", 2,
             RateConfig.class, "rate", "m1_s3", "rate", "m1_s3",
-            DownsampleConfig.class, "ds_m1_s3", "rate", "ds_m1_s3", "m1_s3");
+            DownsampleConfig.class, "ds", "rate", "ds", "m1_s3");
     assertResultIds("ds", "ds", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -705,13 +705,13 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 2,
             DownsampleConfig.class, "ds", "m1_s1", "ds", "m1_s1",
-            RateConfig.class, "rate_m1_s1", "ds", "rate_m1_s1", "m1_s1");
+            RateConfig.class, "rate", "ds", "rate", "m1_s1");
     assertPushdowns("m1_s2", 2,
             DownsampleConfig.class, "ds", "m1_s2", "ds", "m1_s2",
-            RateConfig.class, "rate_m1_s2", "ds", "rate_m1_s2", "m1_s2");
+            RateConfig.class, "rate", "ds", "rate", "m1_s2");
     assertPushdowns("m1_s3", 2,
             DownsampleConfig.class, "ds", "m1_s3", "ds", "m1_s3",
-            RateConfig.class, "rate_m1_s3", "ds", "rate_m1_s3", "m1_s3");
+            RateConfig.class, "rate", "ds", "rate", "m1_s3");
     assertResultIds("rate", "rate", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -739,15 +739,15 @@ public class TestTimeRouterFactorySplitsRate extends BaseTestTimeRouterFactorySp
     assertPushdowns("m1_s1", 3,
             RateConfig.class, "rate", "m1_s1", "rate", "m1_s1",
             DownsampleConfig.class, "ds", "rate", "ds", "m1_s1",
-            GroupByConfig.class, "gb_m1_s1", "ds", "gb_m1_s1", "m1_s1");
+            GroupByConfig.class, "gb", "ds", "gb", "m1_s1");
     assertPushdowns("m1_s2", 3,
             RateConfig.class, "rate", "m1_s2", "rate", "m1_s2",
             DownsampleConfig.class, "ds", "rate", "ds", "m1_s2",
-            GroupByConfig.class, "gb_m1_s2", "ds", "gb_m1_s2", "m1_s2");
+            GroupByConfig.class, "gb", "ds", "gb", "m1_s2");
     assertPushdowns("m1_s3", 3,
             RateConfig.class, "rate", "m1_s3", "rate", "m1_s3",
             DownsampleConfig.class, "ds", "rate", "ds", "m1_s3",
-            GroupByConfig.class, "gb_m1_s3", "ds", "gb_m1_s3", "m1_s3");
+            GroupByConfig.class, "gb", "ds", "gb", "m1_s3");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");

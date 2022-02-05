@@ -62,16 +62,16 @@ public class TestHAClusterFactory extends BaseTestDefaultQueryPlanner {
 
     assertNodesAndEdges(4, 3);
     assertEdgeToContextNode("m1");
-    assertEdge("m1", "ha_m1_s1", "m1", "ha_m1_s2");
+    assertEdge("m1", "m1_s1", "m1", "m1_s2");
     assertSerializationSource("m1", "m1");
-    assertSources("ha_m1_s1", "s1", "ha_m1_s2", "s2");
+    assertSources("m1_s1", "s1", "m1_s2", "s2");
     assertMergerExpecting("m1", "m1_s1", "m1_s2");
     assertMergerTimeouts("m1", "15s", "10s");
     assertResultIds("m1", "m1", "m1");
-    assertResultIds("ha_m1_s1", "ha_m1_s1", "m1_s1");
-    assertResultIds("ha_m1_s2", "ha_m1_s2", "m1_s2");
-    assertPushdowns("ha_m1_s1", 0);
-    assertPushdowns("ha_m1_s2", 0);
+    assertResultIds("m1_s1", "ha_m1_s1", "m1_s1");
+    assertResultIds("m1_s2", "ha_m1_s2", "m1_s2");
+    assertPushdowns("m1_s1", 0);
+    assertPushdowns("m1_s2", 0);
   }
 
   @Test
@@ -121,19 +121,19 @@ public class TestHAClusterFactory extends BaseTestDefaultQueryPlanner {
     assertEdgeToContextNode("gb");
     assertEdge("gb", "ds",
             "ds", "m1",
-            "m1", "ha_m1_s1",
-            "m1", "ha_m1_s2");
+            "m1", "m1_s1",
+            "m1", "m1_s2");
     assertSerializationSource("gb", "m1");
-    assertSources("ha_m1_s1", "s1", "ha_m1_s2", "s2");
+    assertSources("m1_s1", "s1", "m1_s2", "s2");
     assertMergerExpecting("m1", "m1_s1", "m1_s2");
     assertMergerTimeouts("m1", "15s", "10s");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("ds", "ds", "m1");
     assertResultIds("m1", "m1", "m1");
-    assertResultIds("ha_m1_s1", "ha_m1_s1", "m1_s1");
-    assertResultIds("ha_m1_s2", "ha_m1_s2", "m1_s2");
-    assertPushdowns("ha_m1_s1", 0);
-    assertPushdowns("ha_m1_s2", 0);
+    assertResultIds("m1_s1", "ha_m1_s1", "m1_s1");
+    assertResultIds("m1_s2", "ha_m1_s2", "m1_s2");
+    assertPushdowns("m1_s1", 0);
+    assertPushdowns("m1_s2", 0);
   }
 
   @Test
@@ -147,21 +147,21 @@ debug();
     assertNodesAndEdges(6, 5);
     assertEdgeToContextNode("gb");
     assertEdge("gb", "ds",
-            "ds", "ha_m1_s1",
+            "ds", "m1_s1",
             "ds", "m1_ds",
-            "m1_ds", "ha_m1_s2");
+            "m1_ds", "m1_s2");
     assertSerializationSource("gb", "m1");
-    assertSources("ha_m1_s1", "s1", "ha_m1_s2", "s2");
+    assertSources("m1_s1", "s1", "m1_s2", "s2");
     assertMergerExpecting("ds", "m1_s1", "m1_s2");
     assertMergerTimeouts("ds", "15s", "10s");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("ds", "ds", "m1");
     assertResultIds("m1_ds", "m1_ds", "m1_s2");
-    assertResultIds("ha_m1_s1", "ha_m1_s1", "m1_s1");
-    assertResultIds("ha_m1_s2", "ha_m1_s2", "m1_s2");
-    assertPushdowns("ha_m1_s1", 1,
-            DownsampleConfig.class, "ds_ha_m1_s1", "ha_m1_s1", "ds_ha_m1_s1", "m1_s1");
-    assertPushdowns("ha_m1_s2", 0);
+    assertResultIds("m1_s1", "ha_m1_s1", "m1_s1");
+    assertResultIds("m1_s2", "ha_m1_s2", "m1_s2");
+    assertPushdowns("m1_s1", 1,
+            DownsampleConfig.class, "ds", "m1_s1", "ds", "m1_s1");
+    assertPushdowns("m1_s2", 0);
   }
 
   @Test
@@ -176,20 +176,20 @@ debug();
     assertNodesAndEdges(5, 4);
     assertEdgeToContextNode("gb");
     assertEdge("gb", "ds",
-            "ds", "ha_m1_s1",
-            "ds", "ha_m1_s2");
+            "ds", "m1_s1",
+            "ds", "m1_s2");
     assertSerializationSource("gb", "m1");
-    assertSources("ha_m1_s1", "s1", "ha_m1_s2", "s2");
+    assertSources("m1_s1", "s1", "m1_s2", "s2");
     assertMergerExpecting("ds", "m1_s1", "m1_s2");
     assertMergerTimeouts("ds", "15s", "10s");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("ds", "ds", "m1");
-    assertResultIds("ha_m1_s1", "ha_m1_s1", "m1_s1");
-    assertResultIds("ha_m1_s2", "ha_m1_s2", "m1_s2");
-    assertPushdowns("ha_m1_s1", 1,
-            DownsampleConfig.class, "ds_ha_m1_s1", "ha_m1_s1", "ds_ha_m1_s1", "m1_s1");
-    assertPushdowns("ha_m1_s2", 1,
-            DownsampleConfig.class, "ds_ha_m1_s2", "ha_m1_s2", "ds_ha_m1_s2", "m1_s2");
+    assertResultIds("m1_s1", "ha_m1_s1", "m1_s1");
+    assertResultIds("m1_s2", "ha_m1_s2", "m1_s2");
+    assertPushdowns("m1_s1", 1,
+            DownsampleConfig.class, "ds", "m1_s1", "ds", "m1_s1");
+    assertPushdowns("m1_s2", 1,
+            DownsampleConfig.class, "ds", "m1_s2", "ds", "m1_s2");
   }
 
   @Test
@@ -203,20 +203,20 @@ debug();
 
     assertNodesAndEdges(4, 3);
     assertEdgeToContextNode("gb");
-    assertEdge("gb", "ha_m1_s1", "gb", "ha_m1_s2");
+    assertEdge("gb", "m1_s1", "gb", "m1_s2");
     assertSerializationSource("gb", "m1");
-    assertSources("ha_m1_s1", "s1", "ha_m1_s2", "s2");
+    assertSources("m1_s1", "s1", "m1_s2", "s2");
     assertMergerExpecting("gb", "m1_s1", "m1_s2");
     assertMergerTimeouts("gb", "15s", "10s");
     assertResultIds("gb", "gb", "m1");
-    assertResultIds("ha_m1_s1", "ha_m1_s1", "m1_s1");
-    assertResultIds("ha_m1_s2", "ha_m1_s2", "m1_s2");
-    assertPushdowns("ha_m1_s1", 2,
-            DownsampleConfig.class, "ds", "ha_m1_s1", "ds", "m1_s1",
-            GroupByConfig.class, "gb_ha_m1_s1", "ds", "gb_ha_m1_s1", "m1_s1");
-    assertPushdowns("ha_m1_s2", 2,
-            DownsampleConfig.class, "ds", "ha_m1_s2", "ds", "m1_s2",
-            GroupByConfig.class, "gb_ha_m1_s2", "ds", "gb_ha_m1_s2", "m1_s2");
+    assertResultIds("m1_s1", "ha_m1_s1", "m1_s1");
+    assertResultIds("m1_s2", "ha_m1_s2", "m1_s2");
+    assertPushdowns("m1_s1", 2,
+            DownsampleConfig.class, "ds", "m1_s1", "ds", "m1_s1",
+            GroupByConfig.class, "gb", "ds", "gb", "m1_s1");
+    assertPushdowns("m1_s2", 2,
+            DownsampleConfig.class, "ds", "m1_s2", "ds", "m1_s2",
+            GroupByConfig.class, "gb", "ds", "gb", "m1_s2");
   }
 
   @Test
@@ -228,19 +228,19 @@ debug();
     assertNodesAndEdges(5, 4);
     assertEdgeToContextNode("m1");
     assertEdge("m1", "IdConverter_m1",
-            "IdConverter_m1", "ha_m1_s1",
-            "IdConverter_m1", "ha_m1_s2");
+            "IdConverter_m1", "m1_s1",
+            "IdConverter_m1", "m1_s2");
     assertSerializationSource("m1", "m1");
-    assertSources("ha_m1_s1", "s1", "ha_m1_s2", "s2");
+    assertSources("m1_s1", "s1", "m1_s2", "s2");
     assertMergerExpecting("m1", "m1_s1", "m1_s2");
     assertMergerTimeouts("m1", "15s", "10s");
     assertResultIds("m1", "m1", "m1");
     assertResultIds("IdConverter_m1",
             "ha_m1_s1", "m1_s1", "ha_m1_s2", "m1_s2");
-    assertResultIds("ha_m1_s1", "ha_m1_s1", "m1_s1");
-    assertResultIds("ha_m1_s2", "ha_m1_s2", "m1_s2");
-    assertPushdowns("ha_m1_s1", 0);
-    assertPushdowns("ha_m1_s2", 0);
+    assertResultIds("m1_s1", "ha_m1_s1", "m1_s1");
+    assertResultIds("m1_s2", "ha_m1_s2", "m1_s2");
+    assertPushdowns("m1_s1", 0);
+    assertPushdowns("m1_s2", 0);
   }
 
   @Test
@@ -269,10 +269,10 @@ debug();
 debug();
     assertNodesAndEdges(14, 13);
     assertEdgeToContextNode("summarizer");
-    assertEdge("m0", "ha_m0_s1",
-            "m0", "ha_m0_s2",
-            "m1", "ha_m1_s1",
-            "m1", "ha_m1_s2",
+    assertEdge("m0", "m0_s1",
+            "m0", "m0_s2",
+            "m1", "m1_s1",
+            "m1", "m1_s2",
             "m0-sum-downsample", "m0",
             "m0-sum-groupby", "m0-sum-downsample",
             "m1-sum-downsample", "m1",
@@ -282,7 +282,7 @@ debug();
             "m2", "m2_SubExp#0",
             "summarizer", "m2");
     assertSerializationSource("summarizer", "m2", "m2", "m2");
-    assertSources("ha_m0_s1", "s1", "ha_m0_s2", "s2");
+    assertSources("m0_s1", "s1", "m0_s2", "s2");
     assertMergerExpecting("m0", "m0_s1", "m0_s2");
     assertMergerTimeouts("m0", "15s", "10s");
     assertMergerExpecting("m1", "m1_s1", "m1_s2");
@@ -295,10 +295,10 @@ debug();
     assertResultIds("m1-sum-groupby", "m1-sum-groupby", "m1");
     assertResultIds("m2_SubExp#0", "m2_SubExp#0", "m2_SubExp#0");
     assertResultIds("m2", "m2", "m2");
-    assertPushdowns("ha_m0_s1", 0);
-    assertPushdowns("ha_m0_s2", 0);
-    assertPushdowns("ha_m1_s1", 0);
-    assertPushdowns("ha_m1_s2", 0);
+    assertPushdowns("m0_s1", 0);
+    assertPushdowns("m0_s2", 0);
+    assertPushdowns("m1_s1", 0);
+    assertPushdowns("m1_s2", 0);
   }
 
 }
