@@ -146,7 +146,7 @@ public class Merger extends AbstractQueryNode {
                 .build();
       }
     }
-
+    LOG.info("Expect to have results: " + results);
     if (LOG.isTraceEnabled()) {
       LOG.trace("Expect to have results: " + results);
     }
@@ -180,6 +180,7 @@ public class Merger extends AbstractQueryNode {
     }
 
     int countdown = 0;
+    LOG.info("Got response from datasource: " +next.dataSource()  + " and source: " + next.source());
     Waiter extant = results.get(next.dataSource());
     if (extant == null) {
       LOG.warn("Received a result in node " + config.getId()

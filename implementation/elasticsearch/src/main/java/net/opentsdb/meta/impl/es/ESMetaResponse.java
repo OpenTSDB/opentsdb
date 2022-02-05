@@ -19,6 +19,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.collect.Sets;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
@@ -46,7 +48,6 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UniqueKeyPair;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.common.collect.Sets;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;

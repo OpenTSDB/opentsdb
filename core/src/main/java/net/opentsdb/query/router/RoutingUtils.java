@@ -230,20 +230,27 @@ public class RoutingUtils {
         for (int x = 0; x < builder.pushDowns().size(); x++) {
            QueryNodeConfig.Builder pdBuilder = ((QueryNodeConfig) builder.pushDowns()
                    .get(x)).toBuilder();
-           if (x + 1 == builder.pushDowns().size()) {
-             final String pushdownId = ((QueryNodeConfig) builder.pushDowns().get(x)).getId() +
-                     "_" + builder.id();
-             pdBuilder.setResultIds(Lists.newArrayList(
-                     new DefaultQueryResultId(
-                            pushdownId,
-                            builder.dataSource())));
-             pdBuilder.setId(pushdownId);
-           } else {
-             pdBuilder.setResultIds(Lists.newArrayList(
+
+//           if (x + 1 == builder.pushDowns().size()) {
+//
+//             final String pushdownId = ((QueryNodeConfig) builder.pushDowns().get(x)).getId() +
+//                     "_" + builder.id();
+//             pdBuilder.setResultIds(Lists.newArrayList(
+//                     new DefaultQueryResultId(
+//                            pushdownId,
+//                            builder.dataSource())));
+//             pdBuilder.setId(pushdownId);
+//           } else {
+//             pdBuilder.setResultIds(Lists.newArrayList(
+//                     new DefaultQueryResultId(
+//                             ((QueryNodeConfig) builder.pushDowns().get(x)).getId(),
+//                             builder.dataSource())));
+//           }
+
+          pdBuilder.setResultIds(Lists.newArrayList(
                      new DefaultQueryResultId(
                              ((QueryNodeConfig) builder.pushDowns().get(x)).getId(),
                              builder.dataSource())));
-           }
 
            if (x == 0) {
              pdBuilder.setSources(Lists.newArrayList(builder.id()));

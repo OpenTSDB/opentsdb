@@ -345,9 +345,15 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
       }
       return;
     }
+    List<List<QueryNodeConfig>> pushdowns = Lists.newArrayList();
+    if(config.getPushDownNodes() != null && ! config.getPushDownNodes().isEmpty()) {
+      for (int i = 0; i < sources.size(); i++) {
+        pushdowns.add(Lists.newArrayList(config.getPushDownNodes()));
+      }
+    } else {
+      pushdowns = RoutingUtils.potentialPushDowns(config, sources, planner);
+    }
 
-    final List<List<QueryNodeConfig>> pushdowns =
-            RoutingUtils.potentialPushDowns(config, sources, planner);
     final List<TimeAdjustments> pushdownAdjustments =
             RoutingUtils.pushdownAdjustments(context,
                     pushdowns,
@@ -666,7 +672,8 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
                     .setRealFillPolicy(FillWithRealPolicy.NONE)
                     .setDataType(NumericType.TYPE.toString())
                     .build())
-            .setDataSource(config.getDataSource())
+            //.setDataSource(config.getId())
+            .setDataSource(config.getDataSource() == null ? config.getId() : config.getDataSource())
             .setFirstDataTimestamp(newSources.get(newSources.size() - 1).startOverrideTimeStamp())
             .setId(config.getId());
     if (adjustments != null && adjustments.downsampleInterval != null) {
@@ -679,7 +686,15 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
     MergerConfig merger = mergerBuilder.build();
     planner.replace(config, merger);
 
-    RoutingUtils.rebuildGraph(context, merger, needsIdConverter, pushdowns, newSources, planner);
+    if(config.getPushDownNodes().isEmpty()) {
+      RoutingUtils.rebuildGraph(context, merger, needsIdConverter, pushdowns, newSources, planner);
+    } else {
+      List<List<QueryNodeConfig>> pds = Lists.newArrayList();
+      for (int i = 0; i < sources.size(); i++) {
+        pds.add(Collections.emptyList());
+      }
+      RoutingUtils.rebuildGraph(context, merger, needsIdConverter, pds, newSources, planner);
+    }
   }
 
   @Override
@@ -704,7 +719,7 @@ public class TimeRouterFactory extends BaseTSDBPlugin implements
   public boolean supportsPushdown(
       final Class<? extends QueryNodeConfig> operation) {
     // TODO figure out what to do here.
-    return false;
+    return true;
   }
 
   @Override
