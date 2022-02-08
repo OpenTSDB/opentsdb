@@ -704,11 +704,11 @@ public class TestTimeRouterFactorySplits extends BaseTestTimeRouterFactorySplit 
     assertIsMerger("gb");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            GroupByConfig.class, "gb", "m1_s1", "gb", "m1_s1");
+            GroupByConfig.class, "gb_m1_s1", "m1_s1", "gb_m1_s1", "m1_s1");
     assertPushdowns("m1_s2", 1,
-            GroupByConfig.class, "gb", "m1_s2", "gb", "m1_s2");
+            GroupByConfig.class, "gb_m1_s2", "m1_s2", "gb_m1_s2", "m1_s2");
     assertPushdowns("m1_s3", 1,
-            GroupByConfig.class, "gb", "m1_s3", "gb", "m1_s3");
+            GroupByConfig.class, "gb_m1_s3", "m1_s3", "gb_m1_s3", "m1_s3");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
     assertResultIds("m1_s2", "m1_s2", "m1_s2");
@@ -734,10 +734,10 @@ public class TestTimeRouterFactorySplits extends BaseTestTimeRouterFactorySplit 
     assertMergerExpecting("gb", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            GroupByConfig.class, "gb", "m1_s1", "gb", "m1_s1");
+            GroupByConfig.class, "gb_m1_s1", "m1_s1", "gb_m1_s1", "m1_s1");
     assertPushdowns("m1_s2", 0);
     assertPushdowns("m1_s3", 1,
-            GroupByConfig.class, "gb", "m1_s3", "gb", "m1_s3");
+            GroupByConfig.class, "gb_m1_s3", "m1_s3", "gb_m1_s3", "m1_s3");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("m1_gb", "m1_gb", "m1_s2");
     assertResultIds("m1_s1", "m1_s1", "m1_s1");
@@ -882,10 +882,10 @@ debug();
     assertMergerExpecting("gb", "m1_s1", "m1_s2", "m1_s3");
     assertSources("m1_s1", "s1", "m1_s2", "s2", "m1_s3", "s3");
     assertPushdowns("m1_s1", 1,
-            GroupByConfig.class, "gb", "m1_s1", "gb", "m1_s1");
+            GroupByConfig.class, "gb_m1_s1", "m1_s1", "gb_m1_s1", "m1_s1");
     assertPushdowns("m1_s2", 0);
     assertPushdowns("m1_s3", 1,
-            GroupByConfig.class, "gb", "m1_s3", "gb", "m1_s3");
+            GroupByConfig.class, "gb_m1_s3", "m1_s3", "gb_m1_s3", "m1_s3");
     assertResultIds("gb", "gb", "m1");
     assertResultIds("IdConverter_m1", "m1_s1", "m1_s1",
             "m1_s2", "m1_s2",
