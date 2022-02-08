@@ -83,6 +83,8 @@ public class RoutingUtils {
     int min_pushdowns = Integer.MAX_VALUE;
     int max_index = -1;
 
+    boolean hasPushdowns = pushDowns.isEmpty() ? false : true;
+
     for (int i = 0; i < newSources.size(); i++) {
       final TimeSeriesDataSourceConfig.Builder builder = newSources.get(i);
       final List<QueryNodeConfig> pds = builder.pushDowns();
@@ -231,27 +233,29 @@ public class RoutingUtils {
            QueryNodeConfig.Builder pdBuilder = ((QueryNodeConfig) builder.pushDowns()
                    .get(x)).toBuilder();
 
-//           if (x + 1 == builder.pushDowns().size()) {
-//
-//             final String pushdownId = ((QueryNodeConfig) builder.pushDowns().get(x)).getId() +
-//                     "_" + builder.id();
-//             pdBuilder.setResultIds(Lists.newArrayList(
-//                     new DefaultQueryResultId(
-//                            pushdownId,
-//                            builder.dataSource())));
-//             pdBuilder.setId(pushdownId);
-//           } else {
-//             pdBuilder.setResultIds(Lists.newArrayList(
-//                     new DefaultQueryResultId(
-//                             ((QueryNodeConfig) builder.pushDowns().get(x)).getId(),
-//                             builder.dataSource())));
-//           }
+           if(hasPushdowns) {
+             if (x + 1 == builder.pushDowns().size()) {
 
-          pdBuilder.setResultIds(Lists.newArrayList(
+               final String pushdownId = ((QueryNodeConfig) builder.pushDowns().get(x)).getId() +
+                       "_" + builder.id();
+               pdBuilder.setResultIds(Lists.newArrayList(
+                       new DefaultQueryResultId(
+                              pushdownId,
+                              builder.dataSource())));
+               pdBuilder.setId(pushdownId);
+             } else {
+               pdBuilder.setResultIds(Lists.newArrayList(
+                       new DefaultQueryResultId(
+                               ((QueryNodeConfig) builder.pushDowns().get(x)).getId(),
+                               builder.dataSource())));
+             }
+           } else {
+
+             pdBuilder.setResultIds(Lists.newArrayList(
                      new DefaultQueryResultId(
                              ((QueryNodeConfig) builder.pushDowns().get(x)).getId(),
                              builder.dataSource())));
-
+           }
            if (x == 0) {
              pdBuilder.setSources(Lists.newArrayList(builder.id()));
            } else {
