@@ -245,10 +245,6 @@
                 <serverId>docker-hub</serverId>
                 <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
                 <imageName>opentsdb</imageName>
-                <imageTags>
-                  <imageTag>${project.version}</imageTag>
-                  <imageTag>latest</imageTag>
-                </imageTags>
                 <buildArgs>
                   <projectVersion>${project.version}</projectVersion>
                 </buildArgs>
@@ -269,25 +265,42 @@
               
               <executions>
                 <execution>
-                  <id>build-image</id>
+                  <id>build-image-jdk15</id>
                   <phase>package</phase>
+                  <configuration>
+                    <imageTags>
+                      <imageTag>${project.version}-jdk15</imageTag>
+                    </imageTags>
+                    <image>opentsdb:${project.version}-jdk15</image>
+                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}-jdk15</newName>
+                    <buildArgs>
+                      <jdkVersion>15</jdkVersion>
+                    </buildArgs>
+                  </configuration>
                   <goals>
                     <goal>build</goal>
-                  </goals>
-                </execution>
-                
-                <execution>
-                  <id>tag-image</id>
-                  <phase>package</phase>
-                  <goals>
                     <goal>tag</goal>
                   </goals>
+                </execution>
+                <execution>
+                  <id>build-image</id>
+                  <phase>package</phase>
                   <configuration>
+                    <imageTags>
+                      <imageTag>${project.version}</imageTag>
+                    </imageTags>
                     <image>opentsdb:${project.version}</image>
                     <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}</newName>
+                    <buildArgs>
+                      <jdkVersion>8</jdkVersion>
+                    </buildArgs>
                   </configuration>
+                  <goals>
+                    <goal>build</goal>
+                    <goal>tag</goal>
+                  </goals>
                 </execution>
-                
+
                 <execution>
                   <id>push-image</id>
                   <phase>install</phase>
@@ -303,7 +316,7 @@
           </plugins>
         </build>
       </profile>
-      
+
       <profile>
         <id>docker-prophet</id>
         <build>

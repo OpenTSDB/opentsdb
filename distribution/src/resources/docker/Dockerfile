@@ -1,4 +1,6 @@
-FROM openjdk:8-slim
+ARG       jdkVersion
+
+FROM openjdk:$jdkVersion-slim
 
 MAINTAINER clarsen@verizonmedia.com
 
