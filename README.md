@@ -5,7 +5,8 @@
       \___/| .__/ \___|_| |_|_| |____/|____/|____/
            |_|    The modern time series database.
 
-[![Build Status](https://travis-ci.org/manolama/opentsdb.svg?branch=3.0)](https://travis-ci.org/manolama/opentsdb) [![Coverage Status](https://coveralls.io/repos/github/OpenTSDB/opentsdb/badge.svg?branch=3.0)](https://coveralls.io/github/OpenTSDB/opentsdb?branch=3.0)
+[![Pipeline Status][status-image]][status-url] [![Job Status][job-status-image]][status-url]
+
 # ***** NOTICE *****
 Version 3 of OpenTSDB is currently in a development state. APIs and data
 structures are expected to change before moving to the "put" branch where
@@ -41,3 +42,7 @@ Each module and sub-module should have readmes with more details when appropriat
 For a quick start with OpenTSDB 3.0, see the [Undertow Server] (https://github.com/OpenTSDB/opentsdb/tree/3.0/implementation/server-undertow) implementation. We'll have more info and better docs as we flesh out 3.0.
 
 And of course, OpenTSDB 3.0 is backwards compatible with previous versions.
+
+[status-image]: https://cd.screwdriver.cd/pipelines/7292/badge
+[job-status-image]: https://cd.screwdriver.cd/pipelines/7292/main/badge
+[status-url]: https://cd.screwdriver.cd/pipelines/7292
