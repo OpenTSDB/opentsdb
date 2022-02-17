@@ -265,6 +265,24 @@
               
               <executions>
                 <execution>
+                  <id>build-image-jdk17</id>
+                  <phase>package</phase>
+                  <configuration>
+                    <imageTags>
+                      <imageTag>${project.version}-jdk17</imageTag>
+                    </imageTags>
+                    <image>opentsdb:${project.version}-jdk17</image>
+                    <newName>opentsdb/opentsdb:${project.version}-jdk17</newName>
+                    <buildArgs>
+                      <jdkVersion>17</jdkVersion>
+                    </buildArgs>
+                  </configuration>
+                  <goals>
+                    <goal>build</goal>
+                    <goal>tag</goal>
+                  </goals>
+                </execution>
+                <execution>
                   <id>build-image-jdk15</id>
                   <phase>package</phase>
                   <configuration>
