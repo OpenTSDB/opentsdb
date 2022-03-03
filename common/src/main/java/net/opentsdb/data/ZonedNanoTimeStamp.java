@@ -418,7 +418,7 @@ public class ZonedNanoTimeStamp implements TimeStamp {
       if (!skip) {
         if (computed_interval == 1) {
           timestamp = timestamp.truncatedTo(ChronoUnit.DAYS);
-          timestamp = timestamp.with(TemporalAdjusters.firstDayOfMonth());
+          timestamp = timestamp.with(TemporalAdjusters.firstDayOfYear());
           timestamp = timestamp.with(day_of_week);
           break;
         } else if (computed_interval <= 52) {
