@@ -616,4 +616,20 @@ public class TestDownsampleConfig {
     assertNull(config.interval());
   }
 
+  @Test
+  public void testSnapToPreviousWeekInterval() {
+    DownsampleConfig config = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("168h")
+        .setStart("1638491096000") // Fri Dec  3 00:24:56 UTC 2021
+        .setEnd("1646267096000") // Thu Mar  3 00:24:56 UTC 2022
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
+        .build();
+
+    assertEquals(1638662400, config.startTime().epoch()); // Sun Dec  5 00:00:00 UTC 2021
+    assertEquals(1645920000, config.endTime().epoch()); // Sun Feb 27 00:00:00 UTC 2022
+  }
+
 }
