@@ -69,25 +69,25 @@ import net.opentsdb.utils.JSON;
 public class BaseAnomalyNode extends AbstractQueryNode {
   private static final Logger LOG = LoggerFactory.getLogger(BaseAnomalyNode.class);
 
-  protected final TimeSeriesDataSourceConfig dataSourceConfig;
+  protected TimeSeriesDataSourceConfig dataSourceConfig;
   protected final BaseAnomalyConfig config;
-  protected final PredictionCache cache;
-  protected final AtomicInteger latch;
-  protected final AtomicInteger prediction_attempts;
-  protected final int jitter;
-  protected final AtomicBoolean failed;
-  protected final AtomicBoolean building_prediction;
-  protected final AtomicBoolean cache_error;
-  protected final boolean cache_hits[];
-  protected final long[] prediction_starts;
-  protected final ChronoUnit model_units;
-  protected final byte[][] cache_keys;
-  protected final long prediction_intervals;
-  protected final long prediction_interval;
-  protected final int threshold_dps;
-  protected final long training_span;
-  protected final QueryResultId data_source;
-  protected final String ds_interval;
+  protected PredictionCache cache;
+  protected AtomicInteger latch;
+  protected AtomicInteger prediction_attempts;
+  protected int jitter;
+  protected AtomicBoolean failed;
+  protected AtomicBoolean building_prediction;
+  protected AtomicBoolean cache_error;
+  protected boolean cache_hits[];
+  protected long[] prediction_starts;
+  protected ChronoUnit model_units;
+  protected byte[][] cache_keys;
+  protected long prediction_intervals;
+  protected long prediction_interval;
+  protected int threshold_dps;
+  protected long training_span;
+  protected QueryResultId data_source;
+  protected String ds_interval;
   protected volatile QueryResult[] predictions;
   protected volatile QueryResult current;
   protected volatile NumericArrayAggregatorConfig aggregatorConfig;
@@ -100,6 +100,11 @@ public class BaseAnomalyNode extends AbstractQueryNode {
                          final BaseAnomalyConfig config) {
     super(factory, context);
     this.config = config;
+  }
+
+  @Override
+  public Deferred<Void> initialize(final Span span) {
+    LOG.info("*********** INITIALIZING");
     latch = new AtomicInteger(2);
     prediction_attempts = new AtomicInteger();
     failed = new AtomicBoolean();
@@ -235,11 +240,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
     } else {
       config.setModelInterval('d');
     }
-  }
-
-  @Override
-  public Deferred<Void> initialize(final Span span) {
-    LOG.info("*********** INITIALIZING");
+    
     final class InitCB implements Callback<Void, Void> {
       @Override
       public Void call(final Void arg) throws Exception {
