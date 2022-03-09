@@ -64,6 +64,8 @@ public class TestOlympicScoringBaseline {
                     .setArraySize(60)
                     .build()
     ));
+    
+    when(node.getAggregatorFactory()).thenReturn(factory);
   }
   
   @Test
@@ -286,6 +288,66 @@ public class TestOlympicScoringBaseline {
   
   @Test
   public void predict() throws Exception {
+    when(node.predictionIntervals()).thenReturn(60L);
+    when(node.predictionInterval()).thenReturn(60L);
+    
+    TimeSpecification time_spec = mock(TimeSpecification.class);
+    when(time_spec.start()).thenReturn(new SecondTimeStamp(BASE_TIME));
+    when(time_spec.end()).thenReturn(new SecondTimeStamp(BASE_TIME + (3600 * 3)));
+    when(time_spec.interval()).thenReturn(Duration.ofSeconds(60));
+    when(result.timeSpecification()).thenReturn(time_spec);
+    
+    TimeSeries source = new NumericArrayTimeSeries(ID, time_spec.start());
+    long ts = BASE_TIME;
+    for (int x = 0; x < 3; x++) {
+      for (int i = 0; i < 60; i++) {
+        double value = Math.sin((ts % 3600) / 100) + x;
+        ((NumericArrayTimeSeries) source).add(value);
+        ts += 60;
+      }
+    }
+    
+    OlympicScoringBaseline baseline = new OlympicScoringBaseline(node, ID);
+    baseline.append(source, result);
+    assertEquals(BASE_TIME, baseline.baseline.startTime());
+    assertEquals(BASE_TIME + (3600 * 3) - 60, baseline.baseline.lastTime());
+    assertEquals(180, baseline.baseline.size());
+    
+    Properties properties = new Properties();
+    properties.setProperty("TS_MODEL", "OlympicModel2");
+    properties.setProperty("INTERVAL", "1");
+    properties.setProperty("INTERVAL_UNITS", "MINUTES");
+    properties.setProperty("WINDOW_SIZE", "1");
+    properties.setProperty("WINDOW_SIZE_UNITS", "HOURS");
+    properties.setProperty("WINDOW_DISTANCE", "1");
+    properties.setProperty("WINDOW_DISTANCE_UNITS", "HOURS");
+    properties.setProperty("HISTORICAL_WINDOWS", "3");
+    properties.setProperty("WINDOW_AGGREGATOR", "AVG");
+    properties.setProperty("MODEL_START", Long.toString(BASE_TIME + (3600 * 3)));
+    properties.setProperty("ENABLE_WEIGHTING", "TRUE");
+    properties.setProperty("AGGREGATOR", "AVG");
+    properties.setProperty("NUM_TO_DROP_LOWEST", "0");
+    properties.setProperty("NUM_TO_DROP_HIGHEST","0");
+    properties.setProperty("PERIOD", "3600");
+    
+    TimeSeries result = baseline.predict(properties, BASE_TIME + (3600 * 3));
+    
+    TypedTimeSeriesIterator iterator = result.iterator(NumericArrayType.TYPE).get();
+    assertTrue(iterator.hasNext());
+    TimeSeriesValue<NumericArrayType> v = (TimeSeriesValue<NumericArrayType>) iterator.next();
+    assertEquals(60, v.value().end());
+    ts = BASE_TIME + (3600 * 3);
+    for (int i = v.value().offset(); i < v.value().end(); i++) {
+      assertTrue(Double.isFinite(v.value().doubleArray()[i]));
+    }
+    
+    TimeSeriesStringId id = (TimeSeriesStringId) result.id();
+    assertEquals(((TimeSeriesStringId) ID).metric(), id.metric());
+    assertEquals(0, id.tags().size());
+  }
+  
+  @Test
+  public void predictWithRightIndex() throws Exception {
     when(node.predictionIntervals()).thenReturn(60L);
     when(node.predictionInterval()).thenReturn(60L);
     
