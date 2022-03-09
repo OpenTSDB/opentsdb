@@ -21,6 +21,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.anomaly.BaseAnomalyNode;
 
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
@@ -70,6 +71,7 @@ public class ArrayAggregatorUtils {
    *   aggregator. Check that before using this method otherwise the aggregator
    *   will have garbage.</li>
    * </ul>
+   * @param node 
    * @param agg The non-null aggregator to write into.
    * @param aggStart The non-null starting timestamp of the aggregator array.
    * @param aggEnd The non-null ending timestamp of the aggregator array,
@@ -79,7 +81,7 @@ public class ArrayAggregatorUtils {
    * @return A non-null state based on the aggregation.
    */
   public static AccumulateState accumulateInAggregatorArray(
-          final NumericArrayAggregator agg,
+          BaseAnomalyNode node, final NumericArrayAggregator agg,
           final TimeStamp aggStart,
           final TimeStamp aggEnd,
           final TemporalAmount interval,
@@ -121,22 +123,101 @@ public class ArrayAggregatorUtils {
     int wrote = 0;
     if (value.value().isInteger()) {
       long[] array = value.value().longArray();
+      
+      BaseArrayAggregatorConfig aggConfig = DefaultArrayAggregatorConfig.newBuilder()
+          .setArraySize(aggIndex + array.length)
+          .build();
+          
+      NumericArrayAggregator aggLocal =
+          (NumericArrayAggregator) node.getAggregatorFactory().newAggregator(aggConfig);
+      
       while (arrayIndex < value.value().end() &&
              currentTs.compare(TimeStamp.Op.LT, aggEnd)) {
+        aggLocal.accumulate(array[arrayIndex++], aggIndex++);
+        currentTs.add(interval);
+        ++wrote;
+      }
+    } else {
+      double[] array = value.value().doubleArray();
+      BaseArrayAggregatorConfig aggConfig = DefaultArrayAggregatorConfig.newBuilder()
+          .setArraySize(aggIndex + array.length)
+          .build();
+          
+      NumericArrayAggregator aggLocal =
+          (NumericArrayAggregator) node.getAggregatorFactory().newAggregator(aggConfig);
+      while (arrayIndex < value.value().end() &&
+             currentTs.compare(TimeStamp.Op.LT, aggEnd)) {
+        aggLocal.accumulate(array[arrayIndex++], aggIndex++);
+        currentTs.add(interval);
+        ++wrote;
+      }
+    }
+
+    return wrote > 0 ? AccumulateState.SUCCESS : AccumulateState.OUT_OF_BOUNDS;
+  }
+  
+  public static AccumulateState accumulateInAggregatorArray(
+      final NumericArrayAggregator agg,
+      final TimeStamp aggStart,
+      final TimeStamp aggEnd,
+      final TemporalAmount interval,
+      final TimeSeries timeseries) {
+    
+    final Optional<TypedTimeSeriesIterator<? extends TimeSeriesDataType>> op =
+        timeseries.iterator(NumericArrayAggregator.TYPE);
+    if (!op.isPresent()) {
+      return AccumulateState.NOT_PRESENT;
+    }
+    final TypedTimeSeriesIterator<? extends TimeSeriesDataType> iterator = op.get();
+    if (!iterator.hasNext()) {
+      return AccumulateState.NO_VALUE;
+    }
+    
+    final TimeSeriesValue<NumericArrayType> value =
+        (TimeSeriesValue<NumericArrayType>) iterator.next();
+    if (value.timestamp().compare(TimeStamp.Op.GTE, aggEnd)) {
+      return AccumulateState.OUT_OF_BOUNDS;
+    }
+    
+    // TODO - only handling seconds for now. need ms and nanos someday.
+    TimeStamp currentTs = value.timestamp().getCopy();
+    int aggIndex = (int) ((value.timestamp().epoch() - aggStart.epoch()) /
+        interval.get(ChronoUnit.SECONDS));
+    int arrayIndex = value.value().offset();
+    // make sure we move to the start of the agg index if we have data before
+    // the interval.
+    while (aggIndex < 0 && arrayIndex < value.value().end() &&
+        currentTs.compare(TimeStamp.Op.LT, aggEnd)) {
+      currentTs.add(interval);
+      ++aggIndex;
+      ++arrayIndex;
+    }
+    if (aggIndex < 0) {
+      return AccumulateState.OUT_OF_BOUNDS;
+    }
+    
+    int wrote = 0;
+    if (value.value().isInteger()) {
+      long[] array = value.value().longArray();
+      
+     
+      while (arrayIndex < value.value().end() &&
+          currentTs.compare(TimeStamp.Op.LT, aggEnd)) {
         agg.accumulate(array[arrayIndex++], aggIndex++);
         currentTs.add(interval);
         ++wrote;
       }
     } else {
       double[] array = value.value().doubleArray();
+      
       while (arrayIndex < value.value().end() &&
-             currentTs.compare(TimeStamp.Op.LT, aggEnd)) {
+          currentTs.compare(TimeStamp.Op.LT, aggEnd)) {
         agg.accumulate(array[arrayIndex++], aggIndex++);
         currentTs.add(interval);
         ++wrote;
       }
     }
-
+    
     return wrote > 0 ? AccumulateState.SUCCESS : AccumulateState.OUT_OF_BOUNDS;
   }
 

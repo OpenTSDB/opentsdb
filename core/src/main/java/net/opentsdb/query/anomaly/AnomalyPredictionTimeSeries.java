@@ -104,7 +104,7 @@ public class AnomalyPredictionTimeSeries implements TimeSeries {
 
     for (int i = 0; i < sources.length; i++) {
       final ArrayAggregatorUtils.AccumulateState state =
-              ArrayAggregatorUtils.accumulateInAggregatorArray(aggregator,
+              ArrayAggregatorUtils.accumulateInAggregatorArray(node, aggregator,
                       result.timeSpecification().start(),
                       result.timeSpecification().end(),
                       result.timeSpecification().interval(),
