@@ -91,7 +91,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
   protected volatile QueryResult[] predictions;
   protected volatile QueryResult current;
   protected volatile NumericArrayAggregatorConfig aggregatorConfig;
-  protected volatile NumericArrayAggregatorFactory aggregatorFactory;
+  private volatile NumericArrayAggregatorFactory aggregatorFactory;
   protected TrainingQuery training_query;
   protected volatile QueryResult training_data;
 
@@ -140,7 +140,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
         LOG.error("No auto intervals for the downsampler.");
       }
       ds_interval = DownsampleFactory.getAutoInterval(query_time_span, 
-          ((DownsampleFactory) factory).intervals(), null);
+          ((DownsampleFactory) dsf).intervals(), null);
     } else {
       ds_interval = ds.getInterval();
     }
@@ -657,7 +657,6 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       if (eval.alerts() != null && !eval.alerts().isEmpty()) {
         pred_ts.addAlerts(eval.alerts());
       }
-      
       result.addPredictionsAndThresholds(pred_ts, predictions);
       
       if (config.getSerializeDeltas()) {
@@ -915,5 +914,9 @@ public class BaseAnomalyNode extends AbstractQueryNode {
                                       final int prediction_index) {
     return Deferred.fromError(new UnsupportedOperationException(
         "This method must be implemented."));
+  }
+
+  public NumericArrayAggregatorFactory getAggregatorFactory() {
+    return aggregatorFactory;
   }
 }

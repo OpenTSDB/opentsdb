@@ -19,6 +19,8 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Properties;
 
+import net.opentsdb.data.types.numeric.aggregators.BaseArrayAggregatorConfig;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +118,6 @@ public class OlympicScoringBaseline {
     final com.yahoo.egads.data.TimeSeries prediction = 
         new com.yahoo.egads.data.TimeSeries();
     //final double[] results = new double[(int) node.predictionIntervals()];
-    NumericArrayAggregator agg = node.newAggregator();
     
     // fill the prediction with nans at the proper timestamps
     long ts = prediction_start;
@@ -142,6 +143,12 @@ public class OlympicScoringBaseline {
     // trained, now populate the query result
     final Iterator<com.yahoo.egads.data.TimeSeries.Entry> it = 
         prediction.data.iterator();
+    BaseArrayAggregatorConfig aggConfig = DefaultArrayAggregatorConfig.newBuilder()
+    .setArraySize(prediction.data.size())
+    .build();
+    
+    NumericArrayAggregator agg =
+        (NumericArrayAggregator) node.getAggregatorFactory().newAggregator(aggConfig);
     int i = 0;
     ts = prediction_start;
     while (it.hasNext()) {
