@@ -285,7 +285,7 @@ public class BaseAnomalyNode extends AbstractQueryNode {
       intervals = (next.timeSpecification().end().epoch() -
       next.timeSpecification().start().epoch()) / intervals;
       aggregatorConfig = DefaultArrayAggregatorConfig.newBuilder()
-              .setArraySize((int) intervals)
+              .setArraySize((int) intervals + 1)
               .build();
     }
     countdown();
