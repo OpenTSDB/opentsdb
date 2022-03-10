@@ -150,12 +150,15 @@ public class HttpQueryV3Factory
 
 
     //set timeshift resultids
-    final QueryNodeConfig lastPushDownNode = (QueryNodeConfig) new_config.getPushDownNodes().get(new_config.getPushDownNodes().size() - 1);
+    QueryNodeConfig lastPushDownNode = null;
+    if(! new_config.getPushDownNodes().isEmpty()) {
+      lastPushDownNode = (QueryNodeConfig) new_config.getPushDownNodes().get(new_config.getPushDownNodes().size() - 1);
+    }
     // Add timeshift node as a push down
     final TimeShiftConfig shift_config = TimeShiftConfig.newBuilder()
         .setTimeshiftInterval(new_config.getTimeShiftInterval())
         .setId(new_config.getId() + "-timeShift")
-        .setResultIds(lastPushDownNode != null ? lastPushDownNode.resultIds() : null)
+        .setResultIds(lastPushDownNode != null ? lastPushDownNode.resultIds() : new_config.resultIds())
         .addSource(new_config.getId())
         .build();
 
