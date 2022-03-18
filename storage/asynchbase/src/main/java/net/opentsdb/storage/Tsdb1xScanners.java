@@ -22,6 +22,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.query.*;
+import net.opentsdb.query.readcache.CachedQueryNode;
 import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList.Operator;
@@ -51,9 +54,6 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
@@ -143,7 +143,12 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
   /** The maximum cardinality to allow in determining if we can switch to
    * multi-gets. */
   protected int max_multi_get_cardinality;
-  
+
+  /**
+   * Whether or not return an empty response if metric does not exist
+   */
+  protected boolean no_metric_empty_response;
+
   /** Whether or not the scanners have been initialized. */
   protected volatile boolean initialized;
   
@@ -240,6 +245,12 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
       skip_nsun_tagvs = node.parent()
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     
+    }
+
+    if(source_config.hasKey(Tsdb1xHBaseDataStore.EMPTY_RESPONSE_NO_METRIC)) {
+      no_metric_empty_response = source_config.getBoolean(config, Tsdb1xHBaseDataStore.EMPTY_RESPONSE_NO_METRIC);
+    } else {
+      no_metric_empty_response = node.parent().dynamicBoolean(Tsdb1xHBaseDataStore.EMPTY_RESPONSE_NO_METRIC);
     }
     
     if (source_config.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
@@ -770,7 +781,14 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
             child.setErrorTags(ex)
                  .finish();
           }
-          exception(new QueryExecutionException(ex.getMessage(), 400, ex));
+          if(no_metric_empty_response) {
+            final QueryResult result = current_result;
+            current_result = null;
+            node.onNext(result);
+          } else {
+             exception(new QueryExecutionException(ex.getMessage(), 400, ex));
+          }
+
           return null;
         }
         
@@ -796,6 +814,8 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
         return null;
       }
     }
+
+
     
     try {
       node.schema().getId(UniqueIdType.METRIC, 
