@@ -110,6 +110,7 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
   public static final String SKIP_NSUN_TAGV_KEY = "tsd.query.skip_unresolved_tagvs";
   public static final String SKIP_NSUN_METRIC_KEY = "tsd.query.skip_unresolved_metrics";
   public static final String SKIP_NSUI_KEY = "tsd.query.skip_unresolved_ids";
+  public static final String EMPTY_RESPONSE_NO_METRIC = "tsd.query.empty_response_no_metric";
   public static final String ALLOW_DELETE_KEY = "tsd.query.allow_delete";
   public static final String DELETE_KEY = "tsd.query.delete";
   public static final String PRE_AGG_KEY = "tsd.query.pre_agg";
@@ -261,6 +262,10 @@ public class Tsdb1xHBaseDataStore extends BaseTsdb1xDataStore implements TimerTa
         config.register(SKIP_NSUN_METRIC_KEY, "false", true,
                 "Whether or not to throw an error if a metric fails to " +
               "resolve to a UID (false) or return an empty response (true).");
+      }
+      if (!config.hasProperty(EMPTY_RESPONSE_NO_METRIC)) {
+        config.register(EMPTY_RESPONSE_NO_METRIC, "false", true,
+                "Whether or not to return an empty response if metric does not exist");
       }
       if (!config.hasProperty(SKIP_NSUI_KEY)) {
         config.register(SKIP_NSUI_KEY, "false", true,
