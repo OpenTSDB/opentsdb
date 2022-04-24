@@ -1225,15 +1225,15 @@ public class JsonV3QuerySerdes implements TimeSeriesSerdes {
       for (String p : eventsValue.parentIds()) {
         json.writeString(p);
       }
+      json.writeEndArray();
     }
-    json.writeEndArray();
     if (eventsValue.childIds() != null) {
       json.writeArrayFieldStart("childIds");
       for (String c : eventsValue.childIds()) {
         json.writeString(c);
       }
+      json.writeEndArray();
     }
-    json.writeEndArray();
 
     if (eventsValue.additionalProps() != null) {
       json.writeObjectFieldStart("additionalProps");
