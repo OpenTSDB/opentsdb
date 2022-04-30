@@ -1,0 +1,99 @@
+tsd.network.port: 4242
+config.http.cache.directory: /tmp/
+tsd.http.staticroot: /usr/share/opentsdb/static
+
+tsd.http.async.timeout: 60000
+
+tsd.http.request.cors.pattern: .*
+tsd.http.request.cors.headers: Authorization,Content-Type,Link,X-Total-Count,Range,X-Horizon-DSHBID,X-Horizon-WID
+
+tsd.plugin.config:
+  configs:
+    - plugin: net.opentsdb.threadpools.UserAwareThreadPoolExecutor
+      isDefault: true
+      type: net.opentsdb.threadpools.TSDBThreadPoolExecutor
+    - plugin: net.opentsdb.horizon.SharedJDBCPool
+      isDefault: true
+      type: net.opentsdb.horizon.SharedJDBCPool
+    - plugin: net.opentsdb.horizon.service.HorizonConfigServices
+      isDefault: true
+      type: net.opentsdb.horizon.service.HorizonConfigServices
+    - plugin: net.opentsdb.query.DefaultQueryContextFilter
+      isDefault: true
+      type: net.opentsdb.query.QueryContextFilter
+    - plugin: net.opentsdb.utils.DefaultSharedHttpClient
+      isDefault: true
+      type: net.opentsdb.utils.SharedHttpClient
+    - plugin: net.opentsdb.storage.MockDataMeta
+      isDefault: true
+      type: net.opentsdb.meta.MetaDataStorageSchema
+    - plugin: net.opentsdb.storage.MockDataStoreFactory
+      isDefault: true
+      type: net.opentsdb.data.TimeSeriesDataSourceFactory
+
+    - plugin: net.opentsdb.horizon.resource.DashboardResource
+      id: DashboardResource
+      type: net.opentsdb.servlet.resources.ServletResource
+    - plugin: net.opentsdb.horizon.resource.NamespaceResource
+      id: NamespaceResource
+      type: net.opentsdb.servlet.resources.ServletResource
+    - plugin: net.opentsdb.horizon.resource.UserResource
+      id: UserResource
+      type: net.opentsdb.servlet.resources.ServletResource
+    - plugin: net.opentsdb.horizon.resource.SnapshotResource
+      id: SnapshotResource
+      type: net.opentsdb.servlet.resources.ServletResource
+    - plugin: net.opentsdb.horizon.resource.AlertResource
+      id: AlertResource
+      type: net.opentsdb.servlet.resources.ServletResource
+    - plugin: net.opentsdb.horizon.resource.ContactsResource
+      id: ContactsResource
+      type: net.opentsdb.servlet.resources.ServletResource
+    - plugin: net.opentsdb.servlet.MockAPI
+      id: MockAPI
+      type: net.opentsdb.servlet.resources.ServletResource
+
+  pluginLocations:
+  continueOnError: true
+  loadDefaultInstances: true
+
+# Mock Data Store Settings
+MockDataStore.register.writer: true
+
+tsd.query.tnrouter.config:
+  - sourceId: atlas
+  - start: 10y-ago
+    dataType: events
+    sourceId: chronos
+
+tsd.http.rewrites:
+  ^/$: /index.html
+  ^/main$: /index.html
+  ^/d/|a/.*: /index.html
+
+jdbcpool.write.user: sa
+jdbcpool.write.secret.key: PT:dbpass
+jdbcpool.write.url: jdbc:h2:./opentsdb;MODE=MYSQL;NON_KEYWORDS=USER
+dbpass: sa
+
+opentsdb.http.executor.atlas.rollups.config:
+  aggregationIds:
+    SUM: 0
+    COUNT: 1
+    MIN: 2
+    MAX: 3
+    AVG: 5
+    FIRST: 6
+    LAST: 7
+
+  intervals:
+    - table: tsdb
+      preAggregationTable: tsdb
+      interval: 1m
+      rowSpan: 1h
+      defaultInterval: true
+
+    - table: tsdb-rollup-1h
+      preAggregationTable: tsdb-rollup-1h
+      interval: 1h
+      rowSpan: 1d
