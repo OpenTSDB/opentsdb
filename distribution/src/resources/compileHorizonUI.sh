@@ -1,5 +1,5 @@
 apt-get update
-apt-get install curl wget python make g++ -y
+apt-get install git curl wget python make g++ -y
 wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
