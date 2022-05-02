@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2020  The OpenTSDB Authors.
+// Copyright (C) 2020-2022  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@ package net.opentsdb.data.influx;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
 
+import net.opentsdb.utils.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +31,6 @@ import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.Parsing;
 import net.opentsdb.utils.XXHash;
 
 /**
@@ -918,11 +917,14 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
       }
       
       if (idx < i) {
-        if (Parsing.parseLong(buffer, idx, i, temp_long)) {
-          long seconds = temp_long[0] / 1000 / 1000 / 1000;
-          long nanos = temp_long[0] - (seconds * 1000 * 1000 * 1000);
+        try {
+          // TODO - I'd love to avoid string creation.
+          long nanos = Long.parseLong(new String(buffer, idx, i - idx));
+          long seconds = nanos / 1000 / 1000 / 1000;
+          nanos -= (seconds * 1000 * 1000 * 1000);
           timestamp.update(seconds, nanos);
-        } else {
+        } catch (Exception e) {
+          LOG.debug("Failed to parse timestamp {}", new String(buffer, idx, i - idx), e);
           // hmm, we couldn't parse the timestamp?
           return false;
         }
@@ -999,11 +1001,24 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
       }
       return true;
     } else if (buffer[end - 1] == 'i') {
+      end--;
       // long!
       if (set) {
         value_format = ValueFormat.INTEGER;
       }
-      return Parsing.parseLong(buffer, start, end - 1, set ? long_value : temp_long);
+      // TODO - I'd love to avoid string creation.
+      String buf = new String(buffer, start, end - start);
+      try {
+        long temp = Long.parseLong(buf);
+        if (set) {
+         long_value[0] = temp;
+        }
+      } catch (Exception e) {
+        LOG.debug("Failed to parse value {}", buf, e);
+        // hmm, we couldn't parse the timestamp?
+        return false;
+      }
+      return true;
     } else {
       if (buffer[end - 1] == 'u') {
         // parse as double for now
@@ -1013,8 +1028,19 @@ public class InfluxLineProtocolParser implements HashedLowLevelMetricData,
       if (set) {
         value_format = ValueFormat.DOUBLE;
       }
-      
-      return Parsing.parseDouble(buffer, start, end, set ? double_value : temp_double);
+
+      String buf = new String(buffer, start, end - start);
+      try {
+        double temp = Double.parseDouble(buf);
+        if (set) {
+          double_value[0] = temp;
+        }
+      } catch (Exception e) {
+        LOG.debug("Failed to parse value {}", buf, e);
+        // hmm, we couldn't parse the timestamp?
+        return false;
+      }
+      return true;
     }
   }
   
