@@ -49,9 +49,6 @@ tsd.plugin.config:
     - plugin: net.opentsdb.horizon.resource.ContactsResource
       id: ContactsResource
       type: net.opentsdb.servlet.resources.ServletResource
-    - plugin: net.opentsdb.servlet.MockAPI
-      id: MockAPI
-      type: net.opentsdb.servlet.resources.ServletResource
 
   pluginLocations:
   continueOnError: true
