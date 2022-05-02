@@ -21,6 +21,7 @@ ADD       public $WORKDIR/static
 ADD       opentsdb.yaml $WORKDIR/conf/opentsdb.yaml
 ADD       opentsdb_dev.yaml $WORKDIR/conf/opentsdb_dev.yaml
 ADD       tsdb $WORKDIR/bin/tsdb
+ADD       config $WORKDIR/static/config
 
 # It is expected these might need to be passed in with the -e flag
 ENV       CONFIG file://$WORKDIR/conf/opentsdb.yaml
