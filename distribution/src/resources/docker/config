@@ -1,0 +1,53 @@
+{
+     "name"  : "OpenTSDB Horizon",
+     "production": true,
+     "readonly": false,
+     "queryParams": null,
+     "debugLevel": "ERROR",
+     "uiBranding": {
+       "logo": {
+         "imageUrl": "/assets/horizon-logo-icon-only.png",
+         "homeUrl": "/main"
+       }
+     },
+     "tsdbCacheMode": null,
+     "tsdbSource": null,
+     "tsdb_hosts": [
+       "http://localhost:4242"
+     ],
+     "configdb": "http://localhost:4242/api/v1",
+     "metaApi": "http://localhost:4242/api",
+     "auraUI": "http://localhost:4242",
+     "alert": {
+       "recipient": {
+         "http": {
+           "enable": false
+         },
+         "email": {
+           "enable": true
+         }
+       }
+     },
+     "helpLinks": [
+       { "label": "User guide", "href": "#" },
+       { "label": "File a ticket", "href": "#" },
+       { "label": "Talk to us", "icon": "d-slack", "href": "#" }
+     ],
+     "modules": {
+       "dashboard": {
+         "widget": {
+           "overrideTime": true
+         }
+       }
+     },
+     "namespace": {
+       "enabled": false,
+       "default": "_default"
+     },
+     "auth": {
+     "loginURL": "/login",
+       "heartbeatURL": "/heartbeat",
+       "heartbeatImgURL": "/heartbeatimg",
+       "heartbeatInterval": 600
+     }
+   }
