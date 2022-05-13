@@ -183,22 +183,6 @@
           </exclusions>
         </dependency>
 
-        <dependency>
-          <groupId>net.opentsdb.horizon</groupId>
-          <artifactId>opentsdb-horizon-config-webapp</artifactId>
-          <version>${configVersion}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>org.apache.logging.log4j</groupId>
-              <artifactId>log4j-core</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.logging.log4j</groupId>
-              <artifactId>log4j-slf4j-impl</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-
     </dependencies>
   
     <build>
@@ -429,6 +413,25 @@
        services. -->
       <profile>
         <id>allinone</id>
+
+        <dependencies>
+          <dependency>
+            <groupId>net.opentsdb.horizon</groupId>
+            <artifactId>opentsdb-horizon-config-webapp</artifactId>
+            <version>${configVersion}</version>
+            <exclusions>
+              <exclusion>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+              </exclusion>
+              <exclusion>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
+              </exclusion>
+            </exclusions>
+          </dependency>
+        </dependencies>
+
         <build>
           <plugins>
             <plugin>
@@ -459,6 +462,25 @@
        and services. -->
       <profile>
         <id>docker-all</id>
+
+        <dependencies>
+          <dependency>
+            <groupId>net.opentsdb.horizon</groupId>
+            <artifactId>opentsdb-horizon-config-webapp</artifactId>
+            <version>${configVersion}</version>
+            <exclusions>
+              <exclusion>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+              </exclusion>
+              <exclusion>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
+              </exclusion>
+            </exclusions>
+          </dependency>
+        </dependencies>
+
         <build>
           <plugins>
             <plugin>
