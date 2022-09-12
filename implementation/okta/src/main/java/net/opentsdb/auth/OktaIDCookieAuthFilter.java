@@ -63,6 +63,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
 import java.util.Random;
+import java.util.SecureRandom;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -138,7 +139,7 @@ public class OktaIDCookieAuthFilter extends BaseAuthenticationPlugin {
    */
   public OktaIDCookieAuthFilter() {
     super();
-    random = new Random(System.currentTimeMillis());
+    random = new SecureRandom();
   }
 
   @Override
