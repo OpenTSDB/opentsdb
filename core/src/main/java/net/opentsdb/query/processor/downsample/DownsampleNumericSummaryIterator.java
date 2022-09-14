@@ -134,6 +134,12 @@ public class DownsampleNumericSummaryIterator implements QueryIterator {
               "sum");
       summary = -1;
       dp.resetValue(avg_id, Double.NaN);
+    } else if (config.getAggregator().equalsIgnoreCase("count")) {
+      agg_factory = node.pipelineContext().tsdb()
+          .getRegistry().getPlugin(NumericAggregatorFactory.class,
+              "sum");
+      summary = count_id;
+      dp.resetValue(count_id, Double.NaN);
     } else {
       agg_factory = node.pipelineContext().tsdb()
           .getRegistry().getPlugin(NumericAggregatorFactory.class, 
