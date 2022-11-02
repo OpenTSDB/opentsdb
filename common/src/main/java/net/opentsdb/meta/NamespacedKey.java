@@ -66,4 +66,9 @@ public class NamespacedKey {
   public int hashCode() {
     return Objects.hashCode(namespace, id);
   }
+
+  @Override
+  public String toString() {
+    return "NamespacedKey: {namespace='" + namespace + "\', id='" + id + "\'}";
+  }
 }
