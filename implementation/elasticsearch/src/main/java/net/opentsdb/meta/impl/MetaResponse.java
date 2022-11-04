@@ -33,5 +33,6 @@ public interface MetaResponse {
       final boolean is_multi_get,
       final int max_cardinality,
       final boolean fallback_on_no_data,
+      final boolean fallback_on_high_cardinality_data,
       final Span span);
 }

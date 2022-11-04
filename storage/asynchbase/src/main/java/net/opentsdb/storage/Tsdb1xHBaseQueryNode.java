@@ -54,7 +54,6 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
@@ -620,6 +619,12 @@ public class Tsdb1xHBaseQueryNode implements Tsdb1xQueryNode, Runnable {
       case NO_DATA_FALLBACK:
         if (LOG.isDebugEnabled()) {
           LOG.debug("No data returned from meta store." 
+              + " Falling back to scans.");
+        }
+        break; // fall through to scans
+      case HIGH_CARDINALITY_FALLBACK:
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("More than 5k records returned from meta store."
               + " Falling back to scans.");
         }
         break; // fall through to scans

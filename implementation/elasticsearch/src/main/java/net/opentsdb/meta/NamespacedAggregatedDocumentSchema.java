@@ -56,6 +56,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
   public static final String TYPE = "NamespacedAggregatedDocumentSchema";
   public static final String FALLBACK_ON_EX_KEY = "fallback.exception";
   public static final String FALLBACK_ON_NO_DATA_KEY = "fallback.no_data";
+  public static final String FALLBACK_ON_HIGH_CARDINALITY_DATA_KEY = "fallback.high_cardinality_data";
   public static final String MAX_CARD_KEY = "max.cardinality";
   public static final String TAGS_STRING = "tags";
   public static final String CLIENT_ID = "client.id";
@@ -95,6 +96,14 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               true,
               "Whether or not to fall back to scans when the meta "
                   + "query returns an empty data set.");
+    }
+    if (!tsdb.getConfig().hasProperty(getConfigKey(FALLBACK_ON_HIGH_CARDINALITY_DATA_KEY))) {
+      tsdb.getConfig()
+          .register(
+              getConfigKey(FALLBACK_ON_HIGH_CARDINALITY_DATA_KEY),
+              false,
+              true,
+              "Whether or not to fall back to scans when the meta query returns more than 5k records.");
     }
     if (!tsdb.getConfig().hasProperty(getConfigKey(FALLBACK_ON_EX_KEY))) {
       tsdb.getConfig()
@@ -196,6 +205,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
             false, 
             tsdb.getConfig().getInt(getConfigKey(MAX_CARD_KEY)),
             tsdb.getConfig().getBoolean(getConfigKey(FALLBACK_ON_NO_DATA_KEY)),
+            tsdb.getConfig().getBoolean(getConfigKey(FALLBACK_ON_HIGH_CARDINALITY_DATA_KEY)),
             child);
       }
 
@@ -315,6 +325,7 @@ public class NamespacedAggregatedDocumentSchema extends BaseTSDBPlugin implement
               true, 
               tsdb.getConfig().getInt(getConfigKey(MAX_CARD_KEY)),
               tsdb.getConfig().getBoolean(getConfigKey(FALLBACK_ON_NO_DATA_KEY)),
+              tsdb.getConfig().getBoolean(getConfigKey(FALLBACK_ON_HIGH_CARDINALITY_DATA_KEY)),
               child);
           return parse.entrySet().iterator().next().getValue();
         }
