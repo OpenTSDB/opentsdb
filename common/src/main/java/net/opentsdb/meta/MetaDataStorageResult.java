@@ -35,6 +35,7 @@ public interface MetaDataStorageResult {
     DATA,
     NO_DATA_FALLBACK,
     NO_DATA,
+    HIGH_CARDINALITY_FALLBACK,
     EXCEPTION_FALLBACK,
     EXCEPTION
   }

@@ -18,7 +18,6 @@ package net.opentsdb.meta.impl.es;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.time.temporal.ChronoUnit;
-import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Sets;
 import net.opentsdb.core.TSDB;
@@ -61,7 +60,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 public class ESMetaResponse implements MetaResponse {
@@ -82,6 +80,7 @@ public class ESMetaResponse implements MetaResponse {
       final boolean isMultiGet,
       final int max_cardinality,
       final boolean fallback_on_no_data,
+      final boolean fallback_on_high_cardinality_data,
       final Span child) {
     final Map<NamespacedKey, MetaDataStorageResult> final_results = new LinkedHashMap<>();
 
@@ -137,8 +136,8 @@ public class ESMetaResponse implements MetaResponse {
                         + max_cardinality);
           }
           result =
-              new NamespacedAggregatedDocumentResult(fallback_on_no_data
-                      ? MetaDataStorageResult.MetaResult.NO_DATA_FALLBACK
+              new NamespacedAggregatedDocumentResult(fallback_on_high_cardinality_data
+                      ? MetaResult.HIGH_CARDINALITY_FALLBACK
                       : MetaDataStorageResult.MetaResult.NO_DATA,
                   null,
                   query);
