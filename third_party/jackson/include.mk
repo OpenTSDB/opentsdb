@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2014  The OpenTSDB Authors.
+# Copyright (C) 2011-2022  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-JACKSON_VERSION := 2.9.5
+JACKSON_VERSION := 2.14.1
 
 JACKSON_ANNOTATIONS_VERSION = $(JACKSON_VERSION)
 JACKSON_ANNOTATIONS := third_party/jackson/jackson-annotations-$(JACKSON_ANNOTATIONS_VERSION).jar

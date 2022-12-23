@@ -1,4 +1,4 @@
-# Copyright (C) 2015  The OpenTSDB Authors.
+# Copyright (C) 2015-2023  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -23,7 +23,7 @@ $(JEXL): $(JEXL).md5
 THIRD_PARTY += $(JEXL)
 
 # In here as Jexl depends on it and no one else (for now, I hope)
-COMMONS_LOGGING_VERSION := 1.1.1
+COMMONS_LOGGING_VERSION := 1.2
 COMMONS_LOGGING := third_party/jexl/commons-logging-$(COMMONS_LOGGING_VERSION).jar
 COMMONS_LOGGING_BASE_URL := https://repo1.maven.org/maven2/commons-logging/commons-logging/$(COMMONS_LOGGING_VERSION)
 

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2023  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -859,7 +859,7 @@ class HttpJsonSerializer extends HttpSerializer {
                 final double value = dp.doubleValue();
                 if (Double.isNaN(value) && 
                     orig_query.fillPolicy() == FillPolicy.NULL) {
-                  json.writeNumberField(Long.toString(timestamp), null);
+                  json.writeNullField(Long.toString(timestamp));
                 } else {
                   json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
                 }

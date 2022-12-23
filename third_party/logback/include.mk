@@ -1,4 +1,4 @@
-# Copyright (C) 2015  The OpenTSDB Authors.
+# Copyright (C) 2015-2022  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -12,9 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
-
-https://repo1.maven.org/maven2/ch/qos/logback/logback-classic/1.2.9/logback-classic-1.2.9.jar
-LOGBACK_VERSION := 1.2.9
+LOGBACK_VERSION := 1.3.4
 
 LOGBACK_CLASSIC_VERSION := $(LOGBACK_VERSION)
 LOGBACK_CLASSIC := third_party/logback/logback-classic-$(LOGBACK_CLASSIC_VERSION).jar
