@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2017  The OpenTSDB Authors.
+// Copyright (C) 2016-2023  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -18,7 +18,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.hbase.async.Bytes;
+import org.junit.Ignore;
 
+@Ignore
 public class LongHistogramDataPointForTest implements Histogram {
   private final int id;
   private long data;

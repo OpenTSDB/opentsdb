@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2023  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-GWT_VERSION := 2.6.0
+GWT_VERSION := 2.6.1
 
 GWT_DEV_VERSION := $(GWT_VERSION)
 GWT_DEV := third_party/gwt/gwt-dev-$(GWT_DEV_VERSION).jar

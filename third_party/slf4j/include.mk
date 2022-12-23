@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-SLF4J_VERSION = 1.7.7
+SLF4J_VERSION = 2.0.6
 
 
 LOG4J_OVER_SLF4J_VERSION := $(SLF4J_VERSION)
