@@ -67,102 +67,114 @@ public final class TestGraphHandler {
   
   @Test  
   public void setYRangeParams() throws Exception {
-    Plot plot = mock(Plot.class);
-    HttpQuery query = mock(HttpQuery.class);
-    Map<String, List<String>> params = Maps.newHashMap();
-    when(query.getQueryString()).thenReturn(params);
-
-    params.put("yrange", Lists.newArrayList("[0:1]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:0]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:42]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:-42]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:0.8]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:-0.8]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:42.4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:-42.4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:4e4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:-4e4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:4e-4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:-4e-4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:4.2e4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[:-4.2e4]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[0:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[-5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[0.5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[-0.5:]"));
-    GraphHandler.setPlotParams(query, plot);
-
-    params.put("yrange", Lists.newArrayList("[10.5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[-10.5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[10e5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[-10e5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[10e-5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[-10e-5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[10.1e-5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[-10.1e-5:]"));
-    GraphHandler.setPlotParams(query, plot);
-    
-    params.put("yrange", Lists.newArrayList("[33:system('touch /tmp/poc.txt')]"));
-    try {
-      GraphHandler.setPlotParams(query, plot);
-      fail("Expected BadRequestException");
-    } catch (BadRequestException e) { }
+    assertPlotParam("yrange","[0:1]");
+    assertPlotParam("yrange", "[:]");
+    assertPlotParam("yrange", "[:0]");
+    assertPlotParam("yrange", "[:42]");
+    assertPlotParam("yrange", "[:-42]");
+    assertPlotParam("yrange", "[:0.8]");
+    assertPlotParam("yrange", "[:-0.8]");
+    assertPlotParam("yrange", "[:42.4]");
+    assertPlotParam("yrange", "[:-42.4]");
+    assertPlotParam("yrange", "[:4e4]");
+    assertPlotParam("yrange", "[:-4e4]");
+    assertPlotParam("yrange", "[:4e-4]");
+    assertPlotParam("yrange", "[:-4e-4]");
+    assertPlotParam("yrange", "[:4.2e4]");
+    assertPlotParam("yrange", "[:-4.2e4]");
+    assertPlotParam("yrange", "[0:]");
+    assertPlotParam("yrange", "[5:]");
+    assertPlotParam("yrange", "[-5:]");
+    assertPlotParam("yrange", "[0.5:]");
+    assertPlotParam("yrange", "[-0.5:]");
+    assertPlotParam("yrange", "[10.5:]");
+    assertPlotParam("yrange", "[-10.5:]");
+    assertPlotParam("yrange", "[10e5:]");
+    assertPlotParam("yrange", "[-10e5:]");
+    assertPlotParam("yrange", "[10e-5:]");
+    assertPlotParam("yrange", "[-10e-5:]");
+    assertPlotParam("yrange", "[10.1e-5:]");
+    assertPlotParam("yrange", "[-10.1e-5:]");
+    assertPlotParam("yrange", "[-10.1e-5:-10.1e-6]");
+    assertInvalidPlotParam("yrange", "[33:system('touch /tmp/poc.txt')]");
   }
-  
+
+  @Test
+  public void setKeyParams() throws Exception {
+    assertPlotParam("key", "out");
+    assertPlotParam("key", "left");
+    assertPlotParam("key", "top");
+    assertPlotParam("key", "center");
+    assertPlotParam("key", "right");
+    assertPlotParam("key", "horiz");
+    assertPlotParam("key", "box");
+    assertPlotParam("key", "bottom");
+    assertInvalidPlotParam("yrange", "out%20right%20top%0aset%20yrange%20[33:system(%20");
+  }
+
+  @Test
+  public void setStyleParams() throws Exception {
+    assertPlotParam("style", "linespoint");
+    assertPlotParam("style", "points");
+    assertPlotParam("style", "circles");
+    assertPlotParam("style", "dots");
+    assertInvalidPlotParam("style", "dots%20[33:system(%20");
+  }
+
+  @Test
+  public void setLabelParams() throws Exception {
+    assertPlotParam("ylabel", "This is good");
+    assertPlotParam("ylabel", " and so Is this - _ yay");
+    assertInvalidPlotParam("ylabel", "[33:system(%20");
+    assertInvalidPlotParam("title", "[33:system(%20");
+    assertInvalidPlotParam("y2label", "[33:system(%20");
+  }
+
+  @Test
+  public void setColorParams() throws Exception {
+    assertPlotParam("bgcolor", "x000000");
+    assertPlotParam("bgcolor", "XDEADBE");
+    assertPlotParam("bgcolor", "%58DEADBE");
+    assertInvalidPlotParam("bgcolor", "XDEADBEF");
+    assertInvalidPlotParam("bgcolor", "%5BDEADBE");
+
+    assertPlotParam("fgcolor", "x000000");
+    assertPlotParam("fgcolor", "XDEADBE");
+    assertPlotParam("fgcolor", "%58DEADBE");
+    assertInvalidPlotParam("fgcolor", "XDEADBEF");
+    assertInvalidPlotParam("fgcolor", "%5BDEADBE");
+  }
+
+  @Test
+  public void setSmoothParams() throws Exception {
+    assertPlotParam("smooth", "unique");
+    assertPlotParam("smooth", "frequency");
+    assertPlotParam("smooth", "fnormal");
+    assertPlotParam("smooth", "cumulative");
+    assertPlotParam("smooth", "cnormal");
+    assertPlotParam("smooth", "bins");
+    assertPlotParam("smooth", "csplines");
+    assertPlotParam("smooth", "acsplines");
+    assertPlotParam("smooth", "mcsplines");
+    assertPlotParam("smooth", "bezier");
+    assertPlotParam("smooth", "sbezier");
+    assertPlotParam("smooth", "unwrap");
+    assertPlotParam("smooth", "zsort");
+    assertInvalidPlotParam("smooth", "[33:system(%20");
+  }
+
+  @Test
+  public void setFormatParams() throws Exception {
+    assertPlotParam("yformat", "%25.2f");
+    assertPlotParam("y2format", "%25.2f");
+    assertPlotParam("xformat", "%25.2f");
+    assertPlotParam("yformat", "%253.0em");
+    assertPlotParam("yformat", "%253.0em%25%25");
+    assertPlotParam("yformat", "%25.2f seconds");
+    assertPlotParam("yformat", "%25.0f ms");
+    assertInvalidPlotParam("yformat", "%252.[33:system");
+  }
+
   @Test  // If the file doesn't exist, we don't use it, obviously.
   public void staleCacheFileDoesntExist() throws Exception {
     final File cachedfile = fakeFile("/cache/fake-file");
@@ -320,6 +332,29 @@ public final class TestGraphHandler {
     when(file.getPath()).thenReturn(path);
     when(file.toString()).thenReturn(path);
     return file;
+  }
+
+  private static void assertPlotParam(String param, String value) {
+    Plot plot = mock(Plot.class);
+    HttpQuery query = mock(HttpQuery.class);
+    Map<String, List<String>> params = Maps.newHashMap();
+    when(query.getQueryString()).thenReturn(params);
+
+    params.put(param, Lists.newArrayList(value));
+    GraphHandler.setPlotParams(query, plot);
+  }
+
+  private static void assertInvalidPlotParam(String param, String value) {
+    Plot plot = mock(Plot.class);
+    HttpQuery query = mock(HttpQuery.class);
+    Map<String, List<String>> params = Maps.newHashMap();
+    when(query.getQueryString()).thenReturn(params);
+
+    params.put(param, Lists.newArrayList(value));
+    try {
+      GraphHandler.setPlotParams(query, plot);
+      fail("Expected BadRequestException");
+    } catch (BadRequestException e) { }
   }
 
 }

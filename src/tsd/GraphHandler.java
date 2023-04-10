@@ -72,15 +72,15 @@ final class GraphHandler implements HttpRpc {
 
   private static final String RANGE_COMPONENT = "\\\"?-?\\d*\\.?(\\d+)?([eE]-?\\d+)?\\\"?";
   private static Pattern RANGE_VALIDATOR = Pattern.compile(
-      "\\["+RANGE_COMPONENT+":"+RANGE_COMPONENT+"]");
-  private static Pattern LABEL_VALIDATOR = Pattern.compile("[a-zA-z0-9 \\-_]");
+      "^\\["+RANGE_COMPONENT+":"+RANGE_COMPONENT+"]$");
+  private static Pattern LABEL_VALIDATOR = Pattern.compile("^[a-zA-z0-9 \\-_]+$");
   private static Pattern KEY_VALIDATOR = Pattern.compile(
-      "(out|left|top|center|right|horiz|box|bottom)?\\s?");
-  private static Pattern STYLE_VALIDATOR = Pattern.compile("(linespoint|points|circles|dots)");
-  private static Pattern COLOR_VALIDATOR = Pattern.compile("(x|X)[a-fA-F0-9]{6}");
-  private static Pattern SMOOTH_VALIDATOR = Pattern.compile("unique|frequency|fnormal|cumulative|cnormal|bins|csplines|acsplines|mcsplines|bezier|sbezier|unwrap|zsort");
+      "^out|left|top|center|right|horiz|box|bottom$");
+  private static Pattern STYLE_VALIDATOR = Pattern.compile("^linespoint|points|circles|dots$");
+  private static Pattern COLOR_VALIDATOR = Pattern.compile("^(x|X)[a-fA-F0-9]{6}$");
+  private static Pattern SMOOTH_VALIDATOR = Pattern.compile("^unique|frequency|fnormal|cumulative|cnormal|bins|csplines|acsplines|mcsplines|bezier|sbezier|unwrap|zsort$");
   // NOTE: This one should be tightened for only time based formatters.
-  private static Pattern FORMAT_VALIDATOR = Pattern.compile("(%[a-zA-Z])+[:\\/]?\\s?");
+  private static Pattern FORMAT_VALIDATOR = Pattern.compile("^[%0-9.a-zA-Z \\-]+$");
   private static Pattern WXH_VALIDATOR = Pattern.compile("^\\d+x\\d+$");
   /** Number of times we had to do all the work up to running Gnuplot. */
   private static final AtomicInteger graphs_generated
