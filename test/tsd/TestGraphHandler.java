@@ -97,6 +97,7 @@ public final class TestGraphHandler {
     assertPlotParam("yrange", "[-10.1e-5:]");
     assertPlotParam("yrange", "[-10.1e-5:-10.1e-6]");
     assertInvalidPlotParam("yrange", "[33:system('touch /tmp/poc.txt')]");
+    assertInvalidPlotParam("y2range", "[42:%0a[33:system('touch /tmp/poc.txt')]");
   }
 
   @Test
@@ -109,7 +110,8 @@ public final class TestGraphHandler {
     assertPlotParam("key", "horiz");
     assertPlotParam("key", "box");
     assertPlotParam("key", "bottom");
-    assertInvalidPlotParam("yrange", "out%20right%20top%0aset%20yrange%20[33:system(%20");
+    assertInvalidPlotParam("key", "out%20right%20top%0aset%20yrange%20[33:system(%20");
+    assertInvalidPlotParam("key", "%3Bsystem%20%22cat%20/home/ubuntuvm/secret.txt%20%3E/tmp/secret.txt%22%20%22");
   }
 
   @Test
@@ -118,16 +120,23 @@ public final class TestGraphHandler {
     assertPlotParam("style", "points");
     assertPlotParam("style", "circles");
     assertPlotParam("style", "dots");
-    assertInvalidPlotParam("style", "dots%20[33:system(%20");
+    assertInvalidPlotParam("style", "dots%20%0a[33:system(%20");
+    assertInvalidPlotParam("style", "%3Bsystem%20%22cat%20/home/ubuntuvm/secret.txt%20%3E/tmp/secret.txt%22%20%22\"");
   }
 
   @Test
   public void setLabelParams() throws Exception {
     assertPlotParam("ylabel", "This is good");
     assertPlotParam("ylabel", " and so Is this - _ yay");
-    assertInvalidPlotParam("ylabel", "[33:system(%20");
-    assertInvalidPlotParam("title", "[33:system(%20");
-    assertInvalidPlotParam("y2label", "[33:system(%20");
+    assertInvalidPlotParam("ylabel", "system(%20no%0anewlines");
+    assertInvalidPlotParam("title", "system(%20no%0anewlines");
+    assertInvalidPlotParam("y2label", "system(%20no%0anewlines");
+  }
+
+  @Test
+  public void setWXH() throws Exception {
+    assertPlotDimension("wxh",  "720x640");
+    assertInvalidPlotDimension("wxh", "720%0ax640");
   }
 
   @Test
@@ -137,12 +146,14 @@ public final class TestGraphHandler {
     assertPlotParam("bgcolor", "%58DEADBE");
     assertInvalidPlotParam("bgcolor", "XDEADBEF");
     assertInvalidPlotParam("bgcolor", "%5BDEADBE");
+    assertInvalidPlotParam("bgcolor", "xBDE%0AAD");
 
     assertPlotParam("fgcolor", "x000000");
     assertPlotParam("fgcolor", "XDEADBE");
     assertPlotParam("fgcolor", "%58DEADBE");
     assertInvalidPlotParam("fgcolor", "XDEADBEF");
     assertInvalidPlotParam("fgcolor", "%5BDEADBE");
+    assertInvalidPlotParam("fgcolor", "xBDE%0AAD");
   }
 
   @Test
@@ -160,7 +171,8 @@ public final class TestGraphHandler {
     assertPlotParam("smooth", "sbezier");
     assertPlotParam("smooth", "unwrap");
     assertPlotParam("smooth", "zsort");
-    assertInvalidPlotParam("smooth", "[33:system(%20");
+    assertInvalidPlotParam("smooth", "bezier%20system(%20");
+    assertInvalidPlotParam("smooth", "fnormal%0asystem(%20");
   }
 
   @Test
@@ -172,7 +184,8 @@ public final class TestGraphHandler {
     assertPlotParam("yformat", "%253.0em%25%25");
     assertPlotParam("yformat", "%25.2f seconds");
     assertPlotParam("yformat", "%25.0f ms");
-    assertInvalidPlotParam("yformat", "%252.[33:system");
+    assertInvalidPlotParam("yformat", "%252.system(%20");
+    assertInvalidPlotParam("yformat", "%252.%0asystem(%20");
   }
 
   @Test  // If the file doesn't exist, we don't use it, obviously.
@@ -344,6 +357,13 @@ public final class TestGraphHandler {
     GraphHandler.setPlotParams(query, plot);
   }
 
+  private static void assertPlotDimension(String param, String value) {
+    Plot plot = mock(Plot.class);
+    HttpQuery query = mock(HttpQuery.class);
+    when(query.getQueryStringParam(param)).thenReturn(value);
+    GraphHandler.setPlotParams(query, plot);
+  }
+
   private static void assertInvalidPlotParam(String param, String value) {
     Plot plot = mock(Plot.class);
     HttpQuery query = mock(HttpQuery.class);
@@ -353,6 +373,16 @@ public final class TestGraphHandler {
     params.put(param, Lists.newArrayList(value));
     try {
       GraphHandler.setPlotParams(query, plot);
+      fail("Expected BadRequestException");
+    } catch (BadRequestException e) { }
+  }
+
+  private static void assertInvalidPlotDimension(String param, String value) {
+    Plot plot = mock(Plot.class);
+    HttpQuery query = mock(HttpQuery.class);
+    when(query.getQueryStringParam(param)).thenReturn(value);
+    try {
+      GraphHandler.setPlotDimensions(query, plot);
       fail("Expected BadRequestException");
     } catch (BadRequestException e) { }
   }
