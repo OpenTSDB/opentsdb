@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import com.google.common.html.HtmlEscapers;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
@@ -373,6 +374,10 @@ final class HttpQuery extends AbstractHttpQuery {
       buf.append("\"}");
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, buf);
     } else {
+      String response = "";
+      if (pretty_exc != null) {
+        response = HtmlEscapers.htmlEscaper().escape(pretty_exc);
+      }
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 makePage("Internal Server Error", "Houston, we have a problem",
                          "<blockquote>"
@@ -380,7 +385,7 @@ final class HttpQuery extends AbstractHttpQuery {
                          + "Oops, sorry but your request failed due to a"
                          + " server error.<br/><br/>"
                          + "Please try again in 30 seconds.<pre>"
-                         + pretty_exc
+                         + response
                          + "</pre></blockquote>"));
     }
   }
@@ -420,6 +425,10 @@ final class HttpQuery extends AbstractHttpQuery {
       buf.append("\"}");
       sendReply(HttpResponseStatus.BAD_REQUEST, buf);
     } else {
+      String response = "";
+      if (exception.getMessage() != null) {
+        response = HtmlEscapers.htmlEscaper().escape(exception.getMessage());
+      }
       sendReply(HttpResponseStatus.BAD_REQUEST,
                 makePage("Bad Request", "Looks like it's your fault this time",
                          "<blockquote>"
@@ -427,7 +436,7 @@ final class HttpQuery extends AbstractHttpQuery {
                          + "Sorry but your request was rejected as being"
                          + " invalid.<br/><br/>"
                          + "The reason provided was:<blockquote>"
-                         + exception.getMessage()
+                         + response
                          + "</blockquote></blockquote>"));
     }
   }
