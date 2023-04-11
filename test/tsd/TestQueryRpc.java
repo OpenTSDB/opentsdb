@@ -518,7 +518,7 @@ public final class TestQueryRpc {
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String json =
         query.response().getContent().toString(Charset.forName("UTF-8"));
-    assertTrue(json.contains("No such name for 'foo': 'metrics'"));
+    assertTrue(json.contains("No such name for &#39;foo&#39;: &#39;metrics&#39;"));
   }
 
   @Test
@@ -579,7 +579,7 @@ public final class TestQueryRpc {
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String json =
         query.response().getContent().toString(Charset.forName("UTF-8"));
-    assertTrue(json.contains("No such name for 'foo': 'metrics'"));
+    assertTrue(json.contains("No such name for &#39;foo&#39;: &#39;metrics&#39;"));
   }
 
   @Test

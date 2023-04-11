@@ -795,6 +795,18 @@ public final class TestHttpQuery {
         query.response().getContent().toString(Charset.forName("UTF-8"))
         .substring(0, 15));
   }
+
+  @Test
+  public void internalErrorDeprecatedHTMLEscaped() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    query.internalError(new Exception("<script>alert(document.cookie)</script>"));
+
+    assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR,
+        query.response().getStatus());
+    assertTrue(query.response().getContent().toString(Charset.forName("UTF-8")).contains(
+        "&lt;script&gt;alert(document.cookie)&lt;/script&gt;"
+    ));
+  }
   
   @Test
   public void internalErrorDeprecatedJSON() {
@@ -848,6 +860,17 @@ public final class TestHttpQuery {
         "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
         .substring(0, 15));
+  }
+
+  @Test
+  public void badRequestDeprecatedHTMLEscaped() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.badRequest(new BadRequestException("<script>alert(document.cookie)</script>"));
+
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    assertTrue(query.response().getContent().toString(Charset.forName("UTF-8")).contains(
+        "The reason provided was:<blockquote>&lt;script&gt;alert(document.cookie)&lt;/script&gt;"
+    ));
   }
   
   @Test
