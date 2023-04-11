@@ -40,15 +40,17 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import net.opentsdb.core.*;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
+import net.opentsdb.core.Tags;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.opentsdb.graph.Plot;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
@@ -667,6 +669,7 @@ final class GraphHandler implements HttpRpc {
     String wxh = query.getQueryStringParam("wxh");
     if (wxh != null && !wxh.isEmpty()) {
       wxh = URLDecoder.decode(wxh.trim());
+      validateString("wxh", wxh);
       if (!WXH_VALIDATOR.matcher(wxh).find()) {
         throw new IllegalArgumentException("'wxh' was invalid. "
             + "Must satisfy the pattern " + WXH_VALIDATOR.toString());
@@ -744,6 +747,7 @@ final class GraphHandler implements HttpRpc {
     final Map<String, List<String>> querystring = query.getQueryString();
     String value;
     if ((value = popParam(querystring, "yrange")) != null) {
+      validateString("yrange", value, "[:]");
       if (!RANGE_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'yrange' was invalid. "
             + "Must be in the format [min:max].");
@@ -751,6 +755,7 @@ final class GraphHandler implements HttpRpc {
       params.put("yrange", value);
     }
     if ((value = popParam(querystring, "y2range")) != null) {
+      validateString("y2range", value, "[:]");
       if (!RANGE_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'y2range' was invalid. "
             + "Must be in the format [min:max].");
@@ -758,6 +763,7 @@ final class GraphHandler implements HttpRpc {
       params.put("y2range", value);
     }
     if ((value = popParam(querystring, "ylabel")) != null) {
+      validateString("ylabel", value, " ");
       if (!LABEL_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'ylabel' was invalid. Must "
             + "satisfy the pattern " + LABEL_VALIDATOR.toString());
@@ -765,6 +771,7 @@ final class GraphHandler implements HttpRpc {
       params.put("ylabel", stringify(value));
     }
     if ((value = popParam(querystring, "y2label")) != null) {
+      validateString("y2label", value, " ");
       if (!LABEL_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'y2label' was invalid. Must "
             + "satisfy the pattern " + LABEL_VALIDATOR.toString());
@@ -772,6 +779,7 @@ final class GraphHandler implements HttpRpc {
       params.put("y2label", stringify(value));
     }
     if ((value = popParam(querystring, "yformat")) != null) {
+      validateString("yformat", value, "% ");
       if (!FORMAT_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'yformat' was invalid. Must "
             + "satisfy the pattern " + FORMAT_VALIDATOR.toString());
@@ -779,6 +787,7 @@ final class GraphHandler implements HttpRpc {
       params.put("format y", stringify(value));
     }
     if ((value = popParam(querystring, "y2format")) != null) {
+      validateString("y2format", value, "% ");
       if (!FORMAT_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'y2format' was invalid. Must "
             + "satisfy the pattern " + FORMAT_VALIDATOR.toString());
@@ -786,6 +795,7 @@ final class GraphHandler implements HttpRpc {
       params.put("format y2", stringify(value));
     }
     if ((value = popParam(querystring, "xformat")) != null) {
+      validateString("xformat", value, "% ");
       if (!FORMAT_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'xformat' was invalid. Must "
             + "satisfy the pattern " + FORMAT_VALIDATOR.toString());
@@ -799,6 +809,7 @@ final class GraphHandler implements HttpRpc {
       params.put("logscale y2", "");
     }
     if ((value = popParam(querystring, "key")) != null) {
+      validateString("key", value);
       if (!KEY_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'key' was invalid. Must "
             + "satisfy the pattern " + KEY_VALIDATOR.toString());
@@ -806,6 +817,7 @@ final class GraphHandler implements HttpRpc {
       params.put("key", value);
     }
     if ((value = popParam(querystring, "title")) != null) {
+      validateString("title", value, " ");
       if (!LABEL_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'title' was invalid. Must "
             + "satisfy the pattern " + LABEL_VALIDATOR.toString());
@@ -813,6 +825,7 @@ final class GraphHandler implements HttpRpc {
       params.put("title", stringify(value));
     }
     if ((value = popParam(querystring, "bgcolor")) != null) {
+      validateString("bgcolor", value);
       if (!COLOR_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'bgcolor' was invalid. Must "
             + "be a hex value e.g. 'xFFFFFF'");
@@ -820,6 +833,7 @@ final class GraphHandler implements HttpRpc {
       params.put("bgcolor", value);
     }
     if ((value = popParam(querystring, "fgcolor")) != null) {
+      validateString("fgcolor", value);
       if (!COLOR_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'fgcolor' was invalid. Must "
             + "be a hex value e.g. 'xFFFFFF'");
@@ -827,6 +841,7 @@ final class GraphHandler implements HttpRpc {
       params.put("fgcolor", value);
     }
     if ((value = popParam(querystring, "smooth")) != null) {
+      validateString("smooth", value);
       if (!SMOOTH_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'smooth' was invalid. Must "
             + "satisfy the pattern " + SMOOTH_VALIDATOR.toString());
@@ -834,6 +849,7 @@ final class GraphHandler implements HttpRpc {
       params.put("smooth", value);
     }
     if ((value = popParam(querystring, "style")) != null) {
+      validateString("style", value);
       if (!STYLE_VALIDATOR.matcher(value).find()) {
         throw new BadRequestException("'style' was invalid. Must "
             + "satisfy the pattern " + STYLE_VALIDATOR.toString());
@@ -1069,6 +1085,28 @@ final class GraphHandler implements HttpRpc {
   static void logError(final HttpQuery query, final String msg,
                        final Throwable e) {
     LOG.error(query.channel().toString() + ' ' + msg, e);
+  }
+
+  static void validateString(final String what, final String s) {
+    validateString(what, s, "");
+  }
+
+  public static void validateString(final String what, final String s, String specials) {
+    if (s == null) {
+      throw new BadRequestException("Invalid " + what + ": null");
+    } else if ("".equals(s)) {
+      throw new BadRequestException("Invalid " + what + ": empty string");
+    }
+    final int n = s.length();
+    for (int i = 0; i < n; i++) {
+      final char c = s.charAt(i);
+      if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+          || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.'
+          || c == '/' || Character.isLetter(c) || specials.indexOf(c) != -1)) {
+        throw new BadRequestException("Invalid " + what
+            + " (\"" + s + "\"): illegal character: " + c);
+      }
+    }
   }
 
 }
