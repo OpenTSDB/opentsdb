@@ -1,597 +1,612 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
-      <groupId>net.opentsdb</groupId>
-      <artifactId>opentsdb</artifactId>
-      <version>3.0.90-SNAPSHOT</version>
-      <relativePath>../pom.xml</relativePath>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb</artifactId>
+        <version>3.0.90-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
-    
+
     <artifactId>opentsdb-distribution</artifactId>
     <name>opentsdb-distribution</name>
-    
+
     <description>The module for assembling different OpenTSDB packages.</description>
-    
+
     <packaging>pom</packaging>
 
     <properties>
-      <auraVersion>0.1.0-SNAPSHOT</auraVersion>
-      <alertingVersion>0.1.0-SNAPSHOT</alertingVersion>
-      <configVersion>0.1.0-SNAPSHOT</configVersion>
+        <auraVersion>0.1.0-SNAPSHOT</auraVersion>
+        <alertingVersion>0.1.0-SNAPSHOT</alertingVersion>
+        <configVersion>0.1.0-SNAPSHOT</configVersion>
     </properties>
 
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>software.amazon.awssdk</groupId>
-        <artifactId>bom</artifactId>
-        <version>2.15.61</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>2.5.0</version>
-        <scope>provided</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>2.15.61</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.hbase</groupId>
+                <artifactId>asynchbase</artifactId>
+                <version>1.9.0-SNAPSHOT</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>2.5.0</version>
+                <scope>provided</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
-    
+
     <dependencies>
-      <!-- Core components -->
-      <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-common</artifactId>
-          <version>${project.version}</version>
+        <!-- Core components -->
+        <dependency>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-common</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-core</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-core</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-http-config</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-http-config</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-executors-http</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-executors-http</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-servlet</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-servlet</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-server-undertow</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-server-undertow</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-query-runner</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-query-runner</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Plugins that we need to shuffle out into separate builds.
          For now we're throwing everything together. -->
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-asynchbase</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-asynchbase</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-kafka-0.8</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-kafka-0.8</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-elasticsearch-transportclient</artifactId>
-          <classifier>shaded</classifier>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-elasticsearch-transportclient</artifactId>
+            <classifier>shaded</classifier>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-redis</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-redis</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-egads</artifactId>
-          <version>${project.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>org.apache.logging.log4j</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-egads</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-influx</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-influx</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-prometheus</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-prometheus</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-prophet</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-prophet</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-ultrabrew</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-ultrabrew</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-okta</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-okta</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-athenz</artifactId>
-          <version>${project.version}</version>
+            <groupId>net.opentsdb</groupId>
+            <artifactId>opentsdb-athenz</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Aura Metrics -->
         <dependency>
-          <groupId>net.opentsdb.aura</groupId>
-          <artifactId>opentsdb-aura-core</artifactId>
-          <version>${auraVersion}</version>
+            <groupId>net.opentsdb.aura</groupId>
+            <artifactId>opentsdb-aura-core</artifactId>
+            <version>${auraVersion}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb.aura</groupId>
-          <artifactId>opentsdb-aura-aws</artifactId>
-          <exclusions>
-            <exclusion>
-              <groupId>software.amazon.awssdk</groupId>
-              <artifactId>bom</artifactId>
-            </exclusion>
-          </exclusions>
-          <version>${auraVersion}</version>
+            <groupId>net.opentsdb.aura</groupId>
+            <artifactId>opentsdb-aura-aws</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>bom</artifactId>
+                </exclusion>
+            </exclusions>
+            <version>${auraVersion}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb.aura</groupId>
-          <artifactId>opentsdb-aura-opentsdb</artifactId>
-          <exclusions>
-            <exclusion>
-              <groupId>software.amazon.awssdk</groupId>
-              <artifactId>bom</artifactId>
-            </exclusion>
-          </exclusions>
-          <version>${auraVersion}</version>
+            <groupId>net.opentsdb.aura</groupId>
+            <artifactId>opentsdb-aura-opentsdb</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>bom</artifactId>
+                </exclusion>
+            </exclusions>
+            <version>${auraVersion}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb.aura</groupId>
-          <artifactId>opentsdb-aura-aerospike</artifactId>
-          <version>${auraVersion}</version>
+            <groupId>net.opentsdb.aura</groupId>
+            <artifactId>opentsdb-aura-aerospike</artifactId>
+            <version>${auraVersion}</version>
         </dependency>
         <dependency>
-          <groupId>net.opentsdb.aura</groupId>
-          <artifactId>opentsdb-aura-meta-grpc-client</artifactId>
-          <version>${auraVersion}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>org.apache.logging.log4j</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
+            <groupId>net.opentsdb.aura</groupId>
+            <artifactId>opentsdb-aura-meta-grpc-client</artifactId>
+            <version>${auraVersion}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
     </dependencies>
-  
+
     <build>
-      <plugins>
-        <plugin>
-          <artifactId>maven-assembly-plugin</artifactId>
-          <executions>
-              <execution>
-                  <id>distro-assembly</id>
-                  <phase>package</phase>
-                  <goals>
-                      <goal>single</goal>
-                  </goals>
-                  <configuration>
-                      <descriptors>
-                          <descriptor>src/main/assembly/default.xml</descriptor>
-                      </descriptors>
-                      <appendAssemblyId>false</appendAssemblyId>
-                      <finalName>opentsdb-${project.version}</finalName>
-                      <tarLongFileMode>gnu</tarLongFileMode>
-                  </configuration>
-              </execution>
-          </executions>
-        </plugin>
-      </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>distro-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/main/assembly/default.xml</descriptor>
+                            </descriptors>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <finalName>opentsdb-${project.version}</finalName>
+                            <tarLongFileMode>gnu</tarLongFileMode>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
-    
+
     <profiles>
-      <!-- Build a docker image -->
-      <profile>
-        <id>docker</id>
-        <build>
-          <plugins>
-            <plugin>
-              <artifactId>maven-antrun-plugin</artifactId>
-              <version>3.0.0</version>
-              <executions>
-                <execution>
-                  <id>horizon-ui</id>
-                  <phase>generate-sources</phase>
-                  <goals>
-                    <goal>run</goal>
-                  </goals>
-                  <configuration>
-                    <target>
-                      <exec executable="sh">
-                        <arg value="${basedir}/src/resources/compileHorizonUI.sh"/>
-                      </exec>
-                    </target>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
+        <!-- Build a docker image -->
+        <profile>
+            <id>docker</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.0.0</version>
+                        <executions>
+                            <execution>
+                                <id>horizon-ui</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <exec executable="sh">
+                                            <arg value="${basedir}/src/resources/compileHorizonUI.sh"/>
+                                        </exec>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
 
-            <plugin>
-              <groupId>com.spotify</groupId>
-              <artifactId>docker-maven-plugin</artifactId>
-              <version>0.4.14</version>
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.4.14</version>
 
-              <configuration>
-                <serverId>docker-hub</serverId>
-                <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
-                <imageName>opentsdb</imageName>
-                <buildArgs>
-                  <projectVersion>${project.version}</projectVersion>
-                </buildArgs>
-                <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
-                <resources>
-                 <resource>
-                   <targetPath>/</targetPath>
-                   <directory>${project.build.directory}</directory>
-                   <include>opentsdb-${project.version}.tar.gz</include>
-                 </resource>
-                 <resource>
-                   <targetPath>/</targetPath>
-                   <directory>${basedir}/src/resources/docker</directory>
-                   <include>*.*</include>
-                 </resource>
-                </resources>
-              </configuration>
-              
-              <executions>
-                <execution>
-                  <id>build-image-jdk17</id>
-                  <phase>package</phase>
-                  <configuration>
-                    <imageTags>
-                      <imageTag>${project.version}-jdk17</imageTag>
-                    </imageTags>
-                    <image>opentsdb:${project.version}-jdk17</image>
-                    <newName>opentsdb/opentsdb:${project.version}-jdk17</newName>
-                    <buildArgs>
-                      <jdkVersion>17</jdkVersion>
-                    </buildArgs>
-                  </configuration>
-                  <goals>
-                    <goal>build</goal>
-                    <goal>tag</goal>
-                  </goals>
-                </execution>
-                <execution>
-                  <id>build-image-jdk15</id>
-                  <phase>package</phase>
-                  <configuration>
-                    <imageTags>
-                      <imageTag>${project.version}-jdk15</imageTag>
-                    </imageTags>
-                    <image>opentsdb:${project.version}-jdk15</image>
-                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}-jdk15</newName>
-                    <buildArgs>
-                      <jdkVersion>15</jdkVersion>
-                    </buildArgs>
-                  </configuration>
-                  <goals>
-                    <goal>build</goal>
-                    <goal>tag</goal>
-                  </goals>
-                </execution>
-                <execution>
-                  <id>build-image</id>
-                  <phase>package</phase>
-                  <configuration>
-                    <imageTags>
-                      <imageTag>${project.version}</imageTag>
-                    </imageTags>
-                    <image>opentsdb:${project.version}</image>
-                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}</newName>
-                    <buildArgs>
-                      <jdkVersion>8</jdkVersion>
-                    </buildArgs>
-                  </configuration>
-                  <goals>
-                    <goal>build</goal>
-                    <goal>tag</goal>
-                  </goals>
-                </execution>
+                        <configuration>
+                            <serverId>docker-hub</serverId>
+                            <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
+                            <imageName>opentsdb</imageName>
+                            <buildArgs>
+                                <projectVersion>${project.version}</projectVersion>
+                            </buildArgs>
+                            <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
+                            <resources>
+                                <resource>
+                                    <targetPath>/</targetPath>
+                                    <directory>${project.build.directory}</directory>
+                                    <include>opentsdb-${project.version}.tar.gz</include>
+                                </resource>
+                                <resource>
+                                    <targetPath>/</targetPath>
+                                    <directory>${basedir}/src/resources/docker</directory>
+                                    <include>*.*</include>
+                                </resource>
+                            </resources>
+                        </configuration>
 
-                <execution>
-                  <id>push-image</id>
-                  <phase>install</phase>
-                  <goals>
-                    <goal>push</goal>
-                  </goals>
-                  <configuration>
-                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-          </plugins>
-        </build>
-      </profile>
+                        <executions>
+                            <execution>
+                                <id>build-image-jdk17</id>
+                                <phase>package</phase>
+                                <configuration>
+                                    <imageTags>
+                                        <imageTag>${project.version}-jdk17</imageTag>
+                                    </imageTags>
+                                    <image>opentsdb:${project.version}-jdk17</image>
+                                    <newName>opentsdb/opentsdb:${project.version}-jdk17</newName>
+                                    <buildArgs>
+                                        <jdkVersion>17</jdkVersion>
+                                    </buildArgs>
+                                </configuration>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>tag</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>build-image-jdk15</id>
+                                <phase>package</phase>
+                                <configuration>
+                                    <imageTags>
+                                        <imageTag>${project.version}-jdk15</imageTag>
+                                    </imageTags>
+                                    <image>opentsdb:${project.version}-jdk15</image>
+                                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}-jdk15</newName>
+                                    <buildArgs>
+                                        <jdkVersion>15</jdkVersion>
+                                    </buildArgs>
+                                </configuration>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>tag</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>build-image</id>
+                                <phase>package</phase>
+                                <configuration>
+                                    <imageTags>
+                                        <imageTag>${project.version}</imageTag>
+                                    </imageTags>
+                                    <image>opentsdb:${project.version}</image>
+                                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}</newName>
+                                    <buildArgs>
+                                        <jdkVersion>8</jdkVersion>
+                                    </buildArgs>
+                                </configuration>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>tag</goal>
+                                </goals>
+                            </execution>
 
-      <!-- Same as the base Docker but with Prophet included. -->
-      <profile>
-        <id>docker-prophet</id>
-        <build>
-          <plugins>
-            <plugin>
-              <groupId>com.spotify</groupId>
-              <artifactId>docker-maven-plugin</artifactId>
-              <version>0.4.14</version>
+                            <execution>
+                                <id>push-image</id>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>push</goal>
+                                </goals>
+                                <configuration>
+                                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
 
-              <configuration>
-                <serverId>docker-hub</serverId>
-                <dockerDirectory>${basedir}/src/resources/docker_prophet</dockerDirectory>
-                <imageName>opentsdb</imageName>
-                <imageTags>
-                  <imageTag>prophet-${project.version}</imageTag>
-                  <imageTag>prophet-latest</imageTag>
-                </imageTags>
-                <buildArgs>
-                  <projectVersion>${project.version}</projectVersion>
-                </buildArgs>
-                <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
-                <resources>
-                 <resource>
-                   <targetPath>/</targetPath>
-                   <directory>${project.build.directory}</directory>
-                   <include>opentsdb-${project.version}.tar.gz</include>
-                 </resource>
-                 <resource>
-                   <targetPath>/</targetPath>
-                   <directory>${basedir}/src/resources/docker</directory>
-                   <include>*.*</include>
-                 </resource>
-                </resources>
-              </configuration>
-              
-              <executions>
-                <execution>
-                  <id>build-image</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>build</goal>
-                  </goals>
-                </execution>
-                
-                <execution>
-                  <id>tag-image</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>tag</goal>
-                  </goals>
-                  <configuration>
-                    <image>opentsdb:${project.version}</image>
-                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}</newName>
-                  </configuration>
-                </execution>
-                
-                <execution>
-                  <id>push-image</id>
-                  <phase>install</phase>
-                  <goals>
-                    <goal>push</goal>
-                  </goals>
-                  <configuration>
-                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-          </plugins>
-        </build>
-      </profile>
+        <!-- Same as the base Docker but with Prophet included. -->
+        <profile>
+            <id>docker-prophet</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.4.14</version>
 
-      <!-- This is used to generate the all-in-one package that includes all plugins and
-       services. -->
-      <profile>
-        <id>allinone</id>
+                        <configuration>
+                            <serverId>docker-hub</serverId>
+                            <dockerDirectory>${basedir}/src/resources/docker_prophet</dockerDirectory>
+                            <imageName>opentsdb</imageName>
+                            <imageTags>
+                                <imageTag>prophet-${project.version}</imageTag>
+                                <imageTag>prophet-latest</imageTag>
+                            </imageTags>
+                            <buildArgs>
+                                <projectVersion>${project.version}</projectVersion>
+                            </buildArgs>
+                            <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
+                            <resources>
+                                <resource>
+                                    <targetPath>/</targetPath>
+                                    <directory>${project.build.directory}</directory>
+                                    <include>opentsdb-${project.version}.tar.gz</include>
+                                </resource>
+                                <resource>
+                                    <targetPath>/</targetPath>
+                                    <directory>${basedir}/src/resources/docker</directory>
+                                    <include>*.*</include>
+                                </resource>
+                            </resources>
+                        </configuration>
 
-        <dependencies>
-          <dependency>
-            <groupId>net.opentsdb.horizon</groupId>
-            <artifactId>opentsdb-horizon-config-webapp</artifactId>
-            <version>${configVersion}</version>
-            <exclusions>
-              <exclusion>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-core</artifactId>
-              </exclusion>
-              <exclusion>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
-              </exclusion>
-            </exclusions>
-          </dependency>
-        </dependencies>
+                        <executions>
+                            <execution>
+                                <id>build-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                            </execution>
 
-        <build>
-          <plugins>
-            <plugin>
-              <artifactId>maven-assembly-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>distro-assembly</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>single</goal>
-                  </goals>
-                  <configuration>
-                    <descriptors>
-                      <descriptor>src/main/assembly/allinone.xml</descriptor>
-                    </descriptors>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <finalName>opentsdb-${project.version}</finalName>
-                    <tarLongFileMode>gnu</tarLongFileMode>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-          </plugins>
-        </build>
-      </profile>
+                            <execution>
+                                <id>tag-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>tag</goal>
+                                </goals>
+                                <configuration>
+                                    <image>opentsdb:${project.version}</image>
+                                    <newName>${env.DOCKER_REPOSITORY}/opentsdb:${project.version}</newName>
+                                </configuration>
+                            </execution>
 
-      <!-- This is used to generate the all-in-one Docker container that includes all plugins
-       and services. -->
-      <profile>
-        <id>docker-all</id>
+                            <execution>
+                                <id>push-image</id>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>push</goal>
+                                </goals>
+                                <configuration>
+                                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
 
-        <dependencies>
-          <dependency>
-            <groupId>net.opentsdb.horizon</groupId>
-            <artifactId>opentsdb-horizon-config-webapp</artifactId>
-            <version>${configVersion}</version>
-            <exclusions>
-              <exclusion>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-core</artifactId>
-              </exclusion>
-              <exclusion>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
-              </exclusion>
-            </exclusions>
-          </dependency>
-        </dependencies>
+        <!-- This is used to generate the all-in-one package that includes all plugins and
+         services. -->
+        <profile>
+            <id>allinone</id>
 
-        <build>
-          <plugins>
-            <plugin>
-              <artifactId>maven-assembly-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>distro-assembly</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>single</goal>
-                  </goals>
-                  <configuration>
-                    <descriptors>
-                      <descriptor>src/main/assembly/allinone.xml</descriptor>
-                    </descriptors>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <finalName>opentsdb-${project.version}</finalName>
-                    <tarLongFileMode>gnu</tarLongFileMode>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
+            <dependencies>
+                <dependency>
+                    <groupId>net.opentsdb.horizon</groupId>
+                    <artifactId>opentsdb-horizon-config-webapp</artifactId>
+                    <version>${configVersion}</version>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-core</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-slf4j-impl</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+            </dependencies>
 
-            <plugin>
-              <artifactId>maven-antrun-plugin</artifactId>
-              <version>3.0.0</version>
-              <executions>
-                <execution>
-                  <id>horizon-ui</id>
-                  <phase>generate-sources</phase>
-                  <goals>
-                    <goal>run</goal>
-                  </goals>
-                  <configuration>
-                    <target>
-                      <exec executable="sh">
-                        <arg value="${basedir}/src/resources/compileHorizonUI.sh"/>
-                      </exec>
-                    </target>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>distro-assembly</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <descriptors>
+                                        <descriptor>src/main/assembly/allinone.xml</descriptor>
+                                    </descriptors>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>opentsdb-${project.version}</finalName>
+                                    <tarLongFileMode>gnu</tarLongFileMode>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
 
-            <plugin>
-              <groupId>com.spotify</groupId>
-              <artifactId>docker-maven-plugin</artifactId>
-              <version>0.4.14</version>
+        <!-- This is used to generate the all-in-one Docker container that includes all plugins
+         and services. -->
+        <profile>
+            <id>docker-all</id>
 
-              <configuration>
-                <serverId>docker-hub</serverId>
-                <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
-                <imageName>opentsdb</imageName>
-                <buildArgs>
-                  <projectVersion>${project.version}</projectVersion>
-                </buildArgs>
-                <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
-                <resources>
-                  <resource>
-                    <targetPath>/</targetPath>
-                    <directory>${project.build.directory}</directory>
-                    <include>opentsdb-${project.version}.tar.gz</include>
-                  </resource>
-                  <resource>
-                    <targetPath>/</targetPath>
-                    <directory>${basedir}/src/resources/docker</directory>
-                    <include>*.*</include>
-                  </resource>
-                </resources>
-              </configuration>
+            <dependencies>
+                <dependency>
+                    <groupId>net.opentsdb.horizon</groupId>
+                    <artifactId>opentsdb-horizon-config-webapp</artifactId>
+                    <version>${configVersion}</version>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-core</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-slf4j-impl</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+            </dependencies>
 
-              <executions>
-                <execution>
-                  <id>build-image-all-jdk17</id>
-                  <phase>package</phase>
-                  <configuration>
-                    <imageTags>
-                      <imageTag>${project.version}-all-jdk17</imageTag>
-                    </imageTags>
-                    <image>opentsdb:${project.version}-all-jdk17</image>
-                    <newName>opentsdb/opentsdb:${project.version}-all-jdk17</newName>
-                    <buildArgs>
-                      <jdkVersion>17</jdkVersion>
-                    </buildArgs>
-                  </configuration>
-                  <goals>
-                    <goal>build</goal>
-                    <goal>tag</goal>
-                  </goals>
-                </execution>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>distro-assembly</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <descriptors>
+                                        <descriptor>src/main/assembly/allinone.xml</descriptor>
+                                    </descriptors>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>opentsdb-${project.version}</finalName>
+                                    <tarLongFileMode>gnu</tarLongFileMode>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
 
-                <execution>
-                  <id>push-image</id>
-                  <phase>install</phase>
-                  <goals>
-                    <goal>push</goal>
-                  </goals>
-                  <configuration>
-                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-          </plugins>
-        </build>
-      </profile>
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.0.0</version>
+                        <executions>
+                            <execution>
+                                <id>horizon-ui</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <exec executable="sh">
+                                            <arg value="${basedir}/src/resources/compileHorizonUI.sh"/>
+                                        </exec>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.4.14</version>
+
+                        <configuration>
+                            <serverId>docker-hub</serverId>
+                            <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
+                            <imageName>opentsdb</imageName>
+                            <buildArgs>
+                                <projectVersion>${project.version}</projectVersion>
+                            </buildArgs>
+                            <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
+                            <resources>
+                                <resource>
+                                    <targetPath>/</targetPath>
+                                    <directory>${project.build.directory}</directory>
+                                    <include>opentsdb-${project.version}.tar.gz</include>
+                                </resource>
+                                <resource>
+                                    <targetPath>/</targetPath>
+                                    <directory>${basedir}/src/resources/docker</directory>
+                                    <include>*.*</include>
+                                </resource>
+                            </resources>
+                        </configuration>
+
+                        <executions>
+                            <execution>
+                                <id>build-image-all-jdk17</id>
+                                <phase>package</phase>
+                                <configuration>
+                                    <imageTags>
+                                        <imageTag>${project.version}-all-jdk17</imageTag>
+                                    </imageTags>
+                                    <image>opentsdb:${project.version}-all-jdk17</image>
+                                    <newName>opentsdb/opentsdb:${project.version}-all-jdk17</newName>
+                                    <buildArgs>
+                                        <jdkVersion>17</jdkVersion>
+                                    </buildArgs>
+                                </configuration>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>tag</goal>
+                                </goals>
+                            </execution>
+
+                            <execution>
+                                <id>push-image</id>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>push</goal>
+                                </goals>
+                                <configuration>
+                                    <imageName>${env.DOCKER_REPOSITORY}/opentsdb</imageName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>
