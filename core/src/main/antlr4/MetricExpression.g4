@@ -58,9 +58,10 @@ relationalop: '<'|'>'|'=='|'<='|'>='|'!=';
 
 ternaryExpression : '(' ternaryExpression ')'                              #paren_ternary_rule
                   | (logicalExpression|relationalExpression|metric) '?' ternaryOperands ':' ternaryOperands       #main_ternary_rule
+                  | ternaryExpression '?' ternaryOperands ':' ternaryOperands #nested_ternary_rule
                   ;
 
-ternaryOperands:  expression              // We can label alternatives - but seems to me like the output will have a single type
+ternaryOperands: expression
                 ;
 
 
