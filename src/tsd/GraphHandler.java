@@ -35,8 +35,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.core.*;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
@@ -44,6 +43,9 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
+import net.opentsdb.core.Tags;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
@@ -638,6 +640,7 @@ final class GraphHandler implements HttpRpc {
     final String wxh = query.getQueryStringParam("wxh");
     if (wxh != null && !wxh.isEmpty()) {
       // TODO - far from perfect, should help a little.
+      validateString("wxh", wxh);
       if (wxh.contains("`") || wxh.contains("%60") || 
           wxh.contains("&#96;")) {
         throw new BadRequestException("WXH contained a back-tick. "
@@ -713,24 +716,31 @@ final class GraphHandler implements HttpRpc {
     final Map<String, List<String>> querystring = query.getQueryString();
     String value;
     if ((value = popParam(querystring, "yrange")) != null) {
+      validateString("yrange", value, "[:]");
       params.put("yrange", value);
     }
     if ((value = popParam(querystring, "y2range")) != null) {
+      validateString("y2range", value, "[:]");
       params.put("y2range", value);
     }
     if ((value = popParam(querystring, "ylabel")) != null) {
+      validateString("ylabel", value, " ");
       params.put("ylabel", stringify(value));
     }
     if ((value = popParam(querystring, "y2label")) != null) {
+      validateString("y2label", value, " ");
       params.put("y2label", stringify(value));
     }
     if ((value = popParam(querystring, "yformat")) != null) {
+      validateString("yformat", value, "% ");
       params.put("format y", stringify(value));
     }
     if ((value = popParam(querystring, "y2format")) != null) {
+      validateString("y2format", value, "% ");
       params.put("format y2", stringify(value));
     }
     if ((value = popParam(querystring, "xformat")) != null) {
+      validateString("xformat", value, "% ");
       params.put("format x", stringify(value));
     }
     if ((value = popParam(querystring, "ylog")) != null) {
@@ -740,21 +750,27 @@ final class GraphHandler implements HttpRpc {
       params.put("logscale y2", "");
     }
     if ((value = popParam(querystring, "key")) != null) {
+      validateString("key", value);
       params.put("key", value);
     }
     if ((value = popParam(querystring, "title")) != null) {
+      validateString("title", value, " ");
       params.put("title", stringify(value));
     }
     if ((value = popParam(querystring, "bgcolor")) != null) {
+      validateString("bgcolor", value);
       params.put("bgcolor", value);
     }
     if ((value = popParam(querystring, "fgcolor")) != null) {
+      validateString("fgcolor", value);
       params.put("fgcolor", value);
     }
     if ((value = popParam(querystring, "smooth")) != null) {
+      validateString("smooth", value);
       params.put("smooth", value);
     }
     if ((value = popParam(querystring, "style")) != null) {
+      validateString("style", value);
       params.put("style", value);
     }
     // This must remain after the previous `if' in order to properly override
@@ -986,6 +1002,28 @@ final class GraphHandler implements HttpRpc {
   static void logError(final HttpQuery query, final String msg,
                        final Throwable e) {
     LOG.error(query.channel().toString() + ' ' + msg, e);
+  }
+
+  static void validateString(final String what, final String s) {
+    validateString(what, s, "");
+  }
+
+  public static void validateString(final String what, final String s, String specials) {
+    if (s == null) {
+      throw new BadRequestException("Invalid " + what + ": null");
+    } else if ("".equals(s)) {
+      throw new BadRequestException("Invalid " + what + ": empty string");
+    }
+    final int n = s.length();
+    for (int i = 0; i < n; i++) {
+      final char c = s.charAt(i);
+      if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+          || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.'
+          || c == '/' || Character.isLetter(c) || specials.indexOf(c) != -1)) {
+        throw new BadRequestException("Invalid " + what
+            + " (\"" + s + "\"): illegal character: " + c);
+      }
+    }
   }
 
 }
