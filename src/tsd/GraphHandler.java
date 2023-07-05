@@ -204,10 +204,12 @@ final class GraphHandler implements HttpRpc {
       }
       
       options = query.getQueryStringParams("o");
-      for (int i = 0; i < options.size(); i++) {
-        if (!allow_list.contains(options.get(i))) {
-          throw new BadRequestException("Query option at index " + i 
-              + " was not in the allow list.");
+      if (!(options == null)) {
+        for (int i = 0; i < options.size(); i++) {
+          if (!allow_list.contains(options.get(i))) {
+            throw new BadRequestException("Query option at index " + i 
+                + " was not in the allow list.");
+          }
         }
       }
     }
