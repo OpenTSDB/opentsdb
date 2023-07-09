@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.LinkedHashSet;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
@@ -673,7 +674,7 @@ class HttpJsonSerializer extends HttpSerializer {
       /** Has to be final to be shared with the nested classes */
       final StringBuilder metric = new StringBuilder(256);
       /** Resolved tags */
-      final Map<String, String> tags = new HashMap<String, String>();
+      final Map<String, String> tags = new ConcurrentHashMap<String, String>();
       /** Resolved aggregated tags */
       final List<String> agg_tags = new ArrayList<String>();
       /** A list storing the metric and tag resolve calls */
