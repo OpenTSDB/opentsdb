@@ -104,6 +104,7 @@
     <module>implementation/aws-secrets</module>
     <module>implementation/query-runner</module>
     <module>implementation/influx</module>
+    <module>implementation/kubernetes</module>
     <module>implementation/ultrabrew</module>
     <module>storage/asynchbase</module>
     <module>storage/bigtable</module>
