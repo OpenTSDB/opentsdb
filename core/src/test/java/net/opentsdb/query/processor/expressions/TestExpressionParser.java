@@ -773,6 +773,107 @@ public class TestExpressionParser {
     //ExpressionParser parser = new ExpressionParser(config("a + 1 * c"));
     // TODO - allow "1 > a : b"?
   }
+
+  @Test
+  public void nested_ternary() throws Exception {
+    ExpressionParser parser = new ExpressionParser(config("(a > b ? c : d)"));
+    List<ExpressionParseNode> nodes = parser.parse();
+    assertEquals(2, nodes.size());
+    ExpressionParseNode node = nodes.get(0);
+    assertEquals("e1_SubExp#0", node.getId());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("a", node.getLeft());
+    assertEquals(OperandType.VARIABLE, node.getRightType());
+    assertEquals("b", node.getRight());
+    assertEquals(ExpressionOp.GT, node.getOperator());
+
+    node = nodes.get(1);
+    assertEquals("e1", node.getId());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("c", node.getLeft());
+    assertEquals(OperandType.VARIABLE, node.getRightType());
+    assertEquals("d", node.getRight());
+    assertNull(node.getOperator());
+    assertEquals(OperandType.SUB_EXP, ((TernaryParseNode) node).getConditionType());
+    assertEquals("e1_SubExp#0", ((TernaryParseNode) node).getCondition());
+
+    parser = new ExpressionParser(config("a <= 1 ?(a > m && j < l) : o + y >= 1.89 ? h : p"));
+    nodes = parser.parse();
+    assertEquals(8, nodes.size());
+    node = nodes.get(0);
+    assertEquals("e1_SubExp#0", node.getId());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("a", node.getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, node.getRightType());
+    assertEquals(new NumericLiteral(1), node.getRight());
+    assertEquals(ExpressionOp.LE, node.getOperator());
+
+    node = nodes.get(1);
+    assertEquals("e1_SubExp#1", node.getId());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("a", node.getLeft());
+    assertEquals(OperandType.VARIABLE, node.getRightType());
+    assertEquals("m", node.getRight());
+    assertEquals(ExpressionOp.GT, node.getOperator());
+
+    node = nodes.get(2);
+    assertEquals("e1_SubExp#2", node.getId());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("j", node.getLeft());
+    assertEquals(OperandType.VARIABLE, node.getRightType());
+    assertEquals("l", node.getRight());
+    assertEquals(ExpressionOp.LT, node.getOperator());
+
+    node = nodes.get(3);
+    assertEquals("e1_SubExp#3", node.getId());
+    assertEquals(OperandType.SUB_EXP, node.getLeftType());
+    assertEquals("e1_SubExp#1", node.getLeft());
+    assertEquals(OperandType.SUB_EXP, node.getRightType());
+    assertEquals("e1_SubExp#2", node.getRight());
+    assertEquals(ExpressionOp.AND, node.getOperator());
+
+    node = nodes.get(4);
+    assertEquals("e1_SubExp#4", node.getId());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("o", node.getLeft());
+    assertEquals(OperandType.VARIABLE, node.getRightType());
+    assertEquals("y", node.getRight());
+    assertEquals(ExpressionOp.ADD, node.getOperator());
+
+    node = nodes.get(5);
+    assertEquals("e1_SubExp#5", node.getId());
+    assertEquals(OperandType.SUB_EXP, node.getLeftType());
+    assertEquals("e1_SubExp#4", node.getLeft());
+    assertEquals(OperandType.LITERAL_NUMERIC, node.getRightType());
+    assertEquals(new NumericLiteral(1.89), node.getRight());
+    assertEquals(ExpressionOp.GE, node.getOperator());
+
+    node = nodes.get(6);
+
+    assertEquals("e1_TernaryExp#6", node.getId());
+    assertEquals(OperandType.SUB_EXP, node.getLeftType());
+    assertEquals("e1_SubExp#3", node.getLeft());
+    assertEquals(OperandType.SUB_EXP, node.getRightType());
+    assertEquals("e1_SubExp#5", node.getRight());
+    assertEquals(OperandType.SUB_EXP, ((TernaryParseNode) node).getConditionType());
+    assertEquals("e1_SubExp#0", ((TernaryParseNode) node).getCondition());
+
+    node = nodes.get(7);
+
+    assertEquals("e1", node.getId());
+    assertEquals(OperandType.VARIABLE, node.getLeftType());
+    assertEquals("h", node.getLeft());
+    assertEquals(OperandType.VARIABLE, node.getRightType());
+    assertEquals("p", node.getRight());
+    assertEquals(OperandType.SUB_EXP, ((TernaryParseNode) node).getConditionType());
+    assertEquals("e1_TernaryExp#6", ((TernaryParseNode) node).getCondition());
+
+    //parser = new ExpressionParser(config("a <= 1 ?(a > m && j < l) : o + y >= 1.89 ? h : p"));
+
+    //parser = new ExpressionParser(config("a <= 1 ?(a > m && j < l) : o + y >= 1.89 ? h : p : !(h > 1) && k < i "));
+
+    //parser = new ExpressionParser(config("(a + c) > 3 ? (a > m && j < l) ? o + y >= 1.89 :  h > 4 ? p : k * l /i > 6 : i"));
+  }
   
   ExpressionConfig config(final String exp) {
     return (ExpressionConfig) ExpressionConfig.newBuilder()

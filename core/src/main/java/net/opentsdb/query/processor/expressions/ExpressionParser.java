@@ -707,7 +707,17 @@ public class ExpressionParser extends DefaultErrorStrategy
 
   @Override
   public Object visitParen_ternary_rule(Paren_ternary_ruleContext ctx) {
-    return null;
+    ctx.getChild(0).accept(this);
+    ctx.getChild(2).accept(this);
+    return ctx.getChild(1).accept(this);
+  }
+
+  @Override
+  public Object visitNested_ternary_rule(MetricExpressionParser.Nested_ternary_ruleContext ctx) {
+    Object condition = ctx.getChild(0).accept(this);
+    Object left = ctx.getChild(2).accept(this);
+    Object right = ctx.getChild(4).accept(this);
+    return newTernary(condition, left, right);
   }
 
   @Override
