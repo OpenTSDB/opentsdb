@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -67,18 +68,14 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
   }
 
   /**
-   * HTTP resposne handler
+   * HTTP response handler
    * @param tsdb The TSDB to which we belong
    * @param query The query to parse and respond to
    */
-  public void execute(final TSDB tsdb, final HttpQuery query) {
-    // only accept GET/POST
-    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-          "Method not allowed", "The HTTP method [" + query.method().getName() +
-          "] is not permitted for this endpoint");
-    }
-    
+  public void execute(final TSDB tsdb, final HttpQuery query) throws BadRequestException, IOException {
+
+    RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
     try {
       final String[] uri = query.explodeAPIPath();
       final String endpoint = uri.length > 1 ? uri[1].toLowerCase() : "";
