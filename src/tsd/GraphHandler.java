@@ -40,7 +40,10 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
-import net.opentsdb.core.*;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
@@ -125,6 +128,10 @@ final class GraphHandler implements HttpRpc {
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query) {
+
+    // only accept GET/POST
+    RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
     if (!query.hasQueryStringParam("json")
         && !query.hasQueryStringParam("png")
         && !query.hasQueryStringParam("ascii")) {
@@ -202,18 +209,18 @@ final class GraphHandler implements HttpRpc {
           allow_list.add(allow);
         }
       }
-      
+
       options = query.getQueryStringParams("o");
       if (!(options == null)) {
         for (int i = 0; i < options.size(); i++) {
           if (!allow_list.contains(options.get(i))) {
-            throw new BadRequestException("Query option at index " + i 
+            throw new BadRequestException("Query option at index " + i
                 + " was not in the allow list.");
           }
         }
       }
     }
-    
+
     if (options == null) {
       options = new ArrayList<String>(tsdbqueries.length);
       for (int i = 0; i < tsdbqueries.length; i++) {
