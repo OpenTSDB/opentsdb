@@ -424,6 +424,10 @@ final class HttpQuery extends AbstractHttpQuery {
       HttpQuery.escapeJson(exception.getMessage(), buf);
       buf.append("\"}");
       sendReply(HttpResponseStatus.BAD_REQUEST, buf);
+    } else if (hasQueryStringParam("png")) {
+      final StringBuilder buf = new StringBuilder(10 +
+              exception.getDetails().length());
+      sendReply(HttpResponseStatus.BAD_REQUEST, buf);
     } else {
       String response = "";
       if (exception.getMessage() != null) {
