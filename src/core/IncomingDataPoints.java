@@ -312,11 +312,17 @@ final class IncomingDataPoints implements WritableDataPoints {
           point.setDurable(!batch_import);
           return tsdb.client.append(point);/* .addBoth(cb) */
         } else {
-          final PutRequest point = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.table, row, TSDB.FAMILY,
-              qualifier, value, timestamp);
+            boolean isLong = ((flags & Const.FLAG_FLOAT) == 0x0);
+            if (isLong && tsdb.config.use_hbase_counters()) {
+                AtomicIncrementRequest counterRequest = new AtomicIncrementRequest(tsdb.table, row, TSDB.FAMILY, qualifier, Bytes.getLong(value));
+                return tsdb.client.atomicIncrement(counterRequest, !batch_import);
+            } else {
+                final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
+                        qualifier, value);
           point.setDurable(!batch_import);
           return tsdb.client.put(point)/* .addBoth(cb) */;
         }
+      }
       }
       @Override
       public String toString() {
@@ -348,6 +354,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   public Deferred<Object> addPoint(final long timestamp, final long value) {
     final byte[] v;
+
     if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       v = new byte[] { (byte) value };
     } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
