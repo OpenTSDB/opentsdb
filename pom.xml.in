@@ -70,8 +70,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>2.5.1</version>
         <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
+          <source>1.8</source>
+          <target>1.8</target>
           <compilerArgument>-Xlint</compilerArgument>
           <excludes>
             <exclude>**/client/*.java</exclude>
@@ -326,7 +326,7 @@
               <goal>javacc</goal>
             </goals>
             <configuration>
-              <jdkVersion>1.6</jdkVersion>
+              <jdkVersion>1.8</jdkVersion>
               <javadocFriendlyComments>true</javadocFriendlyComments>
               <packageName>net.opentsdb.query.expression.parser</packageName>
               <sourceDirectory>${basedir}/src/</sourceDirectory>

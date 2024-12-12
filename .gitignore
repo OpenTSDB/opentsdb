@@ -50,3 +50,4 @@ tools/docker/opentsdb.conf
 fat-jar-pom.xml
 src-resources/
 test-resources/
+third_party/*/*.jar
