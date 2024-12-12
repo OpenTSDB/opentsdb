@@ -960,7 +960,6 @@ public class SaltScanner {
       histMap.put(scannersRunning, histograms);
     }
 
-    int scannersRunning = countdown.decrementAndGet();
     if (scannersRunning <= 0) {
       try {
         mergeAndReturnResults();

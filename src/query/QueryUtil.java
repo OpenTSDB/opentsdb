@@ -418,39 +418,39 @@ public class QueryUtil {
       final boolean explicit_tags,
       final boolean enable_fuzzy_filter,
       final int end_time) {
-    
+
     // no-op
-    if ((group_bys == null || group_bys.isEmpty()) 
-        && (row_key_literals == null || row_key_literals.isEmpty())) {
+    if ((group_bys == null || group_bys.isEmpty())
+            && (row_key_literals == null || row_key_literals.isEmpty())) {
       return;
     }
-    
+
     if (group_bys != null) {
       Collections.sort(group_bys, Bytes.MEMCMP);
     }
 
     final int prefix_width = Const.SALT_WIDTH() + TSDB.metrics_width() +
-        Const.TIMESTAMP_BYTES;
+            Const.TIMESTAMP_BYTES;
 
     final FuzzyRowFilter fuzzy_filter;
     if (explicit_tags &&
-        enable_fuzzy_filter &&
-        row_key_literals != null &&
-        !row_key_literals.isEmpty()) {
+            enable_fuzzy_filter &&
+            row_key_literals != null &&
+            !row_key_literals.isEmpty()) {
 
       final byte[] fuzzy_key = new byte[prefix_width + (row_key_literals.size() *
-          (TSDB.tagk_width() + TSDB.tagv_width()))];
+              (TSDB.tagk_width() + TSDB.tagv_width()))];
       System.arraycopy(scanner.getCurrentKey(), 0, fuzzy_key, 0,
-          scanner.getCurrentKey().length);
+              scanner.getCurrentKey().length);
 
       final List<FuzzyFilterPair> fuzzy_filter_pairs =
-          buildFuzzyFilters(row_key_literals, fuzzy_key);
+              buildFuzzyFilters(row_key_literals, fuzzy_key);
 
       // The Fuzzy Filter list is sorted: the first and last filters row key
       // can be used to build the stop key for the scanner
       final byte[] stop_key = Arrays.copyOf(
-          fuzzy_filter_pairs.get(fuzzy_filter_pairs.size() - 1).getRowKey(),
-          fuzzy_key.length);
+              fuzzy_filter_pairs.get(fuzzy_filter_pairs.size() - 1).getRowKey(),
+              fuzzy_key.length);
       System.arraycopy(scanner.getCurrentKey(), 0, stop_key, 0, prefix_width);
       Internal.setBaseTime(stop_key, end_time);
       int idx = prefix_width + TSDB.tagk_width();
@@ -474,66 +474,25 @@ public class QueryUtil {
     if (!Strings.isNullOrEmpty(regex)) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Regex for scanner: " + scanner + ": " +
-            byteRegexToString(regex));
+                byteRegexToString(regex));
       }
       regex_filter = new KeyRegexpFilter(regex.toString(),
-          Const.ASCII_CHARSET);
+              Const.ASCII_CHARSET);
     } else {
       regex_filter = null;
     }
 
     if (fuzzy_filter != null && !Strings.isNullOrEmpty(regex)) {
       final FilterList filter = new FilterList(Lists.newArrayList(fuzzy_filter,
-          regex_filter),Operator.MUST_PASS_ALL);
+              regex_filter), Operator.MUST_PASS_ALL);
       scanner.setFilter(filter);
     } else if (fuzzy_filter != null) {
       scanner.setFilter(fuzzy_filter);
     } else if (!Strings.isNullOrEmpty(regex)) {
       scanner.setFilter(regex_filter);
     }
-
-    if (explicit_tags && enable_fuzzy_filter) {
-      final List<FuzzyFilterPair> fuzzy_filter_pairs =
-          buildFuzzyFilters(row_key_literals);
-
-      // The Fuzzy Filter list is sorted: the first and last filters row key
-      // can be used to build a start and stop keys for the scanner
-      final byte[] start_key = Arrays.copyOf(
-          fuzzy_filter_pairs.get(0).getRowKey(),
-          fuzzy_filter_pairs.get(0).getRowKey().length);
-      System.arraycopy(scanner.getCurrentKey(), 0, start_key, 0, prefix_width);
-
-      final byte[] stop_key = Arrays.copyOf(
-          fuzzy_filter_pairs.get(fuzzy_filter_pairs.size()-1).getRowKey(),
-          start_key.length);
-      System.arraycopy(scanner.getCurrentKey(), 0,
-          stop_key, 0, prefix_width);
-      Internal.setBaseTime(stop_key, end_time);
-      int idx = prefix_width + TSDB.tagk_width();
-      // max out the tag values
-      while (idx < stop_key.length) {
-        for (int i = 0; i < TSDB.tagv_width(); i++) {
-          stop_key[idx++] = (byte) 0xFF;
-        }
-        idx += TSDB.tagk_width();
-      }
-
-      scanner.setStartKey(start_key);
-      scanner.setStopKey(stop_key);
-      scanner.setFilter(new FuzzyRowFilter(fuzzy_filter_pairs));
-    } else {
-      final String regex = getRowKeyUIDRegex(row_key_literals, explicit_tags);
-      final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
-          regex.toString(), Const.ASCII_CHARSET);
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Regex for scanner: " + scanner + ": " +
-            byteRegexToString(regex));
-      }
-
-      scanner.setFilter(regex_filter);
-    }
   }
-  
+
   /**
    * Creates a regular expression with a list of or'd TUIDs to compare
    * against the rows in storage.

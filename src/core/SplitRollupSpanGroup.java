@@ -119,6 +119,7 @@ public class SplitRollupSpanGroup extends AbstractSpanGroup {
      */
     @Override
     public Bytes.ByteMap<byte[]> getTagUids() {
+        Bytes.ByteMap<byte[]> tagUids = new Bytes.ByteMap<byte[]>();
 
         for (SpanGroup group : spanGroups) {
             tagUids.putAll(group.getTagUids());
