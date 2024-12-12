@@ -113,6 +113,7 @@ tsdb_SRC := \
 	src/meta/TSMeta.java	\
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
+	src/normalize/NormalizePlugin.java	\
 	src/query/QueryUtil.java	\
 	src/query/QueryLimitOverride.java	\
 	src/query/expression/Absolute.java	\
