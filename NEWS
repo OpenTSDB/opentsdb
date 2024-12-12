@@ -1,4 +1,36 @@
 OpenTSDB - Changelog
+* Version 2.5.0RC1 (2024-12-12)
+
+Noteworthy Changes:
+  - Bump Jackson to 2.14.1 WARNING: The minimum JDK is now version 8 due to Jackson. (#2263)
+  - Enhance range tests and regex and add better default for output validator (#2217)
+  - Converting to using SystemD systemctl (#1515)
+  - Status API, Start of a new HTTP API (#1742)
+  - Allow end_time = start_time to be able to query and delete a single datapoint. (#2036)
+  - Add support for splitting rollup queries (#1853)
+  - ExplicitTags filtering with FuzzyFilters (#1896)
+  - Add "check_tsd_v2" script (#1567)
+  - Do PutDataPointRpc.GroupCB asynchronously (#1472)
+  - Tag Normalization Plugin Support (#1525)
+
+Bug Fixes:
+  - Fix race condition in UID lookup (#2176)
+  - Tighten up the regexes for Gnuplot URI params per multiple security reports. (#2272)
+  - Trigger callback chain when reached limit. (#2204, #839)
+  - Use ConcurrentHashMap when serializing tags. (#2282, #1055)
+  - Test for null, avoid NPE (#2281, #2280)
+  - Ensure we always add the {} for group_by filters, otherwise the non group_by filters act as group_by filters (#1697)
+  - Added tracking of metrics which are null due to auto_metric being disabled Fixes (#786,#2042)
+  - Fixed function description Fixes (#841,#2040)
+  - Fix concurrent result reporting from scanners (#1753)
+  - Fix SaltScanner race condition on spans maps (#1651)
+  - Fix an edge case in TsdbQuery.getScanEndTimeSeconds() (#1581, #1582)
+  - Fix a compilation error about missing FirstDifference (#1471)
+
+Security Fixes:
+  - Bump Logback version to patch CVE-2021-42550 (#2208, #2218)
+  - Make sure the inputs are only plain ASCII printables first. Fixes CVE-2018-12972, CVE-2020-35476 (#2275)
+
 * Version 2.4.1 (2021-09-02)
 
 Noteworthy Changes:
