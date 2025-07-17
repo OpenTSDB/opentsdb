@@ -72,6 +72,7 @@ rm -rf %{buildroot}
 %attr(0755,root,root) %{_datarootdir}/opentsdb/plugins
 %attr(0755,root,root) %{_datarootdir}/opentsdb/tools/*
 %attr(0755,root,root) %{_datarootdir}/opentsdb/etc/init.d/opentsdb
+%attr(0644,root,root) %{_datarootdir}/opentsdb/etc/systemd/system/opentsdb.service
 %attr(0644,root,root) %{_datarootdir}/opentsdb/etc/systemd/system/opentsdb@.service
 %config %{_datarootdir}/opentsdb/etc/opentsdb/opentsdb.conf
 %config %{_datarootdir}/opentsdb/etc/opentsdb/logback.xml

@@ -741,10 +741,10 @@ install-data-etc:
 	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \
 	echo " $(INSTALL_SCRIPT)" $$init_file "$$destdatainitdir" ; \
 	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1; \
-	systemd_file="$(top_srcdir)/build-aux/rpm/systemd/opentsdb.service" ; \
-	systemd_file="$(top_srcdir)/build-aux/rpm/systemd/opentsdb@.service" ; \
-	echo " $(INSTALL_SCRIPT)" $$systemd_file "$$destdatasystemddir" ; \
-	$(INSTALL_SCRIPT) $$systemd_file "$$destdatasystemddir" || exit 1;
+	systemd_files="$$systemd_files $(top_srcdir)/build-aux/rpm/systemd/opentsdb.service" ; \
+	systemd_files="$$systemd_files $(top_srcdir)/build-aux/rpm/systemd/opentsdb@.service" ; \
+	echo " $(INSTALL_SCRIPT)" $$systemd_files "$$destdatasystemddir" ; \
+	$(INSTALL_SCRIPT) $$systemd_files "$$destdatasystemddir" || exit 1;
 
 uninstall-data-etc:
 	@$(NORMAL_UNINSTALL)
