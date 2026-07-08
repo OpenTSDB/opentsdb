@@ -14,24 +14,21 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+
+
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.pojo.RateOptions;
+import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 import org.junit.Assert;
-
-import net.opentsdb.query.pojo.FillPolicy;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
-
-import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.query.pojo.RateOptions;
-import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestTSQuery {
 

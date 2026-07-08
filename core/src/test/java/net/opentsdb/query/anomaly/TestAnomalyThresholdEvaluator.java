@@ -14,31 +14,25 @@
 // limitations under the License.
 package net.opentsdb.query.anomaly;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
 
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestAnomalyThresholdEvaluator {
   private static MockConfig CONFIG;

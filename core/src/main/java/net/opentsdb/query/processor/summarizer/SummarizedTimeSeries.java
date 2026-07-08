@@ -16,24 +16,19 @@ package net.opentsdb.query.processor.summarizer;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map.Entry;
+import java.util.Optional;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.query.QueryIterator;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A time series that travels to pass-through iterators and is updated as

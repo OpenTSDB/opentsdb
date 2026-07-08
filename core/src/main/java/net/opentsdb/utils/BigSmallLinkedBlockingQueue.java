@@ -14,11 +14,6 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
-
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +21,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
+
+
+import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
+
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 
 /**
  * An unbounded thread safe blocking queue based on two {@linkplain ConcurrentLinkedQueue linked

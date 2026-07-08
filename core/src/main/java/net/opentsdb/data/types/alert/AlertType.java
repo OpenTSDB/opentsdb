@@ -16,11 +16,12 @@ package net.opentsdb.data.types.alert;
 
 import java.util.Set;
 
-import com.google.common.collect.Sets;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.NumericType;
+
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A class denoting information surrounding an alert or issue with a time series.

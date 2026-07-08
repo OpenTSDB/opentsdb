@@ -14,21 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.util.List;
+import java.util.Map;
+
+
+import com.stumbleupon.async.Deferred;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.meta.MetaQuery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * A chain of query context filters processed in the order of definition.
@@ -36,7 +39,7 @@ import java.util.Map;
  * @since 3.0
  */
 public class ChainedQueryContextFilter extends BaseTSDBPlugin
-        implements QueryContextFilter {
+    implements QueryContextFilter {
   private static final Logger LOG = LoggerFactory.getLogger(
           ChainedQueryContextFilter.class);
 

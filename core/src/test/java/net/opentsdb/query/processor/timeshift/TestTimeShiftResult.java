@@ -14,23 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.processor.timeshift;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.collect.Lists;
 
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -42,6 +33,12 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.timeshift.TimeShiftResult.TimeShiftTimeSeries;
 import net.opentsdb.utils.DateTime;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestTimeShiftResult {
 

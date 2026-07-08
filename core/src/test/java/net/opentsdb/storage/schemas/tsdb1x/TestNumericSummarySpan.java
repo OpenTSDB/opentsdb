@@ -14,15 +14,10 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.Iterator;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
@@ -32,6 +27,10 @@ import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.utils.Bytes;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestNumericSummarySpan {
   private static final long BASE_TIME = 1514764800;

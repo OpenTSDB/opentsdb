@@ -18,8 +18,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.Sets;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -38,6 +36,9 @@ import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 
 /**
  * An expression iterator over summary data.

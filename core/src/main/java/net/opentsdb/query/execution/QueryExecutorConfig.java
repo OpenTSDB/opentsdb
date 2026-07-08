@@ -14,15 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
+import net.opentsdb.query.QueryNodeConfig;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
+
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
-
-import net.opentsdb.query.QueryNodeConfig;
 
 /**
  * The base class used for configuring an executor. This class must be
@@ -43,9 +44,9 @@ import net.opentsdb.query.QueryNodeConfig;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = Id.NAME,
-  include = JsonTypeInfo.As.PROPERTY,
-  property = "executorType",
-  visible = true)
+    include = JsonTypeInfo.As.PROPERTY,
+    property = "executorType",
+    visible = true)
 public abstract class QueryExecutorConfig<B extends QueryExecutorConfig.Builder<B, C>, C extends QueryExecutorConfig> implements QueryNodeConfig<B, C> {
   /** The class type of executor. */
   protected final String executor_type;

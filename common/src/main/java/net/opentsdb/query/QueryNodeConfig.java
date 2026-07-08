@@ -14,11 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import com.google.common.hash.HashCode;
-import net.opentsdb.configuration.Configuration;
-
 import java.util.List;
 import java.util.Map;
+
+import com.google.common.hash.HashCode;
+
+import net.opentsdb.configuration.Configuration;
 
 /**
  * The configuration interface for a particular query node. Queries will populate

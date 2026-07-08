@@ -14,23 +14,23 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Lists;
 import java.util.List;
-import net.opentsdb.query.processor.downsample.DownsampleFactory;
-import net.opentsdb.utils.Pair;
-import org.junit.BeforeClass;
-import org.junit.Test;
+
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestRateConfig {
 public static MockTSDB TSDB;

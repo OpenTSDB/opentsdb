@@ -14,20 +14,21 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import static org.junit.Assert.*;
+
+
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
-import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.utils.JSON;
 
-import static org.junit.Assert.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestMergerConfig {
 

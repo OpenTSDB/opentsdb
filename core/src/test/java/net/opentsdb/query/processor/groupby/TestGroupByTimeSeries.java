@@ -14,15 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import com.google.common.collect.Sets;
-import com.google.common.reflect.TypeToken;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.Collection;
+import java.util.Optional;
+
+
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -37,21 +40,12 @@ import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collection;
-import java.util.Optional;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 
 public class TestGroupByTimeSeries {
   
@@ -101,9 +95,9 @@ public class TestGroupByTimeSeries {
     when(tsdb.getRegistry()).thenReturn(registry);
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
     interp_factory.initialize(tsdb, null).join();
-    when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
+    when(registry.getPlugin(eq(QueryInterpolatorFactory.class), nullable(String.class)))
       .thenReturn(interp_factory);
-    when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+    when(registry.getPlugin(eq(NumericAggregatorFactory.class), nullable(String.class)))
       .thenReturn(new SumFactory());
     
     when(node.factory()).thenReturn(factory);

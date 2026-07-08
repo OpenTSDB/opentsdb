@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.readcache;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * An iterator that handles combining multiple numeric type results from the 

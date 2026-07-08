@@ -14,11 +14,11 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 public class LRUUniqueIdFactory extends BaseTSDBPlugin implements UniqueIdFactory {
 

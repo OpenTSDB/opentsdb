@@ -14,19 +14,16 @@
 // limitations under the License.
 package net.opentsdb.rollup;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 import java.nio.charset.Charset;
 
-import org.junit.Test;
 
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
+
+import org.junit.Test;
 
 public class TestDefaultRollupInterval {
   private final static Charset CHARSET = Charset.forName("ISO-8859-1");

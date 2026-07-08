@@ -14,20 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.execution.serdes;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import org.junit.Test;
 
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.Registry;
@@ -40,6 +35,8 @@ import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
+
+import org.junit.Test;
 
 public class TestJsonV2QuerySerdesFactory {
 

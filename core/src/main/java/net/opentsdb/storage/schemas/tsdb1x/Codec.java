@@ -14,13 +14,13 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.WriteStatus;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * A class that will return a storage object that can be populated

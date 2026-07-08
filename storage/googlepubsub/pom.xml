@@ -45,17 +45,11 @@
           <type>test-jar</type>
         </dependency>
         
-         <dependency>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-          <version>23.0</version>
-        </dependency>
         <dependency>
           <groupId>com.google.cloud</groupId>
           <artifactId>google-cloud-pubsub</artifactId>
-          <version>1.36.0</version>
+          <version>1.151.0</version>
         </dependency>
-                
       </dependencies>
     </dependencyManagement>
     
@@ -67,6 +61,10 @@
       <dependency>
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
       </dependency>
       
       <dependency>
@@ -110,16 +108,11 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
-        <scope>test</scope>
-      </dependency>
-      
+
       <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-core</artifactId>
@@ -137,33 +130,35 @@
       <plugins>       
           <plugin> 
                 <groupId>org.apache.maven.plugins</groupId>  
-                <artifactId>maven-shade-plugin</artifactId>  
-                <version>3.2.1</version> 
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven.plugin.shade.version}</version>
                 <configuration>  
                     <artifactSet>  
-                        <excludes> 
-                            <exclude>net.opentsdb:opentsdb-common</exclude>  
-                            <exclude>net.opentsdb:opentsdb-core</exclude>  
+                        <excludes>
+                            <exclude>net.opentsdb:opentsdb-common</exclude>
+                            <exclude>net.opentsdb:opentsdb-core</exclude>
                             <exclude>ch.qos.logback:logback*</exclude>
                             <exclude>com.fasterxml*:*</exclude>
                             <exclude>javax*:*</exclude>
-                        </excludes>  
-                    </artifactSet> 
+                        </excludes>
+                    </artifactSet>
+                    <!-- Unlike implementation/protobuf, storage/asynchbase, and
+                         storage/bigtable, this module still needs its OWN private copy of
+                         protobuf: google-cloud-pubsub:1.151.0 requires protobuf-java 4.33.2,
+                         a full major version ahead of the ${protobuf.version} (3.25.9) the
+                         rest of the reactor shares. Forcing this module onto the shared
+                         3.25.9 jar would likely break Pub/Sub at runtime. So we keep
+                         shading/relocating it here, but into a package OUTSIDE net.opentsdb
+                         (previously net.opentsdb.com.google.protobuf) so it no longer gets
+                         swept up by PluginLoader's recursive net.opentsdb classpath scan,
+                         which is what crashed TSDMain at startup. -->
                     <relocations>
-                  <relocation>
-                     <pattern>com.google.protobuf</pattern>
-                     <shadedPattern>net.opentsdb.com.google.protobuf</shadedPattern>
-                  </relocation>
-<!--                  <relocation>
-                     <pattern>com.google.api</pattern>
-                     <shadedPattern>net.opentsdb.com.google.api</shadedPattern>
-                  </relocation>
-                  <relocation>
-                     <pattern>com.google.cloud</pattern>
-                     <shadedPattern>net.opentsdb.com.google.cloud</shadedPattern>
-                  </relocation>-->
-               </relocations>
-                    <filters>  
+                      <relocation>
+                        <pattern>com.google.protobuf</pattern>
+                        <shadedPattern>opentsdb.shaded.googlepubsub.com.google.protobuf</shadedPattern>
+                      </relocation>
+                    </relocations>
+                    <filters>
                       <filter> 
                         <artifact>*:*</artifact> 
                         <excludes> 

@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDatumId;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * A filter that can determine whether or not UIDs should be allowed assignment

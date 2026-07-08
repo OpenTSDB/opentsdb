@@ -16,9 +16,11 @@ package net.opentsdb.stats;
 
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+
+import java.util.Map;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -216,7 +218,7 @@ public class TestBraveSpan {
     
     final Exception ex = new RuntimeException("Boo!");
     assertSame(span, span.log("error", ex));
-    verify(mock_span, times(1)).log("error", ex);
+    verify(mock_span, times(1)).log(any(Map.class));
     
     try {
       span.log(null, ex);

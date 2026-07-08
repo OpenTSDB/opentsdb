@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.core;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.configuration.ConfigurationOverride;
 import net.opentsdb.configuration.ConfigurationValueValidator;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Simple config validation class that allows the plugin config to be 

@@ -14,17 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import org.junit.Test;
+import static org.junit.Assert.*;
+
+import java.util.TimeZone;
 
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.utils.DateTime;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.util.TimeZone;
+import org.junit.Test;
 
 public class TestDownsamplingSpecification {
   final long interval = 60000L;

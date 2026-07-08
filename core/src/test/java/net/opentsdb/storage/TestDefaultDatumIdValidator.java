@@ -14,14 +14,16 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+
+import net.opentsdb.common.Const;
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.data.BaseTimeSeriesDatumStringId;
+import net.opentsdb.data.TimeSeriesDatumId;
+import net.opentsdb.storage.DefaultDatumIdValidator.Type;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -29,12 +31,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.data.BaseTimeSeriesDatumStringId;
-import net.opentsdb.data.TimeSeriesDatumId;
-import net.opentsdb.storage.DefaultDatumIdValidator.Type;
 
 public class TestDefaultDatumIdValidator {
 

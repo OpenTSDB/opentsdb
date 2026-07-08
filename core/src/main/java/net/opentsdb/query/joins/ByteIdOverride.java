@@ -21,13 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
@@ -37,6 +31,14 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
+
+import net.openhft.hashing.LongHashFunction;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A simple wrapper for single-sided joins that wraps the source 

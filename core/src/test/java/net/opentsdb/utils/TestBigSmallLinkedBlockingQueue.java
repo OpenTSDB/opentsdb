@@ -14,19 +14,21 @@
 // limitations under the License.
 package net.opentsdb.utils;
 
-import io.netty.util.HashedWheelTimer;
-import net.opentsdb.core.TSDB;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import net.opentsdb.core.TSDB;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import io.netty.util.HashedWheelTimer;
 
 public class TestBigSmallLinkedBlockingQueue {
 
@@ -180,15 +182,8 @@ public class TestBigSmallLinkedBlockingQueue {
     // Ensure both reader threads are waiting
     Thread.sleep(100);
 
-    // Suspend the reader threads till two writes are done
-    t1.suspend();
-    t2.suspend();
-
     q.put(1);
     q.put(2);
-
-    t1.resume();
-    t2.resume();
 
     semaphore.acquire(2);
 

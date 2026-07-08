@@ -19,14 +19,16 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.base.Objects;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A filter that lets the user list one or more explicit strings that should

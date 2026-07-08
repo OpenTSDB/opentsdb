@@ -14,18 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.collect.Lists;
 
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MockTimeSeries;
@@ -35,6 +27,12 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.summarizer.SummarizerNonPassThroughResult.SummarizerTimeSeries;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestSummarizerResult {
 

@@ -18,14 +18,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
+import net.opentsdb.query.execution.QueryExecutor;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
-import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A state container for asynchronous queries. All {@link QueryExecutor}s should

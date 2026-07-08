@@ -16,12 +16,13 @@ package net.opentsdb.query.pojo;
 
 import java.util.TimeZone;
 
-import com.google.common.base.MoreObjects;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.utils.DateTime;
+
+import com.google.common.base.MoreObjects;
 
 /**
  * Representation of a downsampling specification in a TSDB query.

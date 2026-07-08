@@ -19,14 +19,10 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Properties;
 
-import net.opentsdb.data.types.numeric.aggregators.BaseArrayAggregatorConfig;
-import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.reflect.TypeToken;
 import com.yahoo.egads.models.tsmm.OlympicModel2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -38,6 +34,9 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.BaseArrayAggregatorConfig;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
+import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.anomaly.AnomalyPredictionTimeSeries;
 

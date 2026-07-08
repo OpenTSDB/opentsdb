@@ -34,16 +34,16 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 
-import net.opentsdb.utils.Config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import net.opentsdb.utils.Config;
 
 /**
  * <p>Title: ConfigArgP</p>

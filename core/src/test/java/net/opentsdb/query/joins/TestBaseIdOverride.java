@@ -14,19 +14,17 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestBaseIdOverride {
   

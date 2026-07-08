@@ -20,10 +20,11 @@ import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
 
-import org.junit.Test;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
+
+import org.junit.Test;
 
 public class TestDummyObjectPool {
 

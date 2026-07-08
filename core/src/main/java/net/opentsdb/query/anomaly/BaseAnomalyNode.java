@@ -24,40 +24,17 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorConfig;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import gnu.trove.iterator.TLongObjectIterator;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.query.QuerySink;
-import net.opentsdb.query.QuerySinkCallback;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.SemanticQueryContext;
+import net.opentsdb.query.*;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
 import net.opentsdb.query.anomaly.AnomalyPredictionState.State;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
@@ -65,6 +42,17 @@ import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+
+import gnu.trove.iterator.TLongObjectIterator;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 public class BaseAnomalyNode extends AbstractQueryNode {
   private static final Logger LOG = LoggerFactory.getLogger(BaseAnomalyNode.class);

@@ -14,13 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
+import java.util.List;
+
+
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.TSDB;
@@ -47,10 +43,17 @@ import net.opentsdb.query.router.TimeRouterConfigEntry;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A factory that modifies the execution graph with nodes to execute an

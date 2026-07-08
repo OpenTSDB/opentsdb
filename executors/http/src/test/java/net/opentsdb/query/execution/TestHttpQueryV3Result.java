@@ -24,12 +24,9 @@ import static org.mockito.Mockito.when;
 import java.time.ZoneId;
 import java.util.Iterator;
 
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
@@ -39,6 +36,8 @@ import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
@@ -47,8 +46,8 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.JSON;
 
 public class TestHttpQueryV3Result {

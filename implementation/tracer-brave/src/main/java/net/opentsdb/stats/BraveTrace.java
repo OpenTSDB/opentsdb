@@ -15,16 +15,16 @@
 package net.opentsdb.stats;
 
 import java.io.IOException;
+import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Strings;
 
 import net.opentsdb.stats.BraveSpan.BraveSpanBuilder;
 import net.opentsdb.stats.BraveTracer.SpanCatcher;
-import zipkin.BinaryAnnotation;
 
 /**
  * An implementation of a trace using Brave.
@@ -54,16 +54,16 @@ public class BraveTrace implements net.opentsdb.stats.Trace {
    * @param builder A non-null builder to pull settings from.
    */
   protected BraveTrace(BraveTraceBuilder builder) {
-    final brave.Tracer.Builder tracer_builder = brave.Tracer.newBuilder()
+    final brave.Tracing.Builder tracing_builder = brave.Tracing.newBuilder()
         .traceId128Bit(builder.is128)
         .localServiceName(builder.id);
     if (builder.span_catcher != null) {
-      tracer_builder.reporter(builder.span_catcher);
+      tracing_builder.spanReporter(builder.span_catcher);
       span_catcher = builder.span_catcher;
     } else {
       span_catcher = null;
     }
-    tracer = brave.opentracing.BraveTracer.wrap(tracer_builder.build());
+    tracer = brave.opentracing.BraveTracer.newBuilder(tracing_builder.build()).build();
     is_debug = builder.is_debug;
   }
   
@@ -245,38 +245,29 @@ public class BraveTrace implements net.opentsdb.stats.Trace {
    * @param json
    */
   public void serializeJSON(final String name, final JsonGenerator json) {
-    zipkin.Span last_span = null;
+    zipkin2.Span last_span = null;
     try {
       json.writeArrayFieldStart(name);
-      for (final zipkin.Span span : span_catcher.spans) {
+      for (final zipkin2.Span span : span_catcher.spans) {
         last_span = span;
         json.writeStartObject();
-        json.writeStringField("traceId", Long.toHexString(span.traceId));
-        json.writeStringField("id", Long.toHexString(span.id));
-        json.writeStringField("name", span.name);
-        if (span.parentId == null) {
+        json.writeStringField("traceId", span.traceId());
+        json.writeStringField("id", span.id());
+        json.writeStringField("name", span.name());
+        if (span.parentId() == null) {
           json.writeNullField("parentId");
         } else {
-          json.writeStringField("parentId", Long.toHexString(span.parentId));
+          json.writeStringField("parentId", span.parentId());
         }
         // span timestamps could potentially be null.
-        if (span.timestamp != null) {
-          json.writeNumberField("timestamp", span.timestamp);
-          json.writeNumberField("duration", span.duration);
+        if (span.timestamp() != null) {
+          json.writeNumberField("timestamp", span.timestamp());
+          json.writeNumberField("duration", span.duration() != null ? span.duration() : 0);
         }
-        // TODO - binary annotations, etc.
-        if (span.binaryAnnotations != null) {
+        if (!span.tags().isEmpty()) {
           json.writeObjectFieldStart("tags");
-          for (final BinaryAnnotation tag : span.binaryAnnotations) {
-            switch (tag.type) {
-            case STRING:
-              json.writeStringField(tag.key, new String(tag.value));
-              break;
-            default:
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("Skipping span data type: " + tag.type);
-              }
-            }
+          for (final Map.Entry<String, String> tag : span.tags().entrySet()) {
+            json.writeStringField(tag.getKey(), tag.getValue());
           }
           json.writeEndObject();
         }
@@ -298,7 +289,7 @@ public class BraveTrace implements net.opentsdb.stats.Trace {
     final StringBuilder buf = new StringBuilder()
         .append("[");
     int i = 0;
-    for (final zipkin.Span span : span_catcher.spans) {
+    for (final zipkin2.Span span : span_catcher.spans) {
       if (i++ > 0) {
         buf.append(",");
       }

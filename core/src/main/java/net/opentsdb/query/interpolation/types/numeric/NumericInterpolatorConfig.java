@@ -14,28 +14,29 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-
 import java.util.Objects;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Ordering;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hasher;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A simple config for the base {@link NumericInterpolator}. Stores the real

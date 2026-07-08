@@ -14,26 +14,18 @@
 // limitations under the License.
 package net.opentsdb.rollup;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.utils.JSON;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ TSDB.class })
+import org.junit.Before;
+import org.junit.Test;
+
 public class TestRollupConfig {
   private final static String tsdb_table = "tsdb";
   private final static String rollup_table = "tsdb-rollup-10m";
@@ -186,8 +178,8 @@ public class TestRollupConfig {
       config.getRollupInterval("");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-    
-    
+
+
   }
   
   @Test

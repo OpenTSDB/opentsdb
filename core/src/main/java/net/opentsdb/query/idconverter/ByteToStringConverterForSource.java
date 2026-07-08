@@ -18,6 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.data.*;
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.QueryNode;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,18 +31,6 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.QueryNode;
 
 /**
  * An entry for a data source to store the resoltuion state and decoded IDs

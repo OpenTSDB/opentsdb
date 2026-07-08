@@ -14,6 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.processor.topn;
 
+import java.io.IOException;
+import java.util.Optional;
+
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -25,9 +29,6 @@ import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
-
-import java.io.IOException;
-import java.util.Optional;
 
 /**
  * Aggregates an entire numeric series into a single value.

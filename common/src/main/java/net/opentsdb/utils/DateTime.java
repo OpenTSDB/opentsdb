@@ -87,13 +87,13 @@ public class DateTime {
     }
 
     if (datetime.toLowerCase().equals("now")) {
-      return System.currentTimeMillis();
+      return currentTimeMillis();
     }
 
     if (datetime.toLowerCase().endsWith("-ago")) {
       long interval = DateTime.parseDuration(
         datetime.substring(0, datetime.length() - 4));
-      return System.currentTimeMillis() - interval;
+      return currentTimeMillis() - interval;
     }
     
     if (datetime.contains("/") || datetime.contains(":")) {
@@ -387,6 +387,9 @@ public class DateTime {
    * @throws NullPointerException if the value is null
    */
   public static boolean isRelativeDate(final String value) {
+    if (value == null) {
+      throw new NullPointerException();
+    }
     return value.toLowerCase().endsWith("-ago");
   }
   

@@ -17,22 +17,18 @@ package net.opentsdb.query.processor.bucketquantile;
 import java.util.Collection;
 import java.util.Optional;
 
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.NumericArrayType;
 
 /**
  * Simple iterator that wraps up the quantiles array and returns it.
  * 
  * @since 3.0
  */
-public class BucketQuantileNumericArrayIterator extends BucketQuantileIterator 
+public class BucketQuantileNumericArrayIterator extends BucketQuantileIterator
     implements TimeSeries, 
                TypedTimeSeriesIterator<NumericArrayType>, 
                TimeSeriesValue<NumericArrayType>, 

@@ -29,15 +29,16 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
 
 @Path("registry")
 public class RegistryRpc {

@@ -36,7 +36,6 @@ import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeType;
 import javax.management.openmbean.TabularData;
 import javax.servlet.ServletConfig;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -46,12 +45,11 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-
-import net.opentsdb.utils.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * NOTE: This is modified from Hadoop's JMXJsonServlet to run as a JAX-RS

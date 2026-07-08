@@ -14,18 +14,12 @@
 // limitations under the License.
 package net.opentsdb.servlet.auth;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.configuration.ConfigurationCallback;
-import net.opentsdb.configuration.ConfigurationEntrySchema;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.servlet.filter.AuthFilter;
-import net.opentsdb.stats.StatsCollector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.IOException;
+import java.security.Principal;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -33,12 +27,21 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.security.Principal;
-import java.util.Collections;
-import java.util.List;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.configuration.ConfigurationCallback;
+import net.opentsdb.configuration.ConfigurationEntrySchema;
+import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.stats.StatsCollector;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Base implementation for an authentication filter plugin that contains
@@ -50,7 +53,7 @@ import java.util.regex.PatternSyntaxException;
  * @since 3.0
  */
 public abstract class BaseAuthenticationPlugin extends BaseTSDBPlugin
-        implements AuthFilter {
+    implements AuthFilter {
 
   private static final Logger LOG = LoggerFactory.getLogger(
           BaseAuthenticationPlugin.class);

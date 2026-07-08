@@ -14,6 +14,10 @@
    <description>Plugins interacting with the Athenz certificate based RBAC system.</description>
    <packaging>jar</packaging>
 
+   <properties>
+     <athenz.version>1.10.62</athenz.version>
+   </properties>
+
    <dependencyManagement>
       <dependencies>
          <dependency>
@@ -40,12 +44,12 @@
          <dependency>
            <groupId>com.yahoo.athenz</groupId>
            <artifactId>athenz-cert-refresher</artifactId>
-           <version>1.10.14</version>
+           <version>${athenz.version}</version>
          </dependency>
          <dependency>
             <groupId>com.yahoo.athenz</groupId>
             <artifactId>athenz-client-common</artifactId>
-            <version>1.10.14</version>
+            <version>${athenz.version}</version>
          </dependency>
 
          <dependency>
@@ -120,14 +124,10 @@
          <scope>test</scope>
       </dependency>
       <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-api-mockito</artifactId>
+         <groupId>org.mockito</groupId>
+         <artifactId>mockito-core</artifactId>
          <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-module-junit4</artifactId>
-         <scope>test</scope>
+         <version>3.12.4</version>
       </dependency>
       
       <dependency>
@@ -148,7 +148,7 @@
          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.1</version>
+            <version>${maven.plugin.shade.version}</version>
             <configuration>
                <artifactSet>
                   <excludes>

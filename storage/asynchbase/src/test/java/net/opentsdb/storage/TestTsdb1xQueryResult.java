@@ -18,7 +18,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -27,39 +27,34 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Bytes;
-
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ HBaseClient.class })
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
+
 public class TestTsdb1xQueryResult extends UTBase {
   //GMT: Monday, January 1, 2018 12:15:00 AM
   public static final int START_TS = 1514765700;

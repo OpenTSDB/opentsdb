@@ -17,11 +17,12 @@ package net.opentsdb.uid;
 import java.nio.charset.Charset;
 import java.util.List;
 
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.stats.Span;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * An interface used to make calls to storage for resolving Strings to

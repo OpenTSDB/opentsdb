@@ -20,8 +20,8 @@ import java.time.temporal.TemporalAmount;
 
 import com.google.common.base.Strings;
 
-import net.opentsdb.utils.DateTime;
 import net.opentsdb.data.pbuf.TimeSpecificationPB;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Handles a time specification tied to a downsampler.

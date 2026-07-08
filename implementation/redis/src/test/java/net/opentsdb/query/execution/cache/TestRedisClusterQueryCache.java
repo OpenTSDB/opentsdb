@@ -20,10 +20,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anySet;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -35,14 +34,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -56,9 +52,8 @@ import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.params.SetParams;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ TSDB.class, RedisClusterQueryCache.class })
 public class TestRedisClusterQueryCache {
   private TSDB tsdb;
   private DefaultRegistry registry;
@@ -66,40 +61,43 @@ public class TestRedisClusterQueryCache {
   private Configuration config;
   private JedisCluster cluster;
   private Set<HostAndPort> nodes;
-  
+  private MockedConstruction<JedisCluster> mockedJedisCluster;
+
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     registry = mock(DefaultRegistry.class);
     cluster = mock(JedisCluster.class);
     ReadCacheSerdesFactory serdes_factory = mock(ReadCacheSerdesFactory.class);
-    when(registry.getPlugin(eq(ReadCacheSerdesFactory.class), anyString()))
+    when(registry.getPlugin(eq(ReadCacheSerdesFactory.class), any()))
       .thenReturn(serdes_factory);
-    
+
     config_map = Maps.newHashMap();
-    config_map.put("redis.query.cache.hosts", 
+    config_map.put("redis.query.cache.hosts",
         "localhost:2424,localhost:4242");
     config = UnitTestConfiguration.getConfiguration(config_map);
-    
+
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
     when(tsdb.getStatsCollector()).thenReturn(new BlackholeStatsCollector());
-    
-    PowerMockito.whenNew(JedisCluster.class).withAnyArguments()
-      .thenAnswer(new Answer<JedisCluster>() {
+
+    mockedJedisCluster = Mockito.mockConstruction(JedisCluster.class, (mock, context) -> {
+      cluster = mock;
       @SuppressWarnings("unchecked")
-      @Override
-      public JedisCluster answer(final InvocationOnMock invocation) throws Throwable {
-        nodes = (Set<HostAndPort>) invocation.getArguments()[0];
-        return cluster;
-      }
+      Set<HostAndPort> arg = (Set<HostAndPort>) context.arguments().get(0);
+      nodes = arg;
     });
+  }
+
+  @After
+  public void tearDown() {
+    if (mockedJedisCluster != null) mockedJedisCluster.close();
   }
   
   @Test
   public void ctor() throws Exception {
     new RedisClusterQueryCache();
-    PowerMockito.verifyNew(JedisCluster.class, never()).withArguments(anySet());
+    assertTrue(mockedJedisCluster.constructed().isEmpty());
     verify(cluster, never()).close();
   }
   
@@ -107,7 +105,7 @@ public class TestRedisClusterQueryCache {
   public void initialize() throws Exception {
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
     assertNull(cache.initialize(tsdb, null).join(1));
-    PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
+    assertEquals(1, mockedJedisCluster.constructed().size());
     verify(cluster, never()).close();
     assertEquals(2, nodes.size());
     for (final HostAndPort host : nodes) {
@@ -122,7 +120,7 @@ public class TestRedisClusterQueryCache {
     config_map.put("redis.query.cache.shared_object", "RedisCache");
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
     assertNull(cache.initialize(tsdb, null).join(1));
-    PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
+    assertEquals(1, mockedJedisCluster.constructed().size());
     verify(cluster, never()).close();
     assertEquals(2, nodes.size());
     for (final HostAndPort host : nodes) {
@@ -139,7 +137,7 @@ public class TestRedisClusterQueryCache {
     
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
     assertNull(cache.initialize(tsdb, null).join(1));
-    PowerMockito.verifyNew(JedisCluster.class, never()).withArguments(anySet());
+    assertTrue(mockedJedisCluster.constructed().isEmpty());
     verify(cluster, never()).close();
     assertNull(nodes);
     verify(registry, never()).registerSharedObject("RedisCache", cluster);
@@ -158,12 +156,12 @@ public class TestRedisClusterQueryCache {
   public void initializeSharedRace() throws Exception {
     config_map.put("redis.query.cache.shared_object", "RedisCache");
     final JedisCluster extant = mock(JedisCluster.class);
-    when(registry.registerSharedObject("RedisCache", cluster))
+    when(registry.registerSharedObject(eq("RedisCache"), any(JedisCluster.class)))
       .thenReturn(extant);
-    
+
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
     assertNull(cache.initialize(tsdb, null).join(1));
-    PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
+    assertEquals(1, mockedJedisCluster.constructed().size());
     verify(cluster, times(1)).close();
     assertEquals(2, nodes.size());
     for (final HostAndPort host : nodes) {
@@ -197,7 +195,7 @@ public class TestRedisClusterQueryCache {
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
     assertNull(cache.initialize(tsdb, null).join(1));
     assertNull(cache.shutdown().join(1));
-    PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
+    assertEquals(1, mockedJedisCluster.constructed().size());
     verify(cluster, times(1)).close();
   }
 
@@ -216,8 +214,7 @@ public class TestRedisClusterQueryCache {
     assertNull(cache.initialize(tsdb, null).join(1));
 
     cache.cache(key, data, 600000, TimeUnit.MILLISECONDS, null);
-    verify(cluster, times(1)).set(key, data, RedisClusterQueryCache.NX, 
-        RedisClusterQueryCache.EXP, 600000L);
+    verify(cluster, times(1)).set(key, data, SetParams.setParams().nx().px(600000L));
     verify(cluster, never()).close();
     
     try {
@@ -231,8 +228,7 @@ public class TestRedisClusterQueryCache {
     } catch (IllegalArgumentException e) { }
     
     cache.cache(key, data, 0, TimeUnit.MILLISECONDS, null);
-    verify(cluster, times(1)).set(key, data, RedisClusterQueryCache.NX, 
-        RedisClusterQueryCache.EXP, 600000L);
+    verify(cluster, times(1)).set(key, data, SetParams.setParams().nx().px(600000L));
     verify(cluster, never()).close();
     
     try {
@@ -240,11 +236,10 @@ public class TestRedisClusterQueryCache {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(cluster.set(key, data, RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 
-        600000L)).thenThrow(new IllegalArgumentException("Boo!"));
+    when(cluster.set(key, data, SetParams.setParams().nx().px(600000L)))
+        .thenThrow(new IllegalArgumentException("Boo!"));
     cache.cache(key, data, 600000, TimeUnit.MILLISECONDS, null);
-    verify(cluster, times(2)).set(key, data, RedisClusterQueryCache.NX, 
-        RedisClusterQueryCache.EXP, 600000L);
+    verify(cluster, times(2)).set(key, data, SetParams.setParams().nx().px(600000L));
     verify(cluster, never()).close();
   }
   
@@ -265,9 +260,9 @@ public class TestRedisClusterQueryCache {
 
     cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS, null);
     verify(cluster, times(1)).set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 600000L);
+        SetParams.setParams().nx().px(600000L));
     verify(cluster, times(1)).set(new byte[] { 0, 0, 2 }, new byte[] { 24 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 300000L);
+        SetParams.setParams().nx().px(300000L));
     verify(cluster, never()).close();
     
     try {
@@ -282,11 +277,11 @@ public class TestRedisClusterQueryCache {
     
     cache.cache(keys, data, new long[] { 600000, 0 }, TimeUnit.MILLISECONDS, null);
     verify(cluster, times(2)).set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 600000L);
+        SetParams.setParams().nx().px(600000L));
     verify(cluster, times(1)).set(new byte[] { 0, 0, 2 }, new byte[] { 24 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 300000L);
+        SetParams.setParams().nx().px(300000L));
     verify(cluster, never()).set(new byte[] { 0, 0, 2 }, new byte[] { 24 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 0L);
+        SetParams.setParams().nx().px(0L));
     verify(cluster, never()).close();
     
     try {
@@ -304,15 +299,14 @@ public class TestRedisClusterQueryCache {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(cluster.set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 600000L))
+    when(cluster.set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, SetParams.setParams().nx().px(600000L)))
         .thenThrow(new IllegalArgumentException("Boo!"));
     cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS, null);
     verify(cluster, times(3)).set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 600000L);
+        SetParams.setParams().nx().px(600000L));
     // not called
     verify(cluster, times(2)).set(new byte[] { 0, 0, 2 }, new byte[] { 24 }, 
-        RedisClusterQueryCache.NX, RedisClusterQueryCache.EXP, 300000L);
+        SetParams.setParams().nx().px(300000L));
     verify(cluster, never()).close();
   }
 

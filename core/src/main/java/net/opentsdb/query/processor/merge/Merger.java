@@ -23,36 +23,26 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 import net.opentsdb.data.AggregatorConfig;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorConfig;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
+import net.opentsdb.data.types.numeric.aggregators.*;
 import net.opentsdb.exceptions.QueryDownstreamException;
-import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryResultId;
+import net.opentsdb.query.*;
 import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.query.processor.merge.MergerFactory.NumericArrayIteratorFactory;
 import net.opentsdb.query.processor.merge.MergerFactory.NumericIteratorFactory;
 import net.opentsdb.query.readcache.CachedQueryNode;
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.stats.Span;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 
 /**
  * Handles waiting for results from an HA or split query. If timeouts are

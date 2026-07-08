@@ -14,11 +14,11 @@
 // limitations under the License.
 package net.opentsdb.configuration.provider;
 
-import java.io.IOException;
-
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+
+import java.io.IOException;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;

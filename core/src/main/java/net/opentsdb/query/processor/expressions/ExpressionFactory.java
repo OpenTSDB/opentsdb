@@ -14,14 +14,11 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.graph.Graphs;
-import com.stumbleupon.async.Deferred;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.QueryNodeConfig;
@@ -32,9 +29,15 @@ import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.graph.Graphs;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A factory used to instantiate expression nodes in the graph. This 

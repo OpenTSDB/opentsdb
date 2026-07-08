@@ -22,11 +22,11 @@ import com.google.common.reflect.TypeToken;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import net.opentsdb.data.pbuf.NumericSegmentPB.NumericSegment;
+import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
+import net.opentsdb.data.pbuf.TimeSeriesDataSequencePB.TimeSeriesDataSegment;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;
-import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
-import net.opentsdb.data.pbuf.TimeSeriesDataSequencePB.TimeSeriesDataSegment;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.utils.Bytes;
 

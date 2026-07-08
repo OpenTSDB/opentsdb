@@ -14,21 +14,17 @@
 // limitations under the License.
 package net.opentsdb.threadpools;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+
+
+import net.opentsdb.core.TSDB;
+import net.opentsdb.query.QueryContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.query.QueryContext;
 
 /**
  * Thin Wrapper layer around {@link ThreadPoolExecutor}.

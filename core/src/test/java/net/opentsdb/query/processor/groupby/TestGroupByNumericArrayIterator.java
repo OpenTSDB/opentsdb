@@ -14,46 +14,44 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
+import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.MockObjectPool;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
@@ -61,8 +59,8 @@ import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.MockBigSmallLinkedBlockingQueue;
-
 import net.opentsdb.utils.UnitTestException;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -70,29 +68,6 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestGroupByNumericArrayIterator {
   private static final long BASE_TIME = 1514764800000L;
@@ -806,7 +781,7 @@ public class TestGroupByNumericArrayIterator {
             node, this.result, series, queueThreshold, 16, threadCount);
     assertTrue(iterator.hasNext());
     // there is data but it's wrong.
-    verify(node, times(1)).onError(any(UnitTestException.class));
+    verify(node, times(1)).onError(any(QueryExecutionException.class));
   }
 
   @Test
@@ -870,7 +845,7 @@ public class TestGroupByNumericArrayIterator {
             node, this.result, series, queueThreshold, 16, threadCount);
     assertFalse(iterator.hasNext());
     // there is data but it's wrong.
-    verify(node, times(1)).onError(any(UnitTestException.class));
+    verify(node, times(1)).onError(any(IllegalArgumentException.class));
   }
 
   @Test

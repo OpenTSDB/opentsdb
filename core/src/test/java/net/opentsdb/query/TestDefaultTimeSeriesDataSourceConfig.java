@@ -14,17 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.TemporalAmount;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Lists;
-import com.google.common.graph.MutableGraph;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
@@ -36,8 +31,12 @@ import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
+import com.google.common.graph.MutableGraph;
 
 public class TestDefaultTimeSeriesDataSourceConfig {
 

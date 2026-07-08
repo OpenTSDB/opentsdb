@@ -19,12 +19,13 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A mutable summary value with timestamp. It contains a map of summary

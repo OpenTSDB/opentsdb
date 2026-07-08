@@ -27,8 +27,8 @@ import org.mockito.stubbing.Answer;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
 import net.opentsdb.data.PBufNumericSummaryTimeSeriesSerdes;
+import net.opentsdb.data.PBufNumericTimeSeriesSerdes;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 

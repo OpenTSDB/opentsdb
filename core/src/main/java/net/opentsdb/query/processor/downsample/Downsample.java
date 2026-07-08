@@ -22,32 +22,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.common.Const;
+import net.opentsdb.data.*;
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.*;
+import net.opentsdb.query.processor.ProcessorFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.ZonedNanoTimeStamp;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.processor.ProcessorFactory;
 
 /**
  * A processing node that performs downsampling on each individual time series

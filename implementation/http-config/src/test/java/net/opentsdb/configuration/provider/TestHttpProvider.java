@@ -15,7 +15,8 @@
 package net.opentsdb.configuration.provider;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -52,7 +53,7 @@ public class TestHttpProvider {
     timer = mock(HashedWheelTimer.class);
     client = mock(CloseableHttpAsyncClient.class);
     
-    when(client.execute(any(HttpUriRequest.class), any(FutureCallback.class)))
+    when(client.execute(any(HttpUriRequest.class), nullable(FutureCallback.class)))
       .thenAnswer(new Answer<Void>() {
         @Override
         public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -74,7 +75,7 @@ public class TestHttpProvider {
     when(response.getEntity()).thenReturn(entity);
     when(status.getStatusCode()).thenReturn(200);
     Future<HttpResponse> future = mock(Future.class);
-    when(client.execute(any(HttpUriRequest.class), any(FutureCallback.class)))
+    when(client.execute(any(HttpUriRequest.class), nullable(FutureCallback.class)))
       .thenAnswer(new Answer<Future<HttpResponse>>() {
         @Override
         public Future<HttpResponse> answer(InvocationOnMock invocation) throws Throwable {
@@ -98,7 +99,7 @@ public class TestHttpProvider {
     when(response.getEntity()).thenReturn(entity);
     when(status.getStatusCode()).thenReturn(400);
     Future<HttpResponse> future = mock(Future.class);
-    when(client.execute(any(HttpUriRequest.class), any(FutureCallback.class)))
+    when(client.execute(any(HttpUriRequest.class), nullable(FutureCallback.class)))
       .thenAnswer(new Answer<Future<HttpResponse>>() {
         @Override
         public Future<HttpResponse> answer(InvocationOnMock invocation) throws Throwable {

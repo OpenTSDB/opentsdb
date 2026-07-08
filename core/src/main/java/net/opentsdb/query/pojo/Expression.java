@@ -14,21 +14,22 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeMap;
+
+
+import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.query.pojo.Join.SetOperator;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
@@ -37,10 +38,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.query.pojo.Join.SetOperator;
 
 /**
  * Pojo builder class used for serdes of the expression component of a query

@@ -16,14 +16,14 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
+
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.AggregatorConfig;
 
 /**
  * Instantiates a bunch of factories for various percentile functions, the same

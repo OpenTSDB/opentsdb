@@ -14,24 +14,10 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.NoDataPartialTimeSeries;
@@ -40,9 +26,15 @@ import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 public class TestTsdb1xPartialTimeSeriesSet {
   private static MockTSDB TSDB;
@@ -80,7 +72,7 @@ public class TestTsdb1xPartialTimeSeriesSet {
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
-    QueryNodeConfig config = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig config = mock(TimeSeriesDataSourceConfig.class);
     when(config.getId()).thenReturn("Mock");
     when(node.config()).thenReturn(config);
     QueryPipelineContext mockQpc = mock(QueryPipelineContext.class);

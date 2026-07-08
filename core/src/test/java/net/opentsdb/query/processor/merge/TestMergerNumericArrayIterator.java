@@ -14,12 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -28,31 +25,24 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestMergerNumericArrayIterator {
 

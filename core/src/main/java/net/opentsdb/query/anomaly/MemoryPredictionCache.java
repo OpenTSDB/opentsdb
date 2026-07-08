@@ -18,15 +18,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.Const;
@@ -39,9 +30,19 @@ import net.opentsdb.query.readcache.ReadCacheSerdes;
 import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.Bytes.ByteArrayKey;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.Bytes.ByteArrayKey;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Super simple in-memory prediction cache used for testing purposes.

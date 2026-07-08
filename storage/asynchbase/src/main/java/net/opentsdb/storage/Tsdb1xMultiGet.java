@@ -27,28 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import net.opentsdb.rollup.RollupInterval;
-import org.hbase.async.BinaryPrefixComparator;
-import org.hbase.async.CompareFilter;
-import org.hbase.async.FilterList;
-import org.hbase.async.GetRequest;
-import org.hbase.async.GetResultOrException;
-import org.hbase.async.KeyValue;
-import org.hbase.async.QualifierFilter;
-import org.hbase.async.ScanFilter;
-import org.hbase.async.FilterList.Operator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.SecondTimeStamp;
@@ -62,6 +40,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.rate.Rate;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.QueryStats;
@@ -74,6 +53,27 @@ import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
+
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
+import net.openhft.hashing.LongHashFunction;
+import org.hbase.async.BinaryPrefixComparator;
+import org.hbase.async.CompareFilter;
+import org.hbase.async.FilterList;
+import org.hbase.async.FilterList.Operator;
+import org.hbase.async.GetRequest;
+import org.hbase.async.GetResultOrException;
+import org.hbase.async.KeyValue;
+import org.hbase.async.QualifierFilter;
+import org.hbase.async.ScanFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Class that handles fetching TSDB data from storage using GetRequests 

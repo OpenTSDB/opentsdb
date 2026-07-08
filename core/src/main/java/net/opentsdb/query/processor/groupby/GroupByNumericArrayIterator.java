@@ -14,19 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
-import net.opentsdb.utils.DateTime;
+import java.io.IOException;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
+
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.AggregatingTypedTimeSeriesIterator;
-import net.opentsdb.data.ArrayAggregatorConfig;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
@@ -38,20 +37,14 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupByFactory.GroupByJob;
+import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
+import net.opentsdb.utils.DateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * An iterator for grouping arrays. This should be much faster for numerics than

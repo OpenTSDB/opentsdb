@@ -14,6 +14,12 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
+import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.AggregatorConfig;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.exceptions.IllegalDataException;
+
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 import org.apache.commons.math3.util.ResizableDoubleArray;
@@ -21,12 +27,6 @@ import org.apache.commons.math3.util.ResizableDoubleArray;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.AggregatorConfig;
-import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.exceptions.IllegalDataException;
 
 public class PercentilesFactories {
 

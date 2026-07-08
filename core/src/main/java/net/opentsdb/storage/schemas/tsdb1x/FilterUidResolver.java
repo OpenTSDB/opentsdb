@@ -17,20 +17,15 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.opentsdb.query.filter.*;
+import net.opentsdb.stats.Span;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.Exceptions;
+
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
-
-import net.opentsdb.query.filter.ChainFilter;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.filter.NestedQueryFilter;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagValueFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.stats.Span;
-import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Exceptions;
 
 /**
  * A class for resolving the strings to UIDs in literal filters where

@@ -14,13 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -28,26 +25,15 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.common.Const;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -55,13 +41,20 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
 public class TestRateFactory {
 
@@ -92,10 +85,10 @@ public class TestRateFactory {
             .setDataType(NumericType.TYPE.toString())
             .build();
     
-    QueryNodeConfig config = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig config = mock(TimeSeriesDataSourceConfig.class);
     when(config.getId()).thenReturn("mock");
     when(SRC_MOCK.config()).thenReturn(config);
-    when(SRC_MOCK.initialize(any(Span.class))).thenReturn(
+    when(SRC_MOCK.initialize(nullable(Span.class))).thenReturn(
         Deferred.fromResult(null));
   }
   

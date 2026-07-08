@@ -17,11 +17,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Predicate;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
@@ -43,8 +38,14 @@ import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.utils.TSDBQueryQueue;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Factory for creating GroupBy iterators, aggregating multiple time series into

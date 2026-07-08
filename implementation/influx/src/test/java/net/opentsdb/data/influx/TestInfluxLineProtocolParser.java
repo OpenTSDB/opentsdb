@@ -14,24 +14,34 @@
 // limitations under the License.
 package net.opentsdb.data.influx;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
-
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.LowLevelMetricData.ValueFormat;
 import net.opentsdb.utils.DateTime;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class })
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+
 public class TestInfluxLineProtocolParser {
+
+  private MockedStatic<DateTime> mockedDateTime;
+
+  @Before
+  public void setUpStaticMocks() {
+    mockedDateTime = Mockito.mockStatic(DateTime.class);
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedDateTime.closeOnDemand();
+  }
   
   @Test
   public void singleLineTagsOneFieldTimestamp() throws Exception {
@@ -73,8 +83,7 @@ public class TestInfluxLineProtocolParser {
   
   @Test
   public void singleLineTagsOneFieldNoTimestamp() throws Exception {
-    PowerMockito.mockStatic(DateTime.class);
-    when(DateTime.currentTimeMillis()).thenReturn(1234123456789L);
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn(1234123456789L);
     String msg = "sys.if,tagKey=Value,tagk2=Value2 in=10.24";
     InfluxLineProtocolParser parser = new InfluxLineProtocolParser();
     parser.setBuffer(msg.getBytes(Const.UTF8_CHARSET));
@@ -93,8 +102,7 @@ public class TestInfluxLineProtocolParser {
   
   @Test
   public void singleLineTagsOneFieldNoTimestampBlankspace() throws Exception {
-    PowerMockito.mockStatic(DateTime.class);
-    when(DateTime.currentTimeMillis()).thenReturn(1234123456789L);
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn(1234123456789L);
     String msg = "  sys.if,tagKey=Value,tagk2=Value2 in=10.24  ";
     InfluxLineProtocolParser parser = new InfluxLineProtocolParser();
     parser.setBuffer(msg.getBytes(Const.UTF8_CHARSET));
@@ -131,8 +139,7 @@ public class TestInfluxLineProtocolParser {
   
   @Test
   public void singleLineNoTagsNoTimestamp() throws Exception {
-    PowerMockito.mockStatic(DateTime.class);
-    when(DateTime.currentTimeMillis()).thenReturn(1234123456789L);
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn(1234123456789L);
     String msg = "sys.if in=10.24";
     InfluxLineProtocolParser parser = new InfluxLineProtocolParser();
     parser.setBuffer(msg.getBytes(Const.UTF8_CHARSET));

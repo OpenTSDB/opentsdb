@@ -14,21 +14,18 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import org.junit.Ignore;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+
+
+import net.opentsdb.data.*;
+
+import org.junit.Ignore;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * Simple little class for mocking out a source.

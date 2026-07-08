@@ -12,12 +12,10 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import static org.junit.Assert.*;
+
 import java.util.List;
 
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Lists;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
@@ -36,7 +34,10 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.storage.MockDataStoreFactory;
 import net.opentsdb.utils.JSON;
 
-import static org.junit.Assert.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestSemanticQuery {
 

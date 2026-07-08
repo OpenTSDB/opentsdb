@@ -12,27 +12,19 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.hacluster;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
-import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.query.*;
+import net.opentsdb.query.filter.MetricLiteralFilter;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -45,16 +37,6 @@ import com.stumbleupon.async.Deferred;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.filter.MetricLiteralFilter;
 
 public class TestHACluster {
 
@@ -89,12 +71,12 @@ public class TestHACluster {
     this.config = (HAClusterConfig) builder.build();
 
     TimeSeriesDataSource s1 = mock(TimeSeriesDataSource.class);
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(s1.config()).thenReturn(c1);
     when(c1.getId()).thenReturn("s1");
     
     TimeSeriesDataSource s2 = mock(TimeSeriesDataSource.class);
-    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c2 = mock(TimeSeriesDataSourceConfig.class);
     when(s2.config()).thenReturn(c2);
     when(c2.getId()).thenReturn("s2");
     
@@ -130,7 +112,7 @@ public class TestHACluster {
     assertNull(node.results.get("s2"));
     
     TimeSeriesDataSource s1 = mock(TimeSeriesDataSource.class);
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(s1.config()).thenReturn(c1);
     when(c1.getId()).thenReturn("s1");
     
@@ -163,7 +145,7 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
     
@@ -179,7 +161,7 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c2 = mock(TimeSeriesDataSourceConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
     
@@ -211,7 +193,7 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c2 = mock(TimeSeriesDataSourceConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
     
@@ -228,7 +210,7 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
     
@@ -253,14 +235,14 @@ public class TestHACluster {
     
     QueryResult r1 = mock(QueryResult.class);
     TimeSeriesDataSource n1 = mock(TimeSeriesDataSource.class);
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
     when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
     when(r1.source()).thenReturn(n1);
     
     TimeSeriesDataSource n2 = mock(TimeSeriesDataSource.class);
-    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c2 = mock(TimeSeriesDataSourceConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
     
@@ -305,13 +287,13 @@ public class TestHACluster {
     List<String> sources = Lists.newArrayList("s1", "s2");
     
     TimeSeriesDataSource n1 = mock(TimeSeriesDataSource.class);
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
     
     QueryResult r2 = mock(QueryResult.class);
     TimeSeriesDataSource n2 = mock(TimeSeriesDataSource.class);
-    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c2 = mock(TimeSeriesDataSourceConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
     when(r2.source()).thenReturn(n2);
@@ -362,7 +344,7 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
     
@@ -377,7 +359,7 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c2 = mock(TimeSeriesDataSourceConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
     
@@ -409,7 +391,7 @@ public class TestHACluster {
     QueryNode n2 = mock(TimeSeriesDataSource.class);
     when(r2.source()).thenReturn(n2);
     when(r2.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c2 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c2 = mock(TimeSeriesDataSourceConfig.class);
     when(c2.getId()).thenReturn("s2");
     when(n2.config()).thenReturn(c2);
     
@@ -425,7 +407,7 @@ public class TestHACluster {
     QueryNode n1 = mock(TimeSeriesDataSource.class);
     when(r1.source()).thenReturn(n1);
     when(r1.dataSource()).thenReturn(new DefaultQueryResultId("m1", "m1"));
-    QueryNodeConfig c1 = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig c1 = mock(TimeSeriesDataSourceConfig.class);
     when(c1.getId()).thenReturn("s1");
     when(n1.config()).thenReturn(c1);
     

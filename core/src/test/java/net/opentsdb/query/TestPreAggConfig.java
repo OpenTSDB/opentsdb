@@ -14,22 +14,21 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 import java.util.Map;
 import java.util.Set;
+
+
+import net.opentsdb.query.PreAggConfig.MetricPattern;
+import net.opentsdb.query.PreAggConfig.TagsAndAggs;
+import net.opentsdb.utils.JSON;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import net.opentsdb.query.PreAggConfig.MetricPattern;
-import net.opentsdb.query.PreAggConfig.TagsAndAggs;
-import net.opentsdb.utils.JSON;
 
 public class TestPreAggConfig {
   private static final int BASE_TIMESTAMP = 1546300800;

@@ -14,9 +14,12 @@
 // limitations under the License.
 package net.opentsdb.data.types.event;
 
-import com.google.common.reflect.TypeToken;
 import java.util.Map;
+
+
 import net.opentsdb.data.TimeSeriesDataType;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * The type for grouping events based on tags.

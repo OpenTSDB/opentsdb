@@ -18,9 +18,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -29,14 +29,12 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import net.opentsdb.configuration.Configuration;
@@ -44,18 +42,19 @@ import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.stats.BraveTrace.BraveTraceBuilder;
 import net.opentsdb.stats.BraveTracer.SpanCatcher;
-import zipkin.reporter.AsyncReporter;
-import zipkin.reporter.okhttp3.OkHttpSender;
+import zipkin2.reporter.AsyncReporter;
+import zipkin2.reporter.okhttp3.OkHttpSender;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ BraveTrace.class, BraveTracer.class, AsyncReporter.class, 
-  brave.Tracer.class, AsyncReporter.Builder.class, OkHttpSender.class })
 public class TestBraveTracer {
+
+  private MockedStatic<BraveTrace> mockedBraveTrace;
+  private MockedStatic<OkHttpSender> mockedOkHttpSender;
+  private MockedStatic<AsyncReporter> mockedAsyncReporter;
 
   private DefaultTSDB tsdb;
   private Configuration config;
   private OkHttpSender sender;
-  private AsyncReporter<zipkin.Span> reporter;
+  private AsyncReporter<zipkin2.Span> reporter;
   private AsyncReporter.Builder reporter_builder;
   private Trace trace;
   private BraveTraceBuilder tracer_builder;
@@ -64,23 +63,23 @@ public class TestBraveTracer {
   @SuppressWarnings("unchecked")
   @Before
   public void before() throws Exception {
+    mockedBraveTrace = Mockito.mockStatic(BraveTrace.class);
     tsdb = mock(DefaultTSDB.class);
     config_map = Maps.newHashMap();
     config = UnitTestConfiguration.getConfiguration(config_map);
     sender = mock(OkHttpSender.class);
     reporter = mock(AsyncReporter.class);
-    reporter_builder = PowerMockito.mock(AsyncReporter.Builder.class);
-    trace = PowerMockito.mock(Trace.class);
-    tracer_builder = PowerMockito.mock(BraveTraceBuilder.class);
-    
+    reporter_builder = mock(AsyncReporter.Builder.class);
+    trace = Mockito.mock(Trace.class);
+    tracer_builder = Mockito.mock(BraveTraceBuilder.class);
+
     when(tsdb.getConfig()).thenReturn(config);
-    PowerMockito.mockStatic(OkHttpSender.class);
-    when(OkHttpSender.create(anyString())).thenReturn(sender);
-    PowerMockito.mockStatic(AsyncReporter.class);
-    when(AsyncReporter.builder(sender)).thenReturn(reporter_builder);
+    mockedOkHttpSender = Mockito.mockStatic(OkHttpSender.class);
+    mockedOkHttpSender.when(() -> OkHttpSender.create(anyString())).thenReturn(sender);
+    mockedAsyncReporter = Mockito.mockStatic(AsyncReporter.class);
+    mockedAsyncReporter.when(() -> AsyncReporter.builder(sender)).thenReturn(reporter_builder);
     when(reporter_builder.build()).thenReturn(reporter);
-    PowerMockito.mockStatic(BraveTrace.class);
-    when(BraveTrace.newBuilder()).thenReturn(tracer_builder);
+    mockedBraveTrace.when(BraveTrace::newBuilder).thenReturn(tracer_builder);
     
     config_map.put(BraveTracer.SERVICE_NAME_KEY, "UnitTest");
     config_map.put(BraveTracer.ENDPOINT_KEY, 
@@ -91,6 +90,13 @@ public class TestBraveTracer {
     when(tracer_builder.setId(anyString())).thenReturn(tracer_builder);
     when(tracer_builder.build()).thenReturn(trace);
   }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedBraveTrace.closeOnDemand();
+    if (mockedOkHttpSender != null) mockedOkHttpSender.close();
+    if (mockedAsyncReporter != null) mockedAsyncReporter.close();
+  }
   
   @Test
   public void initializeWithoutReporting() throws Exception {
@@ -98,8 +104,8 @@ public class TestBraveTracer {
     
     BraveTracer plugin = new BraveTracer();
     assertNull(plugin.initialize(tsdb, null).join());
-    PowerMockito.verifyStatic(never());
-    OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans");
+    mockedOkHttpSender.verify(
+        () -> OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans"), never());
     verify(reporter_builder, never()).build();
     assertEquals("UnitTest", plugin.serviceName());
   }
@@ -108,8 +114,8 @@ public class TestBraveTracer {
   public void initializeWithReporting() throws Exception {
     BraveTracer plugin = new BraveTracer();
     assertNull(plugin.initialize(tsdb, null).join());
-    PowerMockito.verifyStatic(times(1));
-    OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans");
+    mockedOkHttpSender.verify(
+        () -> OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans"), times(1));
     verify(reporter_builder, times(1)).build();
     assertEquals("UnitTest", plugin.serviceName());
   }
@@ -143,7 +149,7 @@ public class TestBraveTracer {
   @Test
   public void initializationSenderException() throws Exception {
     config_map.put("tsdb.tracer.service_name", "UnitTest");
-    when(OkHttpSender.create(anyString()))
+    mockedOkHttpSender.when(() -> OkHttpSender.create(anyString()))
       .thenThrow(new IllegalArgumentException("Boo!"));
     BraveTracer plugin = new BraveTracer();
     plugin.initialize(tsdb, null);

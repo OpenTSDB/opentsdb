@@ -14,6 +14,9 @@
 // limitations under the License.
 package net.opentsdb.stats;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.google.common.base.Strings;
 
 /**
@@ -104,7 +107,10 @@ public class BraveSpan implements net.opentsdb.stats.Span {
     if (t == null) {
       throw new IllegalArgumentException("Null exceptions are not allowed.");
     }
-    span.log(key, t);
+    final Map<String, Object> errMap = new HashMap<>();
+    errMap.put("event", "error");
+    errMap.put("error.object", t);
+    span.log(errMap);
     return this;
   }
 

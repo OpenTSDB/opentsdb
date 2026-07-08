@@ -14,7 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -46,7 +46,7 @@ import net.opentsdb.utils.Pair;
 import org.junit.Ignore;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.reflect.Whitebox;
+import java.lang.reflect.Field;
 
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.CheckAndMutateRowRequest;
@@ -65,7 +65,6 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowFilter.Interleave;
 import com.google.cloud.bigtable.grpc.BigtableDataClient;
 import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
@@ -150,7 +149,7 @@ public final class MockBigtable {
   private ByteMap<Pair<RuntimeException, Boolean>> exceptions;
 
   public MockBigtable(final BigtableSession session,
-                      final AsyncExecutor executor,
+                      final BigtableDataClient executor,
                       final BigtableDataClient client,
                       final BulkMutation bulk_mutator) {
 
@@ -158,18 +157,14 @@ public final class MockBigtable {
     default_table = DATA_TABLE;
     setupDefaultTables();
 
-    try {
-      when(executor.readRowsAsync(any(ReadRowsRequest.class)))
-        .thenAnswer(new Answer<ListenableFuture<List<Row>>>() {
-          @Override
-          public ListenableFuture<List<Row>> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return new MockGet((ReadRowsRequest) invocation.getArguments()[0]);
-          }
-        });
-    } catch (InterruptedException e1) {
-      throw new RuntimeException("WTF?", e1);
-    }
+    when(executor.readRowsAsync(any(ReadRowsRequest.class)))
+      .thenAnswer(new Answer<ListenableFuture<List<Row>>>() {
+        @Override
+        public ListenableFuture<List<Row>> answer(InvocationOnMock invocation)
+            throws Throwable {
+          return new MockGet((ReadRowsRequest) invocation.getArguments()[0]);
+        }
+      });
     
     // Default put answer will store the given values in the proper location.
     when(bulk_mutator.add(any(MutateRowRequest.class)))
@@ -194,33 +189,47 @@ public final class MockBigtable {
           }
       });
     
-    try {
-      when(executor.readModifyWriteRowAsync(any(ReadModifyWriteRowRequest.class)))
-        .thenAnswer(new Answer<ListenableFuture<ReadModifyWriteRowResponse>>() {
-          @Override
-          public ListenableFuture<ReadModifyWriteRowResponse> answer(
-              InvocationOnMock invocation) throws Throwable {
-            return new MockAppendAndIncrement(
-                (ReadModifyWriteRowRequest) invocation.getArguments()[0]);
-          }
-        });
-    } catch (InterruptedException e) {
-      throw new RuntimeException("WTF?", e);
-    }
+    when(executor.readModifyWriteRowAsync(any(ReadModifyWriteRowRequest.class)))
+      .thenAnswer(new Answer<ListenableFuture<ReadModifyWriteRowResponse>>() {
+        @Override
+        public ListenableFuture<ReadModifyWriteRowResponse> answer(
+            InvocationOnMock invocation) throws Throwable {
+          return new MockAppendAndIncrement(
+              (ReadModifyWriteRowRequest) invocation.getArguments()[0]);
+        }
+      });
     
-    try {
-      when(executor.checkAndMutateRowAsync(any(CheckAndMutateRowRequest.class)))
-        .thenAnswer(new Answer<ListenableFuture<CheckAndMutateRowResponse>>() {
-          @Override
-          public ListenableFuture<CheckAndMutateRowResponse> answer(
-              InvocationOnMock invocation) throws Throwable {
-            return new MockCAS((CheckAndMutateRowRequest) 
-                invocation.getArguments()[0]);
-          }
-        });
-    } catch (InterruptedException e) {
-      throw new RuntimeException("WTF?", e);
+    when(executor.checkAndMutateRowAsync(any(CheckAndMutateRowRequest.class)))
+      .thenAnswer(new Answer<ListenableFuture<CheckAndMutateRowResponse>>() {
+        @Override
+        public ListenableFuture<CheckAndMutateRowResponse> answer(
+            InvocationOnMock invocation) throws Throwable {
+          return new MockCAS((CheckAndMutateRowRequest)
+              invocation.getArguments()[0]);
+        }
+      });
+  }
+
+  /**
+   * Reflection helper replacing PowerMock's Whitebox.getInternalState. Reads a
+   * (possibly private) field by walking up the class hierarchy.
+   */
+  @SuppressWarnings("unchecked")
+  static <T> T getInternalState(final Object target, final String field) {
+    Class<?> clazz = target.getClass();
+    while (clazz != null) {
+      try {
+        final Field f = clazz.getDeclaredField(field);
+        f.setAccessible(true);
+        return (T) f.get(target);
+      } catch (NoSuchFieldException e) {
+        clazz = clazz.getSuperclass();
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
     }
+    throw new RuntimeException("No field '" + field + "' found on "
+        + target.getClass());
   }
 
   /**
@@ -1143,7 +1152,7 @@ public final class MockBigtable {
       // is a private static class.
       final FutureCallback<List<Row>> callback = 
           (FutureCallback<List<Row>>) 
-            Whitebox.getInternalState(listener, "callback");
+            getInternalState(listener, "callback");
       if (exception != null) {
         callback.onFailure(new ExecutionException(exception));
       } else {
@@ -1297,7 +1306,7 @@ public final class MockBigtable {
       // is a private static class.
       final FutureCallback<MutateRowResponse> callback = 
           (FutureCallback<MutateRowResponse>) 
-            Whitebox.getInternalState(listener, "callback");
+            getInternalState(listener, "callback");
       if (exception != null) {
         callback.onFailure(new ExecutionException(exception));
       } else {
@@ -1467,7 +1476,7 @@ public final class MockBigtable {
       // is a private static class.
       final FutureCallback<ReadModifyWriteRowResponse> callback = 
           (FutureCallback<ReadModifyWriteRowResponse>) 
-            Whitebox.getInternalState(listener, "callback");
+            getInternalState(listener, "callback");
       if (exception != null) {
         callback.onFailure(new ExecutionException(exception));
       } else {
@@ -1628,7 +1637,7 @@ public final class MockBigtable {
       // is a private static class.
       final FutureCallback<CheckAndMutateRowResponse> callback = 
           (FutureCallback<CheckAndMutateRowResponse>) 
-            Whitebox.getInternalState(listener, "callback");
+            getInternalState(listener, "callback");
       if (exception != null) {
         callback.onFailure(new ExecutionException(exception));
       } else {

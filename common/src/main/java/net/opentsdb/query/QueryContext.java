@@ -18,8 +18,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
+
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDB;

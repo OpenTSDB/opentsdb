@@ -17,7 +17,9 @@
 
 package net.opentsdb.query.router;
 
-import com.google.common.collect.Lists;
+import static org.junit.Assert.*;
+
+
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
@@ -26,11 +28,10 @@ import net.opentsdb.query.processor.timedifference.TimeDifferenceConfig;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupConfig;
+
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import com.google.common.collect.Lists;
 
 /**
  * CASES:

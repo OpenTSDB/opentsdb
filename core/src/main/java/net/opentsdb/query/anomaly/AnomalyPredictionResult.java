@@ -19,7 +19,6 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.List;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
@@ -30,6 +29,8 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryResultId;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.DateTime;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * Class that stores the predictions as a Result from a model.

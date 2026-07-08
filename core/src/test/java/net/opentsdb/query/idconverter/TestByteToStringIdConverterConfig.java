@@ -15,20 +15,20 @@
 package net.opentsdb.query.idconverter;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
-import com.google.common.collect.Lists;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.hacluster.HAClusterConfig;
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.hacluster.HAClusterConfig;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestByteToStringIdConverterConfig {
 

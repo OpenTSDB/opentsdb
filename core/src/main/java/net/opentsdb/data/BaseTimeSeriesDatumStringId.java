@@ -19,21 +19,22 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.utils.Comparators.MapComparator;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import net.openhft.hashing.LongHashFunction;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-
-import net.openhft.hashing.LongHashFunction;
-import net.opentsdb.common.Const;
-import net.opentsdb.utils.Comparators.MapComparator;
 
 /**
  * A basic {@link TimeSeriesDatumStringId} implementation that accepts 

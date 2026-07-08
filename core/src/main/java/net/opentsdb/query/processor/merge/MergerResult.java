@@ -21,12 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
@@ -37,6 +32,13 @@ import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.DateTime;
+
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A result from the {@link Merger} node for a segment. The grouping is 

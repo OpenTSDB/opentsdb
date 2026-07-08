@@ -14,50 +14,35 @@
 // limitations under the License.
 package net.opentsdb.query.readcache;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
 
 import java.util.Collection;
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.readcache.GuavaLRUCache;
-import net.opentsdb.query.readcache.ReadCacheCallback;
-import net.opentsdb.query.readcache.ReadCacheQueryResult;
-import net.opentsdb.query.readcache.ReadCacheQueryResultSet;
-import net.opentsdb.query.readcache.ReadCacheSerdes;
-import net.opentsdb.query.readcache.ReadCacheSerdesFactory;
+import net.opentsdb.query.readcache.*;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class, GuavaLRUCache.class })
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import com.stumbleupon.async.Deferred;
+
 public class TestGuavaLRUCache {
+  private MockedStatic<DateTime> mockedDateTime;
   private static final int BASE_TIME = 1546300800;
   
   private MockTSDB tsdb;
@@ -69,12 +54,13 @@ public class TestGuavaLRUCache {
   
   @Before
   public void before() throws Exception {
+    mockedDateTime = Mockito.mockStatic(DateTime.class);
     tsdb = new MockTSDB();
     context = mock(QueryPipelineContext.class);
     factory = mock(ReadCacheSerdesFactory.class);
     serdes = mock(ReadCacheSerdes.class);
     
-    when(tsdb.registry.getPlugin(eq(ReadCacheSerdesFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(ReadCacheSerdesFactory.class), nullable(String.class)))
     .thenReturn(factory);
     when(factory.getSerdes()).thenReturn(serdes);
     serdes_calls = new ByteMap<SerdesObj>();
@@ -115,6 +101,11 @@ public class TestGuavaLRUCache {
             return obj.deserialized;
           }
     });
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedDateTime.closeOnDemand();
   }
   
   @Test
@@ -236,8 +227,7 @@ public class TestGuavaLRUCache {
     
     // expired
     long ts = DateTime.nanoTime();
-    PowerMockito.mockStatic(DateTime.class);
-    when(DateTime.nanoTime())
+    mockedDateTime.when(DateTime::nanoTime)
       .thenReturn(ts + 61000000000L);
     
     cache.fetch(context, new byte[][] { key1, key2 }, new CB(), null);
@@ -388,8 +378,7 @@ public class TestGuavaLRUCache {
     
     // tip expired
     long ts = DateTime.nanoTime();
-    PowerMockito.mockStatic(DateTime.class);
-    when(DateTime.nanoTime())
+    mockedDateTime.when(DateTime::nanoTime)
       .thenReturn(ts + 31000000000L);
     
     cache.fetch(context, new byte[][] { key1, key2 }, new CB(), null);

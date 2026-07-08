@@ -18,8 +18,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
+
+import com.google.common.hash.HashCode;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.PartialTimeSeries;

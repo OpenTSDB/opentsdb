@@ -41,10 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
-
-import jersey.repackaged.com.google.common.collect.Lists;
-import jersey.repackaged.com.google.common.collect.Maps;
-import jersey.repackaged.com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.prometheus.grammar.PromQLLexer;
 import net.opentsdb.prometheus.grammar.PromQLParser.AddOpContext;

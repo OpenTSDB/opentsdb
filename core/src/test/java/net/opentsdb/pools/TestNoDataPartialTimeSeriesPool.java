@@ -14,22 +14,16 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.NoDataPartialTimeSeries;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestNoDataPartialTimeSeriesPool {
   private static MockTSDB TSDB;

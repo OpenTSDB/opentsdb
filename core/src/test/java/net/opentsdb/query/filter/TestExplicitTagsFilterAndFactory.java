@@ -15,22 +15,20 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.Map;
 
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Maps;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.query.filter.UTFilterFactory.UTQueryFilter;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
+
+import com.google.common.collect.Maps;
 
 public class TestExplicitTagsFilterAndFactory {
 

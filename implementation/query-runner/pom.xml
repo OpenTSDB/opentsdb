@@ -56,12 +56,12 @@
         <dependency>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
-          <version>4.5.3</version>
+          <version>${apache.httpclient.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpasyncclient</artifactId>
-          <version>4.1.1</version>
+          <version>${apache.httpasyncclient.version}</version>
         </dependency>
       </dependencies>
    </dependencyManagement>
@@ -84,6 +84,10 @@
          <artifactId>opentsdb-servlet</artifactId>
       </dependency>
       <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
+      </dependency>
+      <dependency>
          <groupId>ch.qos.logback</groupId>
          <artifactId>logback-core</artifactId>
       </dependency>
@@ -92,6 +96,10 @@
          <artifactId>logback-classic</artifactId>
       </dependency>
       
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+      </dependency>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
@@ -129,16 +137,6 @@
          <artifactId>objenesis</artifactId>
          <scope>test</scope>
       </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-api-mockito</artifactId>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-module-junit4</artifactId>
-         <scope>test</scope>
-      </dependency>
    </dependencies>
    
    <build>
@@ -157,11 +155,10 @@
       </extensions>
       
       <plugins>
-         
          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>2.3</version>
+            <version>${maven.plugin.shade.version}</version>
             <configuration>
                <artifactSet>
                   <excludes>
@@ -175,15 +172,15 @@
                   </excludes>
                </artifactSet>
                <filters>
-        <filter>
-            <artifact>*:*</artifact>
-            <excludes>
-                <exclude>META-INF/*.SF</exclude>
-                <exclude>META-INF/*.DSA</exclude>
-                <exclude>META-INF/*.RSA</exclude>
-            </excludes>
-        </filter>
-    </filters>
+                  <filter>
+                     <artifact>*:*</artifact>
+                     <excludes>
+                        <exclude>META-INF/*.SF</exclude>
+                        <exclude>META-INF/*.DSA</exclude>
+                        <exclude>META-INF/*.RSA</exclude>
+                     </excludes>
+                  </filter>
+               </filters>
             </configuration>
             <executions>
                <execution>

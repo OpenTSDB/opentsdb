@@ -14,11 +14,12 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
-import com.google.common.hash.HashCode;
-import net.opentsdb.data.TimeStamp;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import com.google.common.hash.HashCode;
+
+import net.opentsdb.data.TimeStamp;
 
 public interface BatchMetaQuery {
 

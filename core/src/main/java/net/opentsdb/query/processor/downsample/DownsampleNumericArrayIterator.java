@@ -17,15 +17,9 @@ package net.opentsdb.query.processor.downsample;
 import java.io.IOException;
 import java.util.Optional;
 
-import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.Aggregator;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericAccumulator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
@@ -35,6 +29,8 @@ import net.opentsdb.query.AggregatingQueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * A downsampler working over a numeric source array. If the source is 

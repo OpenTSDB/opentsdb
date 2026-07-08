@@ -18,9 +18,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -29,10 +29,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.concurrent.Future;
 
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -42,29 +38,32 @@ import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.util.EntityUtils;
+
+import com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import com.google.common.collect.Lists;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.DefaultNamedFilter;
 import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -72,6 +71,7 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.stats.BlackholeStatsCollector;
+import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestHttpQueryV3Source {
@@ -415,7 +415,7 @@ public class TestHttpQueryV3Source {
     when(ctx.tsdb()).thenReturn(tsdb);
     BlackholeStatsCollector stats = new BlackholeStatsCollector();
     when(tsdb.getStatsCollector()).thenReturn(stats);
-    when(cfg.getString(anyString())).thenReturn("X-OpenTSDB-User");
+    when(cfg.getString(nullable(String.class))).thenReturn("X-OpenTSDB-User");
     when(auth.getTokenType()).thenReturn("Cookie");
     when(auth.getToken()).thenReturn("MyCookie".getBytes(Const.UTF8_CHARSET));
     when(auth.getUser()).thenReturn("UnitTest");

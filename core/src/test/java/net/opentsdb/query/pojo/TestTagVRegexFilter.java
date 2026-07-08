@@ -14,20 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
-import org.junit.Before;
-import org.junit.Test;
 
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TagVRegexFilter;
+
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestTagVRegexFilter {
   private static final String TAGK = "host";

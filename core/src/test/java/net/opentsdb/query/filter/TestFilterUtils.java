@@ -14,21 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.Map;
 import java.util.Set;
+
+
+import net.opentsdb.query.filter.ChainFilter.FilterOp;
 
 import org.junit.Test;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import net.opentsdb.query.filter.ChainFilter.FilterOp;
 
 public class TestFilterUtils {
 

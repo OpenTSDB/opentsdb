@@ -18,11 +18,6 @@ import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import net.opentsdb.rollup.RollupInterval;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Maps;
 
 import net.opentsdb.data.PartialTimeSeriesSet;
 import net.opentsdb.data.TimeStamp;
@@ -31,8 +26,14 @@ import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.utils.Bytes;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Maps;
 
 /**
  * An implementation that converts the rollup column from a 1x schema into the
@@ -48,7 +49,7 @@ import net.opentsdb.utils.Bytes;
  */
 public class Tsdb1xNumericSummaryPartialTimeSeries extends 
     Tsdb1xPartialTimeSeries<NumericByteArraySummaryType>
-      implements NumericByteArraySummaryType {
+    implements NumericByteArraySummaryType {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xNumericSummaryPartialTimeSeries.class);
  

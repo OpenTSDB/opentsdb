@@ -16,7 +16,7 @@ package net.opentsdb.query.processor.dedup;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,13 +25,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultQueryResultId;
@@ -39,13 +33,14 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
+@RunWith(MockitoJUnitRunner.class)
 public class TestDedupNode {
 
   @Mock
@@ -62,11 +57,6 @@ public class TestDedupNode {
 
   @Captor
   private ArgumentCaptor<QueryResult> upStreamCaptor;
-
-  @Before
-  public void setUp() throws Exception {
-    MockitoAnnotations.initMocks(this);
-  }
 
   @Test
   public void testRemovesDuplicateTimeseries() {

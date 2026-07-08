@@ -14,12 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Strings;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.RejectedExecutionException;
+
+import org.apache.http.Header;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.concurrent.FutureCallback;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Strings;
+
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
@@ -46,15 +58,6 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.DefaultSharedHttpClient;
 import net.opentsdb.utils.JSON;
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.concurrent.FutureCallback;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An executor that fires an HTTP query against a V3 endpoint for a metric,

@@ -16,14 +16,15 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.AggregatorConfig;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.exceptions.IllegalDataException;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Returns the median value of the set. For even set sizes, the upper most

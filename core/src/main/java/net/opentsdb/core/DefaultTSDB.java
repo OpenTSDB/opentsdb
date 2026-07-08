@@ -17,30 +17,29 @@ package net.opentsdb.core;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.collect.Maps;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.stats.BlackholeStatsCollector;
+//import net.opentsdb.rollup.RollupConfig;
+//import net.opentsdb.rollup.RollupInterval;
+//import net.opentsdb.rollup.RollupUtils;
+//import net.opentsdb.search.SearchPlugin;
+//import net.opentsdb.search.SearchQuery;
+//import net.opentsdb.tools.StartupPlugin;
+//import net.opentsdb.stats.Histogram;
+//import net.opentsdb.stats.QueryStats;
+//import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.threadpools.FixedThreadPoolExecutor;
+import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
+import net.opentsdb.threadpools.TSDTask;
 //import org.hbase.async.AppendRequest;
 //import org.hbase.async.Bytes;
 //import org.hbase.async.Bytes.ByteMap;
@@ -68,24 +67,17 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
-import net.opentsdb.auth.Authentication;
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.stats.BlackholeStatsCollector;
-//import net.opentsdb.rollup.RollupConfig;
-//import net.opentsdb.rollup.RollupInterval;
-//import net.opentsdb.rollup.RollupUtils;
-//import net.opentsdb.search.SearchPlugin;
-//import net.opentsdb.search.SearchQuery;
-//import net.opentsdb.tools.StartupPlugin;
-//import net.opentsdb.stats.Histogram;
-//import net.opentsdb.stats.QueryStats;
-//import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.threadpools.FixedThreadPoolExecutor;
-import net.opentsdb.threadpools.TSDBThreadPoolExecutor;
-import net.opentsdb.threadpools.TSDTask;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Maps;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
+
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
 
 /**
  * Thread-safe implementation of the TSDB client.

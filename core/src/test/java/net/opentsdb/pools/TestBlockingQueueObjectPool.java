@@ -14,14 +14,16 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+
+
+import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
 
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -30,8 +32,6 @@ import org.mockito.stubbing.Answer;
 import com.google.common.collect.Lists;
 
 import io.netty.util.HashedWheelTimer;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
 
 public class TestBlockingQueueObjectPool {
 

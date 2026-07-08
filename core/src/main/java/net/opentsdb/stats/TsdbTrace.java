@@ -18,11 +18,11 @@ import java.util.Collections;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
-
 import io.opentracing.Span;
 import io.opentracing.Tracer;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
 
 /**
  * A unique trace object for a given operation in OpenTSDB. IT contains a 

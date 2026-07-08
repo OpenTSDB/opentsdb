@@ -14,10 +14,10 @@
 // limitations under the License.
 package net.opentsdb.data;
 
-import com.google.common.reflect.TypeToken;
-
 import java.io.Closeable;
 import java.util.Iterator;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * An iterator for {@link TimeSeriesValue}s that lets us determine the
@@ -25,7 +25,7 @@ import java.util.Iterator;
  * 
  * @since 3.0
  */
-public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType> 
+public interface TypedTimeSeriesIterator<T extends TimeSeriesDataType>
     extends Iterator<TimeSeriesValue<T>>, Closeable {
 
   /**

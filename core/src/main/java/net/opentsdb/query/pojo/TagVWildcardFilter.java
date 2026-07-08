@@ -17,13 +17,15 @@ package net.opentsdb.query.pojo;
 import java.util.Arrays;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.base.Objects;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Performs basic wild card searching. It supports prefix, postfix, infix,

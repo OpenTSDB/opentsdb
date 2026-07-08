@@ -202,6 +202,13 @@ public class ConfigurationEntrySchema {
     if (value == null && nullable) {
       return ConfigurationValueValidator.OK;
     }
+
+    // If the given value already has the expected type, then we need no round
+    // trip. By skipping convertValue() below, we avoid problems with classes
+    // that do not round-trip successfully through serde.
+    if (type != null && value.getClass().equals(type)) {
+      return ConfigurationValueValidator.OK;
+    }
     
     try {
       if (type_reference != null) {

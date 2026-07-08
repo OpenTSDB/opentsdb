@@ -14,29 +14,13 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.MockTSDSFactory;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
-
-import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.collect.Lists;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
@@ -44,7 +28,13 @@ import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.MockTSDSFactory;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.SemanticQuery;
@@ -59,6 +49,13 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
 import net.opentsdb.query.processor.merge.MergerConfig;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestExpressionFactory {
 

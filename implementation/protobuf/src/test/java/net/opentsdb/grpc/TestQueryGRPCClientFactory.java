@@ -14,42 +14,44 @@
 // limitations under the License.
 package net.opentsdb.grpc;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import io.grpc.CompressorRegistry;
 import io.grpc.DecompressorRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.BaseTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ QueryGRPCClientFactory.class, ManagedChannelBuilder.class })
 public class TestQueryGRPCClientFactory {
+
+  private MockedStatic<ManagedChannelBuilder> mockedManagedChannelBuilder;
 
   private static MockTSDB TSDB;
   
@@ -63,17 +65,21 @@ public class TestQueryGRPCClientFactory {
   
   @Before
   public void before() throws Exception {
+    mockedManagedChannelBuilder = Mockito.mockStatic(ManagedChannelBuilder.class);
     channel_builder = mock(ManagedChannelBuilder.class);
     channel = mock(ManagedChannel.class);
-    
-    PowerMockito.mockStatic(ManagedChannelBuilder.class);
-    when(ManagedChannelBuilder.forAddress(anyString(), anyInt()))
+    mockedManagedChannelBuilder.when(() -> ManagedChannelBuilder.forAddress(anyString(), anyInt()))
       .thenReturn(channel_builder);
     when(channel_builder.compressorRegistry(any(CompressorRegistry.class)))
       .thenReturn(channel_builder);
     when(channel_builder.decompressorRegistry(any(DecompressorRegistry.class)))
       .thenReturn(channel_builder);
     when(channel_builder.build()).thenReturn(channel);
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedManagedChannelBuilder.closeOnDemand();
   }
   
   @Test
@@ -105,16 +111,17 @@ public class TestQueryGRPCClientFactory {
     assertTrue(factory.supportsPushdown(DownsampleConfig.class));
     assertFalse(factory.supportsPushdown(ExpressionConfig.class));
   }
-  
+
   @Test
   public void newNode() throws Exception {
-    QueryGRPCClientFactory factory = new QueryGRPCClientFactory();
-    PowerMockito.mockStatic(QueryGRPCClient.class);
-    QueryGRPCClient node = mock(QueryGRPCClient.class);
-    PowerMockito.whenNew(QueryGRPCClient.class).withAnyArguments()
-      .thenReturn(node);
-    
-    assertSame(node, factory.newNode(mock(QueryPipelineContext.class), 
-        mock(BaseTimeSeriesDataSourceConfig.class)));
+    final QueryGRPCClientFactory factory = new QueryGRPCClientFactory();
+    try (MockedConstruction<QueryGRPCClient> mockQueryGRPCClient = Mockito.mockConstruction(QueryGRPCClient.class)) {
+      final QueryNode node = factory.newNode(mock(QueryPipelineContext.class),
+          mock(BaseTimeSeriesDataSourceConfig.class));
+
+      assertEquals(1, mockQueryGRPCClient.constructed().size());
+      final QueryGRPCClient client = mockQueryGRPCClient.constructed().get(0);
+      assertSame(client, node);
+    }
   }
 }

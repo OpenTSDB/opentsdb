@@ -14,15 +14,8 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -31,26 +24,26 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import org.junit.Before;
-import org.junit.Test;
-
-import com.google.common.collect.Lists;
-
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
-import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.pojo.FillPolicy;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestExpressionTimeSeries {
 
@@ -99,7 +92,7 @@ public class TestExpressionTimeSeries {
         .build();
     when(left.id()).thenReturn(left_id);
     when(right.id()).thenReturn(right_id);
-    when(joiner.joinIds(any(TimeSeries.class), any(TimeSeries.class), 
+    when(joiner.joinIds(any(TimeSeries.class), nullable(TimeSeries.class),
         anyString(), any(JoinType.class))).thenReturn(joined_id);
     when(joiner.joinIds(eq(condition), eq(null), 
         anyString(), any(JoinType.class))).thenReturn(condition_id);

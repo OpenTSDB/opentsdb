@@ -16,6 +16,8 @@ package net.opentsdb.uid;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+
+
 import net.opentsdb.utils.Bytes;
 
 import org.junit.Test;

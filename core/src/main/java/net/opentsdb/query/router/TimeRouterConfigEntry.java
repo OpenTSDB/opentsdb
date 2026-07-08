@@ -14,12 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.router;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.Strings;
+import java.time.temporal.TemporalAmount;
+import java.util.Comparator;
+import java.util.List;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
@@ -29,9 +26,13 @@ import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.plan.QueryPlanner.TimeAdjustments;
 import net.opentsdb.utils.DateTime;
 
-import java.time.temporal.TemporalAmount;
-import java.util.Comparator;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import com.google.common.base.Strings;
 
 /**
  * A config that represents a single data source and optionally when data

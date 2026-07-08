@@ -24,14 +24,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Predicate;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -39,16 +31,10 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.*;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
 import net.opentsdb.query.anomaly.AnomalyPredictionState.State;
 import net.opentsdb.query.plan.QueryPlanner;
@@ -59,6 +45,15 @@ import net.opentsdb.utils.BigSmallLinkedBlockingQueue;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A base factory for anomaly nodes that has launches a thread pool for running

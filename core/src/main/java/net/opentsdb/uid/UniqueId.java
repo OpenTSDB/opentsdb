@@ -16,17 +16,17 @@ package net.opentsdb.uid;
 
 import java.util.Arrays;
 import java.util.List;
-
 import javax.xml.bind.DatatypeConverter;
 
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Bytes;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Provides a cache for unique IDs mapping them to and from strings.

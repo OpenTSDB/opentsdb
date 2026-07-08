@@ -327,7 +327,8 @@ public final class PluginLoader {
    * @throws IOException if the directory does not exist or cannot be accessed
    * @throws SecurityException if there is a security manager present and the
    * operation is denied
-   * @throws IllegalArgumentException if the path was not a directory
+   * @throws IllegalArgumentException if the path was empty or not a directory
+   * @throws NullPointerException if the path was null
    * @throws NoSuchMethodException if there is an error with the class loader 
    * @throws IllegalAccessException if a security manager is present and the
    * operation was denied
@@ -336,6 +337,12 @@ public final class PluginLoader {
   public static void loadJARs(String directory) throws SecurityException, 
   IllegalArgumentException, IOException, NoSuchMethodException, 
   IllegalAccessException, InvocationTargetException {
+    if (directory == null) {
+        throw new NullPointerException("The given path was null");
+    } else if (directory.isEmpty()) {
+        throw new IllegalArgumentException("The given path was empty");
+    }
+
     File file = new File(directory);
     if (!file.isDirectory()) {
       throw new IllegalArgumentException(

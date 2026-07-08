@@ -18,20 +18,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -40,36 +38,47 @@ import com.google.pubsub.v1.TopicName;
 
 import net.opentsdb.core.MockTSDB;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ PubSubWriter.class, GoogleCredentials.class, 
-  FileInputStream.class, Publisher.Builder.class, Publisher.class })
 public class TestPubSubWriter {
 
   private MockTSDB tsdb;
   private TimeSeriesDataConverter serdes;
   private Publisher.Builder pub_builder;
   private Publisher publisher;
-  
+  private String keyfile;
+  private MockedStatic<GoogleCredentials> mockedCreds;
+  private MockedStatic<Publisher> mockedPublisher;
+
+  @After
+  public void after() {
+    if (mockedCreds != null) mockedCreds.close();
+    if (mockedPublisher != null) mockedPublisher.close();
+  }
+
   @Before
   public void before() throws Exception {
-    PowerMockito.mockStatic(FileInputStream.class);
-    PowerMockito.whenNew(FileInputStream.class).withAnyArguments()
-      .thenReturn(mock(FileInputStream.class));
-    PowerMockito.mockStatic(GoogleCredentials.class);
-    PowerMockito.when(GoogleCredentials.fromStream(any(InputStream.class)))
+    // Point the json key at a real (empty) temp file so the writer's
+    // `new FileInputStream(keyfile)` succeeds; GoogleCredentials.fromStream is
+    // mocked so the file is never actually parsed. (Mocking FileInputStream
+    // construction globally would break MockTSDB's own config file loading.)
+    final java.io.File kf = java.io.File.createTempFile("pubsub-ut", ".json");
+    kf.deleteOnExit();
+    keyfile = kf.getAbsolutePath();
+
+    mockedCreds = Mockito.mockStatic(GoogleCredentials.class);
+    mockedCreds.when(() -> GoogleCredentials.fromStream(any(InputStream.class)))
       .thenReturn(mock(GoogleCredentials.class));
-    PowerMockito.mockStatic(Publisher.Builder.class);
-    PowerMockito.mockStatic(Publisher.class);
-    
+    mockedPublisher = Mockito.mockStatic(Publisher.class);
+
     tsdb = new MockTSDB();
     serdes = mock(TimeSeriesDataConverter.class);
     when(tsdb.registry.getDefaultPlugin(TimeSeriesDataConverter.class))
       .thenReturn(serdes);
-    
+
     pub_builder = mock(Publisher.Builder.class);
     publisher = mock(Publisher.class);
-    
-    when(Publisher.newBuilder(any(TopicName.class))).thenReturn(pub_builder);
+
+    mockedPublisher.when(() -> Publisher.newBuilder(any(TopicName.class)))
+      .thenReturn(pub_builder);
     when(pub_builder.setCredentialsProvider(any(CredentialsProvider.class)))
       .thenReturn(pub_builder);
     when(pub_builder.build()).thenReturn(publisher);
@@ -82,7 +91,7 @@ public class TestPubSubWriter {
     
     tsdb.config.override(PubSubWriter.PROJECT_NAME_KEY, "MyProject");
     tsdb.config.override(PubSubWriter.TOPIC_KEY, "Test");
-    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
+    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, keyfile);
     
     assertNull(writer.initialize(tsdb, null).join());
     assertSame(publisher, writer.publisher);
@@ -134,7 +143,7 @@ public class TestPubSubWriter {
       writer.initialize(tsdb, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
+    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, keyfile);
     
     // no serdes
     when(tsdb.registry.getDefaultPlugin(TimeSeriesDataConverter.class))
@@ -152,7 +161,7 @@ public class TestPubSubWriter {
 //    writer.registerConfigs(tsdb);
 //    tsdb.config.override(PubSubWriter.PROJECT_NAME_KEY, "MyProject");
 //    tsdb.config.override(PubSubWriter.TOPIC_KEY, "Test");
-//    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
+//    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, keyfile);
 //    writer.initialize(tsdb, null);
 //
 //    TimeSeriesDatum datum = mock(TimeSeriesDatum.class);
@@ -219,7 +228,7 @@ public class TestPubSubWriter {
 //    writer.registerConfigs(tsdb);
 //    tsdb.config.override(PubSubWriter.PROJECT_NAME_KEY, "MyProject");
 //    tsdb.config.override(PubSubWriter.TOPIC_KEY, "Test");
-//    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, "MyKey");
+//    tsdb.config.override(PubSubWriter.JSON_KEYFILE_KEY, keyfile);
 //    writer.initialize(tsdb, null);
 //
 //    TimeSeriesSharedTagsAndTimeData data = mock(TimeSeriesSharedTagsAndTimeData.class);

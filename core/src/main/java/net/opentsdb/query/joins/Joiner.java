@@ -14,41 +14,29 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.NavigableMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.TreeMap;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesByteId;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.*;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode;
 import net.opentsdb.query.processor.expressions.TernaryParseNode;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.XXHash;
 import net.opentsdb.utils.Bytes.ByteMap;
+import net.opentsdb.utils.XXHash;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * A thread-safe class to perform join operations across time series.

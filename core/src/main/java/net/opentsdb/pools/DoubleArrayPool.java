@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
+
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.core.TSDB;
 
 /**
  * An allocator and pool for primitive double arrays.

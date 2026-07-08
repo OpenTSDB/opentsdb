@@ -19,6 +19,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.exceptions.QueryDownstreamException;
+import net.opentsdb.query.*;
+import net.opentsdb.query.joins.Joiner;
+import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+import net.opentsdb.utils.Bytes.ByteMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,19 +34,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.exceptions.QueryDownstreamException;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.query.joins.Joiner;
-import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
-import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
  * A query node that executes a binary expression such as "a + b" or

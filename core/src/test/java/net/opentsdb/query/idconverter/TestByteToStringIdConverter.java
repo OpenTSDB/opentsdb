@@ -14,21 +14,20 @@
 // limitations under the License.
 package net.opentsdb.query.idconverter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
 
 import java.util.Iterator;
+
+
+import net.opentsdb.common.Const;
+import net.opentsdb.data.*;
+import net.opentsdb.query.*;
+import net.opentsdb.query.idconverter.ByteToStringConverterForSource.Resolver;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.UnitTestException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -38,26 +37,7 @@ import org.mockito.stubbing.Answer;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.idconverter.ByteToStringConverterForSource.Resolver;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.UnitTestException;
+import com.stumbleupon.async.DeferredGroupException;
 
 public class TestByteToStringIdConverter {
 
@@ -259,7 +239,7 @@ public class TestByteToStringIdConverter {
     node.initialize(null).join(250);
     node.onNext(result);
     verify(upstream, never()).onNext(result);
-    verify(upstream, times(1)).onError(any(UnitTestException.class));
+    verify(upstream, times(1)).onError(any(DeferredGroupException.class));
     
     assertNull(from_upstream[0]);
   }
@@ -382,7 +362,7 @@ public class TestByteToStringIdConverter {
       context.addId(hash, id);
     }
     when(id.dataStore()).thenReturn(factory);
-    when(factory.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
+    when(factory.resolveByteId(any(TimeSeriesByteId.class), nullable(Span.class)))
       .thenReturn(new Deferred<TimeSeriesStringId>());
     when(pts.set()).thenReturn(set);
     when(pts.idHash()).thenReturn(hash);

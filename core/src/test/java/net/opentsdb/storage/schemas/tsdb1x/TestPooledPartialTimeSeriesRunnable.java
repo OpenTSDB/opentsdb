@@ -16,20 +16,17 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-import org.junit.Before;
-import org.junit.Test;
 
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.utils.UnitTestException;
+
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestPooledPartialTimeSeriesRunnable {
 

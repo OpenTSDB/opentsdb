@@ -44,6 +44,7 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.ByteCache;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.params.SetParams;
 
 /**
  * A cache implementation that supports a Redis cluster, i.e. native Redis 
@@ -52,8 +53,8 @@ import redis.clients.jedis.JedisCluster;
  * 
  * @since 3.0
  */
-public class RedisClusterQueryCache extends BaseTSDBPlugin 
-    implements ByteCache, QueryReadCache {
+public class RedisClusterQueryCache extends BaseTSDBPlugin
+     implements ByteCache, QueryReadCache {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisClusterQueryCache.class);
 
@@ -395,7 +396,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
       throw new IllegalArgumentException("Units must be in milliseconds.");
     }
     try {
-      cluster.set(key, data, NX, EXP, expiration);
+      cluster.set(key, data, SetParams.setParams().nx().px(expiration));
       tsdb.getStatsCollector().incrementCounter("query.cache.redis.set", 
           (String[]) null);
     } catch (Exception e) {
@@ -442,7 +443,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
         if (expirations[i] < 1) {
           continue;
         }
-        cluster.set(keys[i], data[i], NX, EXP, expirations[i]);
+        cluster.set(keys[i], data[i], SetParams.setParams().nx().px(expirations[i]));
         tsdb.getStatsCollector().incrementCounter("query.cache.redis.mset", 
             (String[]) null);
       } catch (Exception e) {
@@ -508,7 +509,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
       final byte[] data = serdes.serialize(results);
       
       try {
-        cluster.set(key, data, NX, EXP, expiration);
+        cluster.set(key, data, SetParams.setParams().nx().px(expiration));
         tsdb.getStatsCollector().incrementCounter("query.cache.redis.set", 
             (String[]) null);
       } catch (Exception e) {
@@ -563,7 +564,7 @@ public class RedisClusterQueryCache extends BaseTSDBPlugin
           continue;
         }
         
-        cluster.set(keys[i], data[i], NX, EXP, expirations[i]);
+        cluster.set(keys[i], data[i], SetParams.setParams().nx().px(expirations[i]));
         tsdb.getStatsCollector().incrementCounter("query.cache.redis.mset", 
             (String[]) null);
       }

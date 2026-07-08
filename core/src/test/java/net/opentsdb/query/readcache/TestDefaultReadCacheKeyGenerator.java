@@ -13,41 +13,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package net.opentsdb.query.readcache;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.anyString;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class, TimeSeriesQuery.class, Timespan.class })
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
 public class TestDefaultReadCacheKeyGenerator {
+
+  private MockedStatic<DateTime> mockedDateTime;
 
   private MockTSDB tsdb;
   
   @Before
   public void before() throws Exception {
+    mockedDateTime = Mockito.mockStatic(DateTime.class);
     tsdb = new MockTSDB();
-    PowerMockito.mockStatic(DateTime.class);
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedDateTime.closeOnDemand();
   }
   
   @Test
   public void ctor() throws Exception {
-    when(DateTime.parseDuration(anyString())).thenCallRealMethod();
+    mockedDateTime.when(() -> DateTime.parseDuration(anyString())).thenCallRealMethod();
     DefaultReadCacheKeyGenerator generator = 
         new DefaultReadCacheKeyGenerator();
     assertNull(generator.initialize(tsdb, null).join(1));
@@ -83,7 +83,7 @@ public class TestDefaultReadCacheKeyGenerator {
         new DefaultReadCacheKeyGenerator();
     generator.initialize(tsdb, null).join(1);
     
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
     long[] expirations = new long[] { 300000 };
     byte[][] keys = generator.generate(42L, 
         "1h", 
@@ -99,7 +99,7 @@ public class TestDefaultReadCacheKeyGenerator {
         expirations[0]);
     
     // now our query starts at the current time so we expire earlier.
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L + (300L * 2)) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L + (300L * 2)) * 1000L));
     expirations[0] = 300000;
     keys = generator.generate(42L, 
         "1h", 
@@ -109,7 +109,7 @@ public class TestDefaultReadCacheKeyGenerator {
     assertEquals(600000, expirations[0]);
     
     // if the times match or the segment is for the future, expire it immediately
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L) * 1000L));
     expirations[0] = 300000;
     keys = generator.generate(42L, 
         "1h", 
@@ -119,7 +119,7 @@ public class TestDefaultReadCacheKeyGenerator {
     assertEquals(DefaultReadCacheKeyGenerator.DEFAULT_EXPIRATION, expirations[0]);
     
     // future
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L - 900L) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L - 900L) * 1000L));
     expirations[0] = 300000;
     keys = generator.generate(42L, 
         "1h", 
@@ -129,7 +129,7 @@ public class TestDefaultReadCacheKeyGenerator {
     assertEquals(DefaultReadCacheKeyGenerator.DEFAULT_EXPIRATION, expirations[0]);
     
     // historical cutoff
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
     expirations[0] = 300000;
     generator.historical_cutoff = 86400000L;
     keys = generator.generate(42L, 
@@ -146,7 +146,7 @@ public class TestDefaultReadCacheKeyGenerator {
         new DefaultReadCacheKeyGenerator();
     generator.initialize(tsdb, null).join(1);
     
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
     long[] expirations = new long[] { 300000, 0, 0, 0 };
     byte[][] keys = generator.generate(42L, 
         "1h", 
@@ -186,7 +186,7 @@ public class TestDefaultReadCacheKeyGenerator {
         expirations[3]);
     
     // now our query starts at the current time so we expire earlier.
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L + (3600 * 3) + (300L * 2)) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L + (3600 * 3) + (300L * 2)) * 1000L));
     expirations = new long[] { 300000, 0, 0, 0 };
     keys = generator.generate(42L, 
         "1h", 
@@ -202,7 +202,7 @@ public class TestDefaultReadCacheKeyGenerator {
     assertEquals(600000, expirations[3]);
     
     // if the times match or the segment is for the future, expire it immediately
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L) * 1000L));
     expirations = new long[] { 300000, 0, 0, 0 };
     keys = generator.generate(42L, 
         "1h", 
@@ -218,7 +218,7 @@ public class TestDefaultReadCacheKeyGenerator {
     assertEquals(DefaultReadCacheKeyGenerator.DEFAULT_EXPIRATION, expirations[3]);
     
     // future
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L - 900L) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L - 900L) * 1000L));
     expirations = new long[] { 300000, 0, 0, 0 };
     keys = generator.generate(42L, 
         "1h", 
@@ -234,7 +234,7 @@ public class TestDefaultReadCacheKeyGenerator {
     assertEquals(DefaultReadCacheKeyGenerator.DEFAULT_EXPIRATION, expirations[3]);
     
     // historical cutoff
-    when(DateTime.currentTimeMillis()).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn((long) ((1514764800L + (86400L * 2)) * 1000L));
     generator.historical_cutoff = 86400000L;
     expirations = new long[] { 300000, 0, 0, 0 };
     keys = generator.generate(42L, 

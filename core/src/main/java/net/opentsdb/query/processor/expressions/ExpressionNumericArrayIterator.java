@@ -18,19 +18,16 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 
-import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryDownstreamException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * An iterator handling {@link NumericArrayType} data values.
@@ -39,7 +36,7 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
  */
 public class ExpressionNumericArrayIterator extends 
     BaseExpressionNumericIterator<NumericArrayType>
-  implements NumericArrayType {
+    implements NumericArrayType {
 
   private static final int STATIC_ARRAY_LEN = 86_400;
   private static final double[] NAN_ARRAY = new double[STATIC_ARRAY_LEN];

@@ -17,16 +17,16 @@
 
 package net.opentsdb.query.anomaly;
 
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+import java.time.Duration;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
+
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.alert.AlertType;
 import net.opentsdb.data.types.alert.AlertType.State;
 import net.opentsdb.data.types.alert.AlertValue;
@@ -36,24 +36,11 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory;
 import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
+
 import org.junit.Before;
 import org.junit.Test;
 
-import java.time.Duration;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import com.google.common.reflect.TypeToken;
 
 public class TestAnomalyPredictionTimeSeries {
   private static final int BASE_TIME = 1356998400;

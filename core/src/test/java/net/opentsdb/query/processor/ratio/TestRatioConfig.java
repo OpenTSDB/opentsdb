@@ -14,14 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.ratio;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
@@ -30,6 +24,9 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
 
 public class TestRatioConfig {
   private static final NumericInterpolatorConfig NUMERIC_CONFIG = 

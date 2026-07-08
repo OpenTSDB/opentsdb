@@ -17,19 +17,14 @@ package net.opentsdb.query.processor.timeshift;
 import java.io.IOException;
 import java.util.Optional;
 
-import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.AggregatingTypedTimeSeriesIterator;
-import net.opentsdb.data.Aggregator;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.query.AggregatingQueryIterator;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryResult;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * Shifts a numeric array time series by the appropriate amount of time.

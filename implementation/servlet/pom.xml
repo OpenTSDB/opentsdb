@@ -17,7 +17,7 @@
     <packaging>jar</packaging>
     
     <properties>
-
+      <jersey.version>2.48</jersey.version>
     </properties>
     
     <dependencyManagement>
@@ -36,25 +36,34 @@
         <dependency>
           <groupId>javax.servlet</groupId>
           <artifactId>javax.servlet-api</artifactId>
-          <version>3.1.0</version>
+          <version>4.0.1</version>
         </dependency>
         
         <dependency>
           <groupId>org.glassfish.jersey.core</groupId>
           <artifactId>jersey-common</artifactId>
-          <version>2.13</version>
+          <version>${jersey.version}</version>
         </dependency>
         <dependency>
           <groupId>org.glassfish.jersey.core</groupId>
           <artifactId>jersey-server</artifactId>
-          <version>2.13</version>
+          <version>${jersey.version}</version>
         </dependency>
         <dependency>
           <groupId>org.glassfish.jersey.containers</groupId>
           <artifactId>jersey-container-servlet-core</artifactId>
-          <version>2.13</version>
+          <version>${jersey.version}</version>
         </dependency>
-        
+        <!-- As of Jersey 2.26+, HK2 is a pluggable injection provider rather than a
+             baked-in transitive dependency of jersey-server (jersey-server only pulls
+             jersey-hk2 in at test scope for its own tests). Without this declared here,
+             ServiceLoader can't find an InjectionManagerFactory implementation at
+             runtime and ApplicationHandler init fails with a ServiceConfigurationError. -->
+        <dependency>
+          <groupId>org.glassfish.jersey.inject</groupId>
+          <artifactId>jersey-hk2</artifactId>
+          <version>${jersey.version}</version>
+        </dependency>
       </dependencies>
     </dependencyManagement>
     
@@ -74,6 +83,11 @@
       </dependency>
       
       <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
+      </dependency>
+
+      <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-common</artifactId>
       </dependency>
@@ -85,7 +99,11 @@
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-servlet-core</artifactId>
       </dependency>
-      
+      <dependency>
+        <groupId>org.glassfish.jersey.inject</groupId>
+        <artifactId>jersey-hk2</artifactId>
+      </dependency>
+
       <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-core</artifactId>
@@ -127,13 +145,8 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
     </dependencies>

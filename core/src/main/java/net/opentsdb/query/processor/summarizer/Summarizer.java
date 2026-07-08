@@ -14,20 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import com.google.common.collect.Maps;
-import com.stumbleupon.async.Deferred;
+import java.util.Map;
 
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.*;
 import net.opentsdb.query.processor.summarizer.SummarizerPassThroughResult.SummarizerSummarizedResult;
 import net.opentsdb.stats.Span;
 
-import java.util.Map;
+import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A node that computes summaries across a time series, such as computing

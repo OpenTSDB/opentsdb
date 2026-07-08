@@ -14,15 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Test;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+
+import org.junit.Test;
 
 public class TestInnerJoin extends BaseJoinTest {
 

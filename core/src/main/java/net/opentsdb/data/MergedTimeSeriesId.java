@@ -14,22 +14,19 @@
 // limitations under the License.
 package net.opentsdb.data;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import net.opentsdb.common.Const;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * An ID that can be used to merge multiple time series into one. Use by

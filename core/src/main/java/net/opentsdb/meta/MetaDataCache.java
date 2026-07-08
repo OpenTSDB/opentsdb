@@ -12,10 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * This is a first stab at a meta data cache. Initially it only handles

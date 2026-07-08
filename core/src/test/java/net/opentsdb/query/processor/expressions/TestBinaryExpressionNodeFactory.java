@@ -14,13 +14,9 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -35,6 +31,9 @@ import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestBinaryExpressionNodeFactory {
 

@@ -14,24 +14,27 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Iterator;
+import java.util.Map;
+
+
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.utils.Pair;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Iterator;
-import java.util.Map;
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 /**
  * The base factory for interpolators. It stores the interpolators by
@@ -41,7 +44,7 @@ import java.util.Map;
  * 
  * @since 3.0
  */
-public abstract class BaseQueryIntperolatorFactory extends BaseTSDBPlugin 
+public abstract class BaseQueryIntperolatorFactory extends BaseTSDBPlugin
     implements QueryInterpolatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       BaseQueryIntperolatorFactory.class);

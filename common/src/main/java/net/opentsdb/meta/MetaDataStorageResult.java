@@ -17,10 +17,10 @@ package net.opentsdb.meta;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.reflect.TypeToken;
 
-import java.util.Set;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UniqueKeyPair;

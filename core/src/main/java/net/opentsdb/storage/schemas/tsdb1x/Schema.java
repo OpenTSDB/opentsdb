@@ -20,31 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.LowLevelTimeSeriesData;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesDatumId;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.data.TimeSeriesDatumStringId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -58,20 +39,24 @@ import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
+import net.opentsdb.storage.DatumIdValidator;
 import net.opentsdb.storage.TimeSeriesDataConsumer;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
-import net.opentsdb.storage.DatumIdValidator;
-import net.opentsdb.uid.IdOrError;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdFactory;
-import net.opentsdb.uid.UniqueIdStore;
-import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.*;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.XXHash;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
 /**
  * The interface for an OpenTSDB version 1 and version 2 schema where 

@@ -14,18 +14,19 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.stats.Span;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.stats.Span;
 
 /**
  * Filters by matching a case sensitive literal string for the metric.

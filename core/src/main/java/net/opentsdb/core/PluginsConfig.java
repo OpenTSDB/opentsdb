@@ -20,14 +20,20 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.exceptions.PluginLoadException;
+import net.opentsdb.query.pojo.Validatable;
+import net.opentsdb.utils.Deferreds;
+import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.PluginLoader;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -35,12 +41,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.exceptions.PluginLoadException;
-import net.opentsdb.query.pojo.Validatable;
-import net.opentsdb.utils.Deferreds;
-import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.PluginLoader;
 
 /**
  * The configuration class that handles loading, initializing and shutting down

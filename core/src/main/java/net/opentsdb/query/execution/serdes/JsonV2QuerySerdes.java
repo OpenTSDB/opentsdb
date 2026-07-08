@@ -22,25 +22,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -58,6 +43,15 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
 /**
  * Simple serializer that outputs the time series in the same format as

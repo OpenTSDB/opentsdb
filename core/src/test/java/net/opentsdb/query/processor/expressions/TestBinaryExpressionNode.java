@@ -14,46 +14,27 @@
 // limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.*;
 
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
@@ -63,6 +44,15 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UnitTestException;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 public class TestBinaryExpressionNode {
 
@@ -323,9 +313,9 @@ public class TestBinaryExpressionNode {
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
       .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -333,8 +323,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -344,8 +334,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertArrayEquals(new byte[] { 0, 0, 1 }, node.left_metric);
     assertArrayEquals(new byte[] { 0, 0, 2 }, node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -355,8 +345,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
     
@@ -432,9 +422,9 @@ public class TestBinaryExpressionNode {
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
       .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -442,8 +432,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertArrayEquals("sub".getBytes(Const.UTF8_CHARSET), node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -453,8 +443,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertArrayEquals(new byte[] { 0, 0, 1 }, node.left_metric);
     assertArrayEquals("sub".getBytes(Const.UTF8_CHARSET), node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -464,8 +454,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
     
@@ -540,7 +530,7 @@ public class TestBinaryExpressionNode {
       .thenReturn(Collections.emptyList()); // avoid having to not-mock out the id.
     
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -548,8 +538,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, never()).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, never()).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -559,8 +549,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, never()).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, never()).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
     
@@ -621,9 +611,9 @@ public class TestBinaryExpressionNode {
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
       .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -631,8 +621,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -642,8 +632,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertArrayEquals(new byte[] { 0, 0, 1 }, node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -653,8 +643,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, times(1)).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
   }
@@ -711,9 +701,9 @@ public class TestBinaryExpressionNode {
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
       .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -721,8 +711,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -732,8 +722,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertArrayEquals(new byte[] { 0, 0, 2 }, node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -743,8 +733,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, times(1)).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
   }
@@ -802,9 +792,9 @@ public class TestBinaryExpressionNode {
 
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
             .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
             .thenReturn(tags);
 
     node.onNext(r1);
@@ -812,8 +802,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -823,8 +813,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertArrayEquals(new byte[] { 0, 0, 2 }, node.left_metric);
     assertNotNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -834,8 +824,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, times(1)).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertEquals(1, node.joiner.encodedJoins().size());
     assertArrayEquals(new byte[] { 0, 0, 3 }, node.joiner.encodedJoins().get(new byte[] { 0, 0, 3 }));
   }
@@ -890,9 +880,9 @@ public class TestBinaryExpressionNode {
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
       .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -900,8 +890,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -911,8 +901,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, times(1)).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -971,9 +961,9 @@ public class TestBinaryExpressionNode {
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
       .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -981,8 +971,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -992,8 +982,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertArrayEquals(new byte[] { 0, 0, 1 }, node.left_metric);
     assertArrayEquals(new byte[] { 0, 0, 2 }, node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -1003,8 +993,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, times(1)).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.joiner.encodedJoins());
   }
  
@@ -1061,9 +1051,9 @@ public class TestBinaryExpressionNode {
     
     Deferred<List<byte[]>> metrics = new Deferred<List<byte[]>>();
     Deferred<List<byte[]>> tags = new Deferred<List<byte[]>>();
-    when(store.encodeJoinMetrics(any(List.class), any(Span.class)))
+    when(store.encodeJoinMetrics(any(List.class), nullable(Span.class)))
       .thenReturn(metrics);
-    when(store.encodeJoinKeys(any(List.class), any(Span.class)))
+    when(store.encodeJoinKeys(any(List.class), nullable(Span.class)))
       .thenReturn(tags);
     
     node.onNext(r1);
@@ -1071,8 +1061,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, never()).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, never()).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.left_metric);
     assertNull(node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -1082,8 +1072,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, never()).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertArrayEquals(new byte[] { 0, 0, 1 }, node.left_metric);
     assertArrayEquals(new byte[] { 0, 0, 2 }, node.right_metric);
     assertNull(node.joiner.encodedJoins());
@@ -1093,8 +1083,8 @@ public class TestBinaryExpressionNode {
     verify(upstream, never()).onNext(any(QueryResult.class));
     verify(upstream, times(1)).onError(any(Throwable.class));
     verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
-    verify(store, times(1)).encodeJoinMetrics(any(List.class), any(Span.class));
-    verify(store, times(1)).encodeJoinKeys(any(List.class), any(Span.class));
+    verify(store, times(1)).encodeJoinMetrics(any(List.class), nullable(Span.class));
+    verify(store, times(1)).encodeJoinKeys(any(List.class), nullable(Span.class));
     assertNull(node.joiner.encodedJoins());
   }
 

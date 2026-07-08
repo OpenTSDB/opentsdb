@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.data.types.alert;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * A specific instance of an alert value. Just a simple object with a builder

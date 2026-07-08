@@ -14,9 +14,10 @@
 // limitations under the License.
 package net.opentsdb.collections;
 
-import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
+
+
+import sun.misc.Unsafe;
 
 /**
  * An internal helper class to access {@link Unsafe}.

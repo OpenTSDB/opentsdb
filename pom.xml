@@ -114,8 +114,22 @@
   </modules>
 
   <properties>
-    <slf4j.version>1.7.35</slf4j.version>
-    <log4j.version>2.17.1</log4j.version>
+    <antlr4.version>4.9.3</antlr4.version>
+    <apache.httpasyncclient.version>4.1.5</apache.httpasyncclient.version>
+    <apache.httpclient.version>4.5.14</apache.httpclient.version>
+    <bouncycastle.version>1.84</bouncycastle.version>
+    <jackson.version>2.22.0</jackson.version>
+    <log4j.version>2.26.0</log4j.version>
+    <logback.version>1.2.13</logback.version>
+    <maven.plugin.assembly.version>3.6.0</maven.plugin.assembly.version>
+    <maven.plugin.jar.version>3.3.0</maven.plugin.jar.version>
+    <maven.plugin.shade.version>3.5.1</maven.plugin.shade.version>
+    <mockito.version>4.11.0</mockito.version>
+    <powermock.version>1.6.2</powermock.version>
+    <protobuf.version>3.25.9</protobuf.version>
+    <slf4j.version>1.7.36</slf4j.version>
+
+    <jvm.opens></jvm.opens>
   </properties>
 
   <!-- Dependencies shared by all (or most) modules in the OpenTSDB project. -->
@@ -124,7 +138,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>23.6.1-jre</version>
+            <version>33.6.0-jre</version>
         </dependency>
         
         <dependency>
@@ -152,11 +166,27 @@
           <artifactId>log4j-core</artifactId>
           <version>${log4j.version}</version>
         </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
 
+        <!-- Unify ALL netty artifacts on one 4.1.x line. The codec/http/http2/handler
+             jars (13 High CVEs) arrive at 4.1.59 via aws-sdk netty-nio-client 2.15.82
+             (opentsdb-aura-aws); importing the BOM also removes the current
+             4.1(codec)/4.2(common) split. 4.1.x targets Java 6+. -->
         <dependency>
           <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-          <version>4.1.9.Final</version>
+          <artifactId>netty-bom</artifactId>
+          <version>4.1.135.Final</version>
+          <type>pom</type>
+          <scope>import</scope>
         </dependency>
         
         <dependency>
@@ -168,41 +198,80 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.9.10</version>
+          <version>2.22</version> <!-- not same as other jackson artifacts... -->
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.9.10</version>
+          <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.10.8</version>
+          <version>${jackson.version}</version>
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.dataformat</groupId>
           <artifactId>jackson-dataformat-yaml</artifactId>
-          <version>2.9.10</version>
+          <version>${jackson.version}</version>
+        </dependency>
+        <!-- Pin snakeyaml to the exact version jackson-dataformat-yaml 2.22.0 declares so it
+             can't drift to a snapshot. -->
+        <dependency>
+          <groupId>org.yaml</groupId>
+          <artifactId>snakeyaml</artifactId>
+          <version>2.5</version>
         </dependency>
 
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-core</artifactId>
-            <version>1.2.9</version>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.2.9</version>
-        </dependency>
-        
-        <dependency>
             <groupId>org.openjdk.jol</groupId>
             <artifactId>jol-core</artifactId>
-            <version>0.9</version>
+            <version>0.17</version>
         </dependency>
-        
+
+        <!-- Force fixed versions of transitives that land in the shipped lib/ (both stay Java 8):
+             aerospike-client via opentsdb-aura-aerospike  -> CVE-2023-36480 (fixed 5.2.0)
+             bcprov-jdk18on   via athenz/aura              -> GHSA-574f-3g2m-x479 (jdk18on = JDK 1.8+) -->
+        <dependency>
+            <groupId>com.aerospike</groupId>
+            <artifactId>aerospike-client</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+        <!-- Match bcpkix/bcutil to the pinned bcprov (BC requires matching versions
+             across the trio; they otherwise resolve to 1.78 via athenz-cert-refresher). -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcutil-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+        <!-- egads shades org.json 20140107 (2 High); jedis already runs on 20251224,
+             so aligning reactor-wide is safe (org.json API is stable back to 2014). -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20251224</version>
+        </dependency>
+        <!-- aura-aws drags in athenz-zts-java-client 1.10.11 (which bundles the vulnerable
+             jackson 2.12.2 -> 7 High) while the rest of the athenz stack is 1.10.62. Align
+             it to 1.10.62 so athenz is consistent. VERIFY the 1.10.62 client no longer
+             bundles the old jackson; if it still does, a newer athenz line is required.
+             1.10.x remains Java 8. -->
+        <dependency>
+            <groupId>com.yahoo.athenz</groupId>
+            <artifactId>athenz-zts-java-client</artifactId>
+            <version>1.10.62</version>
+        </dependency>
+
         <!-- test dependencies -->
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -213,7 +282,7 @@
         <dependency>
             <groupId>org.javassist</groupId>
             <artifactId>javassist</artifactId>
-            <version>3.19.0-GA</version>
+            <version>3.31.0-GA</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -225,7 +294,13 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>1.10.19</version>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -237,13 +312,13 @@
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-api-mockito</artifactId>
-            <version>1.6.2</version>
+            <version>${powermock.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-module-junit4</artifactId>
-            <version>1.6.2</version>
+            <version>${powermock.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -256,7 +331,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.22.2</version>
         <configuration>
-            <argLine>-Xmx1024m -XX:MaxMetaspaceSize=256m</argLine>
+            <argLine>-Xmx1024m -XX:MaxMetaspaceSize=256m ${jvm.opens}</argLine>
             <reportsDirectory>../target/surefire-reports</reportsDirectory>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
@@ -265,7 +340,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.6.1</version>
+        <version>3.12.1</version>
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
@@ -293,11 +368,10 @@
         </configuration>
       </plugin>
 
-      
       <plugin>
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.3</version>
+        <version>1.7.0</version>
         <extensions>true</extensions>
         <configuration>
            <serverId>ossrh</serverId>
@@ -309,7 +383,7 @@
 	  <plugin>
 	    <groupId>pl.project13.maven</groupId>
 	    <artifactId>git-commit-id-plugin</artifactId>
-	    <version>2.2.4</version>
+	    <version>2.2.6</version>
 	    <executions>
 	      <execution>
 	        <id>gitinfo</id>
@@ -333,6 +407,25 @@
 	    </configuration>
 	  </plugin>
 	  
+      <plugin>
+        <groupId>org.openrewrite.maven</groupId>
+        <artifactId>rewrite-maven-plugin</artifactId>
+        <version>6.41.0</version>
+        <configuration>
+          <exportDatatables>true</exportDatatables>
+          <activeRecipes>
+            <recipe>org.openrewrite.java.OrderImports</recipe>
+            <recipe>org.openrewrite.java.testing.mockito.Mockito1to3Migration</recipe>
+          </activeRecipes>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.openrewrite.recipe</groupId>
+            <artifactId>rewrite-testing-frameworks</artifactId>
+            <version>3.37.0</version>
+          </dependency>
+        </dependencies>
+      </plugin>
     </plugins>
   </build>
 
@@ -344,7 +437,7 @@
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>3.0.2</version>
+            <version>3.3.4</version>
             <configuration>
               <cveUrl12Modified>https://nvd.nist.gov/feeds/xml/cve/1.2/nvdcve-modified.xml.gz</cveUrl12Modified>
               <cveUrl20Modified>https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-modified.xml.gz</cveUrl20Modified>
@@ -367,6 +460,14 @@
         </plugins>
       </build>
 	</profile>
+    <profile>
+      <id>java9plus-opens</id>
+      <activation>
+        <jdk>[9,)</jdk>
+      </activation>
+      <properties>
+        <jvm.opens>--add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED -Dnet.bytebuddy.experimental=true</jvm.opens>
+      </properties>
+    </profile>
   </profiles>
-
 </project>

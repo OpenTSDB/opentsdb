@@ -14,18 +14,17 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
 
 import net.opentsdb.query.pojo.TagVFilter;
 import net.opentsdb.query.pojo.TagVNotKeyFilter;
+
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestTagVNotKeyFilter {
   private static final String TAGK = "host";

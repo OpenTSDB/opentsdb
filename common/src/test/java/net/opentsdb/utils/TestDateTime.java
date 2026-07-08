@@ -30,22 +30,17 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.TimeZone;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 //"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
 //because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-             "ch.qos.*", "org.slf4j.*",
-             "com.sum.*", "org.xml.*"})
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class, System.class })
 public final class TestDateTime {
+
+  private MockedStatic<DateTime> mockedDateTime;
 
   //30 minute offset
   final static TimeZone AF = DateTime.timezones.get("Asia/Kabul");
@@ -66,11 +61,20 @@ public final class TestDateTime {
   final static long NON_DST_TS = 1431699673432L;
   // Tue, 15 Dec 2015 04:02:25.123 UTC
   final static long DST_TS = 1450152145123L;
+
+  final static long NOW_TS = 1357300800000L;
  
   @Before
   public void before() {
-    PowerMockito.mockStatic(System.class);
-    when(System.currentTimeMillis()).thenReturn(1357300800000L);
+    mockedDateTime = Mockito.mockStatic(DateTime.class,
+        Mockito.withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn(NOW_TS);
+    mockedDateTime.when(DateTime::nanoTime).thenReturn(NOW_TS * 1_000_000L);
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedDateTime.closeOnDemand();
   }
   
   @Test
@@ -86,32 +90,32 @@ public final class TestDateTime {
   @Test
   public void parseDateTimeStringNow() {
     long t = DateTime.parseDateTimeString("now", null);
-    assertEquals(t, 1357300800000L);
+    assertEquals(1357300800000L, t);
   }
 
   @Test
   public void parseDateTimeStringRelativeS() {
     long t = DateTime.parseDateTimeString("60s-ago", null);
-    assertEquals(60000, (System.currentTimeMillis() - t));
+    assertEquals(60000, (NOW_TS  - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeM() {
     long t = DateTime.parseDateTimeString("1m-ago", null);
-    assertEquals(60000, (System.currentTimeMillis() - t));
+    assertEquals(60000, (NOW_TS - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeH() {
     long t = DateTime.parseDateTimeString("2h-ago", null);
-    assertEquals(7200000L, (System.currentTimeMillis() - t));
+    assertEquals(7200000L, (NOW_TS - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeD() {
     long t = DateTime.parseDateTimeString("2d-ago", null);
     long x = 2 * 3600 * 24 * 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (NOW_TS - t));
   }
   
   @Test
@@ -120,14 +124,14 @@ public final class TestDateTime {
     long x = 30 * 3600;
     x *= 24;
     x *= 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (NOW_TS - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeW() {
     long t = DateTime.parseDateTimeString("3w-ago", null);
     long x = 3 * 7 * 3600 * 24 * 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (NOW_TS - t));
   }
   
   @Test
@@ -135,7 +139,7 @@ public final class TestDateTime {
     long t = DateTime.parseDateTimeString("2n-ago", null);
     long x = 2 * 30 * 3600 * 24;
     x *= 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (NOW_TS - t));
   }
   
   @Test
@@ -143,7 +147,7 @@ public final class TestDateTime {
     long t = DateTime.parseDateTimeString("2y-ago", null);
     long diff = 2 * 365 * 3600 * 24;
     diff *= 1000;
-    assertEquals(diff, (System.currentTimeMillis() - t));
+    assertEquals(diff, (NOW_TS - t));
   }
   
   @Test
@@ -565,16 +569,12 @@ public final class TestDateTime {
 
   @Test
   public void currentTimeMillis() {
-    PowerMockito.mockStatic(System.class);
-    when(System.currentTimeMillis()).thenReturn(1388534400000L);
-    assertEquals(1388534400000L, DateTime.currentTimeMillis());
+    assertEquals(1357300800000L, DateTime.currentTimeMillis());
   }
   
   @Test
   public void nanoTime() {
-    PowerMockito.mockStatic(System.class);
-    when(System.nanoTime()).thenReturn(1388534400000000000L);
-    assertEquals(1388534400000000000L, DateTime.nanoTime());
+    assertEquals(1357300800000000000L, DateTime.nanoTime());
   }
   
   @Test

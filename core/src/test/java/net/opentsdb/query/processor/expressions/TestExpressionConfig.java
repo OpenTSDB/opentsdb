@@ -14,17 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Test;
+import java.util.ArrayList;
 
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
@@ -38,7 +31,8 @@ import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
 
-import java.util.ArrayList;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
 
 public class TestExpressionConfig {
 

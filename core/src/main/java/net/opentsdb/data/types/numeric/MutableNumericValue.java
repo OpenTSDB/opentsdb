@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * A simple mutable data point for holding primitive signed numbers including 

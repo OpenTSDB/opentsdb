@@ -19,12 +19,12 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 
-import org.junit.Before;
-import org.junit.Test;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestExceptions {
   private ArrayList<Deferred<Object>> deferreds;

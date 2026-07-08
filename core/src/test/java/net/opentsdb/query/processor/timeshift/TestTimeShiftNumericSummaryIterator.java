@@ -14,29 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.processor.timeshift;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+
+
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.utils.DateTime;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.utils.DateTime;
 
 public class TestTimeShiftNumericSummaryIterator {
   private static final long BASE_TIME = 1356998400000L;

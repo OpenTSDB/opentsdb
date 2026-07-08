@@ -21,12 +21,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Properties;
-import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;

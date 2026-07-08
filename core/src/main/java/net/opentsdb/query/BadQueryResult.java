@@ -18,14 +18,15 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.rollup.RollupConfig;
+
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A simple buildable class for a failed query.

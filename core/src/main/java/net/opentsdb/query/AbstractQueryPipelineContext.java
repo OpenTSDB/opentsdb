@@ -14,17 +14,22 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.status.StatusGroupQueryResult;
 import net.opentsdb.data.types.status.Summary;
+import net.opentsdb.query.hacluster.HACluster;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.JSON;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,15 +40,6 @@ import com.google.common.graph.Traverser;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.query.hacluster.HACluster;
-import net.opentsdb.query.plan.DefaultQueryPlanner;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.JSON;
 
 /**
  * A useful base class for {@link QueryPipelineContext}s that stores references

@@ -21,6 +21,18 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryResultId;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.Bytes.ByteArrayKey;
+import net.opentsdb.utils.DateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,17 +47,6 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.Bytes.ByteArrayKey;
-import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.DateTime;
 
 /**
  * A very simple and basic implementation of an on-heap, in-memory LRU cache 

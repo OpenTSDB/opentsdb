@@ -15,11 +15,13 @@
 
 package net.opentsdb.data.types.status;
 
-import com.google.common.reflect.TypeToken;
+import java.util.Map;
+
+
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeStamp;
 
-import java.util.Map;
+import com.google.common.reflect.TypeToken;
 
 /**
  * Represents a status

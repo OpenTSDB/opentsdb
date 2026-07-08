@@ -14,25 +14,15 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.util.Collection;
 import java.util.Iterator;
 
+import net.opentsdb.data.*;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 
 public class TestNumericArrayTimeSeries {
 

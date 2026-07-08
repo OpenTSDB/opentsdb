@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.data;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.data.types.numeric.NumericLongArrayType;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * A simple implementation of a PTS that contains no data. Can be used when a 

@@ -21,9 +21,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -41,15 +43,13 @@ import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupInterval;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -81,10 +81,6 @@ import net.opentsdb.storage.BigtableExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ ExecutorService.class, BigtableSession.class, 
-  Tsdb1xBigtableQueryNode.class, CredentialOptions.class,
-  Tsdb1xBigtableScanners.class, ResultScanner.class })
 public class TestTsdb1xBigtableMultiGet extends UTBase {
 
   // GMT: Monday, January 1, 2018 12:15:00 AM
@@ -101,7 +97,13 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   public QueryPipelineContext context;
   public List<byte[]> tsuids;
   public SemanticQuery query;
-  
+  private MockedConstruction<Tsdb1xBigtableScanner> mockedScanner;
+
+  @After
+  public void tearDown() {
+    if (mockedScanner != null) mockedScanner.close();
+  }
+
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xBigtableQueryNode.class);
@@ -115,15 +117,8 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
     
-    PowerMockito.whenNew(Tsdb1xBigtableScanner.class).withAnyArguments()
-      .thenAnswer(new Answer<Tsdb1xBigtableScanner>() {
-        @Override
-        public Tsdb1xBigtableScanner answer(InvocationOnMock invocation)
-            throws Throwable {
-          return mock(Tsdb1xBigtableScanner.class);
-        }
-      });
-    
+    mockedScanner = Mockito.mockConstruction(Tsdb1xBigtableScanner.class);
+
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
@@ -560,7 +555,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     // we verify odd offsets.
     when(node.sequenceEnd()).thenReturn(null);
     mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
-    Whitebox.setInternalState(mget, "batch_size", 3);
+    getField(mget, "batch_size").set(mget, 3);
     assertEquals(-1, mget.tsuid_idx);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
     
@@ -616,7 +611,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     // previous tests had a batch size matching the tsuids size. Now
     // we verify odd offsets.
     mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
-    Whitebox.setInternalState(mget, "batch_size", 3);
+    getField(mget, "batch_size").set(mget, 3);
     
     assertTrue(mget.rollups_enabled);
     assertEquals(0, mget.rollup_index);
@@ -776,7 +771,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     
     // smaller batch size
     mget = new Tsdb1xBigtableMultiGet(node, source_config, tsuids);
-    Whitebox.setInternalState(mget, "batch_size", 3);
+    getField(mget, "batch_size").set(mget, 3);
     mget.nextBatch(0, START_TS, null);
     assertEquals(3, storage.getLastMultiGets().getRows().getRowKeysCount());
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
@@ -1027,7 +1022,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   @Test
   public void onCompleteNextBatch() throws Exception {
     Tsdb1xBigtableMultiGet mget = spy(new Tsdb1xBigtableMultiGet(node, source_config, tsuids));
-    doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt(), nullable(Span.class));
     Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
     mget.current_result = result;
     mget.outstanding = 0;
@@ -1077,7 +1072,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     setMultiRollupQuery();
     
     Tsdb1xBigtableMultiGet mget = spy(new Tsdb1xBigtableMultiGet(node, source_config, tsuids));
-    doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt(), nullable(Span.class));
     Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
     mget.current_result = result;
     mget.outstanding = 0;
@@ -1112,7 +1107,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     setMultiRollupQuery();
     
     Tsdb1xBigtableMultiGet mget = spy(new Tsdb1xBigtableMultiGet(node, source_config, tsuids));
-    doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt(), nullable(Span.class));
     Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
     mget.current_result = result;
     mget.outstanding = 0;
@@ -1159,7 +1154,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_FALLBACK_RAW);
     
     Tsdb1xBigtableMultiGet mget = spy(new Tsdb1xBigtableMultiGet(node, source_config, tsuids));
-    doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt(), nullable(Span.class));
     Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
     mget.current_result = result;
     mget.outstanding = 0;
@@ -1185,7 +1180,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
     
     Tsdb1xBigtableMultiGet mget = spy(new Tsdb1xBigtableMultiGet(node, source_config, tsuids));
-    doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt(), nullable(Span.class));
     Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
     mget.current_result = result;
     mget.outstanding = 0;
@@ -1208,7 +1203,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
   @Test
   public void fetchNext() throws Exception {
     Tsdb1xBigtableMultiGet mget = spy(new Tsdb1xBigtableMultiGet(node, source_config, tsuids));
-    doNothing().when(mget).nextBatch(anyInt(), anyInt(), any(Span.class));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt(), nullable(Span.class));
     Tsdb1xBigtableQueryResult result = mock(Tsdb1xBigtableQueryResult.class);
     
     mget.fetchNext(result, null);
@@ -1260,7 +1255,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
     verify(result, times(32)).decode(any(Row.class), 
-        any(DefaultRollupInterval.class));
+        nullable(DefaultRollupInterval.class));
     verifySpan(Tsdb1xBigtableMultiGet.class.getName() + ".fetchNext", 18);
   }
 
@@ -1283,7 +1278,7 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
     verify(result, times(28)).decode(any(Row.class), 
-        any(DefaultRollupInterval.class));
+        nullable(DefaultRollupInterval.class));
     verifySpan(Tsdb1xBigtableMultiGet.class.getName() + ".fetchNext", 
         ExecutionException.class, 9);
   }
@@ -1328,5 +1323,14 @@ public class TestTsdb1xBigtableMultiGet extends UTBase {
             .setStartTimeStamp(new SecondTimeStamp(start))
             .setEndTimeStamp(new SecondTimeStamp(end))
             .setId("m1");
+  }
+
+  private static Field getField(final Object obj, final String fieldName) throws Exception {
+    Class<?> clazz = obj.getClass();
+    while (clazz != null) {
+      try { Field f = clazz.getDeclaredField(fieldName); f.setAccessible(true); return f; }
+      catch (NoSuchFieldException e) { clazz = clazz.getSuperclass(); }
+    }
+    throw new NoSuchFieldException(fieldName);
   }
 }

@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.processor.bucketquantile;
 
-import com.google.common.collect.Maps;
-
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
+
+import com.google.common.collect.Maps;
 
 /**
  * Base implementation for the iterators.

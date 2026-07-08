@@ -14,35 +14,27 @@
 // limitations under the License.
 package net.opentsdb.query.plan;
 
-import com.google.common.collect.Lists;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.MockTSDSFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.*;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.plan.QueryPlanner.TimeAdjustments;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
-
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.utils.JSON;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import com.google.common.collect.Lists;
 
 public class TestDefaultQueryPlanner extends BaseTestDefaultQueryPlanner {
 

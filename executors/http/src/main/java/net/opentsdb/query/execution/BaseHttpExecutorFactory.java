@@ -21,8 +21,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.concurrent.FutureCallback;
@@ -44,7 +42,9 @@ import io.netty.util.TimerTask;
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.SharedHttpClient;
 

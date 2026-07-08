@@ -16,15 +16,6 @@ package net.opentsdb.storage;
 
 import java.util.List;
 
-import net.opentsdb.query.plan.DefaultQueryPlanner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -37,18 +28,28 @@ import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Simple little factory that returns a {@link MockDataStore}.
  * 
  * @since 3.0
  */
-public class MockDataStoreFactory extends BaseTSDBPlugin 
-  implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode>,
+public class MockDataStoreFactory extends BaseTSDBPlugin
+    implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, MockDataStore.LocalNode>,
              TimeSeriesDataConsumerFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       MockDataStoreFactory.class);

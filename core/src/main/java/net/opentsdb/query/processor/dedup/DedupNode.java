@@ -14,30 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.processor.dedup;
 
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.stream.Collectors;
+
+
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.*;
+
+import com.google.common.reflect.TypeToken;
+
 /**
  * A node that handles deduplication and/or sorting of time series values
  * from underlying iterators.

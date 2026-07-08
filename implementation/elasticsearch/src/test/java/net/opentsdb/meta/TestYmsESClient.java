@@ -20,8 +20,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -43,14 +43,13 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.mockito.MockedConstruction;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
@@ -60,13 +59,12 @@ import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ YmsESClient.class, TransportClient.class })
 public class TestYmsESClient {
 
   private MockTSDB tsdb;
   private List<TransportClient> clients;
   private List<Settings> settings;
+  private MockedConstruction<TransportClient> mockedTransportClient;
 
   @Before
   public void before() throws Exception {
@@ -76,20 +74,21 @@ public class TestYmsESClient {
     YmsESClient.registerConfigs(tsdb);
     tsdb.config.override(YmsESClient.CLUSTERS_KEY, "esbf1,esgq1");
 
-    PowerMockito.whenNew(TransportClient.class).withAnyArguments()
-            .thenAnswer(new Answer<TransportClient>() {
-              @Override
-              public TransportClient answer(InvocationOnMock invocation)
-                      throws Throwable {
-                if (invocation.getArguments()[0] == null) {
-                  return mock(TransportClient.class);
-                }
-                settings.add((Settings) invocation.getArguments()[0]);
-                TransportClient client = mock(TransportClient.class);
-                clients.add(client);
-                return client;
-              }
-            });
+    mockedTransportClient = Mockito.mockConstruction(TransportClient.class,
+        (mock, context) -> {
+          List<?> args = context.arguments();
+          if (!args.isEmpty() && args.get(0) != null) {
+            settings.add((Settings) args.get(0));
+            clients.add(mock);
+          }
+        });
+  }
+
+  @After
+  public void after() {
+    if (mockedTransportClient != null) {
+      mockedTransportClient.close();
+    }
   }
 
   @Test

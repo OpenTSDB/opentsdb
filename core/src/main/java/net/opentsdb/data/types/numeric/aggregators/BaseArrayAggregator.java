@@ -14,14 +14,14 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
-import com.google.common.reflect.TypeToken;
+import java.util.Arrays;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.pools.ArrayObjectPool;
 import net.opentsdb.pools.PooledObject;
 
-import java.util.Arrays;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A base implementation for numeric array aggregation functions.

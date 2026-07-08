@@ -16,13 +16,11 @@ package net.opentsdb.grpc;
 
 import java.util.List;
 
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryNodeConfig;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
@@ -39,6 +37,8 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.grpc.QueryRpcBetaGrpc.QueryRpcBetaStub;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
@@ -55,7 +55,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public class QueryGRPCClientFactory extends BaseTSDBPlugin 
+public class QueryGRPCClientFactory extends BaseTSDBPlugin
     implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, QueryGRPCClient> {
   private static final Logger LOG = LoggerFactory.getLogger(
       QueryGRPCClientFactory.class);

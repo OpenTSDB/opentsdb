@@ -22,9 +22,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -33,28 +34,24 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.rollup.RollupInterval;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.RowFilter.Chain;
 import com.google.bigtable.v2.RowFilter.Interleave;
-import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
 import com.stumbleupon.async.Deferred;
@@ -92,10 +89,6 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes.ByteMap;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ ExecutorService.class, BigtableSession.class, 
-  Tsdb1xBigtableQueryNode.class, CredentialOptions.class,
-  Tsdb1xBigtableScanners.class })
 public class TestTsdb1xBigtableScanners extends UTBase {
 
   private Tsdb1xBigtableQueryNode node;
@@ -103,7 +96,8 @@ public class TestTsdb1xBigtableScanners extends UTBase {
   private DefaultRollupConfig rollup_config;
   private QueryPipelineContext context;
   private SemanticQuery query;
-  
+  private MockedConstruction<Tsdb1xBigtableScanner> mockedScanner;
+
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xBigtableQueryNode.class);
@@ -111,16 +105,12 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     when(node.parent()).thenReturn(data_store);
     rollup_config = mock(DefaultRollupConfig.class);
     when(schema.rollupConfig()).thenReturn(rollup_config);
-    
-    PowerMockito.whenNew(Tsdb1xBigtableScanner.class).withAnyArguments()
-      .thenAnswer(new Answer<Tsdb1xBigtableScanner>() {
-        @Override
-        public Tsdb1xBigtableScanner answer(InvocationOnMock invocation)
-            throws Throwable {
-          return mock(Tsdb1xBigtableScanner.class);
-        }
-      });
-    
+
+    mockedScanner = Mockito.mockConstruction(Tsdb1xBigtableScanner.class,
+        (mock, ctx) -> {
+          when(mock.state()).thenReturn(State.CONTINUE);
+        });
+
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
@@ -150,19 +140,13 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     when(node.pipelineContext()).thenReturn(context);
     when(context.upstreamOfType(any(QueryNode.class), any()))
       .thenReturn(Collections.emptyList());
-    
-    PowerMockito.whenNew(Tsdb1xBigtableScanner.class).withAnyArguments()
-    .thenAnswer(new Answer<Tsdb1xBigtableScanner>() {
-      @Override
-      public Tsdb1xBigtableScanner answer(InvocationOnMock invocation)
-          throws Throwable {
-        Tsdb1xBigtableScanner mock_scanner = mock(Tsdb1xBigtableScanner.class);
-        when(mock_scanner.state()).thenReturn(State.CONTINUE);
-        return mock_scanner;
-      }
-  });
   }
-  
+
+  @After
+  public void tearDown() {
+    if (mockedScanner != null) mockedScanner.close();
+  }
+
   @Test
   public void ctorDefaults() throws Exception {
     try {
@@ -393,9 +377,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         request.getRows().getRowRanges(0).getEndKeyOpen().toByteArray());
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     
     trace = new MockTrace(true);
     scanners = new Tsdb1xBigtableScanners(node, source_config);
@@ -427,7 +411,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertTrue(scanners.initialized);
     for (int i = 0; i < 6; i++) {
       verify(scanners.scanners.get(0)[i], times(1))
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     }
   }
   
@@ -458,7 +442,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
         chain.getFilters(1).getFamilyNameRegexFilterBytes().toByteArray());
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -493,7 +477,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertTrue(scanners.initialized);
     for (int i = 0; i < 6; i++) {
       verify(scanners.scanners.get(0)[i], times(1))
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     }
   }
   
@@ -528,10 +512,10 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .build();
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
-    Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
+    getField(scanners, "enable_fuzzy_filter").set(scanners, true);
     FilterCB filter_cb = mock(FilterCB.class);
-    Whitebox.setInternalState(filter_cb, "explicit_tags", true);
-    Whitebox.setInternalState(scanners, "filter_cb", filter_cb);
+    getField(filter_cb, "explicit_tags").set(filter_cb, true);
+    getField(scanners, "filter_cb").set(scanners, filter_cb);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -551,7 +535,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertTrue(chain.getFilters(0).getRowKeyRegexFilter().toByteArray().length > 0);
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -617,11 +601,11 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(1)[0], never())
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(2)[0], never())
-    .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+    .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -658,7 +642,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -738,11 +722,11 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(1)[0], never())
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(2)[0], never())
-    .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+    .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -801,9 +785,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(1)[0], never())
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -865,9 +849,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertTrue(scanners.initialized);
     for (int i = 0; i < 6; i++) {
       verify(scanners.scanners.get(0)[i], times(1))
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
       verify(scanners.scanners.get(1)[i], never())
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     }
   }
   
@@ -934,9 +918,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertTrue(scanners.initialized);
     for (int i = 0; i < 6; i++) {
       verify(scanners.scanners.get(0)[i], times(1))
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
       verify(scanners.scanners.get(1)[i], never())
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     }
   }
   
@@ -1012,9 +996,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(1)[0], never())
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -1077,9 +1061,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(1)[0], never())
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -1124,10 +1108,10 @@ public class TestTsdb1xBigtableScanners extends UTBase {
           .build()));
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
-    Whitebox.setInternalState(scanners, "enable_fuzzy_filter", true);
+    getField(scanners, "enable_fuzzy_filter").set(scanners, true);
     FilterCB filter_cb = mock(FilterCB.class);
-    Whitebox.setInternalState(filter_cb, "explicit_tags", true);
-    Whitebox.setInternalState(scanners, "filter_cb", filter_cb);
+    getField(filter_cb, "explicit_tags").set(filter_cb, true);
+    getField(scanners, "filter_cb").set(scanners, filter_cb);
     scanners.row_key_literals = new ByteMap<List<byte[]>>();
     scanners.row_key_literals.put(TAGK_BYTES, 
         Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES));
@@ -1178,9 +1162,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     assertTrue(scanners.initialized);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(1)[0], never())
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -1214,7 +1198,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(2, scanners.row_key_literals.size());
@@ -1256,7 +1240,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     scanners.current_result = results;
     cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(2, scanners.row_key_literals.size());
@@ -1301,7 +1285,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(2, scanners.row_key_literals.size());
@@ -1343,7 +1327,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     scanners.current_result = results;
     cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(2, scanners.row_key_literals.size());
@@ -1382,7 +1366,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1397,9 +1381,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     // under the cardinality threshold.
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     scanners.current_result = results;
-    Whitebox.setInternalState(scanners, "max_multi_get_cardinality", 1);
+    getField(scanners, "max_multi_get_cardinality").set(scanners, 1);
     cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1443,7 +1427,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1472,16 +1456,16 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
     } catch (NoSuchUniqueName e) { }
     
     // skipping won't solve this
-    Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
+    getField(scanners, "skip_nsun_tagvs").set(scanners, true);
     cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
@@ -1501,7 +1485,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     setConfig(filter, null, false);
       
     cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
@@ -1526,7 +1510,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     try {
       cb.call(schema.resolveUids(filter, null).join());
       fail("Expected NoSuchUniqueName");
@@ -1535,9 +1519,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     // skipping works
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     scanners.current_result = results;
-    Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
+    getField(scanners, "skip_nsun_tagvs").set(scanners, true);
     cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(2, scanners.row_key_literals.size());
@@ -1567,9 +1551,9 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableScanners scanners = new Tsdb1xBigtableScanners(node, source_config);
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
-    Whitebox.setInternalState(scanners, "expansion_limit", 3);
+    getField(scanners, "expansion_limit").set(scanners, 3);
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(2, scanners.row_key_literals.size());
@@ -1615,7 +1599,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1662,7 +1646,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     Tsdb1xBigtableQueryResult results = mock(Tsdb1xBigtableQueryResult.class);
     scanners.current_result = results;
     FilterCB cb = scanners.new FilterCB(METRIC_BYTES, null);
-    Whitebox.setInternalState(scanners, "filter_cb", cb);
+    getField(scanners, "filter_cb").set(scanners, cb);
     cb.call(schema.resolveUids(filter, null).join());
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1692,7 +1676,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     
     trace = new MockTrace(true);
     scanners = new Tsdb1xBigtableScanners(node, source_config);
@@ -1726,7 +1710,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -1791,7 +1775,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     // can't ignore with explicit tags
     scanners = new Tsdb1xBigtableScanners(node, source_config);
     scanners.current_result = result;
-    Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
+    getField(scanners, "skip_nsun_tagks").set(scanners, true);
     scanners.initialize(null);
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1824,7 +1808,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
           .build();
     setConfig(filter, null, false);
     scanners = new Tsdb1xBigtableScanners(node, source_config);
-    Whitebox.setInternalState(scanners, "skip_nsun_tagks", true);
+    getField(scanners, "skip_nsun_tagks").set(scanners, true);
     scanners.initialize(null);
     
     assertEquals(1, scanners.row_key_literals.size());
@@ -1897,7 +1881,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(scanners.scanners.get(0)[0], times(1))
-       .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+       .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     assertEquals(0, scanners.scanner_index);
     
     try {
@@ -1921,7 +1905,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(scanners.scanners.get(0)[0], times(2))
-    .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+    .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     assertEquals(0, scanners.scanner_index);
   }
   
@@ -1944,7 +1928,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     assertNull(scanners.current_result);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -1968,7 +1952,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertNotNull(scanners.current_result);
     for (int i = 0; i < 6; i++) {
       verify(scanners.scanners.get(0)[i], times(1))
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     }
     
     // the rest
@@ -1982,7 +1966,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertNull(scanners.current_result);
     for (int i = 0; i < 6; i++) {
       verify(scanners.scanners.get(0)[i], times(1))
-        .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+        .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     }
   }
   
@@ -2008,11 +1992,11 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     assertNotNull(scanners.current_result);
     assertEquals(1, scanners.scanner_index);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(1)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
     verify(scanners.scanners.get(2)[0], never())
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -2036,7 +2020,7 @@ public class TestTsdb1xBigtableScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     assertNull(scanners.current_result);
     verify(scanners.scanners.get(0)[0], times(1))
-      .fetchNext(any(Tsdb1xBigtableQueryResult.class), any());
+      .fetchNext(nullable(Tsdb1xBigtableQueryResult.class), any());
   }
   
   @Test
@@ -2326,5 +2310,14 @@ public class TestTsdb1xBigtableScanners extends UTBase {
             .setEndTimeStamp(new SecondTimeStamp(end))
             .setFilterId(filter)
             .setId("m1");
+  }
+
+  private static Field getField(final Object obj, final String fieldName) throws Exception {
+    Class<?> clazz = obj.getClass();
+    while (clazz != null) {
+      try { Field f = clazz.getDeclaredField(fieldName); f.setAccessible(true); return f; }
+      catch (NoSuchFieldException e) { clazz = clazz.getSuperclass(); }
+    }
+    throw new NoSuchFieldException(fieldName);
   }
 }

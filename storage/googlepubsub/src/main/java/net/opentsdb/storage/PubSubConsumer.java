@@ -23,8 +23,8 @@ import net.opentsdb.storage.TimeSeriesDataConsumer.WriteCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.api.client.repackaged.com.google.common.base.Strings;
-import com.google.api.client.util.Lists;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.api.gax.core.FixedCredentialsProvider;

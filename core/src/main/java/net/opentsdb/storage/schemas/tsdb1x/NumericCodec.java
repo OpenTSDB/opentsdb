@@ -16,7 +16,6 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.Arrays;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -29,6 +28,8 @@ import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.utils.Bytes;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * TODO - doc me and finish me

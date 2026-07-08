@@ -14,26 +14,11 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.configuration.UnitTestConfiguration;
@@ -46,20 +31,27 @@ import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.utils.UnitTestException;
 
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
+
 public class TestLRUUniqueId {
   private static final String DEFAULT_ID = "default";
   private static final byte[] UID1 = new byte[] { 0, 0, 1 };
   private static final byte[] UID2 = new byte[] { 0, 0, 2 };
   private static final byte[] UID3 = new byte[] { 0, 0, 3 };
   private static final byte[] UID4 = new byte[] { 0, 0, 4 };
-  
+
   private static final String STRING1 = "sys.cpu.user";
   private static final String STRING2 = "host";
   private static final String STRING3 = "web01";
   private static final String STRING4 = "web02";
-  
+
   private static TimeSeriesDatumId ID;
-  
+
   private static MockTSDB tsdb;
   private MockTrace trace;
   private UniqueIdStore store;
@@ -72,26 +64,26 @@ public class TestLRUUniqueId {
         .addTags(STRING2, STRING3)
         .build();
   }
-  
+
   @Before
   public void before() throws Exception {
     resetConfig();
     store = mock(UniqueIdStore.class);
-    
+
   }
-  
+
   @Test
   public void ctor() throws Exception {
     LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     assertEquals(UniqueIdType.METRIC, lru.type());
   }
-  
+
   @Test
   public void getName() throws Exception {
-    when(store.getName(any(UniqueIdType.class), any(byte[].class), 
-        any(Span.class)))
+    when(store.getName(any(UniqueIdType.class), any(byte[].class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(STRING1));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertEquals(STRING1, lru.getName(UID1, null).join());
     assertEquals(STRING1, lru.getName(UID1, null).join());
@@ -99,14 +91,14 @@ public class TestLRUUniqueId {
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
     verify(store, times(1)).getName(UniqueIdType.METRIC, UID1, null);
-    
+
     trace = new MockTrace();
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     assertEquals(STRING1, lru.getName(UID1, trace.newSpan("UT").start()).join());
     assertEquals(STRING1, lru.getName(UID1, trace.newSpan("UT").start()).join());
     assertEquals(STRING1, lru.getName(UID1, trace.newSpan("UT").start()).join());
     assertEquals(0, trace.spans.size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     assertEquals(STRING1, lru.getName(UID1, trace.newSpan("UT").start()).join());
@@ -119,23 +111,23 @@ public class TestLRUUniqueId {
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(2).tags.get("fromCache"));
   }
-  
+
   @Test
   public void getNameNull() throws Exception {
-    when(store.getName(any(UniqueIdType.class), any(byte[].class), 
-        any(Span.class)))
+    when(store.getName(any(UniqueIdType.class), any(byte[].class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(null));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertNull(lru.getName(UID1, null).join());
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     verify(store, times(1)).getName(UniqueIdType.METRIC, UID1, null);
   }
-  
+
   @Test
   public void getNameIllegalArgumentException() throws Exception {
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     try {
       lru.getName(null, null);
@@ -146,14 +138,14 @@ public class TestLRUUniqueId {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
   @Test
   public void getNameModes() throws Exception {
     // read-write
-    when(store.getName(any(UniqueIdType.class), any(byte[].class), 
-        any(Span.class)))
+    when(store.getName(any(UniqueIdType.class), any(byte[].class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(STRING1));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertEquals(STRING1, lru.getName(UID1, null).join());
     assertEquals(STRING1, lru.getName(UID1, null).join());
@@ -161,7 +153,7 @@ public class TestLRUUniqueId {
     verify(store, times(1)).getName(UniqueIdType.METRIC, UID1, null);
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
-    
+
     // write only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
@@ -171,7 +163,7 @@ public class TestLRUUniqueId {
     verify(store, times(4)).getName(UniqueIdType.METRIC, UID1, null);
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     // read only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
@@ -182,13 +174,13 @@ public class TestLRUUniqueId {
     assertEquals(0, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
   }
-  
+
   @Test
   public void getNameExceptionReturned() throws Exception {
-    when(store.getName(any(UniqueIdType.class), any(byte[].class), 
-        any(Span.class)))
+    when(store.getName(any(UniqueIdType.class), any(byte[].class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromError(new StorageException("Boo!")));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     Deferred<String> deferred = lru.getName(UID1, null);
     try {
@@ -198,7 +190,7 @@ public class TestLRUUniqueId {
     verify(store, times(1)).getName(UniqueIdType.METRIC, UID1, null);
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     deferred = lru.getName(UID1, trace.newSpan("UT").start());
@@ -206,20 +198,20 @@ public class TestLRUUniqueId {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getName(eq(UniqueIdType.METRIC), eq(UID1), 
-        any(Span.class));
+    verify(store, times(2)).getName(eq(UniqueIdType.METRIC), eq(UID1),
+        nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getNameExceptionThrown() throws Exception {
-    when(store.getName(any(UniqueIdType.class), any(byte[].class), 
-        any(Span.class)))
+    when(store.getName(any(UniqueIdType.class), any(byte[].class),
+        nullable(Span.class)))
       .thenThrow(new StorageException("Boo!"));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     Deferred<String> deferred = lru.getName(UID1, null);
     try {
@@ -229,7 +221,7 @@ public class TestLRUUniqueId {
     verify(store, times(1)).getName(UniqueIdType.METRIC, UID1, null);
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     deferred = lru.getName(UID1, trace.newSpan("UT").start());
@@ -237,47 +229,47 @@ public class TestLRUUniqueId {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getName(eq(UniqueIdType.METRIC), eq(UID1), 
-        any(Span.class));
+    verify(store, times(2)).getName(eq(UniqueIdType.METRIC), eq(UID1),
+        nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getNames() throws Exception {
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, STRING2)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     List<String> names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     trace = new MockTrace();
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    names = lru.getNames(Lists.newArrayList(UID1, UID2), 
+    names = lru.getNames(Lists.newArrayList(UID1, UID2),
         trace.newSpan("UT").start()).join();
     assertEquals(0, trace.spans.size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    names = lru.getNames(Lists.newArrayList(UID1, UID2), 
+    names = lru.getNames(Lists.newArrayList(UID1, UID2),
         trace.newSpan("UT").start()).join();
-    names = lru.getNames(Lists.newArrayList(UID1, UID2), 
+    names = lru.getNames(Lists.newArrayList(UID1, UID2),
         trace.newSpan("UT").start()).join();
     assertEquals(2, trace.spans.size());
     assertEquals(LRUUniqueId.class.getName() + ".getNames", trace.spans.get(0).id);
@@ -285,27 +277,27 @@ public class TestLRUUniqueId {
     assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
   }
-  
+
   @Test
   public void getNamesSameIDs() throws Exception {
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, STRING1, STRING1)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     List<String> names = lru.getNames(Lists.newArrayList(UID1, UID1, UID1), null).join();
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING1, names.get(1));
     assertEquals(STRING1, names.get(2));
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
   }
-  
+
   @Test
   public void getNamesIllegalArgumentException() throws Exception {
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     try {
       lru.getNames(null, null);
@@ -316,58 +308,58 @@ public class TestLRUUniqueId {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
   @Test
   public void getNamesPartialCacheHit() throws Exception {
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING2)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.idCache().put(UniqueId.uidToString(UID1), STRING1);
-    
+
     List<String> names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(2, names.size());
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     // fully satisfied from cache
     names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(2, names.size());
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     // staggered
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, STRING3)));
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.idCache().put(UniqueId.uidToString(UID2), STRING2);
     lru.idCache().put(UniqueId.uidToString(UID4), STRING4);
-    
+
     names = lru.getNames(Lists.newArrayList(UID1, UID2, UID3, UID4), null).join();
     assertEquals(4, names.size());
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
     assertEquals(STRING3, names.get(2));
     assertEquals(STRING4, names.get(3));
-    
+
     // diff order
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, STRING3)));
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.idCache().put(UniqueId.uidToString(UID2), STRING2);
     lru.idCache().put(UniqueId.uidToString(UID4), STRING4);
-    
+
     names = lru.getNames(Lists.newArrayList(UID2, UID4, UID1, UID3), null).join();
     assertEquals(4, names.size());
     assertEquals(STRING2, names.get(0));
@@ -375,135 +367,135 @@ public class TestLRUUniqueId {
     assertEquals(STRING1, names.get(2));
     assertEquals(STRING3, names.get(3));
   }
-  
+
   @Test
   public void getNamesNulls() throws Exception {
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, null)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     List<String> names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(STRING1, names.get(0));
     assertNull(names.get(1));
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
   }
-  
+
   @Test
   public void getNamesModes() throws Exception {
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, STRING2)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     // read-write
     List<String> names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     // write only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
-    verify(store, times(2)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(2)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     // read only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
     assertEquals(STRING1, names.get(0));
     assertEquals(STRING2, names.get(1));
-    verify(store, times(3)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(3)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
   }
-  
+
   @Test
   public void getNamesExceptionReturned() throws Exception {
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromError(new StorageException("Boo!")));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
-    Deferred<List<String>> deferred = 
+
+    Deferred<List<String>> deferred =
         lru.getNames(Lists.newArrayList(UID1, UID2), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    deferred = lru.getNames(Lists.newArrayList(UID1, UID2), 
+    deferred = lru.getNames(Lists.newArrayList(UID1, UID2),
         trace.newSpan("UT").start());
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getNames(eq(UniqueIdType.METRIC), 
-        any(List.class), any(Span.class));
+    verify(store, times(2)).getNames(eq(UniqueIdType.METRIC),
+        any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getNamesExceptionThrown() throws Exception {
-    when(store.getNames(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getNames(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenThrow(new StorageException("Boo!"));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     // read-write
-    Deferred<List<String>> deferred = 
+    Deferred<List<String>> deferred =
         lru.getNames(Lists.newArrayList(UID1, UID2), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    
-    deferred = lru.getNames(Lists.newArrayList(UID1, UID2), 
+
+    deferred = lru.getNames(Lists.newArrayList(UID1, UID2),
         trace.newSpan("UT").start());
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getNames(eq(UniqueIdType.METRIC), 
-        any(List.class), any(Span.class));
+    verify(store, times(2)).getNames(eq(UniqueIdType.METRIC),
+        any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getId() throws Exception {
-    when(store.getId(any(UniqueIdType.class), anyString(), 
-        any(Span.class)))
+    when(store.getId(any(UniqueIdType.class), anyString(),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(UID1));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertArrayEquals(UID1, lru.getId(STRING1, null).join());
     assertArrayEquals(UID1, lru.getId(STRING1, null).join());
@@ -511,14 +503,14 @@ public class TestLRUUniqueId {
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
     verify(store, times(1)).getId(UniqueIdType.METRIC, STRING1, null);
-    
+
     trace = new MockTrace();
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     assertArrayEquals(UID1, lru.getId(STRING1, trace.newSpan("UT").start()).join());
     assertArrayEquals(UID1, lru.getId(STRING1, trace.newSpan("UT").start()).join());
     assertArrayEquals(UID1, lru.getId(STRING1, trace.newSpan("UT").start()).join());
     assertEquals(0, trace.spans.size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     assertArrayEquals(UID1, lru.getId(STRING1, trace.newSpan("UT").start()).join());
@@ -531,23 +523,23 @@ public class TestLRUUniqueId {
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(2).tags.get("fromCache"));
   }
-  
+
   @Test
   public void getIdNull() throws Exception {
-    when(store.getId(any(UniqueIdType.class), anyString(), 
-        any(Span.class)))
+    when(store.getId(any(UniqueIdType.class), anyString(),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(null));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertNull(lru.getId(STRING1, null).join());
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     verify(store, times(1)).getId(UniqueIdType.METRIC, STRING1, null);
   }
-  
+
   @Test
   public void getIdIllegalArgumentException() throws Exception {
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     try {
       lru.getId(null, null);
@@ -558,14 +550,14 @@ public class TestLRUUniqueId {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
   @Test
   public void getIdModes() throws Exception {
     // read-write
-    when(store.getId(any(UniqueIdType.class), anyString(), 
-        any(Span.class)))
+    when(store.getId(any(UniqueIdType.class), anyString(),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(UID1));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertArrayEquals(UID1, lru.getId(STRING1, null).join());
     assertArrayEquals(UID1, lru.getId(STRING1, null).join());
@@ -573,7 +565,7 @@ public class TestLRUUniqueId {
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
     verify(store, times(1)).getId(UniqueIdType.METRIC, STRING1, null);
-    
+
     // write only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
@@ -583,7 +575,7 @@ public class TestLRUUniqueId {
     assertEquals(1, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     verify(store, times(2)).getId(UniqueIdType.METRIC, STRING1, null);
-    
+
     // read only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
@@ -597,12 +589,12 @@ public class TestLRUUniqueId {
 
   @Test
   public void getIdExceptionReturned() throws Exception {
-    when(store.getId(any(UniqueIdType.class), anyString(), 
-        any(Span.class)))
+    when(store.getId(any(UniqueIdType.class), anyString(),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromError(new StorageException("Boo!")));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     Deferred<byte[]> deferred = lru.getId(STRING1, null);
     try {
       deferred.join();
@@ -611,7 +603,7 @@ public class TestLRUUniqueId {
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     verify(store, times(1)).getId(UniqueIdType.METRIC, STRING1, null);
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     deferred = lru.getId(STRING1, trace.newSpan("UT").start());
@@ -625,15 +617,15 @@ public class TestLRUUniqueId {
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getIdExceptionThrown() throws Exception {
-    when(store.getId(any(UniqueIdType.class), anyString(), 
-        any(Span.class)))
+    when(store.getId(any(UniqueIdType.class), anyString(),
+        nullable(Span.class)))
       .thenThrow(new StorageException("Boo!"));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     Deferred<byte[]> deferred = lru.getId(STRING1, null);
     try {
       deferred.join();
@@ -642,7 +634,7 @@ public class TestLRUUniqueId {
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     verify(store, times(1)).getId(UniqueIdType.METRIC, STRING1, null);
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
     deferred = lru.getId(STRING1, trace.newSpan("UT").start());
@@ -656,33 +648,33 @@ public class TestLRUUniqueId {
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getIds() throws Exception {
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(UID1, UID2)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     List<byte[]> ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID2, ids.get(1));
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     trace = new MockTrace();
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), 
+    ids = lru.getIds(Lists.newArrayList(STRING1, STRING2),
         trace.newSpan("UT").start()).join();
     assertEquals(0, trace.spans.size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), 
+    ids = lru.getIds(Lists.newArrayList(STRING1, STRING2),
         trace.newSpan("UT").start()).join();
-    ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), 
+    ids = lru.getIds(Lists.newArrayList(STRING1, STRING2),
         trace.newSpan("UT").start()).join();
     assertEquals(2, trace.spans.size());
     assertEquals(LRUUniqueId.class.getName() + ".getIds", trace.spans.get(0).id);
@@ -690,318 +682,318 @@ public class TestLRUUniqueId {
     assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
   }
-  
+
   @Test
   public void getIdsSameNames() throws Exception {
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(UID1, UID1, UID1)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     List<byte[]> ids = lru.getIds(Lists.newArrayList(STRING1, STRING1, STRING1), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID1, ids.get(1));
     assertArrayEquals(UID1, ids.get(2));
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
   }
-  
+
   @Test
   public void getIdsPartialCacheIt() throws Exception {
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(UID2)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.nameCache().put(STRING1, UID1);
-    
+
     List<byte[]> ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID2, ids.get(1));
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
-    
+
     // fully satisfied from cache
     ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID2, ids.get(1));
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
-    
+
     // staggered
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(UID1, UID3)));
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.nameCache().put(STRING2, UID2);
     lru.nameCache().put(STRING4, UID4);
-    
+
     ids = lru.getIds(Lists.newArrayList(STRING1, STRING2, STRING3, STRING4), null).join();
     assertEquals(4, ids.size());
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID2, ids.get(1));
     assertArrayEquals(UID3, ids.get(2));
     assertArrayEquals(UID4, ids.get(3));
-    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(4, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     // diff order
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(UID3, UID1)));
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.nameCache().put(STRING2, UID2);
     lru.nameCache().put(STRING4, UID4);
-    
+
     ids = lru.getIds(Lists.newArrayList(STRING2, STRING4, STRING3, STRING1), null).join();
     assertEquals(4, ids.size());
     assertArrayEquals(UID2, ids.get(0));
     assertArrayEquals(UID4, ids.get(1));
     assertArrayEquals(UID3, ids.get(2));
     assertArrayEquals(UID1, ids.get(3));
-    verify(store, times(3)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(3)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(4, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
   }
-  
+
   @Test
   public void getIdsWithNulls() throws Exception {
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(UID1, null)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     List<byte[]> ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertNull(ids.get(1));
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
   }
-  
+
   @Test
   public void getIdsModes() throws Exception {
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(UID1, UID2)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     List<byte[]> ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID2, ids.get(1));
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     // write only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID2, ids.get(1));
-    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     // read only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
     assertArrayEquals(UID1, ids.get(0));
     assertArrayEquals(UID2, ids.get(1));
-    verify(store, times(3)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(3)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
   }
 
   @Test
   public void getIdsExceptionReturned() throws Exception {
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromError(new StorageException("Boo!")));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     Deferred<List<byte[]>> deferred = lru.getIds(
         Lists.newArrayList(STRING1, STRING2), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    deferred = lru.getIds(Lists.newArrayList(STRING1, STRING2), 
+    deferred = lru.getIds(Lists.newArrayList(STRING1, STRING2),
         trace.newSpan("UT").start());
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getIdsExceptionThrown() throws Exception {
-    when(store.getIds(any(UniqueIdType.class), any(List.class), 
-        any(Span.class)))
+    when(store.getIds(any(UniqueIdType.class), any(List.class),
+        nullable(Span.class)))
       .thenThrow(new StorageException("Boo!"));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     Deferred<List<byte[]>> deferred = lru.getIds(
         Lists.newArrayList(STRING1, STRING2), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    deferred = lru.getIds(Lists.newArrayList(STRING1, STRING2), 
+    deferred = lru.getIds(Lists.newArrayList(STRING1, STRING2),
         trace.newSpan("UT").start());
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    verify(store, times(2)).getIds(eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getOrCreateId() throws Exception {
-    when(store.getOrCreateId(any(AuthState.class), 
-        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateId(nullable(AuthState.class),
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(IdOrError.wrapId(UID1)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         null).join().id());
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         null).join().id());
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         null).join().id());
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
-    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC,
         STRING1, ID, null);
-    
+
     trace = new MockTrace();
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         trace.newSpan("UT").start()).join().id());
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         trace.newSpan("UT").start()).join().id());
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         trace.newSpan("UT").start()).join().id());
     assertEquals(0, trace.spans.size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         trace.newSpan("UT").start()).join().id());
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         trace.newSpan("UT").start()).join().id());
-    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, 
+    assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID,
         trace.newSpan("UT").start()).join().id());
     assertEquals(3, trace.spans.size());
-    assertEquals(LRUUniqueId.class.getName() + ".getOrCreateId", 
+    assertEquals(LRUUniqueId.class.getName() + ".getOrCreateId",
         trace.spans.get(0).id);
     assertEquals("OK", trace.spans.get(0).tags.get("status"));
     assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(2).tags.get("fromCache"));
   }
-  
+
   @Test
   public void getOrCreateIdRetry() throws Exception {
-    when(store.getOrCreateId(any(AuthState.class), 
-        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateId(nullable(AuthState.class),
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(IdOrError.wrapRetry("Next!")));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     IdOrError result = lru.getOrCreateId(null, STRING1, ID, null).join();
     assertEquals(WriteState.RETRY, result.state());
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC,
         STRING1, ID, null);
   }
-  
+
   @Test
   public void getOrCreateModes() throws Exception {
     // read-write
-    when(store.getOrCreateId(any(AuthState.class), 
-        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateId(nullable(AuthState.class),
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(IdOrError.wrapId(UID1)));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
-    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC,
         STRING1, ID, null);
-    
+
     // write only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertEquals(1, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    verify(store, times(2)).getOrCreateId(null, UniqueIdType.METRIC, 
+    verify(store, times(2)).getOrCreateId(null, UniqueIdType.METRIC,
         STRING1, ID, null);
-    
+
     // read only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertArrayEquals(UID1, lru.getOrCreateId(null, STRING1, ID, null).join().id());
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    verify(store, times(5)).getOrCreateId(null, UniqueIdType.METRIC, 
+    verify(store, times(5)).getOrCreateId(null, UniqueIdType.METRIC,
         STRING1, ID, null);
   }
-  
+
   @Test
   public void getOrCreateIdExceptionReturned() throws Exception {
-    when(store.getOrCreateId(any(AuthState.class), 
-        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateId(nullable(AuthState.class),
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromError(new UnitTestException()));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     try {
       lru.getOrCreateId(null, STRING1, ID, null).join();
@@ -1009,17 +1001,17 @@ public class TestLRUUniqueId {
     } catch (UnitTestException e) { }
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC,
         STRING1, ID, null);
   }
-  
+
   @Test
   public void getOrCreateIdExceptionThrown() throws Exception {
-    when(store.getOrCreateId(any(AuthState.class), 
-        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateId(nullable(AuthState.class),
+        any(UniqueIdType.class), anyString(), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenThrow(new UnitTestException());
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     Deferred<IdOrError> deferred = lru.getOrCreateId(null, STRING1, ID, null);
     try {
@@ -1028,13 +1020,13 @@ public class TestLRUUniqueId {
     } catch (StorageException e) { }
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC, 
+    verify(store, times(1)).getOrCreateId(null, UniqueIdType.METRIC,
         STRING1, ID, null);
   }
-  
+
   @Test
   public void getOrCreateIdArgumentException() throws Exception {
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     try {
       lru.getOrCreateId(null, null, ID, null);
@@ -1045,292 +1037,292 @@ public class TestLRUUniqueId {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
   @Test
   public void getOrCreateIds() throws Exception {
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          IdOrError.wrapId(UID1), 
+          IdOrError.wrapId(UID1),
           IdOrError.wrapId(UID2))));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
-    List<IdOrError> ids = lru.getOrCreateIds(null, 
+
+    List<IdOrError> ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID2, ids.get(1).id());
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     trace = new MockTrace();
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    ids = lru.getOrCreateIds(null, 
-        Lists.newArrayList(STRING1, STRING2), ID, 
+    ids = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID,
         trace.newSpan("UT").start()).join();
     assertEquals(0, trace.spans.size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    ids = lru.getOrCreateIds(null, 
-        Lists.newArrayList(STRING1, STRING2), ID, 
+    ids = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID,
         trace.newSpan("UT").start()).join();
-    ids = lru.getOrCreateIds(null, 
-        Lists.newArrayList(STRING1, STRING2), ID, 
+    ids = lru.getOrCreateIds(null,
+        Lists.newArrayList(STRING1, STRING2), ID,
         trace.newSpan("UT").start()).join();
     assertEquals(2, trace.spans.size());
-    assertEquals(LRUUniqueId.class.getName() + ".getOrCreateIds", 
+    assertEquals(LRUUniqueId.class.getName() + ".getOrCreateIds",
         trace.spans.get(0).id);
     assertEquals("OK", trace.spans.get(0).tags.get("status"));
     assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
   }
-  
+
   @Test
   public void getOrCreateIdsSameNames() throws Exception {
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          IdOrError.wrapId(UID1), 
+          IdOrError.wrapId(UID1),
           IdOrError.wrapId(UID1),
           IdOrError.wrapId(UID1))));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
-    List<IdOrError> ids = lru.getOrCreateIds(null, 
+
+    List<IdOrError> ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING1, STRING1), ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID1, ids.get(1).id());
     assertArrayEquals(UID1, ids.get(2).id());
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
   }
-  
+
   @Test
   public void getOrCreateIdsPartialCacheIt() throws Exception {
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
           IdOrError.wrapId(UID2))));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.nameCache().put(STRING1, UID1);
-    
-    List<IdOrError> ids = lru.getOrCreateIds(null, 
+
+    List<IdOrError> ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID2, ids.get(1).id());
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
-    
+
     // fully satisfied from cache
-    ids = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2), 
+    ids = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2),
         ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID2, ids.get(1).id());
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
-    
+
     // staggered
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
           IdOrError.wrapId(UID1),
           IdOrError.wrapId(UID3))));
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.nameCache().put(STRING2, UID2);
     lru.nameCache().put(STRING4, UID4);
-    
-    ids = lru.getOrCreateIds(null, 
+
+    ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2, STRING3, STRING4), ID, null).join();
     assertEquals(4, ids.size());
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID2, ids.get(1).id());
     assertArrayEquals(UID3, ids.get(2).id());
     assertArrayEquals(UID4, ids.get(3).id());
-    verify(store, times(2)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(2)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(4, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     // diff order
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
           IdOrError.wrapId(UID3),
           IdOrError.wrapId(UID1))));
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     lru.nameCache().put(STRING2, UID2);
     lru.nameCache().put(STRING4, UID4);
-    
-    ids = lru.getOrCreateIds(null, 
+
+    ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING2, STRING4, STRING3, STRING1), ID, null).join();
     assertEquals(4, ids.size());
     assertArrayEquals(UID2, ids.get(0).id());
     assertArrayEquals(UID4, ids.get(1).id());
     assertArrayEquals(UID3, ids.get(2).id());
     assertArrayEquals(UID1, ids.get(3).id());
-    verify(store, times(3)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(3)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(4, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
   }
-  
+
   @Test
   public void getOrCreateIdsWithRetries() throws Exception {
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          IdOrError.wrapId(UID1), 
+          IdOrError.wrapId(UID1),
           IdOrError.wrapRetry("Next!"))));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
-    List<IdOrError> ids = lru.getOrCreateIds(null, 
+
+    List<IdOrError> ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertEquals(WriteState.RETRY, ids.get(1).state());
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(1, lru.nameCache().size());
     assertEquals(1, lru.idCache().size());
   }
-  
+
   @Test
   public void getOrCreateIdsModes() throws Exception {
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromResult(Lists.newArrayList(
-          IdOrError.wrapId(UID1), 
+          IdOrError.wrapId(UID1),
           IdOrError.wrapId(UID2))));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     List<IdOrError> ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID2, ids.get(1).id());
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
-    
+
     // write only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "w");
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID2, ids.get(1).id());
-    verify(store, times(2)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(2)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(2, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     // read only
     tsdb.config.override("tsd.uid." + DEFAULT_ID + ".metric.mode", "r");
-    lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
     ids = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null).join();
     assertArrayEquals(UID1, ids.get(0).id());
     assertArrayEquals(UID2, ids.get(1).id());
-    verify(store, times(3)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(3)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
   }
-  
+
   @Test
   public void getOrCreateIdsExceptionReturned() throws Exception {
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenReturn(Deferred.fromError(new StorageException("Boo!")));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     Deferred<List<IdOrError>> deferred = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    deferred = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2), 
+    deferred = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2),
         ID, trace.newSpan("UT").start());
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(2)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   @Test
   public void getOrCreateIdsExceptionThrown() throws Exception {
-    when(store.getOrCreateIds(any(AuthState.class), 
-        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class), 
-        any(Span.class)))
+    when(store.getOrCreateIds(nullable(AuthState.class),
+        any(UniqueIdType.class), any(List.class), any(TimeSeriesDatumId.class),
+        nullable(Span.class)))
       .thenThrow(new StorageException("Boo!"));
-    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID,
         UniqueIdType.METRIC, store);
-    
+
     Deferred<List<IdOrError>> deferred = lru.getOrCreateIds(null,
         Lists.newArrayList(STRING1, STRING2), ID, null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(1)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(1)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
-    
+
     trace = new MockTrace(true);
     lru = new LRUUniqueId(tsdb, DEFAULT_ID, UniqueIdType.METRIC, store);
-    deferred = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2), 
+    deferred = lru.getOrCreateIds(null, Lists.newArrayList(STRING1, STRING2),
         ID, trace.newSpan("UT").start());
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verify(store, times(2)).getOrCreateIds(eq(null), 
-        eq(UniqueIdType.METRIC), any(List.class), eq(ID), any(Span.class));
+    verify(store, times(2)).getOrCreateIds(eq(null),
+        eq(UniqueIdType.METRIC), any(List.class), eq(ID), nullable(Span.class));
     assertEquals(0, lru.nameCache().size());
     assertEquals(0, lru.idCache().size());
     assertEquals(1, trace.spans.size());
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
   }
-  
+
   private static void resetConfig() {
     final UnitTestConfiguration c = tsdb.config;
     if (c.hasProperty("tsd.uid." + DEFAULT_ID + ".metric.mode")) {

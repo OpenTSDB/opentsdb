@@ -29,11 +29,11 @@ import org.junit.Test;
 import com.google.common.reflect.TypeToken;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import net.opentsdb.data.pbuf.TimeSeriesIdPB;
-import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
+import net.opentsdb.data.pbuf.TimeSeriesIdPB;
+import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;

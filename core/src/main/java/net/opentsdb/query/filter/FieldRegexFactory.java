@@ -1,12 +1,14 @@
 package net.opentsdb.query.filter;
 
+import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.TSDB;
 
 public class FieldRegexFactory extends BaseTSDBPlugin implements QueryFilterFactory {
 

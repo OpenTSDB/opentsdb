@@ -18,8 +18,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,17 +39,13 @@ import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.pojo.TagVLiteralOrFilter;
 import net.opentsdb.query.pojo.TagVRegexFilter;
 import net.opentsdb.query.pojo.TagVWildcardFilter;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import net.opentsdb.uid.NoSuchUniqueName;
+import org.mockito.Mockito;
 
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
@@ -63,9 +57,6 @@ import com.stumbleupon.async.DeferredGroupException;
  * <b>Note:</b> Testing query validation and such should be done in the 
  * core.TestTSQuery and TestTSSubQuery classes
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DefaultTSDB.class, Config.class, 
-  Deferred.class, TSQuery.class, DateTime.class, DeferredGroupException.class })
 public final class TestQueryRpc {
   private DefaultTSDB tsdb;
   private Configuration config;
@@ -75,13 +66,14 @@ public final class TestQueryRpc {
   private HttpServletRequest request;
   private AsyncContext async;
   private Map<String, String> headers;
+
 //  private Query empty_query = mock(Query.class);
 //  private Query query_result;
 //  private List<ExpressionTree> expressions;
 //  
   @Before
   public void before() throws Exception {
-    tsdb = PowerMockito.mock(DefaultTSDB.class);
+    tsdb = Mockito.mock(DefaultTSDB.class);
     config = UnitTestConfiguration.getConfiguration();
 //    empty_query = mock(Query.class);
 //    query_result = mock(Query.class);

@@ -17,11 +17,6 @@ package net.opentsdb.query.execution.serdes;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
@@ -30,13 +25,20 @@ import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
+
 /**
  * A factory for returning JSON serializers for the OpenTSDB 2x 
  * expression format.
  * 
  * @since 3.0
  */
-public class JsonV2ExpQuerySerdesFactory extends BaseTSDBPlugin 
+public class JsonV2ExpQuerySerdesFactory extends BaseTSDBPlugin
     implements SerdesFactory {
   public static final String TYPE = "JsonV2ExpQuerySerdes";
   

@@ -14,15 +14,13 @@
 // limitations under the License.
 package net.opentsdb.rollup;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+
+
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 
 public class TestRollupUtils {
   private static final String temporal_table = "tsdb-rollup-10m";

@@ -14,14 +14,14 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A runnable used to schedule a query task dealing with PTS data.

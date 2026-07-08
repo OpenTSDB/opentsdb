@@ -14,16 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Test;
 
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.utils.JSON;
+
+import org.junit.Test;
 
 public class TestJoinConfig {
 

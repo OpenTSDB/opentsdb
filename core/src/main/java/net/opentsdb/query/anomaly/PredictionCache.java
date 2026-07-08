@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.anomaly;
 
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.stats.Span;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * A cache for dealing with anomaly prediction results and state.

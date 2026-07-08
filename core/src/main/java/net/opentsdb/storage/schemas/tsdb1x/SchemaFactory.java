@@ -14,11 +14,9 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
+import java.util.List;
+
+
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -41,10 +39,15 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.storage.TimeSeriesDataConsumer;
 import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import net.opentsdb.uid.UniqueIdType;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Simple singleton factory that implements a default and named schemas
@@ -52,8 +55,8 @@ import java.util.List;
  * 
  * @since 3.0
  */
-public class SchemaFactory extends BaseTSDBPlugin 
-                           implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, Tsdb1xQueryNode>,
+public class SchemaFactory extends BaseTSDBPlugin
+    implements TimeSeriesDataSourceFactory<TimeSeriesDataSourceConfig, Tsdb1xQueryNode>,
                                       TimeSeriesDataConsumerFactory {
   private static final Logger LOG = LoggerFactory.getLogger(SchemaFactory.class);
 

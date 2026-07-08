@@ -14,30 +14,28 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.util.Map;
 
-import net.opentsdb.query.DefaultQueryResultId;
-import org.junit.Before;
-import org.junit.Test;
-import org.powermock.reflect.Whitebox;
-
-import com.google.common.collect.ImmutableMap;
 
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest {
 
@@ -294,53 +292,55 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
-  
+
   @Test
   public void fillNaNInfectious() throws Exception {
-    left = new NumericArrayTimeSeries(LEFT_ID, 
+    left = new NumericArrayTimeSeries(LEFT_ID,
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(1.1);
     ((NumericArrayTimeSeries) left).add(Double.NaN);
     ((NumericArrayTimeSeries) left).add(2.66);
-    
-    right = new NumericArrayTimeSeries(RIGHT_ID, 
+
+    right = new NumericArrayTimeSeries(RIGHT_ID,
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) right).add(4.5);
     ((NumericArrayTimeSeries) right).add(10.75);
     ((NumericArrayTimeSeries) right).add(Double.NaN);
-    
-    ExpressionNumericArrayIterator iterator = 
-        new ExpressionNumericArrayIterator(node, RESULT, 
+
+    ExpressionNumericArrayIterator iterator =
+        new ExpressionNumericArrayIterator(node, RESULT,
             (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-              .build());
-    Whitebox.setInternalState(iterator, "infectious_nan", true);
+                .put(ExpressionTimeSeries.LEFT_KEY, left)
+                .put(ExpressionTimeSeries.RIGHT_KEY, right)
+                .build());
+    Field infectious_nanField = iterator.getClass().getDeclaredField("infectious_nan");
+    infectious_nanField.setAccessible(true);
+    infectious_nanField.set(iterator, true);
     assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericArrayType> value = 
+    TimeSeriesValue<NumericArrayType> value =
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { 4.95, Double.NaN, Double.NaN },
+    assertArrayEquals(new double[]{4.95, Double.NaN, Double.NaN},
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());
     assertEquals(3, value.value().end());
     assertFalse(iterator.hasNext());
   }
-  
+
   @Test
   public void fillNaNInfectiousNegate() throws Exception {
-    left = new NumericArrayTimeSeries(LEFT_ID, 
+    left = new NumericArrayTimeSeries(LEFT_ID,
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) left).add(1.1);
     ((NumericArrayTimeSeries) left).add(Double.NaN);
     ((NumericArrayTimeSeries) left).add(2.66);
-    
-    right = new NumericArrayTimeSeries(RIGHT_ID, 
+
+    right = new NumericArrayTimeSeries(RIGHT_ID,
         new SecondTimeStamp(60));
     ((NumericArrayTimeSeries) right).add(4.5);
     ((NumericArrayTimeSeries) right).add(10.75);
     ((NumericArrayTimeSeries) right).add(Double.NaN);
-    
+
     expression_config = (ExpressionParseNode) ExpressionParseNode.newBuilder()
         .setLeft("a")
         .setLeftType(OperandType.VARIABLE)
@@ -352,18 +352,20 @@ public class TestExpressionNumericArrayIteratorMultiply extends BaseNumericTest 
         .setId("expression")
         .build();
     when(node.config()).thenReturn(expression_config);
-    
-    ExpressionNumericArrayIterator iterator = 
-        new ExpressionNumericArrayIterator(node, RESULT, 
+
+    ExpressionNumericArrayIterator iterator =
+        new ExpressionNumericArrayIterator(node, RESULT,
             (Map) ImmutableMap.builder()
-              .put(ExpressionTimeSeries.LEFT_KEY, left)
-              .put(ExpressionTimeSeries.RIGHT_KEY, right)
-              .build());
-    Whitebox.setInternalState(iterator, "infectious_nan", true);
+                .put(ExpressionTimeSeries.LEFT_KEY, left)
+                .put(ExpressionTimeSeries.RIGHT_KEY, right)
+                .build());
+    Field infectious_nanField = iterator.getClass().getDeclaredField("infectious_nan");
+    infectious_nanField.setAccessible(true);
+    infectious_nanField.set(iterator, true);
     assertTrue(iterator.hasNext());
-    TimeSeriesValue<NumericArrayType> value = 
+    TimeSeriesValue<NumericArrayType> value =
         (TimeSeriesValue<NumericArrayType>) iterator.next();
-    assertArrayEquals(new double[] { -4.95, Double.NaN, Double.NaN },
+    assertArrayEquals(new double[]{-4.95, Double.NaN, Double.NaN},
         value.value().doubleArray(), 0.001);
     assertEquals(60, value.timestamp().epoch());
     assertEquals(0, value.value().offset());

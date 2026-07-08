@@ -15,14 +15,19 @@
 package net.opentsdb.query.processor.bucketquantile;
 
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
+
+
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.exceptions.QueryDownstreamException;
+import net.opentsdb.pools.*;
+import net.opentsdb.query.*;
+import net.opentsdb.rollup.RollupConfig;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,24 +38,6 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.exceptions.QueryDownstreamException;
-import net.opentsdb.pools.ArrayObjectPool;
-import net.opentsdb.pools.DoubleArrayPool;
-import net.opentsdb.pools.IntArrayPool;
-import net.opentsdb.pools.LongArrayPool;
-import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.rollup.RollupConfig;
 
 /**
  * Quantile node that expects a certain number of histogram metrics and once

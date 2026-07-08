@@ -46,12 +46,12 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import jersey.repackaged.com.google.common.collect.Maps;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector.StatsTimer;

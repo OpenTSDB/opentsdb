@@ -16,11 +16,6 @@ package net.opentsdb.query.readcache;
 
 import java.util.Arrays;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.Const;
@@ -28,6 +23,12 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.query.readcache.ReadCacheKeyGenerator;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Simple implementation of the key generator that prepends keys with
@@ -43,8 +44,8 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class DefaultReadCacheKeyGenerator 
-  extends ReadCacheKeyGenerator implements ConfigurationCallback<Object> {
+public class DefaultReadCacheKeyGenerator
+    extends ReadCacheKeyGenerator implements ConfigurationCallback<Object> {
   
   public static final String TYPE = 
       DefaultReadCacheKeyGenerator.class.getSimpleName().toString();

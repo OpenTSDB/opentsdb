@@ -23,9 +23,6 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.util.Properties;
 
-import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory;
-import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory.ArrayMax;
-import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -43,6 +40,9 @@ import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory;
+import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory.ArrayMax;
+import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
 import net.opentsdb.query.QueryResult;
 
 public class TestOlympicScoringBaseline {

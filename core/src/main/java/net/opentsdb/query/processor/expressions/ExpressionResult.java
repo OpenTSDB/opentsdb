@@ -18,8 +18,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map.Entry;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
@@ -31,6 +29,9 @@ import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.Pair;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * The result of a {@link BinaryExpressionNode} or {@link TernaryExpressionNode}.

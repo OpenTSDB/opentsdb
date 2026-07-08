@@ -14,11 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.readcache;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,25 +23,16 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
-import com.google.common.collect.Lists;
-
 import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.query.QuerySink;
-import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.data.*;
+import net.opentsdb.query.*;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.utils.UnitTestException;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestCombinedCachedResult {
 private static final int BASE_TIME = 1546300800;

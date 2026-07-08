@@ -14,8 +14,8 @@
 // limitations under the License.
 package net.opentsdb.servlet.filter;
 
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.Authorization;
+import java.io.IOException;
+import java.security.Principal;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -24,8 +24,9 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-import java.io.IOException;
-import java.security.Principal;
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authorization;
 
 /**
  * Simple filter that sets a "NoAuth" principal.

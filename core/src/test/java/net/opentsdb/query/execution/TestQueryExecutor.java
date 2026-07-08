@@ -14,10 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import org.junit.Ignore;
-
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+
+import org.junit.Ignore;
 
 @Ignore
 public class TestQueryExecutor {

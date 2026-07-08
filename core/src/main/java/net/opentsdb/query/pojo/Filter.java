@@ -14,13 +14,21 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import java.util.Collections;
+import java.util.List;
+
+
+import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
@@ -28,12 +36,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Pojo builder class used for serdes of a filter component of a query

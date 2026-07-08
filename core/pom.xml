@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
       <groupId>net.opentsdb</groupId>
       <artifactId>opentsdb</artifactId>
       <version>3.0.90-SNAPSHOT</version>
     </parent>
-    
+
     <artifactId>opentsdb-core</artifactId>
     <name>opentsdb-core</name>
-    
+
     <description>OpenTSDB's core interfaces, abstracts and base classes for
     use with concrete implementations.</description>
-    
+
     <packaging>jar</packaging>
-    
+
     <properties>
 
     </properties>
-    
+
     <dependencyManagement>
       <dependencies>
         <dependency>
@@ -33,57 +33,66 @@
           <version>${project.version}</version>
           <type>test-jar</type>
         </dependency>
-        
+
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-math3</artifactId>
-            <version>3.4.1</version>
+            <version>3.6.1</version>
         </dependency>
-        
+
         <dependency>
           <groupId>io.opentracing</groupId>
           <artifactId>opentracing-api</artifactId>
-          <version>0.20.10</version>
+          <version>0.33.0</version>
         </dependency>
-        
+
         <dependency>
           <groupId>net.openhft</groupId>
           <artifactId>zero-allocation-hashing</artifactId>
-          <version>0.11</version>
+          <version>0.16</version>
         </dependency>
-        
+
         <!-- used for fast primitive maps. May try others. -->
         <dependency>
           <groupId>net.sf.trove4j</groupId>
           <artifactId>trove4j</artifactId>
           <version>3.0.3</version>
         </dependency>
-        
+
         <dependency>
           <groupId>org.antlr</groupId>
           <artifactId>antlr4</artifactId>
-          <version>4.5</version>
+          <version>${antlr4.version}</version>
         </dependency>
-
       </dependencies>
     </dependencyManagement>
-    
+
     <dependencies>
       <dependency>
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-common</artifactId>
       </dependency>
-      
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+      </dependency>
+
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
       </dependency>
-      
+
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-common</artifactId>
       </dependency>
-      
+
+      <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
+      </dependency>
+
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
@@ -100,68 +109,63 @@
         <groupId>com.fasterxml.jackson.dataformat</groupId>
         <artifactId>jackson-dataformat-yaml</artifactId>
       </dependency>
-    
+
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-math3</artifactId>
       </dependency>
-      
+
       <dependency>
         <groupId>io.opentracing</groupId>
         <artifactId>opentracing-api</artifactId>
       </dependency>
-      
+
       <dependency>
         <groupId>net.openhft</groupId>
         <artifactId>zero-allocation-hashing</artifactId>
       </dependency>
-      
+
       <dependency>
         <groupId>net.sf.trove4j</groupId>
         <artifactId>trove4j</artifactId>
       </dependency>
-      
+
       <dependency>
         <groupId>org.antlr</groupId>
         <artifactId>antlr4</artifactId>
       </dependency>
-      
+
       <!-- TESTING Deps. -->
-      
+
       <dependency>
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-common</artifactId>
         <type>test-jar</type>
         <scope>test</scope>
       </dependency>
-        
+
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <scope>test</scope>
       </dependency>
-      
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
         <scope>test</scope>
       </dependency>
       <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
         <groupId>org.objenesis</groupId>
         <artifactId>objenesis</artifactId>
         <scope>test</scope>
       </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
-        <scope>test</scope>
-      </dependency>
-      
+
       <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-core</artifactId>
@@ -173,13 +177,13 @@
         <scope>test</scope>
       </dependency>
     </dependencies>
-    
+
     <build>
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.0.2</version>
+          <version>${maven.plugin.jar.version}</version>
           <executions>
             <execution>
               <goals>
@@ -188,11 +192,11 @@
             </execution>
           </executions>
         </plugin>
-        
+
         <plugin>
           <groupId>org.antlr</groupId>
           <artifactId>antlr4-maven-plugin</artifactId>
-          <version>4.5</version>
+          <version>${antlr4.version}</version>
           <configuration>
             <arguments>
               <argument>-package</argument>
@@ -200,7 +204,7 @@
               <argument>-no-listener</argument>
               <argument>-visitor</argument>
             </arguments>
-   
+
             <outputDirectory>${project.build.directory}/generated-sources/antlr4/net/opentsdb/expressions/parser</outputDirectory>
           </configuration>
           <executions>
@@ -212,7 +216,7 @@
             </execution>
           </executions>
         </plugin>
-        
+
       </plugins>
     </build>
 </project>

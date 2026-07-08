@@ -14,52 +14,42 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
+
+import java.util.List;
+
+
 import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.*;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.processor.timeshift.TimeShiftConfig;
 import net.opentsdb.query.processor.timeshift.TimeShiftFactory;
 import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.uid.UniqueIdType;
+
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.List;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ SchemaFactory.class })
 public class TestSchemaFactory extends SchemaBase {
   
   private Tsdb1xDataStore store;
   private Tsdb1xQueryNode node;
+  private MockedConstruction<Schema> mockedSchema;
   
   @Before
   public void before() throws Exception {
@@ -71,20 +61,22 @@ public class TestSchemaFactory extends SchemaBase {
         @Override
         public Tsdb1xQueryNode answer(InvocationOnMock invocation) throws Throwable {
           when(node.config()).thenReturn((TimeSeriesDataSourceConfig) invocation.getArguments()[1]);
-          when(node.initialize(any(Span.class))).thenReturn(Deferred.fromResult(null));
+          when(node.initialize(nullable(Span.class))).thenReturn(Deferred.fromResult(null));
           return node;
         }
       });
     
-    PowerMockito.whenNew(Schema.class).withAnyArguments()
-      .thenAnswer(new Answer<Schema>() {
-      @Override
-      public Schema answer(InvocationOnMock invocation) throws Throwable {
-        final Schema schema = mock(Schema.class);
-        when(schema.dataStore()).thenReturn(store);
-        return schema;
+    mockedSchema = Mockito.mockConstruction(Schema.class,
+        (mock, context) -> {
+            when(mock.dataStore()).thenReturn(store);
+        });
+  }
+
+  @After
+  public void after() {
+      if (mockedSchema != null) {
+          mockedSchema.close();
       }
-    });
   }
   
   @Test
@@ -92,10 +84,10 @@ public class TestSchemaFactory extends SchemaBase {
     SchemaFactory factory = new SchemaFactory();
     assertNull(factory.id());
     assertEquals(SchemaFactory.TYPE, factory.type());
-    PowerMockito.verifyNew(Schema.class, never());
+    assertEquals(0, mockedSchema.constructed().size());
     
     assertNull(factory.initialize(tsdb, null).join(1));
-    PowerMockito.verifyNew(Schema.class);
+    assertEquals(1, mockedSchema.constructed().size());
   }
   
   @Test
@@ -139,10 +131,21 @@ public class TestSchemaFactory extends SchemaBase {
         .addSummaryAggregation("sum")
         .setId("m1")
         .build();
-    
-    DefaultRollupConfig rollup_config = mock(DefaultRollupConfig.class);
-    when(rollup_config.getPossibleIntervals("1h"))
-      .thenReturn(Lists.newArrayList("1h", "30m"));
+
+    // Build real DefaultRollupConfig. No need for a spy/mock.
+    final DefaultRollupConfig rollup_config = DefaultRollupConfig.newBuilder()
+        .addAggregationId("sum", 0)
+        .addInterval(DefaultRollupInterval.builder()
+            .setTable("tsdb-rollup-1h")
+            .setPreAggregationTable("tsdb-rollup-preagg-1h")
+            .setInterval("1h")
+            .setRowSpan("1d"))
+        .addInterval(DefaultRollupInterval.builder()
+            .setTable("tsdb-rollup-30m")
+            .setPreAggregationTable("tsdb-rollup-preagg-30m")
+            .setInterval("30m")
+            .setRowSpan("1d"))
+        .build();
     
     SchemaFactory factory = new SchemaFactory();
     factory.registerConfigs(tsdb);
@@ -170,7 +173,7 @@ public class TestSchemaFactory extends SchemaBase {
     
     factory.resolveByteId(mock(TimeSeriesByteId.class), null);
     verify(factory.schema, times(1)).resolveByteId(
-        any(TimeSeriesByteId.class), any(Span.class));
+        any(TimeSeriesByteId.class), nullable(Span.class));
   }
   
   @Test
@@ -180,7 +183,7 @@ public class TestSchemaFactory extends SchemaBase {
     
     factory.encodeJoinKeys(Lists.newArrayList(), null);
     verify(factory.schema, times(1)).getIds(
-        eq(UniqueIdType.TAGK), any(List.class), any(Span.class));
+        eq(UniqueIdType.TAGK), any(List.class), nullable(Span.class));
   }
   
   @Test
@@ -190,7 +193,7 @@ public class TestSchemaFactory extends SchemaBase {
     
     factory.encodeJoinMetrics(Lists.newArrayList(), null);
     verify(factory.schema, times(1)).getIds(
-        eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+        eq(UniqueIdType.METRIC), any(List.class), nullable(Span.class));
   }
 
   @Test

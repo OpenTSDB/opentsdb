@@ -20,7 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,12 +29,12 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationEntry;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.configuration.ConfigurationOverride;
 import net.opentsdb.configuration.ConfigurationValueValidator;
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.configuration.ConfigurationValueValidator.ValidationResult;
 import net.opentsdb.configuration.provider.CommandLineProvider;
 import net.opentsdb.configuration.provider.Provider;

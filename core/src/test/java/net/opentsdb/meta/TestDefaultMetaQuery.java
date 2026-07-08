@@ -14,15 +14,17 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class TestDefaultMetaQuery {
   private static TSDB TSDB;

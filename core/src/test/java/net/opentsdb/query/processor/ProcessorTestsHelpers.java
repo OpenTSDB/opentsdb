@@ -16,15 +16,15 @@ package net.opentsdb.query.processor;
 
 import java.util.List;
 
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
+
 import org.junit.Ignore;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
-import net.opentsdb.data.types.numeric.MutableNumericValue;
 
 /**
  * Helpers for testing out iterators.

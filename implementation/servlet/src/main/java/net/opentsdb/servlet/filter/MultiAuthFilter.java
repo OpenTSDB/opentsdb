@@ -14,19 +14,9 @@
 // limitations under the License.
 package net.opentsdb.servlet.filter;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.AuthState.AuthStatus;
-import net.opentsdb.auth.Authorization;
-import net.opentsdb.configuration.ConfigurationEntrySchema;
-import net.opentsdb.configuration.ConfigurationEntrySchema.Builder;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.servlet.auth.BaseAuthenticationPlugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.IOException;
+import java.security.Principal;
+import java.util.List;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -35,9 +25,22 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-import java.io.IOException;
-import java.security.Principal;
-import java.util.List;
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.AuthState.AuthStatus;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.configuration.ConfigurationEntrySchema;
+import net.opentsdb.configuration.ConfigurationEntrySchema.Builder;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.servlet.auth.BaseAuthenticationPlugin;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A filter that takes a list of two or more {@link AuthFilter}s and examines

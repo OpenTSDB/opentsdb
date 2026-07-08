@@ -19,26 +19,9 @@ import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
-
-import net.opentsdb.meta.BatchMetaQuery;
-import net.opentsdb.meta.MetaQuery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.KeyDeserializer;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.graph.GraphBuilder;
-import com.google.common.graph.MutableGraph;
-import com.stumbleupon.async.Deferred;
+import java.util.regex.Pattern;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
@@ -46,19 +29,29 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.meta.BatchMetaQuery;
+import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.query.PreAggConfig.MetricPattern;
 import net.opentsdb.query.PreAggConfig.TagsAndAggs;
 import net.opentsdb.query.TimeSeriesQuery.CacheMode;
-import net.opentsdb.query.filter.ChainFilter;
-import net.opentsdb.query.filter.ExplicitTagsFilter;
-import net.opentsdb.query.filter.FilterUtils;
-import net.opentsdb.query.filter.NestedQueryFilter;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagValueFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.query.filter.TagValueWildcardFilter;
+import net.opentsdb.query.filter.*;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.KeyDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.MutableGraph;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Stub class for a super simple context filter that filters on the user and
@@ -68,7 +61,7 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
  *  
  * @since 3.0
  */
-public class DefaultQueryContextFilter extends BaseTSDBPlugin 
+public class DefaultQueryContextFilter extends BaseTSDBPlugin
     implements QueryContextFilter {
   private static final Logger LOG = LoggerFactory.getLogger(
       DefaultQueryContextFilter.class);

@@ -78,20 +78,25 @@
         <groupId>org.hbase</groupId>
         <artifactId>asynchbase</artifactId>
         <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>netty</artifactId>
-                    <groupId>org.jboss.netty</groupId>
-                </exclusion>
-            </exclusions>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>netty</artifactId>
+            <groupId>org.jboss.netty</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
       
       <dependency>
         <groupId>net.sf.trove4j</groupId>
         <artifactId>trove4j</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
       </dependency>
         
       <!-- TESTING Deps. -->
@@ -126,13 +131,8 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
       
@@ -153,24 +153,22 @@
       <plugins>       
           <plugin> 
                 <groupId>org.apache.maven.plugins</groupId>  
-                <artifactId>maven-shade-plugin</artifactId>  
-                <version>3.2.1</version> 
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven.plugin.shade.version}</version>
                 <configuration>  
                     <artifactSet>  
-                        <excludes> 
-                            <exclude>net.opentsdb:opentsdb-common</exclude>  
-                            <exclude>net.opentsdb:opentsdb-core</exclude>  
-                        </excludes>  
+                        <excludes>
+                            <exclude>net.opentsdb:opentsdb-common</exclude>
+                            <exclude>net.opentsdb:opentsdb-core</exclude>
+                            <exclude>com.google.protobuf:protobuf-java</exclude>
+                        </excludes>
                     </artifactSet>
-                    <relocations>
-                      <relocation>
-                        <!-- GRR since asynchbase still uses 2.5 we have to shade it. -->
-                        <pattern>com.google.protobuf</pattern>
-                        <shadedPattern>net.opentsdb.com.google.protobuf</shadedPattern>
-                      </relocation>
-                    </relocations>
-
-                    <filters>  
+                    <!-- Relocation of com.google.protobuf -> net.opentsdb.com.google.protobuf
+                         removed: it dodged a version clash with asynchbase's old bundled
+                         protobuf 2.5, but the whole reactor is now unified on
+                         ${protobuf.version}, so it's no longer needed and was polluting
+                         the net.opentsdb namespace PluginLoader scans at startup. -->
+                    <filters>
                       <filter> 
                         <artifact>*:*</artifact> 
                         <excludes> 

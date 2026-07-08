@@ -16,13 +16,14 @@ package net.opentsdb.rollup;
 
 import java.util.Calendar;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.Bytes;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Static util class for dealing with parsing and storing rolled up data points

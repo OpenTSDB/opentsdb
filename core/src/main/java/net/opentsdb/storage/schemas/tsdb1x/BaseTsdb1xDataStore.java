@@ -14,22 +14,13 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import java.util.*;
+
+
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.LowLevelMetricData;
-import net.opentsdb.data.LowLevelTimeSeriesData;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesDatumStringId;
-import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -44,13 +35,12 @@ import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.uid.IdOrError;
 import net.opentsdb.uid.UniqueIdStore;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 public abstract class BaseTsdb1xDataStore implements Tsdb1xDataStore {
 

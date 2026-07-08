@@ -16,22 +16,22 @@ package net.opentsdb.stats;
 
 import java.util.Set;
 
+import com.stumbleupon.async.Deferred;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import zipkin2.Span;
+import zipkin2.reporter.AsyncReporter;
+import zipkin2.reporter.Reporter;
+import zipkin2.reporter.okhttp3.OkHttpSender;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.BraveTrace.BraveTraceBuilder;
-import zipkin.Span;
-import zipkin.reporter.AsyncReporter;
-import zipkin.reporter.Reporter;
-import zipkin.reporter.okhttp3.OkHttpSender;
 
 /**
  * An implementation of the OpenTracing and TsdbTracer using Brave. For now it
@@ -60,7 +60,7 @@ public class BraveTracer extends BaseTSDBPlugin implements Tracer {
   private volatile OkHttpSender zipkin_sender;
   
   /** The reporter the sender is attached to. */
-  private volatile AsyncReporter<zipkin.Span> zipkin_reporter;
+  private volatile AsyncReporter<zipkin2.Span> zipkin_reporter;
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb, final String id) {
@@ -163,7 +163,7 @@ public class BraveTracer extends BaseTSDBPlugin implements Tracer {
       spans.add(span);
       
       // catch the volatile state.
-      final AsyncReporter<zipkin.Span> zipkin_reporter = 
+      final AsyncReporter<zipkin2.Span> zipkin_reporter =
           BraveTracer.this.zipkin_reporter;
       if (forward && zipkin_reporter != null) {
         zipkin_reporter.report(span);
@@ -187,7 +187,7 @@ public class BraveTracer extends BaseTSDBPlugin implements Tracer {
   }
   
   @VisibleForTesting
-  AsyncReporter<zipkin.Span> reporter() {
+  AsyncReporter<zipkin2.Span> reporter() {
     return zipkin_reporter;
   }
   
@@ -208,7 +208,7 @@ public class BraveTracer extends BaseTSDBPlugin implements Tracer {
       
       // otherwise, there was a change in the endpoint.
       OkHttpSender extant_sender = null;
-      AsyncReporter<zipkin.Span> extant_reporter = null;
+      AsyncReporter<zipkin2.Span> extant_reporter = null;
       
       try {
         synchronized (BraveTracer.this) {

@@ -17,18 +17,18 @@ package net.opentsdb.query.interpolation.types.numeric;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.query.filter.TagValueRegexFilter;
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
 
 public class TestScalarNumericInterpolatorConfig {
 

@@ -17,12 +17,12 @@ package net.opentsdb.query.filter;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
 
 public class TestPassThroughFilter {
 

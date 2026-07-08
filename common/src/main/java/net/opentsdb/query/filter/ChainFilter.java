@@ -16,12 +16,13 @@ package net.opentsdb.query.filter;
 
 import java.util.List;
 
+import com.stumbleupon.async.Deferred;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.stats.Span;

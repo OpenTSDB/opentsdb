@@ -15,6 +15,8 @@
 
 package net.opentsdb.core;
 
+import static org.junit.Assert.*;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,10 +29,6 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 public final class TestTags {
   private TSDB tsdb;

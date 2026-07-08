@@ -22,38 +22,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.query.*;
-import net.opentsdb.query.readcache.CachedQueryNode;
-import net.opentsdb.rollup.RollupInterval;
-import org.hbase.async.Bytes.ByteMap;
-import org.hbase.async.FilterList.Operator;
-import org.hbase.async.KeyRegexpFilter;
-import org.hbase.async.BinaryPrefixComparator;
-import org.hbase.async.CompareFilter;
-import org.hbase.async.FilterList;
-import org.hbase.async.FuzzyRowFilter;
-import org.hbase.async.QualifierFilter;
-import org.hbase.async.ScanFilter;
-import org.hbase.async.Scanner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
-
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.SecondTimeStamp;
+import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
+import net.opentsdb.query.*;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
@@ -62,7 +39,9 @@ import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
 import net.opentsdb.query.filter.TagValueWildcardFilter;
 import net.opentsdb.query.processor.rate.Rate;
+import net.opentsdb.query.readcache.CachedQueryNode;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
@@ -80,6 +59,27 @@ import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
+
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
+import org.hbase.async.BinaryPrefixComparator;
+import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.CompareFilter;
+import org.hbase.async.FilterList;
+import org.hbase.async.FilterList.Operator;
+import org.hbase.async.FuzzyRowFilter;
+import org.hbase.async.KeyRegexpFilter;
+import org.hbase.async.QualifierFilter;
+import org.hbase.async.ScanFilter;
+import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
 
 /**
  * The owner/container for one or more HBase scanners used to execute a
@@ -351,7 +351,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
     if (has_failed || node.pipelineContext().queryContext().isClosed()) {
       return;
     }
-    
+
     if (scanners_done >= scanners.get(scanner_index).length) {
       if (!node.push() && current_result == null) {
         throw new IllegalStateException("Current result was null but "
@@ -359,12 +359,19 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
       }
       send_upstream = true;
     }
-    
+
+    if (!send_upstream && node.push()) {
+      // A scanner in a multi-scanner (salted) set finished but the set isn't
+      // complete yet. In push mode results flow upstream via the partial time
+      // series sets, so drop the now-stale current_result.
+      current_result = null;
+    }
+
     if (send_upstream) {
       try {
         if (node.push()) {
           if (node.sentData()) {
-            for (final Tsdb1xPartialTimeSeriesSet set : 
+            for (final Tsdb1xPartialTimeSeriesSet set :
                   sets.get(scanner_index).valueCollection()) {
               if (!set.complete()) {
                 throw new RuntimeException("Set " + set + " was not marked as "
@@ -372,10 +379,11 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
                     + "implementation error.");
               }
             }
-          } else if (node.rollup_usage != RollupUsage.ROLLUP_NOFALLBACK && 
+            current_result = null;
+          } else if (node.rollup_usage != RollupUsage.ROLLUP_NOFALLBACK &&
                      scanner_index + 1 < scanners.size()) {
             if (LOG.isDebugEnabled()) {
-              LOG.debug("Scanner index at [" + scanner_index 
+              LOG.debug("Scanner index at [" + scanner_index
                   + "] returned an empty set, falling back.");
             }
             // fall back!
@@ -390,6 +398,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
             for (final Tsdb1xPartialTimeSeriesSet set : sets.get(0).valueCollection()) {
               set.sendEmpty();
             }
+            current_result = null;
           }
         } else {
           if (scanners.size() == 1 || scanner_index + 1 >= scanners.size()) {
@@ -432,6 +441,7 @@ public class Tsdb1xScanners implements HBaseExecutor, CloseablePooledObject, Tim
         }
       } catch (Exception e) {
         LOG.error("Unexpected exception handling scanner complete", e);
+        current_result = null;
         node.onError(e);
       }
     }

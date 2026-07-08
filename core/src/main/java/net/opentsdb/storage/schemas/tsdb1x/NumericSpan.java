@@ -18,17 +18,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * Represents a read-only sequence of continuous data points.

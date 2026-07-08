@@ -18,10 +18,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
-import org.junit.Test;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryPipelineContext;
+
+import org.junit.Test;
 
 public class TestByteToStringIdConverterFactory {
 

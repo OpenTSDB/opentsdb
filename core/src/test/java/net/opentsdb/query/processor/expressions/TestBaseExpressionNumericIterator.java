@@ -14,21 +14,14 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
 import java.util.Optional;
 
-import org.junit.Test;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -41,6 +34,11 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
+
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.reflect.TypeToken;
 
 public class TestBaseExpressionNumericIterator extends BaseNumericTest {
   

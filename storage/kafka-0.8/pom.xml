@@ -45,7 +45,7 @@
          <dependency>
            <groupId>org.apache.kafka</groupId>
            <artifactId>kafka_2.9.2</artifactId>
-           <version>0.8.1.1</version>
+           <version>0.8.2.2</version>
             <exclusions>
                <exclusion>
                   <groupId>log4j</groupId>
@@ -53,7 +53,6 @@
                </exclusion>
             </exclusions>
          </dependency>
-
       </dependencies>
    </dependencyManagement>
    
@@ -113,16 +112,6 @@
          <artifactId>objenesis</artifactId>
          <scope>test</scope>
       </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-api-mockito</artifactId>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-module-junit4</artifactId>
-         <scope>test</scope>
-      </dependency>
    </dependencies>
    
    <build>
@@ -144,7 +133,7 @@
          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.1</version>
+            <version>${maven.plugin.shade.version}</version>
             <configuration>
                <artifactSet>
                   <excludes>

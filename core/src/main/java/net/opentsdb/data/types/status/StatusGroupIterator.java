@@ -15,9 +15,10 @@
 
 package net.opentsdb.data.types.status;
 
-import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+
+import com.google.common.reflect.TypeToken;
 
 public class StatusGroupIterator extends StatusGroupValue implements TypedTimeSeriesIterator<StatusGroupType> {
 

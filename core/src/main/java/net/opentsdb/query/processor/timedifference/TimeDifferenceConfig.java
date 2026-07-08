@@ -17,22 +17,23 @@ package net.opentsdb.query.processor.timedifference;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 
 /**
  * Config for the time difference processor. Just has a resolution.

@@ -17,16 +17,19 @@
 
 package net.opentsdb.storage;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
 import net.opentsdb.core.Const;
 import net.opentsdb.stats.Span;
 import net.opentsdb.uid.Base1xUniqueIdStore;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
+
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.GetResultOrException;
@@ -37,11 +40,10 @@ import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 public class Tsdb1xUniqueIdStore extends Base1xUniqueIdStore {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xUniqueIdStore.class);

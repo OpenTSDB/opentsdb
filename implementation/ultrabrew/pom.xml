@@ -14,6 +14,10 @@
    <description>Metrics reporting using the Ultrabrew library.</description>
    <packaging>jar</packaging>
 
+   <properties>
+      <ultrabrew.version>0.9.0</ultrabrew.version>
+   </properties>
+
    <dependencyManagement>
       <dependencies>
          <dependency>
@@ -41,12 +45,12 @@
          <dependency>
            <groupId>io.ultrabrew.metrics</groupId>
            <artifactId>metrics-reporter-influxdb</artifactId>
-           <version>0.8.0</version>
+           <version>${ultrabrew.version}</version>
          </dependency>
          <dependency>
            <groupId>io.ultrabrew.metrics</groupId>
            <artifactId>metrics-reporter-opentsdb</artifactId>
-           <version>0.8.0</version>
+           <version>${ultrabrew.version}</version>
          </dependency>
       </dependencies>
    </dependencyManagement>
@@ -98,17 +102,6 @@
          <scope>test</scope>
       </dependency>
       <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-api-mockito</artifactId>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-module-junit4</artifactId>
-         <scope>test</scope>
-      </dependency>
-      
-      <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-core</artifactId>
         <scope>test</scope>
@@ -126,7 +119,7 @@
          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.1</version>
+            <version>${maven.plugin.shade.version}</version>
             <configuration>
                <artifactSet>
                   <excludes>

@@ -21,17 +21,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.*;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryResult;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * Result for a time shifted set of data that will re-align the timestamps with

@@ -14,24 +14,23 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
+import java.util.*;
+import java.util.Map.Entry;
+
+
+import net.opentsdb.core.Const;
+import net.opentsdb.query.BaseQueryNodeConfig;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
-import net.opentsdb.core.Const;
-import net.opentsdb.query.BaseQueryNodeConfig;
-
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.TreeMap;
 
 /**
  * The serializable configuration for a time series join.

@@ -19,13 +19,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.ws.rs.core.Response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.stumbleupon.async.Callback;
-
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
@@ -43,6 +36,13 @@ import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.stumbleupon.async.Callback;
 
 /**
  * A simple sink that will serialize the results.

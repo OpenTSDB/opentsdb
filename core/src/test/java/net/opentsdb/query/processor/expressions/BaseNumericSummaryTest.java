@@ -14,15 +14,11 @@
 //limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-
-import com.google.common.collect.Lists;
 
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
@@ -33,19 +29,24 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.joins.JoinConfig;
-import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+
+import com.google.common.collect.Lists;
 
 public class BaseNumericSummaryTest {
   
@@ -107,7 +108,7 @@ public class BaseNumericSummaryTest {
     when(TSDB.getRegistry()).thenReturn(registry);
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
     interp_factory.initialize(TSDB, null).join();
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
+    when(registry.getPlugin(any(Class.class), nullable(String.class))).thenReturn(interp_factory);
     
     LEFT_ID = BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")

@@ -14,11 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.topn;
 
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.*;
 
 /**
  * A processor that evaluates the time series in a result set using an

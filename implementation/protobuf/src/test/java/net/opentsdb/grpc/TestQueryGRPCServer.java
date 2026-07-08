@@ -16,8 +16,9 @@ package net.opentsdb.grpc;
 
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -27,17 +28,14 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
@@ -52,11 +50,13 @@ import io.grpc.stub.StreamObserver;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.pbuf.QueryResultPB;
+import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QuerySinkConfig;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
-import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.filter.MetricLiteralFactory;
 import net.opentsdb.query.filter.MetricLiteralFilter;
@@ -68,11 +68,11 @@ import net.opentsdb.storage.MockDataStoreFactory;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ QueryGRPCServer.class, ServerBuilder.class,
-  SemanticQueryContext.class, SemanticQueryContext.Builder.class,
-  SemanticQuery.class, SemanticQuery.Builder.class })
 public class TestQueryGRPCServer {
+
+  private MockedStatic<SemanticQueryContext> mockedSemanticQueryContext;
+
+  private MockedStatic<ServerBuilder> mockedServerBuilder;
 
   private static MockTSDB TSDB;
   
@@ -93,14 +93,14 @@ public class TestQueryGRPCServer {
   
   @Before
   public void before() throws Exception {
+    mockedSemanticQueryContext = Mockito.mockStatic(SemanticQueryContext.class);
+    mockedServerBuilder = Mockito.mockStatic(ServerBuilder.class);
     server_builder = mock(ServerBuilder.class);
     server = mock(Server.class);
     context = mock(QueryContext.class);
     ctx_builder = mock(SemanticQueryContext.Builder.class);
     ctx = mock(SemanticQueryContext.class);
-
-    PowerMockito.mockStatic(ServerBuilder.class);
-    PowerMockito.when(ServerBuilder.forPort(anyInt()))
+    mockedServerBuilder.when(() -> ServerBuilder.forPort(anyInt()))
       .thenReturn(server_builder);
     when(server_builder.addService(any(BindableService.class)))
       .thenReturn(server_builder);
@@ -112,9 +112,7 @@ public class TestQueryGRPCServer {
       .thenReturn(server_builder);
     when(server_builder.build()).thenReturn(server);
     when(server.start()).thenReturn(server);
-    
-    PowerMockito.mockStatic(SemanticQueryContext.class);
-    when(SemanticQueryContext.newBuilder()).thenReturn(ctx_builder);
+    mockedSemanticQueryContext.when(SemanticQueryContext::newBuilder).thenReturn(ctx_builder);
     when(ctx_builder.setTSDB(TSDB)).thenReturn(ctx_builder);
     when(ctx_builder.setQuery(any(TimeSeriesQuery.class)))
       .thenReturn(ctx_builder);
@@ -123,7 +121,7 @@ public class TestQueryGRPCServer {
     when(ctx_builder.build()).thenReturn(ctx);
     
     when(context.tsdb()).thenReturn(TSDB);
-    when(ctx.initialize(any(Span.class)))
+    when(ctx.initialize(nullable(Span.class)))
       .thenAnswer(new Answer<Deferred<Void>>() {
       @Override
       public Deferred<Void> answer(InvocationOnMock invocation)
@@ -133,6 +131,12 @@ public class TestQueryGRPCServer {
     });
     when(TSDB.getRegistry().getPlugin(SerdesFactory.class, PBufSerdesFactory.TYPE))
       .thenReturn(new PBufSerdesFactory());
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedServerBuilder.closeOnDemand();
+    mockedSemanticQueryContext.closeOnDemand();
   }
   
   @Test

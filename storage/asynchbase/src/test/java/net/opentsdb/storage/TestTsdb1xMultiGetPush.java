@@ -21,38 +21,17 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.rollup.RollupInterval;
-import org.hbase.async.BinaryPrefixComparator;
-import org.hbase.async.FilterList;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.QualifierFilter;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
-
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Bytes;
-
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.NoDataPartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -63,6 +42,7 @@ import net.opentsdb.pools.DummyObjectPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.NoDataPartialTimeSeriesPool;
 import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
@@ -74,6 +54,7 @@ import net.opentsdb.query.WrappedTimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.PooledPartialTimeSeriesRunnable;
@@ -87,8 +68,22 @@ import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSet;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xPartialTimeSeriesSetPool;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ HBaseClient.class })
+import net.openhft.hashing.LongHashFunction;
+import org.hbase.async.BinaryPrefixComparator;
+import org.hbase.async.FilterList;
+import org.hbase.async.GetRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.QualifierFilter;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
+
 public class TestTsdb1xMultiGetPush extends UTBase {
 
   // GMT: Sunday, April 1, 2018 12:15:00 AM
@@ -110,6 +105,8 @@ public class TestTsdb1xMultiGetPush extends UTBase {
   private static long HASH_C;
   private static long HASH_D;
   
+  private MockedConstruction<Tsdb1xScanner> mockedScanner;
+
   public Tsdb1xHBaseQueryNode node;
   public TimeSeriesDataSourceConfig source_config;
   public DefaultRollupConfig rollup_config;
@@ -220,14 +217,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     when(node.push()).thenReturn(true);
     tsdb.runnables.clear();
     
-    PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
-      .thenAnswer(new Answer<Tsdb1xScanner>() {
-        @Override
-        public Tsdb1xScanner answer(InvocationOnMock invocation)
-            throws Throwable {
-          return mock(Tsdb1xScanner.class);
-        }
-      });
+    mockedScanner = Mockito.mockConstruction(Tsdb1xScanner.class);
     
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
@@ -254,7 +244,12 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     tsuids.add(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_B_BYTES));
     storage.getMultiGets().clear();
   }
-  
+
+  @After
+  public void tearDown() {
+    if (mockedScanner != null) mockedScanner.close();
+  }
+
   @Test
   public void resetDefaults() throws Exception {
     try {
@@ -631,46 +626,48 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     validateDoubleSeries(HASH_C, 5, ts);
     validateDoubleSeries(HASH_D, 7, ts); // shifted funny due to the push cache
   }
-  
+
   @Test
   public void fetchNextSmallEvenBatch() throws Exception {
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    Whitebox.setInternalState(mget, "batch_size", 2);
+    Field batch_sizeField = mget.getClass().getDeclaredField("batch_size");
+    batch_sizeField.setAccessible(true);
+    batch_sizeField.set(mget, 2);
     mget.fetchNext(null, null);
     assertEquals(4, storage.getMultiGets().size());
     assertEquals(2, storage.getMultiGets().get(0).size());
-    
+
     List<GetRequest> gets = storage.getMultiGets().get(0);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals(DATA_TABLE, gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertNull(gets.get(i).getFilter());
     }
-    
+
     assertEquals(2, storage.getMultiGets().get(1).size());
     gets = storage.getMultiGets().get(1);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
-    
+
     assertEquals(2, storage.getMultiGets().get(2).size());
     gets = storage.getMultiGets().get(2);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
-    
+
     assertEquals(2, storage.getMultiGets().get(3).size());
     gets = storage.getMultiGets().get(3);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals(DATA_TABLE, gets.get(i).table());
@@ -679,7 +676,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    
+
     TimeStamp ts = new SecondTimeStamp(START_TS - 900);
     validateDoubleSeries(HASH_A, 0, ts);
     validateDoubleSeries(HASH_B, 1, ts);
@@ -692,46 +689,48 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     validateDoubleSeries(HASH_C, 5, ts);
     validateDoubleSeries(HASH_D, 7, ts); // shifted funny due to the push cache
   }
-  
+
   @Test
   public void fetchNextSmallOddBatch() throws Exception {
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    Whitebox.setInternalState(mget, "batch_size", 3);
+    Field batch_sizeField = mget.getClass().getDeclaredField("batch_size");
+    batch_sizeField.setAccessible(true);
+    batch_sizeField.set(mget, 3);
     mget.fetchNext(null, null);
     assertEquals(4, storage.getMultiGets().size());
     assertEquals(3, storage.getMultiGets().get(0).size());
-    
+
     List<GetRequest> gets = storage.getMultiGets().get(0);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(2).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals(DATA_TABLE, gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertNull(gets.get(i).getFilter());
     }
-    
+
     assertEquals(1, storage.getMultiGets().get(1).size());
     gets = storage.getMultiGets().get(1);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(0).key());
-    
+
     assertEquals(3, storage.getMultiGets().get(2).size());
     gets = storage.getMultiGets().get(2);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_BYTES),
         gets.get(2).key());
-    
+
     assertEquals(1, storage.getMultiGets().get(3).size());
     gets = storage.getMultiGets().get(3);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, END_TS - 900, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(0).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals(DATA_TABLE, gets.get(i).table());
@@ -740,7 +739,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     }
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
-    
+
     TimeStamp ts = new SecondTimeStamp(START_TS - 900);
     validateDoubleSeries(HASH_A, 0, ts);
     validateDoubleSeries(HASH_B, 1, ts);
@@ -921,7 +920,7 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     validateDoubleSeriesRollup(HASH_A, 2, timestamp);
     validateDoubleSeriesRollup(HASH_C, 5, timestamp);
   }
-  
+
   @Test
   public void fetchNextRollupSmallEvenBatch() throws Exception {
     // rollup tables
@@ -929,97 +928,99 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     when(node.sentData()).thenReturn(true); // pretend we sent it.
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    Whitebox.setInternalState(mget, "batch_size", 2);
+    Field batch_sizeField = mget.getClass().getDeclaredField("batch_size");
+    batch_sizeField.setAccessible(true);
+    batch_sizeField.set(mget, 2);
     mget.fetchNext(null, null);
     assertEquals(6, storage.getMultiGets().size());
     assertEquals(2, storage.getMultiGets().get(0).size());
     List<GetRequest> gets = storage.getMultiGets().get(0);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(2, storage.getMultiGets().get(1).size());
     gets = storage.getMultiGets().get(1);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(2, storage.getMultiGets().get(2).size());
     gets = storage.getMultiGets().get(2);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(2, storage.getMultiGets().get(3).size());
     gets = storage.getMultiGets().get(3);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(2, storage.getMultiGets().get(4).size());
     gets = storage.getMultiGets().get(4);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(2, storage.getMultiGets().get(5).size());
     gets = storage.getMultiGets().get(5);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
     TimeStamp ts = new SecondTimeStamp(TS_ROLLUP_SERIES);
     // note the order is all funky due to the mock being single threaded
     validateDoubleSeriesRollup(HASH_A, 0, ts);
     validateDoubleSeriesRollup(HASH_C, 3, ts);
-    
+
     ts.add(Duration.ofSeconds(86400));
     validateDoubleSeriesRollup(HASH_A, 1, ts);
     validateDoubleSeriesRollup(HASH_C, 4, ts);
-    
+
     ts.add(Duration.ofSeconds(86400));
     validateDoubleSeriesRollup(HASH_A, 2, ts);
     validateDoubleSeriesRollup(HASH_C, 5, ts);
   }
-  
+
   @Test
   public void fetchNextRollupSmallOddBatch() throws Exception {
     // rollup tables
@@ -1027,92 +1028,94 @@ public class TestTsdb1xMultiGetPush extends UTBase {
     when(node.sentData()).thenReturn(true); // pretend we sent it.
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet();
     mget.reset(node, source_config, tsuids);
-    Whitebox.setInternalState(mget, "batch_size", 3);
+    Field batch_sizeField = mget.getClass().getDeclaredField("batch_size");
+    batch_sizeField.setAccessible(true);
+    batch_sizeField.set(mget, 3);
     mget.fetchNext(null, null);
     assertEquals(6, storage.getMultiGets().size());
     assertEquals(3, storage.getMultiGets().get(0).size());
     List<GetRequest> gets = storage.getMultiGets().get(0);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_BYTES),
         gets.get(2).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(1, storage.getMultiGets().get(1).size());
     gets = storage.getMultiGets().get(1);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(0).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(3, storage.getMultiGets().get(2).size());
     gets = storage.getMultiGets().get(2);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_BYTES),
         gets.get(2).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(1, storage.getMultiGets().get(3).size());
     gets = storage.getMultiGets().get(3);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + 86400, TAGK_BYTES, TAGV_B_BYTES),
         gets.get(0).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(3, storage.getMultiGets().get(4).size());
     gets = storage.getMultiGets().get(4);
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES),
         gets.get(0).key());
-    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES),
         gets.get(1).key());
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_BYTES),
         gets.get(2).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertEquals(1, storage.getMultiGets().get(5).size());
     gets = storage.getMultiGets().get(5);
-    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES), 
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, TS_ROLLUP_SERIES + (86400 * 2), TAGK_BYTES, TAGV_B_BYTES),
         gets.get(0).key());
     for (int i = 0; i < gets.size(); i++) {
       assertArrayEquals("tsdb-rollup-1h".getBytes(), gets.get(i).table());
       assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
       assertSame(mget.filter, gets.get(i).getFilter());
     }
-    
+
     assertTrue(mget.all_batches_sent.get());
     assertEquals(State.COMPLETE, mget.state());
     TimeStamp ts = new SecondTimeStamp(TS_ROLLUP_SERIES);
     // note the order is all funky due to the mock being single threaded
     validateDoubleSeriesRollup(HASH_A, 0, ts);
     validateDoubleSeriesRollup(HASH_C, 3, ts);
-    
+
     ts.add(Duration.ofSeconds(86400));
     validateDoubleSeriesRollup(HASH_A, 1, ts);
     validateDoubleSeriesRollup(HASH_C, 4, ts);
-    
+
     ts.add(Duration.ofSeconds(86400));
     validateDoubleSeriesRollup(HASH_A, 2, ts);
     validateDoubleSeriesRollup(HASH_C, 5, ts);

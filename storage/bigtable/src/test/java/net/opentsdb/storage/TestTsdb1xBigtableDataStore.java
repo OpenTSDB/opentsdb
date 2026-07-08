@@ -19,14 +19,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.FileInputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -38,15 +38,13 @@ import com.google.common.collect.Lists;
 import net.opentsdb.data.MockLowLevelMetricData;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeStamp;
+import java.lang.reflect.Field;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
@@ -62,16 +60,20 @@ import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.uid.UniqueIdStore;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ ExecutorService.class, BigtableSession.class, 
-  Tsdb1xBigtableQueryNode.class, CredentialOptions.class,
-  FileInputStream.class, Tsdb1xBigtableDataStore.class })
 public class TestTsdb1xBigtableDataStore extends UTBase {
 
   private static final String ID = "UT";
-  
+
   private Tsdb1xBigtableFactory factory;
-  
+  private MockedStatic<CredentialOptions> credentialOptions;
+  private MockedConstruction<BigtableSession> mockedSession;
+
+  @After
+  public void afterLocal() {
+    if (mockedSession != null) mockedSession.close();
+    if (credentialOptions != null) credentialOptions.close();
+  }
+
   @Before
   public void beforeLocal() throws Exception {
     factory = mock(Tsdb1xBigtableFactory.class);
@@ -84,27 +86,28 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
     tsdb.config.override(Tsdb1xBigtableDataStore.getConfigKey(ID, 
         Tsdb1xBigtableDataStore.INSTANCE_ID_KEY), "MyInstance");
     
-    PowerMockito.whenNew(BigtableSession.class).withAnyArguments()
-      .thenReturn(session);
-    PowerMockito.mockStatic(CredentialOptions.class);
-    when(CredentialOptions.jsonCredentials(any(InputStream.class)))
+    // Point the JSON keyfile at a real (empty) temp file so the constructor's
+    // `new FileInputStream(...)` succeeds; CredentialOptions.jsonCredentials is
+    // mocked so the file is never actually parsed.
+    final File keyfile = File.createTempFile("bigtable-ut", ".json");
+    keyfile.deleteOnExit();
+    tsdb.config.override(Tsdb1xBigtableDataStore.getConfigKey(ID,
+        Tsdb1xBigtableDataStore.JSON_KEYFILE_KEY), keyfile.getAbsolutePath());
+
+    credentialOptions = Mockito.mockStatic(CredentialOptions.class);
+    credentialOptions.when(() ->
+        CredentialOptions.jsonCredentials(any(InputStream.class)))
       .thenReturn(mock(CredentialOptions.class));
-    PowerMockito.mockStatic(Executors.class);
-    when(Executors.newCachedThreadPool())
-      .thenReturn(mock(ExecutorService.class));
-    when(session.getDataClient()).thenReturn(client);
-    PowerMockito.whenNew(FileInputStream.class).withAnyArguments()
-      .thenAnswer(new Answer<FileInputStream>() {
-        @Override
-        public FileInputStream answer(InvocationOnMock invocation)
-            throws Throwable {
-          return mock(FileInputStream.class);
-        }
-      });
-    
-    when(session.createBulkMutation(any(BigtableTableName.class)))
-      .thenReturn(bulk_mutator);
-    when(session.createAsyncExecutor()).thenReturn(executor);
+
+    // The real data store constructs a BigtableSession; intercept the
+    // construction and wire the mock to the MockBigtable-backed data client
+    // and bulk mutator (replaces the old PowerMock whenNew(...).thenReturn).
+    mockedSession = Mockito.mockConstruction(BigtableSession.class,
+        (mock, context) -> {
+          when(mock.getDataClient()).thenReturn(client);
+          when(mock.createBulkMutation(any(BigtableTableName.class)))
+            .thenReturn(bulk_mutator);
+        });
   }
   
   @Test
@@ -139,7 +142,7 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
         new byte[] { 0, 0 }));
 
     // appends
-    Whitebox.setInternalState(store, "write_appends", true);
+    getField(store, "write_appends").set(store, true);
     store.write(null, TimeSeriesDatum.wrap(id, value), null);
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
         store.dataTable(), row_key, Tsdb1xBigtableDataStore.DATA_FAMILY,
@@ -193,7 +196,7 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
             new byte[] { 0, 0 }));
 
     // appends
-    Whitebox.setInternalState(store, "write_appends", true);
+    getField(store, "write_appends").set(store, true);
     store.write(null, shared, null);
 
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
@@ -257,7 +260,7 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
 
     // appends
     data = lowLevel(datum_1, datum_2);
-    Whitebox.setInternalState(store, "write_appends", true);
+    getField(store, "write_appends").set(store, true);
     store.write(null, data, null);
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 0, 0, 42 }, storage.getColumn(
@@ -302,7 +305,7 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
 
     // now with timestamp
     value.resetValue(24);
-    Whitebox.setInternalState(store, "use_dp_timestamp", false);
+    getField(store, "use_dp_timestamp").set(store, false);
     store.write(null, TimeSeriesDatum.wrap(id, value), null);
     row_key = new byte[] { 0, 0, 1, 75, 61, 59, 0, 0, 0, 1, 0, 0, 1 };
     assertArrayEquals(new byte[] { 24 }, storage.getColumn(
@@ -317,5 +320,20 @@ public class TestTsdb1xBigtableDataStore extends UTBase {
       low_level.add(data[i]);
     }
     return low_level;
+  }
+
+  private static Field getField(final Object obj, final String fieldName)
+      throws Exception {
+    Class<?> clazz = obj.getClass();
+    while (clazz != null) {
+      try {
+        final Field f = clazz.getDeclaredField(fieldName);
+        f.setAccessible(true);
+        return f;
+      } catch (NoSuchFieldException e) {
+        clazz = clazz.getSuperclass();
+      }
+    }
+    throw new NoSuchFieldException(fieldName);
   }
 }

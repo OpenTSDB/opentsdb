@@ -14,14 +14,14 @@
 // limitations under the License.
 package net.opentsdb.data;
 
+import java.io.IOException;
+import java.util.Arrays;
+
 import net.opentsdb.data.LowLevelMetricData.HashedLowLevelMetricData;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.storage.TimeSeriesDataConsumer.WriteCallback;
 import net.opentsdb.storage.WriteStatus;
-
-import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * A wrapper used when forwarding data to another consumer but some of that

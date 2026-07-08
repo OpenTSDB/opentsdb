@@ -14,72 +14,40 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.Maps;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import org.junit.Test;
-import org.powermock.reflect.Whitebox;
-
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesByteId;
-import net.opentsdb.data.BaseTimeSeriesDatumStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesDatumId;
-import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.data.TimeSeriesDatumStringId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.ZonedNanoTimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.annotation.AnnotationType;
-import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericByteArraySummaryType;
-import net.opentsdb.data.types.numeric.NumericLongArrayType;
-import net.opentsdb.pools.ByteArrayPool;
-import net.opentsdb.pools.DefaultObjectPoolConfig;
-import net.opentsdb.pools.DummyObjectPool;
-import net.opentsdb.pools.LongArrayPool;
-import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.data.types.numeric.*;
+import net.opentsdb.pools.*;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.WriteStatus.WriteState;
-import net.opentsdb.uid.IdOrError;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdFactory;
-import net.opentsdb.uid.UniqueIdStore;
-import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.*;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.UnitTestException;
+
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
 
 public class TestSchema extends SchemaBase {
   
@@ -105,7 +73,7 @@ public class TestSchema extends SchemaBase {
   @Test
   public void ctorOverrides() throws Exception {
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -137,7 +105,7 @@ public class TestSchema extends SchemaBase {
     UniqueId uc = mock(UniqueId.class);
     Tsdb1xDataStoreFactory sf = mock(Tsdb1xDataStoreFactory.class);
     Tsdb1xDataStore s = mock(Tsdb1xDataStore.class);
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(sf);
     when(sf.newInstance(eq(tsdb), eq(TESTID), any(Schema.class))).thenReturn(s);
     when(tsdb.registry.getSharedObject(TESTID + "_uidstore"))
@@ -181,7 +149,7 @@ public class TestSchema extends SchemaBase {
   public void ctorNullStoreFromFactory() throws Exception {
     MockTSDB tsdb = new MockTSDB();
     Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenReturn(null);
@@ -195,7 +163,7 @@ public class TestSchema extends SchemaBase {
   public void ctorStoreInstantiationFailure() throws Exception {
     MockTSDB tsdb = new MockTSDB();
     Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenThrow(new UnitTestException());
@@ -544,7 +512,7 @@ public class TestSchema extends SchemaBase {
     
     // salt and diff metric width
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -576,7 +544,7 @@ public class TestSchema extends SchemaBase {
   @Test
   public void prefixKeyWithSalt() throws Exception {
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -674,7 +642,7 @@ public class TestSchema extends SchemaBase {
   @Test
   public void prefixKeyWithSaltMultiByte() throws Exception {
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
@@ -790,7 +758,9 @@ public class TestSchema extends SchemaBase {
   @Test
   public void resolveByteId() throws Exception {
     Schema schema = schema();
-    Whitebox.setInternalState(factory, "schema", schema);
+    Field schemaField = factory.getClass().getDeclaredField("schema");
+    schemaField.setAccessible(true);
+    schemaField.set(factory, schema);
     TimeSeriesByteId id = BaseTimeSeriesByteId.newBuilder(factory)
         .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
         .setMetric(METRIC_BYTES)
@@ -799,7 +769,7 @@ public class TestSchema extends SchemaBase {
         .setAlias("alias".getBytes(Const.UTF8_CHARSET))
         .addDisjointTag(UIDS.get("B"))
         .build();
-    
+
     TimeSeriesStringId newid = schema.resolveByteId(id, null).join();
     assertEquals("alias", newid.alias());
     assertEquals("Ns", newid.namespace());
@@ -807,7 +777,7 @@ public class TestSchema extends SchemaBase {
     assertEquals(TAGV_STRING, newid.tags().get(TAGK_STRING));
     assertEquals(TAGK_B_STRING, newid.aggregatedTags().get(0));
     assertEquals("B", newid.disjointTags().get(0));
-    
+
     // skip metric
     id = BaseTimeSeriesByteId.newBuilder(factory)
         .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
@@ -818,7 +788,7 @@ public class TestSchema extends SchemaBase {
         .addDisjointTag(UIDS.get("B"))
         .setSkipMetric(true)
         .build();
-    
+
     newid = schema.resolveByteId(id, null).join();
     assertEquals("alias", newid.alias());
     assertEquals("Ns", newid.namespace());
@@ -826,7 +796,7 @@ public class TestSchema extends SchemaBase {
     assertEquals(TAGV_STRING, newid.tags().get(TAGK_STRING));
     assertEquals(TAGK_B_STRING, newid.aggregatedTags().get(0));
     assertEquals("B", newid.disjointTags().get(0));
-    
+
     // exception
     id = BaseTimeSeriesByteId.newBuilder(factory)
         .setNamespace("Ns".getBytes(Const.UTF8_CHARSET))
@@ -836,11 +806,12 @@ public class TestSchema extends SchemaBase {
         .setAlias("alias".getBytes(Const.UTF8_CHARSET))
         .addDisjointTag(UIDS.get("B"))
         .build();
-    
+
     try {
       schema.resolveByteId(id, null).join();
       fail("Expected StorageException");
-    } catch (StorageException e) { }
+    } catch (StorageException e) {
+    }
   }
 
 //  @Test
@@ -1014,7 +985,7 @@ public class TestSchema extends SchemaBase {
   public void createRowKeySuccessSalted() throws Exception {
     resetConfig();
     MockTSDB tsdb = new MockTSDB();
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    

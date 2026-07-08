@@ -17,8 +17,15 @@
 
 package net.opentsdb.query.plan;
 
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.Arrays;
+import java.util.List;
+
+
 import net.opentsdb.common.Const;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
@@ -59,16 +66,12 @@ import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
 public abstract class BaseTestDefaultQueryPlanner {
   protected static final String START = "1514764800";

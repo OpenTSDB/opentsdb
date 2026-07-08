@@ -17,7 +17,6 @@ package net.opentsdb.query.processor.expressions;
 import java.io.IOException;
 import java.util.Map;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -32,6 +31,8 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * An iterator handling {@link NumericType} data values.

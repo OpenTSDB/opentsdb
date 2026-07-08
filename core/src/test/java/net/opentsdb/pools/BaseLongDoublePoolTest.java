@@ -21,10 +21,10 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 
+import net.opentsdb.core.Registry;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
-
-import net.opentsdb.core.Registry;
 
 /**
  * Base for iterator tests that may be using the long or double pool.

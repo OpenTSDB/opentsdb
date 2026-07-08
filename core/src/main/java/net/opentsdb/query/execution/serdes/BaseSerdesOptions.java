@@ -17,11 +17,12 @@ package net.opentsdb.query.execution.serdes;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.query.serdes.SerdesOptions;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-
-import net.opentsdb.query.serdes.SerdesOptions;
 
 /**
  * A base serdes option class.

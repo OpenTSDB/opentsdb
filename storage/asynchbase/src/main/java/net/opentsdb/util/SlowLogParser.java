@@ -17,22 +17,6 @@
 
 package net.opentsdb.util;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.MultimapBuilder;
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
-import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -44,6 +28,24 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
+import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueIdType;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.MultimapBuilder;
 
 /**
  * This is the start of a little utility to parse a slow region log, for now just

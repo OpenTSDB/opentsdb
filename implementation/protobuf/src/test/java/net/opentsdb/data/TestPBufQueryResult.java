@@ -31,10 +31,10 @@ import org.junit.Test;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.data.pbuf.TimeSeriesPB;
 import net.opentsdb.data.pbuf.TimeSpecificationPB;
 import net.opentsdb.data.pbuf.TimeStampPB;
-import net.opentsdb.data.pbuf.QueryResultPB.QueryResult;
 import net.opentsdb.exceptions.SerdesException;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;

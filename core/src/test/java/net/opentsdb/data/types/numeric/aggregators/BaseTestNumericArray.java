@@ -21,14 +21,10 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 
+import net.opentsdb.pools.*;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
-
-import net.opentsdb.pools.DefaultObjectPoolConfig;
-import net.opentsdb.pools.DoubleArrayPool;
-import net.opentsdb.pools.IntArrayPool;
-import net.opentsdb.pools.LongArrayPool;
-import net.opentsdb.pools.MockArrayObjectPool;
 
 public class BaseTestNumericArray {
 

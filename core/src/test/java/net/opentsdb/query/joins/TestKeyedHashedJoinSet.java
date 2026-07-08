@@ -14,15 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.joins;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Test;
 
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.joins.Joiner.Operand;
+
+import org.junit.Test;
 
 public class TestKeyedHashedJoinSet extends BaseJoinTest {
 

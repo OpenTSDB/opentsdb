@@ -15,6 +15,7 @@
 package net.opentsdb.meta;
 
 import com.google.common.hash.HashCode;
+
 import net.opentsdb.query.filter.QueryFilter;
 
 /**

@@ -16,20 +16,16 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.pools.CloseablePooledObject;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupInterval;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * The base class for a Tsdb1x Partial Time Series to be populated by 1x style
@@ -39,7 +35,7 @@ import net.opentsdb.rollup.RollupInterval;
  * 
  * @since 3.0
  */
-public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType> 
+public abstract class Tsdb1xPartialTimeSeries<T extends TimeSeriesDataType>
     implements PartialTimeSeries<T>, CloseablePooledObject {
   /** Reference to the Object pool for this instance. */
   protected PooledObject pooled_object;

@@ -14,42 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.MockTSDB;
@@ -75,9 +48,26 @@ import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class, ReadCacheQueryPipelineContext.class })
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
+
 public class TestReadCacheQueryPipelineContext {
+
+  private MockedStatic<ReadCacheQueryPipelineContext> mockedReadCacheQueryPipelineContext;
+
+  private MockedStatic<DateTime> mockedDateTime;
 
   private static MockTSDB TSDB;
   private static NumericInterpolatorConfig NUMERIC_CONFIG;
@@ -121,6 +111,8 @@ public class TestReadCacheQueryPipelineContext {
   
   @Before
   public void before() throws Exception {
+    mockedReadCacheQueryPipelineContext = Mockito.mockStatic(ReadCacheQueryPipelineContext.class);
+    mockedDateTime = Mockito.mockStatic(DateTime.class);
     TSDB.runnables.clear();
     
     sink = mock(QuerySink.class);
@@ -159,9 +151,7 @@ public class TestReadCacheQueryPipelineContext {
           return keys;
         }
       });
-    
-    PowerMockito.mockStatic(ReadCacheQueryPipelineContext.class);
-    when(ReadCacheQueryPipelineContext.buildQuery(anyInt(), anyInt(), 
+    mockedReadCacheQueryPipelineContext.when(() -> ReadCacheQueryPipelineContext.buildQuery(anyInt(), anyInt(),
         any(QueryContext.class), any(QuerySink.class))).thenAnswer(
         new Answer<QueryContext>() {
           @Override
@@ -172,6 +162,12 @@ public class TestReadCacheQueryPipelineContext {
             return new MockQueryContext(start, sink);
           }
     });
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedDateTime.closeOnDemand();
+    mockedReadCacheQueryPipelineContext.closeOnDemand();
   }
   
   @Test
@@ -184,6 +180,7 @@ public class TestReadCacheQueryPipelineContext {
     assertEquals(1, ctx.sinks.size());
     assertSame(SINK, ctx.sinks.get(0));
   }
+
   // TODO - we'll redo the cache in a little bit.
 //  @Test
 //  public void initializeNoDownsample() throws Exception {
@@ -1130,11 +1127,10 @@ public class TestReadCacheQueryPipelineContext {
   }
   
   void mockDateTime(final long timestamp) {
-    PowerMockito.mockStatic(DateTime.class);
-    when(DateTime.currentTimeMillis()).thenReturn(timestamp);
-    when(DateTime.parseDuration(anyString())).thenCallRealMethod();
-    when(DateTime.getDurationInterval(anyString())).thenCallRealMethod();
-    when(DateTime.getDurationUnits(anyString())).thenCallRealMethod();
+    mockedDateTime.when(DateTime::currentTimeMillis).thenReturn(timestamp);
+    mockedDateTime.when(() -> DateTime.parseDuration(anyString())).thenCallRealMethod();
+    mockedDateTime.when(() -> DateTime.getDurationInterval(anyString())).thenCallRealMethod();
+    mockedDateTime.when(() -> DateTime.getDurationUnits(anyString())).thenCallRealMethod();
   }
   
   class MockQueryContext implements QueryContext {

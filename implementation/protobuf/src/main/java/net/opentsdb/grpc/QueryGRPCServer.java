@@ -16,10 +16,10 @@ package net.opentsdb.grpc;
 
 import java.io.File;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
@@ -47,7 +47,7 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase 
+public class QueryGRPCServer extends QueryRpcBetaGrpc.QueryRpcBetaImplBase
     implements RPCServer {
   private static final Logger LOG = LoggerFactory.getLogger(QueryGRPCServer.class);
   

@@ -16,12 +16,6 @@ package net.opentsdb.query.processor.expressions;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesByteId;
@@ -31,6 +25,13 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.processor.expressions.BinaryExpressionNode.ErrorCB;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
 
 /**
  * The ternary node implementation. It simply extends the 

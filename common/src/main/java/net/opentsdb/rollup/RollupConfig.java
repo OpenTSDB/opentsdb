@@ -14,10 +14,10 @@
 // limitations under the License.
 package net.opentsdb.rollup;
 
-import net.opentsdb.exceptions.IllegalDataException;
-
 import java.util.List;
 import java.util.Map;
+
+import net.opentsdb.exceptions.IllegalDataException;
 
 public interface RollupConfig {
 

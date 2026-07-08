@@ -15,16 +15,12 @@
 package net.opentsdb.query.anomaly.egads.olympicscoring;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.storage.TimeSeriesDataConsumer;
-import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -48,6 +44,7 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
@@ -56,12 +53,12 @@ import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
 import net.opentsdb.query.anomaly.MemoryPredictionCache;
 import net.opentsdb.query.anomaly.PredictionCache;
 import net.opentsdb.query.execution.serdes.JsonV3QuerySerdesOptions;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
@@ -73,6 +70,8 @@ import net.opentsdb.query.serdes.SerdesFactory;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.storage.MockDataStoreFactory;
+import net.opentsdb.storage.TimeSeriesDataConsumer;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import net.opentsdb.utils.JSON;
 
 public class TestOlympicScoringNode {

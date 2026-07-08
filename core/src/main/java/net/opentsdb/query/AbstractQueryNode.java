@@ -16,15 +16,16 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.stats.Span;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * A base class for nodes that holds a link to the context, upstream and 

@@ -17,9 +17,10 @@ package net.opentsdb.query.joins;
 import java.util.Iterator;
 import java.util.List;
 
-import gnu.trove.map.TLongObjectMap;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
+
+import gnu.trove.map.TLongObjectMap;
 
 /**
  * The base class for binary joins with a left and a right map of lists

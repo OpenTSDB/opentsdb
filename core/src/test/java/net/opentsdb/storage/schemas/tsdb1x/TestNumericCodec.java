@@ -14,14 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import net.opentsdb.storage.WriteStatus;
-import org.junit.Test;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SecondTimeStamp;
@@ -29,9 +23,12 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Pair;
+
+import org.junit.Test;
 
 public class TestNumericCodec {
 

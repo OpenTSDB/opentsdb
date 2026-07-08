@@ -14,8 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
+
+import com.google.common.hash.HashCode;
 
 import net.opentsdb.stats.Span;
 

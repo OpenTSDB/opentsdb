@@ -17,24 +17,20 @@ package net.opentsdb.query.processor.groupby;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.query.BaseWrappedQueryResult;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.utils.XXHash;
+
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesByteId;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.utils.XXHash;
 
 /**
  * A result from the {@link GroupBy} node for a segment. The grouping is 

@@ -14,14 +14,10 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.mockito.Matchers.anyString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -36,12 +32,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterFactory;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.DatumIdValidator;
-import net.opentsdb.uid.LRUUniqueId;
-import net.opentsdb.uid.MockUIDStore;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdFactory;
-import net.opentsdb.uid.UniqueIdStore;
-import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.*;
 import net.opentsdb.utils.Bytes;
 
 import org.junit.BeforeClass;
@@ -125,9 +116,9 @@ public class SchemaBase {
     id_validator = mock(DatumIdValidator.class);
     
     // return the default
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
-    when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
+    when(store_factory.newInstance(any(TSDB.class), nullable(String.class), any(Schema.class)))
       .thenReturn(store);    
     when(tsdb.registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);
@@ -141,11 +132,11 @@ public class SchemaBase {
     metrics = new LRUUniqueId(tsdb, null, UniqueIdType.METRIC, uid_store);
     tag_names = new LRUUniqueId(tsdb, null, UniqueIdType.TAGK, uid_store);
     tag_values = new LRUUniqueId(tsdb, null, UniqueIdType.TAGV, uid_store);
-    when(uid_factory.newInstance(any(TSDB.class), anyString(), 
+    when(uid_factory.newInstance(any(TSDB.class), nullable(String.class), 
         eq(UniqueIdType.METRIC), eq(uid_store))).thenReturn(metrics);
-    when(uid_factory.newInstance(any(TSDB.class), anyString(), 
+    when(uid_factory.newInstance(any(TSDB.class), nullable(String.class), 
         eq(UniqueIdType.TAGK), eq(uid_store))).thenReturn(tag_names);
-    when(uid_factory.newInstance(any(TSDB.class), anyString(), 
+    when(uid_factory.newInstance(any(TSDB.class), nullable(String.class), 
         eq(UniqueIdType.TAGV), eq(uid_store))).thenReturn(tag_values);
     
     

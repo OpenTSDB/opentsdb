@@ -14,27 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.processor;
 
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
+import java.util.Collection;
+import java.util.Map;
+
+
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.*;
 import net.opentsdb.query.plan.QueryPlanner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Map;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A simple base class for implementing {@link QueryNodeFactory}s. It maintains

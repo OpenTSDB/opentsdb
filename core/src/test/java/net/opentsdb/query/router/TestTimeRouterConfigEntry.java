@@ -14,44 +14,29 @@
 // limitations under the License.
 package net.opentsdb.query.router;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Lists;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.router.TimeRouterConfigEntry.ConfigSorter;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import java.util.Collections;
+import java.util.List;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.*;
 import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.router.TimeRouterConfigEntry.ConfigSorter;
 import net.opentsdb.query.router.TimeRouterConfigEntry.MatchType;
 import net.opentsdb.utils.DateTime;
 
-import java.util.Collections;
-import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ TimeRouterConfigEntry.class, DateTime.class })
+import com.google.common.collect.Lists;
+
 public class TestTimeRouterConfigEntry {
 
   private MockTSDB tsdb;

@@ -148,7 +148,7 @@ public class TsdbQueryRunner implements TimerTask {
       }
       
       final Set<String> new_configs = Sets.newHashSet();
-      for (final File file: Files.fileTreeTraverser().breadthFirstTraversal(root)) {
+      for (final File file: Files.fileTraverser().breadthFirst(root)) {
         if (file.isFile() && file.toString().toLowerCase().endsWith("yaml")) {
           try {
             final QueryConfig config = QueryConfig.parse(this, file);

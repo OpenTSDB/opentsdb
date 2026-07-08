@@ -17,16 +17,13 @@ package net.opentsdb.query.readcache;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
-import org.junit.Test;
 
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.query.QueryResult;
+
+import org.junit.Test;
 
 public class TestCombinedCachedNumericSummary {
   private static final int BASE_TIME = 1546300800;

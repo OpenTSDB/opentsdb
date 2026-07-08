@@ -16,14 +16,15 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.AggregatorConfig;
 import net.opentsdb.pools.ArrayObjectPool;
 import net.opentsdb.pools.IntArrayPool;
 import net.opentsdb.pools.PooledObject;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Computes the average across the array. Returns a double array always.

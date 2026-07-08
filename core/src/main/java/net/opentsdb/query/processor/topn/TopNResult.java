@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.processor.topn;
 
-import com.google.common.collect.Lists;
-
 import java.util.Collections;
 import java.util.List;
 
@@ -26,6 +24,8 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.BaseWrappedQueryResult;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+
+import com.google.common.collect.Lists;
 
 /**
  * Implements top-n functionality by iterating over each of the time series,

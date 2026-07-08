@@ -17,6 +17,15 @@ package net.opentsdb.query.interpolation.types.numeric;
 import java.io.IOException;
 import java.util.List;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.ScalarNumericFillPolicy;
+import net.opentsdb.query.QueryFillPolicy;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
+
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -29,14 +38,6 @@ import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.ScalarNumericFillPolicy;
-import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
-import net.opentsdb.query.pojo.FillPolicy;
 
 /**
  * Simple scalar interpolator config that fills with a single value when it

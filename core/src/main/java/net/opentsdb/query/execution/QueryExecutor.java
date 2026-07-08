@@ -14,24 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+
+import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.Deferreds;
+
+import io.opentracing.Span;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
-
-import io.opentracing.Span;
-import net.opentsdb.exceptions.RemoteQueryExecutionException;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.utils.Deferreds;
 
 /**
  * A base query executor that may spawn a tree of sub executors for processing.

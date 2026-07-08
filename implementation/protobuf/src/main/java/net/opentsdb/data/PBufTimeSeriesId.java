@@ -17,9 +17,12 @@ package net.opentsdb.data;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.Map.Entry;
+
+
+import net.openhft.hashing.LongHashFunction;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
@@ -29,7 +32,6 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
-import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.pbuf.TimeSeriesIdPB;
 

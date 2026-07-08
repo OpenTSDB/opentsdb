@@ -16,24 +16,6 @@ package net.opentsdb.servlet.resources;
 
 import java.util.List;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.AuthState.AuthStatus;
-import net.opentsdb.auth.Authentication;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.servlet.applications.OpenTSDBApplication;
-import net.opentsdb.servlet.filter.AuthFilter;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
-import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
-import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.JSON;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -46,6 +28,26 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.AuthState.AuthStatus;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
 
 /**
  * Handles the suggest endpoint that returns X number of metrics, tagks or

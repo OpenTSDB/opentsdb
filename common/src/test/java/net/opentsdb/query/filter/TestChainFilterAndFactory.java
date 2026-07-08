@@ -20,19 +20,20 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Lists;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNodeConfig;
+import java.util.List;
+
+
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 
 import net.opentsdb.core.MockTSDB;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.query.filter.UTFilterFactory.UTQueryFilter;
-
-import java.util.List;
 
 public class TestChainFilterAndFactory {
   private static final ObjectMapper MAPPER = new ObjectMapper();

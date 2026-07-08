@@ -17,9 +17,15 @@ package net.opentsdb.meta;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
+
+
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
+
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.query.filter.ChainFilter;
 import net.opentsdb.query.filter.ExplicitTagsFilter;
@@ -27,8 +33,6 @@ import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagKeyRegexFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.junit.Test;
 
 public class TestNamespacedAggregatedDocumentQuery {
 

@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -23,6 +21,8 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolator;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorParser;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolator;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorParser;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * The default interpolation factory stored as the default plugin with

@@ -14,21 +14,22 @@
 // limitations under the License.
 package net.opentsdb.data;
 
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Bytes;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.RollupDatum;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupDatum;
+
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
+
 public class MockLowLevelRollupMetricData extends MockLowLevelMetricData
-        implements LowLevelMetricData.LowLevelRollupMetricData {
+    implements LowLevelMetricData.LowLevelRollupMetricData {
 
   protected RollupConfig rollupConfig;
   protected Iterator<Integer> summaries;

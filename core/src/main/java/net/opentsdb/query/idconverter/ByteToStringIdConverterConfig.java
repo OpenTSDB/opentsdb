@@ -14,23 +14,25 @@
 // limitations under the License.
 package net.opentsdb.query.idconverter;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.hash.HashCode;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
+
 import net.opentsdb.core.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.query.BaseQueryNodeConfig;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 
 /**
  * Simple config wherein all we need is the ID and some factories. 

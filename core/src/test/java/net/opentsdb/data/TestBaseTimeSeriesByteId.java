@@ -14,30 +14,24 @@
 // limitations under the License.
 package net.opentsdb.data;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+
+
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.ByteSet;
+import net.opentsdb.utils.Bytes.ByteMap;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.ByteSet;
-import net.opentsdb.utils.Bytes.ByteMap;
 
 public class TestBaseTimeSeriesByteId {
 
@@ -48,6 +42,7 @@ public class TestBaseTimeSeriesByteId {
     TAGS.put(new byte[] { 'k', '1' }, new byte[] { 'v', '1' });
     TAGS.put(new byte[] { 'k', '2' }, new byte[] { 'v', '2' });
   }
+
   private static final List<byte[]> LIST = Lists.newArrayList(
       new byte[] { 'l', '1' },
       new byte[] { 'l', '2' });
@@ -56,6 +51,7 @@ public class TestBaseTimeSeriesByteId {
     SET.add(new byte[] { 's', '1' });
     SET.add(new byte[] { 's', '2' });
   }
+
   private TimeSeriesDataSourceFactory data_store;
   
   @Before
@@ -473,7 +469,7 @@ public class TestBaseTimeSeriesByteId {
 
   @Test
   public void decode() throws Exception {
-    when(data_store.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
+    when(data_store.resolveByteId(any(TimeSeriesByteId.class), nullable(Span.class)))
       .thenReturn(Deferred.fromResult(null));
     final BaseTimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)

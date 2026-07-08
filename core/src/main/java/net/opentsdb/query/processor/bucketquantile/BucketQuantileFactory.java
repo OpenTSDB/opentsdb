@@ -17,10 +17,6 @@ package net.opentsdb.query.processor.bucketquantile;
 import java.util.List;
 import java.util.Set;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -29,6 +25,12 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResultId;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Factory for validating the bucket quantile nodes and setting them up by 

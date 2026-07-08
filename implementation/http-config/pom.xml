@@ -36,14 +36,13 @@
         <dependency>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
-          <version>4.5.3</version>
+          <version>${apache.httpclient.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpasyncclient</artifactId>
-          <version>4.1.1</version>
+          <version>${apache.httpasyncclient.version}</version>
         </dependency>
-        
       </dependencies>
     </dependencyManagement>
     
@@ -55,6 +54,10 @@
       <dependency>
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>log4j-over-slf4j</artifactId>
       </dependency>
       
       <dependency>
@@ -89,13 +92,8 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
 

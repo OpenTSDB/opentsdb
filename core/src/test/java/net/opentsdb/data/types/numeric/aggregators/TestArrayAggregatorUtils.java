@@ -14,30 +14,27 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericMillisecondShard;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.aggregators.ArrayAggregatorUtils.AccumulateState;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static net.opentsdb.data.types.numeric.NumericTestUtils.assertArrayEqualsNaNs;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
-import static net.opentsdb.data.types.numeric.NumericTestUtils.assertArrayEqualsNaNs;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
+import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.types.numeric.aggregators.ArrayAggregatorUtils.AccumulateState;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.reflect.TypeToken;
 
 public class TestArrayAggregatorUtils {
 

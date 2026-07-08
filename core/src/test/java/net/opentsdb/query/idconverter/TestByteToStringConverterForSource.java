@@ -14,22 +14,25 @@
 // limitations under the License.
 package net.opentsdb.query.idconverter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
 
 import java.util.List;
 import java.util.Map;
+
+
+import net.opentsdb.common.Const;
+import net.opentsdb.data.*;
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.query.AbstractQueryPipelineContext;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.TimeSeriesQuery;
+import net.opentsdb.query.idconverter.ByteToStringConverterForSource.Resolver;
+import net.opentsdb.query.idconverter.ByteToStringConverterForSource.WrappedPartialTimeSeries;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.UnitTestException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -39,23 +42,6 @@ import org.mockito.stubbing.Answer;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.query.AbstractQueryPipelineContext;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.TimeSeriesQuery;
-import net.opentsdb.query.idconverter.ByteToStringConverterForSource.Resolver;
-import net.opentsdb.query.idconverter.ByteToStringConverterForSource.WrappedPartialTimeSeries;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.UnitTestException;
 
 public class TestByteToStringConverterForSource {
 
@@ -339,7 +325,7 @@ public class TestByteToStringConverterForSource {
       context.addId(hash, id);
     }
     when(id.dataStore()).thenReturn(factory);
-    when(factory.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
+    when(factory.resolveByteId(any(TimeSeriesByteId.class), nullable(Span.class)))
       .thenReturn(new Deferred<TimeSeriesStringId>());
     when(pts.set()).thenReturn(set);
     when(pts.idType()).thenAnswer(new Answer<TypeToken>() {

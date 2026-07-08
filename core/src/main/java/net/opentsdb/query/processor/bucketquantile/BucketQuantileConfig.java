@@ -18,21 +18,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
+import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.QueryResultId;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryResultId;
 
 /**
  * A complex config class for the bucket quantile node since there are a lot of

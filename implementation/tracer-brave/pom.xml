@@ -36,14 +36,23 @@
         <dependency>
           <groupId>io.opentracing.brave</groupId>
           <artifactId>brave-opentracing</artifactId>
-          <version>0.18.3</version>
+          <version>1.0.1</version>
         </dependency>
         <dependency>
-          <groupId>io.zipkin.reporter</groupId>
-          <artifactId>zipkin-sender-okhttp3</artifactId>
-          <version>0.6.12</version>
+          <groupId>io.opentracing</groupId>
+          <artifactId>opentracing-api</artifactId>
+          <version>0.33.0</version>
         </dependency>
-                
+        <dependency>
+          <groupId>io.zipkin.zipkin2</groupId>
+          <artifactId>zipkin</artifactId>
+          <version>3.6.1</version>
+        </dependency>
+        <dependency>
+          <groupId>io.zipkin.reporter2</groupId>
+          <artifactId>zipkin-sender-okhttp3</artifactId>
+          <version>3.5.3</version>
+        </dependency>
       </dependencies>
     </dependencyManagement>
     
@@ -56,14 +65,31 @@
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
       </dependency>
+      <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
+      </dependency>
       
       <dependency>
         <groupId>io.opentracing.brave</groupId>
         <artifactId>brave-opentracing</artifactId>
       </dependency>
       <dependency>
-        <groupId>io.zipkin.reporter</groupId>
+        <groupId>io.opentracing</groupId>
+        <artifactId>opentracing-api</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.zipkin.zipkin2</groupId>
+        <artifactId>zipkin</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.zipkin.reporter2</groupId>
         <artifactId>zipkin-sender-okhttp3</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
       </dependency>
       
       <!-- TESTING Deps. -->
@@ -84,13 +110,8 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
 

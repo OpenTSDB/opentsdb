@@ -34,7 +34,7 @@ import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
-import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
+import com.google.cloud.bigtable.grpc.BigtableDataClient;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.FutureCallback;
@@ -113,8 +113,10 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
   /** The Bigtable session. */
   protected final BigtableSession session;
   
-  /** An async executor to share. TODO is this ok? */
-  protected AsyncExecutor executor;
+  /** The shared data client used for async unary RPCs. Newer bigtable-client
+   * versions removed the standalone AsyncExecutor; BigtableDataClient exposes
+   * the equivalent *Async methods directly. */
+  protected BigtableDataClient executor;
   
   /** The executor response pool. */
   protected ExecutorService pool;
@@ -182,7 +184,7 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
               .build())
           .build());
       
-      executor = session.createAsyncExecutor();
+      executor = session.getDataClient();
       
       final BigtableTableName data_table_name = new BigtableTableName(
           table_namer.toTableNameStr(
@@ -236,8 +238,8 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
     return pool;
   }
   
-  /** @return The Bigtable executor. */
-  AsyncExecutor executor() {
+  /** @return The Bigtable data client used for async unary RPCs. */
+  BigtableDataClient executor() {
     return executor;
   }
 
@@ -409,9 +411,6 @@ public class Tsdb1xBigtableDataStore extends BaseTsdb1xDataStore {
               new AppendCB(),
               pool);
       return deferred;
-    } catch (InterruptedException e) {
-      LOG.error("Interrupted", e);
-      return Deferred.fromError(e);
     } catch (Throwable t) {
       LOG.error("Unexpected exception", t);
       throw t;

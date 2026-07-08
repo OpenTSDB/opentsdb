@@ -14,11 +14,23 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+
+import net.opentsdb.core.Const;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.Comparators;
+import net.opentsdb.utils.StringUtils;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -27,16 +39,6 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.Comparators;
-import net.opentsdb.utils.StringUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Filters on a case sensitive tag key.

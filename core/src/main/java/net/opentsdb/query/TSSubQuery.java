@@ -14,11 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
@@ -29,6 +25,7 @@ import net.opentsdb.utils.ByteSet;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 

@@ -14,24 +14,21 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+
+
+import net.opentsdb.pools.DefaultObjectPoolConfig;
+import net.opentsdb.pools.IntArrayPool;
+import net.opentsdb.pools.MockArrayObjectPool;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
-
-import net.opentsdb.pools.DefaultObjectPoolConfig;
-import net.opentsdb.pools.IntArrayPool;
-import net.opentsdb.pools.MockArrayObjectPool;
 
 public class TestArrayAverage extends BaseTestNumericArray {
   

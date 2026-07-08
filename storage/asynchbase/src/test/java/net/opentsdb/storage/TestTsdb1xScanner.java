@@ -19,8 +19,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -31,16 +32,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
-
-import org.hbase.async.HBaseClient;
-import org.hbase.async.Scanner;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
@@ -58,8 +49,13 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ HBaseClient.class, Scanner.class })
+import org.hbase.async.HBaseClient;
+import org.hbase.async.Scanner;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
 public class TestTsdb1xScanner extends UTBase {
   private Tsdb1xScanners owner;
   private Tsdb1xHBaseQueryNode node;
@@ -123,7 +119,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_DOUBLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -160,7 +156,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_DOUBLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -195,7 +191,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, never()).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -224,7 +220,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_SINGLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -253,7 +249,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, never()).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -283,7 +279,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(17)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_DOUBLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -310,6 +306,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -318,14 +315,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(4)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -353,6 +350,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
         int count = 0;
+
         @Override
         public Void answer(InvocationOnMock invocation) throws Throwable {
           if (count++ > 2) {
@@ -368,7 +366,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(1, scanner.keepers.size());
@@ -397,6 +395,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
         int count = 0;
+
         @Override
         public Void answer(InvocationOnMock invocation) throws Throwable {
           if (count++ > 2) {
@@ -412,7 +411,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -445,14 +444,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
       
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(1, scanner.keepers.size());
@@ -484,14 +483,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -518,6 +517,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -526,14 +526,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(4)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(0, scanner.keepers.size());
@@ -566,7 +566,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(3)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(1, scanner.keepers.size());
@@ -605,7 +605,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(3)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(1, scanner.keepers.size());
@@ -642,7 +642,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(1, scanner.keepers.size());
@@ -681,7 +681,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(1, scanner.keepers.size());
@@ -708,7 +708,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_SINGLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -731,7 +731,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(9)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_SINGLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -747,6 +747,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -755,14 +756,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
@@ -779,6 +780,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 3) {
@@ -787,14 +789,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(3)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(5)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -812,6 +814,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 3) {
@@ -820,14 +823,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(3)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(5)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
@@ -844,6 +847,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -852,14 +856,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(4)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -875,6 +879,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -883,14 +888,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
@@ -906,6 +911,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -914,14 +920,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(3)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -937,6 +943,7 @@ public class TestTsdb1xScanner extends UTBase {
     
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -945,14 +952,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(4)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -973,7 +980,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -997,7 +1004,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1018,7 +1025,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, never()).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, never()).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1037,7 +1044,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, never()).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, never()).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1057,7 +1064,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, never()).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, never()).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1076,7 +1083,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, never()).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, never()).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, never()).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
@@ -1105,7 +1112,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(3)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1126,7 +1133,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(6)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(5)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(2)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1145,7 +1152,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(17)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_DOUBLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(3)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1174,7 +1181,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1199,7 +1206,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(2)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1218,7 +1225,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(7)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_DOUBLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(3)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1248,7 +1255,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1273,7 +1280,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(2)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1290,7 +1297,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(7)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_NSUI_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(3)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1319,7 +1326,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1344,7 +1351,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(1)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(1)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(2)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());
@@ -1365,7 +1372,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1382,7 +1389,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(4)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(6)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(2)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1400,7 +1407,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(9)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_SINGLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(3)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1421,7 +1428,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1440,7 +1447,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(2)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1456,7 +1463,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(9)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_SINGLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(3)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1477,7 +1484,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1491,6 +1498,7 @@ public class TestTsdb1xScanner extends UTBase {
     when(node.sequenceEnd()).thenReturn(null);
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         if (count++ == 0) {
@@ -1499,14 +1507,14 @@ public class TestTsdb1xScanner extends UTBase {
         return null;
       }
     }).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(2)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1523,7 +1531,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(9)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(TS_SINGLE_SERIES_COUNT)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(3)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.COMPLETE, scanner.state());
@@ -1544,7 +1552,7 @@ public class TestTsdb1xScanner extends UTBase {
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, never()).close();
     verify(results, times(2)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
@@ -1557,14 +1565,14 @@ public class TestTsdb1xScanner extends UTBase {
     // next fetch
     when(node.sequenceEnd()).thenReturn(null);
     doThrow(new UnitTestException()).when(results).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     
     scanner.fetchNext(results, null);
     
     verify(hbase_scanner, times(2)).nextRows();
     verify(hbase_scanner, times(1)).close();
     verify(results, times(3)).decode(
-        any(ArrayList.class), any(DefaultRollupInterval.class));
+        any(ArrayList.class), nullable(DefaultRollupInterval.class));
     verify(owner, times(1)).scannerDone();
     verify(owner, times(1)).exception(any(Throwable.class));
     assertEquals(State.EXCEPTION, scanner.state());

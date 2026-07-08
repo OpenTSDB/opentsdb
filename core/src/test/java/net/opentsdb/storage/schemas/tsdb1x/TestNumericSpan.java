@@ -14,20 +14,19 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.Iterator;
 
-import org.junit.Before;
-import org.junit.Test;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
+
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestNumericSpan {
   private static final long BASE_TIME = 1514764800;

@@ -30,14 +30,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.storage.TimeSeriesDataConsumer;
-import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.SecondTimeStamp;
@@ -50,7 +42,15 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.IncomingDataPoint;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.storage.TimeSeriesDataConsumer;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * TODO

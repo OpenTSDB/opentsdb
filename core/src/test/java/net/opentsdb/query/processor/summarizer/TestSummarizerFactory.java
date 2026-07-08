@@ -14,24 +14,14 @@
 //limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
 
 import java.util.List;
 
 import net.opentsdb.common.Const;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
@@ -40,18 +30,19 @@ import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.*;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.query.plan.DefaultQueryPlanner;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Pair;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
 public class TestSummarizerFactory {
 
@@ -74,10 +65,10 @@ public class TestSummarizerFactory {
     when(ts_factory.newNode(any(QueryPipelineContext.class), any(QueryNodeConfig.class)))
       .thenReturn(SRC_MOCK);
     
-    QueryNodeConfig config = mock(QueryNodeConfig.class);
+    final TimeSeriesDataSourceConfig config = mock(TimeSeriesDataSourceConfig.class);
     when(config.getId()).thenReturn("mock");
     when(SRC_MOCK.config()).thenReturn(config);
-    when(SRC_MOCK.initialize(any(Span.class))).thenReturn(Deferred.fromResult(null));
+    when(SRC_MOCK.initialize(nullable(Span.class))).thenReturn(Deferred.fromResult(null));
   }
   
   @Before

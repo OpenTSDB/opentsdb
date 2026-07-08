@@ -14,17 +14,12 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric.aggregators;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Random;
 
-import org.junit.Assert;
-import org.junit.Test;
 
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
@@ -34,6 +29,9 @@ import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.StandardDeviationFactory;
 import net.opentsdb.exceptions.IllegalDataException;
+
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestStandardDeviation {
 

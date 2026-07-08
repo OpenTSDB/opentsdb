@@ -17,9 +17,6 @@ package net.opentsdb.query.interpolation.types.numeric;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -28,6 +25,10 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.interpolation.QueryInterpolator;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A class for {@link NumericType}s that allows for read-ahead buffering

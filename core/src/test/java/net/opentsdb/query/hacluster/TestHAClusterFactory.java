@@ -14,7 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
-import com.google.common.collect.Lists;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.when;
+
+
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -29,11 +32,7 @@ import net.opentsdb.utils.JSON;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import com.google.common.collect.Lists;
 
 public class TestHAClusterFactory extends BaseTestDefaultQueryPlanner {
 

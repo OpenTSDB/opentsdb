@@ -16,11 +16,12 @@ package net.opentsdb.stats;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.base.Strings;
 
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
+
+import com.google.common.base.Strings;
 
 /**
  * A simple default implementation of the Query Stats object. It simply takes a

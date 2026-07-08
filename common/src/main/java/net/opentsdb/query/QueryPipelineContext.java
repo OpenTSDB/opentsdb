@@ -16,8 +16,9 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
+
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSource;

@@ -14,22 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.opentracing.Span;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
-import io.opentracing.Span;
-import net.opentsdb.core.Const;
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@link QueryExecutor} wrapper that uses a timer to kill a query that

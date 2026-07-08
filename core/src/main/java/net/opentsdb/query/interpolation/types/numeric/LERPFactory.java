@@ -17,15 +17,16 @@ package net.opentsdb.query.interpolation.types.numeric;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.interpolation.BaseQueryIntperolatorFactory;
 import net.opentsdb.utils.Pair;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * LERP interpolators.

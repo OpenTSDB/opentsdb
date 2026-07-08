@@ -14,20 +14,19 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.netty.util.HashedWheelTimer;
 import net.opentsdb.configuration.Configuration;
-import org.junit.Test;
-
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
+
+import org.junit.Test;
+
+import io.netty.util.HashedWheelTimer;
 
 public class TestGroupByFactory {
   

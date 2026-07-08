@@ -14,18 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.utils.JSON;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestRateOptions {
   public static MockTSDB TSDB;

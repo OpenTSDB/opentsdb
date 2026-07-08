@@ -15,16 +15,11 @@
 package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotEquals;
 
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
@@ -35,6 +30,10 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestDownsampleConfig {
   

@@ -16,12 +16,12 @@ package net.opentsdb.query.execution;
 
 import java.lang.reflect.Constructor;
 
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.TSDB;
+
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.core.TSDB;
 
 /**
  * Simple {@link QueryExecutorFactory} that takes the ctor and config.

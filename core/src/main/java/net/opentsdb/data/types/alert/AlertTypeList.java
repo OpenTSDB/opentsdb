@@ -16,11 +16,12 @@ package net.opentsdb.data.types.alert;
 
 import java.util.List;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A class to handle a list of alert values and provide an iterator over them.

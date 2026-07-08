@@ -24,14 +24,33 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.Lists;
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.common.Const;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.LowLevelMetricData;
+import net.opentsdb.data.LowLevelTimeSeriesData;
+import net.opentsdb.data.TimeSeriesDatum;
 import net.opentsdb.data.TimeSeriesDatumStringId;
+import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.schemas.tsdb1x.BaseTsdb1xDataStore;
 import net.opentsdb.storage.schemas.tsdb1x.Codec;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
+import net.opentsdb.uid.IdOrError;
+import net.opentsdb.uid.UniqueIdStore;
+import net.opentsdb.utils.Pair;
+
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.CallQueueTooBigException;
 import org.hbase.async.ClientStats;
@@ -44,30 +63,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.common.Const;
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.LowLevelTimeSeriesData;
-import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.stats.Span;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
-import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
-import net.opentsdb.uid.IdOrError;
-import net.opentsdb.uid.UniqueIdStore;
-import net.opentsdb.utils.Pair;
 
 /**
  * TODO - complete.

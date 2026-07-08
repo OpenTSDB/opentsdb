@@ -18,13 +18,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
-import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -36,6 +31,8 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * Merges one or more time series. Essentially the same code as the 

@@ -14,40 +14,32 @@
 // limitations under the License.
 package net.opentsdb.query.processor;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.Collection;
+import java.util.Map;
+
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.*;
 import net.opentsdb.query.plan.QueryPlanner;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 
-import java.util.Collection;
-import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyCollection;
-import static org.mockito.Matchers.anyMap;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 public class TestBaseQueryNodeFactory {
 
@@ -99,7 +91,7 @@ public class TestBaseQueryNodeFactory {
   public void newIteratorList() throws Exception {
     TypedTimeSeriesIterator iterator = mock(TypedTimeSeriesIterator.class);
     QueryIteratorFactory mock1 = mock(QueryIteratorFactory.class);
-    when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), 
+    when(mock1.newIterator(any(QueryNode.class), nullable(QueryResult.class), 
         anyCollection(), any(TypeToken.class)))
       .thenReturn(iterator);
     AbstractQueryNode node = mock(AbstractQueryNode.class);
@@ -144,7 +136,7 @@ public class TestBaseQueryNodeFactory {
     Map<String, TimeSeries> sources = Maps.newHashMap();
     sources.put("a", mock(TimeSeries.class));
     QueryIteratorFactory mock1 = mock(QueryIteratorFactory.class);
-    when(mock1.newIterator(any(QueryNode.class), any(QueryResult.class), 
+    when(mock1.newIterator(any(QueryNode.class), nullable(QueryResult.class), 
         anyMap(), any(TypeToken.class)))
       .thenReturn(iterator);
     AbstractQueryNode node = mock(AbstractQueryNode.class);

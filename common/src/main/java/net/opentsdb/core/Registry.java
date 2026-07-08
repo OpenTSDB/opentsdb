@@ -18,14 +18,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
+
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 
 /**
  * A shared location for registering context, mergers, plugins, etc.

@@ -14,14 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfigParser;
 import net.opentsdb.query.pojo.FillPolicy;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Parser that will return a scalar or plain interpolator config.

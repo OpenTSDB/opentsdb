@@ -14,11 +14,7 @@
 // limitations under the License.
 package net.opentsdb.core;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -26,14 +22,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.google.common.collect.Maps;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
@@ -44,9 +32,18 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.hacluster.HAClusterConfig;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DefaultRegistry.class, Executors.class })
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import com.google.common.collect.Maps;
+import io.netty.util.HashedWheelTimer;
+
 public class TestRegistry {
+
+  private MockedStatic<Executors> mockedExecutors;
 
   private DefaultTSDB tsdb;
   private Map<String, String> config_map;
@@ -55,15 +52,23 @@ public class TestRegistry {
   
   @Before
   public void before() throws Exception {
+    mockedExecutors = Mockito.mockStatic(Executors.class,
+        Mockito.withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
     tsdb = mock(DefaultTSDB.class);
     config_map = Maps.newHashMap();
     config = UnitTestConfiguration.getConfiguration(config_map);
     cleanup_pool = mock(ExecutorService.class);
     
     when(tsdb.getConfig()).thenReturn(config);
-    PowerMockito.mockStatic(Executors.class);
-    PowerMockito.when(Executors.newFixedThreadPool(1))
+    when(tsdb.getMaintenanceTimer()).thenReturn(mock(HashedWheelTimer.class));
+    when(tsdb.getRegistry()).thenReturn(mock(Registry.class));
+    mockedExecutors.when(() -> Executors.newFixedThreadPool(1))
       .thenReturn(cleanup_pool);
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedExecutors.closeOnDemand();
   }
   
   @Test

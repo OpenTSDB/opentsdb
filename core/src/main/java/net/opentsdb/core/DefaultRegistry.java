@@ -23,6 +23,22 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import net.opentsdb.configuration.ConfigurationEntrySchema;
+import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.query.QueryIteratorFactory;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.hacluster.HAClusterConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
+import net.opentsdb.query.pojo.TagVFilter;
+import net.opentsdb.query.processor.ProcessorFactory;
+import net.opentsdb.query.serdes.TimeSeriesSerdes;
+import net.opentsdb.utils.JSON;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,22 +48,6 @@ import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.configuration.ConfigurationEntrySchema;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
-import net.opentsdb.query.pojo.TagVFilter;
-import net.opentsdb.query.processor.ProcessorFactory;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.hacluster.HAClusterConfig;
-import net.opentsdb.query.serdes.TimeSeriesSerdes;
-import net.opentsdb.utils.JSON;
 
 /**
  * A shared location for registering context, mergers, plugins, etc.

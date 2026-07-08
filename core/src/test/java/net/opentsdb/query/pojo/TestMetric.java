@@ -14,18 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import static org.junit.Assert.*;
+
+
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.utils.JSON;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
-
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestMetric {
   

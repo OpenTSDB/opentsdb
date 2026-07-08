@@ -14,25 +14,27 @@
 // limitations under the License.
 package net.opentsdb.query.processor.timeshift;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.Objects;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.hash.HashCode;
-
 import java.time.temporal.TemporalAmount;
 import java.util.List;
 
-import com.google.common.hash.Hashing;
+
 import net.opentsdb.core.Const;
 import net.opentsdb.query.BaseQueryNodeConfig;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.Pair;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
 @JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = TimeShiftConfig.Builder.class)

@@ -17,34 +17,24 @@
 
 package net.opentsdb.query.processor.merge;
 
-import com.google.common.collect.Lists;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericTestUtils;
-import net.opentsdb.data.types.numeric.aggregators.ArrayAverageFactory;
-import net.opentsdb.data.types.numeric.aggregators.ArrayMaxFactory;
-import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregator;
-import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorConfig;
-import net.opentsdb.utils.DateTime;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
+import net.opentsdb.data.types.numeric.NumericArrayType;
+import net.opentsdb.data.types.numeric.NumericTestUtils;
+import net.opentsdb.data.types.numeric.aggregators.*;
+import net.opentsdb.utils.DateTime;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestSplitNumericArrayIterator {
 

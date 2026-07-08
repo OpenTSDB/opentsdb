@@ -14,13 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import java.io.IOException;
+import java.util.Optional;
+
+
+import net.opentsdb.data.*;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
@@ -33,8 +32,7 @@ import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
-import java.io.IOException;
-import java.util.Optional;
+import com.google.common.reflect.TypeToken;
 
 /**
  * Iterator that downsamples data points using an {@link net.opentsdb.data.Aggregator} following

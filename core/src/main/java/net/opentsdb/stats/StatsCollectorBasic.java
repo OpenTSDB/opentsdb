@@ -14,16 +14,17 @@
 // limitations under the License.
 package net.opentsdb.stats;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import net.opentsdb.utils.Config;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+
+
+import net.opentsdb.utils.Config;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Receives various stats/metrics from the current process.

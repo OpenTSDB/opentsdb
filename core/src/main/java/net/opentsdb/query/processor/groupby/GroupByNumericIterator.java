@@ -18,26 +18,23 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.query.QueryIterator;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.interpolation.QueryInterpolator;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
 
 /**
  * An iterator for group-by operations wherein multiple time series are 

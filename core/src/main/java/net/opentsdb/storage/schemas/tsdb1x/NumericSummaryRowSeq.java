@@ -20,8 +20,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
@@ -34,6 +32,9 @@ import net.opentsdb.pools.PooledObject;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
+
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 /**
  * Represents a read-only sequence of continuous Rollup or Summary values

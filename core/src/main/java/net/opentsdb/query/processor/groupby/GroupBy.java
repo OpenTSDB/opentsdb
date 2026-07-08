@@ -19,29 +19,21 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Callback;
 
-import com.stumbleupon.async.Deferred;
 import net.opentsdb.common.Const;
-import net.opentsdb.data.ArrayAggregatorConfig;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.aggregators.DefaultArrayAggregatorConfig;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.*;
 import net.opentsdb.query.processor.downsample.Downsample;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.stats.Span;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Performs the time series grouping aggregation by sorting time series according

@@ -15,16 +15,15 @@
 package net.opentsdb.query.processor.topn;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.DefaultQueryResultId;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
 
 public class TestTopNConfig {
 

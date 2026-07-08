@@ -14,19 +14,11 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 
 import java.time.temporal.ChronoUnit;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import com.google.common.primitives.Bytes;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
@@ -34,9 +26,14 @@ import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.MockArrayObjectPool;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
-import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
+import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.primitives.Bytes;
 
 public class TestNumericRowSeq {
   private static final long BASE_TIME = 1514764800;

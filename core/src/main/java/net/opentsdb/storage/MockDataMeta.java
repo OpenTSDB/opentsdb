@@ -17,16 +17,9 @@ package net.opentsdb.storage;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
@@ -35,19 +28,23 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.meta.BatchMetaQuery;
-import net.opentsdb.meta.DefaultMetaQuery;
+import net.opentsdb.meta.*;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
-import net.opentsdb.meta.MetaDataStorageResult;
-import net.opentsdb.meta.MetaDataStorageSchema;
-import net.opentsdb.meta.MetaQuery;
-import net.opentsdb.meta.NamespacedKey;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.FilterUtils;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.MockDataStore.MockSpan;
 import net.opentsdb.utils.UniqueKeyPair;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Ugly hacky class that implements a time series meta data query against 

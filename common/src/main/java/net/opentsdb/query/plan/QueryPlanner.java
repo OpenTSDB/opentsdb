@@ -16,8 +16,9 @@ package net.opentsdb.query.plan;
 
 import java.util.Collection;
 
-import com.google.common.graph.MutableGraph;
 import com.stumbleupon.async.Deferred;
+
+import com.google.common.graph.MutableGraph;
 
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;

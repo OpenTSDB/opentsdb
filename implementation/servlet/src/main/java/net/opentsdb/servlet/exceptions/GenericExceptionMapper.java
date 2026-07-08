@@ -26,15 +26,15 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.ExceptionMapper;
 
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.utils.Exceptions;
+import net.opentsdb.utils.JSON;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.DeferredGroupException;
-
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.utils.Exceptions;
-import net.opentsdb.utils.JSON;
 
 /**
  * Handles formatting an unexpected exception by wrapping it in a JSON

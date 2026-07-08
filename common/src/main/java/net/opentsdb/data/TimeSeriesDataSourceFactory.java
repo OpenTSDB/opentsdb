@@ -16,8 +16,9 @@ package net.opentsdb.data;
 
 import java.util.List;
 
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
+
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryNodeConfig;

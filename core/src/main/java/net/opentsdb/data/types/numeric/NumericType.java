@@ -16,10 +16,10 @@ package net.opentsdb.data.types.numeric;
 
 import java.util.List;
 
+import net.opentsdb.data.TimeSeriesDataType;
+
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeriesDataType;
 
 /**
  * Represents a single numeric data point.

@@ -14,18 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.router;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+
+
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeConfigOptions;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
+import net.opentsdb.query.*;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.plan.QueryPlanner.TimeAdjustments;
@@ -33,15 +29,13 @@ import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.merge.MergerConfig;
 import net.opentsdb.utils.DateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.temporal.ChronoUnit;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * Utilities to help with pushdowns and routing.

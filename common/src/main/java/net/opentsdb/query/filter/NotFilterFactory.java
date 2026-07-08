@@ -14,10 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import com.stumbleupon.async.Deferred;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;

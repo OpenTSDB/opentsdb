@@ -14,11 +14,11 @@
 // limitations under the License.
 package net.opentsdb.servlet.sinks;
 
+import java.io.ByteArrayOutputStream;
+
 import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.query.QueryContext;
-
-import java.io.ByteArrayOutputStream;
 
 /**
  * Probably temporary interface that will take the serialized output of the

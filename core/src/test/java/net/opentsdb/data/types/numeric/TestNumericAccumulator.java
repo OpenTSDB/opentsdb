@@ -14,17 +14,14 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Test;
 
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.exceptions.IllegalDataException;
+
+import org.junit.Test;
 
 public class TestNumericAccumulator {
 

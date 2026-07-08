@@ -14,20 +14,14 @@
 // limitations under the License.
 package net.opentsdb.data.iterators;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+
+
+import net.opentsdb.data.*;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 
 /**
  * A logical view on top of one or more time series iterators. For example, if

@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.stats.Span;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -27,9 +30,6 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.stats.Span;
 
 /**
  * Attempts to walk all of the child filters and extract the tag keys

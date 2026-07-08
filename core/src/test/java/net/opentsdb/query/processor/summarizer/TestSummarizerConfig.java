@@ -15,16 +15,16 @@
 package net.opentsdb.query.processor.summarizer;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Lists;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestSummarizerConfig {
 

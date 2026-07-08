@@ -16,9 +16,10 @@ package net.opentsdb.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -32,7 +33,6 @@ import java.util.concurrent.Executors;
 import org.junit.BeforeClass;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
@@ -43,7 +43,6 @@ import com.google.cloud.bigtable.grpc.BigtableDataClient;
 import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
-import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
@@ -139,7 +138,7 @@ public class UTBase {
   protected static Tsdb1xDataStoreFactory store_factory;
   protected static BigtableSession session;
   protected static BigtableDataClient client;
-  protected static AsyncExecutor executor;
+  protected static BigtableDataClient executor;
   protected static BulkMutation bulk_mutator;
   protected static BigtableInstanceName table_namer;
   protected static MockBigtable storage;
@@ -158,32 +157,21 @@ public class UTBase {
     store_factory = mock(Tsdb1xDataStoreFactory.class);
     session = mock(BigtableSession.class);
     client = mock(BigtableDataClient.class);
-    executor = mock(AsyncExecutor.class);
+    // AsyncExecutor was removed from bigtable-client; the data store now uses
+    // BigtableDataClient (session.getDataClient()) for async unary RPCs too, so
+    // the executor and the scan client are the same object.
+    executor = client;
     bulk_mutator = mock(BulkMutation.class);
     uid_factory = mock(UniqueIdFactory.class);
     data_store = mock(Tsdb1xBigtableDataStore.class);
     
-    PowerMockito.whenNew(BigtableSession.class).withAnyArguments()
-      .thenReturn(session);
-    PowerMockito.mockStatic(CredentialOptions.class);
-    when(CredentialOptions.jsonCredentials(any(InputStream.class)))
-      .thenReturn(mock(CredentialOptions.class));
-    PowerMockito.mockStatic(Executors.class);
-    when(Executors.newCachedThreadPool())
-      .thenReturn(mock(ExecutorService.class));
+    // data_store is a mock here, so no real BigtableSession is constructed in
+    // this base setup. The session/client/static-factory interception that the
+    // real data store needs lives in TestTsdb1xBigtableDataStore.
     when(session.getDataClient()).thenReturn(client);
-    PowerMockito.whenNew(FileInputStream.class).withAnyArguments()
-      .thenAnswer(new Answer<FileInputStream>() {
-        @Override
-        public FileInputStream answer(InvocationOnMock invocation)
-            throws Throwable {
-          return mock(FileInputStream.class);
-        }
-      });
-    
+
     when(session.createBulkMutation(any(BigtableTableName.class)))
       .thenReturn(bulk_mutator);
-    when(session.createAsyncExecutor()).thenReturn(executor);
     
     table_namer = new BigtableInstanceName("UT", "UT");
     when(data_store.tableNamer()).thenReturn(table_namer);
@@ -197,7 +185,7 @@ public class UTBase {
       }
     });
     
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), any(), any(Schema.class)))
       .thenReturn(data_store);
@@ -213,7 +201,7 @@ public class UTBase {
     uid_store = new Tsdb1xBigtableUniqueIdStore(data_store, null);
     when(tsdb.registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);
-    when(uid_factory.newInstance(eq(tsdb), anyString(), 
+    when(uid_factory.newInstance(eq(tsdb), nullable(String.class),
         any(UniqueIdType.class), eq(uid_store))).thenAnswer(new Answer<UniqueId>() {
           @Override
           public UniqueId answer(InvocationOnMock invocation)

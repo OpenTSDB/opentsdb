@@ -14,14 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.hacluster;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.query.*;
+import net.opentsdb.query.readcache.CachedQueryNode;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.DateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,18 +36,6 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.query.readcache.CachedQueryNode;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.DateTime;
 
 /**
  * A node that handles downstream HA sources. When a result comes in it

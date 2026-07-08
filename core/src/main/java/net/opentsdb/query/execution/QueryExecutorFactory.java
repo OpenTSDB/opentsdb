@@ -14,9 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.core.BaseTSDBPlugin;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * A factory used to generate a {@link QueryExecutor} for a new context. These

@@ -26,14 +26,14 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList;
 import org.hbase.async.FuzzyRowFilter;
 import org.hbase.async.KeyRegexpFilter;
-import org.hbase.async.Bytes.ByteMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A simple class with utility methods for executing queries against the storage

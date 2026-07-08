@@ -14,17 +14,23 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import java.util.LinkedHashMap;
-import java.util.Map;
+
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
@@ -40,8 +46,6 @@ import net.opentsdb.query.filter.ChainFilter.FilterOp;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Run the Meta Query on Meta Store with schema and form the results.

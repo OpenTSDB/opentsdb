@@ -14,17 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import static org.junit.Assert.*;
+
 import java.util.Set;
 
-import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.ImmutableMap;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.utils.JSON;
 
-import static org.junit.Assert.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 public class TestTagValueRangeFilterAndFactory {
   private static final String TAGK = "host";

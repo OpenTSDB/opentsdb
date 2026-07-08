@@ -20,25 +20,19 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map.Entry;
 
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import org.junit.Before;
-import org.junit.Test;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesDatumStringId;
-import net.opentsdb.data.BaseTimeSeriesDatumStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.storage.MockDataStore.MockRow;
 import net.opentsdb.storage.MockDataStore.MockSpan;
+
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestMockDataStore {
 

@@ -17,7 +17,12 @@
 
 package net.opentsdb.data.influx;
 
+import java.io.ByteArrayOutputStream;
+import java.util.List;
+
 import com.google.common.collect.Lists;
+import org.junit.Test;
+
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesDatumStringId;
 import net.opentsdb.data.MockLowLevelMetricData;
@@ -26,10 +31,6 @@ import net.opentsdb.data.TimeSeriesDatumStringId;
 import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
-import org.junit.Test;
-
-import java.io.ByteArrayOutputStream;
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

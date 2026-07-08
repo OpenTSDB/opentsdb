@@ -14,9 +14,9 @@
 // limitations under the License.
 package net.opentsdb.data.types.numeric;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeriesDataType;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * An encoding of timestamp and numeric values in a {@link long[]} for better

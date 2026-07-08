@@ -18,10 +18,11 @@ package net.opentsdb.data.types.event;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeStamp;
+
+import com.google.common.reflect.TypeToken;
 
 public interface EventType extends TimeSeriesDataType<EventType> {
 

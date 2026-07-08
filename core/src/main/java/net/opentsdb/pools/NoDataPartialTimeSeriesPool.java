@@ -14,12 +14,12 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.NoDataPartialTimeSeries;
+
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.NoDataPartialTimeSeries;
 
 /**
  * Simple pool for sentinels marking an empty time series set.

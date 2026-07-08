@@ -16,9 +16,10 @@ package net.opentsdb.pools;
 
 import java.time.temporal.ChronoUnit;
 
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * This is a non-pooling pool that is used if no default implementation is found.

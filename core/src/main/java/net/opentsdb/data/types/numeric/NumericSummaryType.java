@@ -17,11 +17,12 @@ package net.opentsdb.data.types.numeric;
 import java.util.Collection;
 import java.util.List;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.rollup.DefaultRollupConfig;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A summary of numeric data, e.g. a time interval rollup (downsample)

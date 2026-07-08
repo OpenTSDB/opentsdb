@@ -27,12 +27,12 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.pbuf.TimeStampPB;
 import net.opentsdb.data.pbuf.NumericSummarySegmentPB.NumericSummarySegment;
 import net.opentsdb.data.pbuf.NumericSummarySegmentPB.NumericSummarySegment.NumericSummary;
 import net.opentsdb.data.pbuf.TimeSeriesDataPB.TimeSeriesData;
 import net.opentsdb.data.pbuf.TimeSeriesDataSequencePB.TimeSeriesDataSegment;
 import net.opentsdb.data.pbuf.TimeSeriesPB.TimeSeries.Builder;
+import net.opentsdb.data.pbuf.TimeStampPB;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.SerdesException;

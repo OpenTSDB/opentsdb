@@ -15,16 +15,14 @@
 package net.opentsdb.query.filter;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.pojo.Metric;
-import org.junit.Test;
+import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.JSON;
+import org.junit.Test;
 
 public class TestMetricRegexFilter {
 

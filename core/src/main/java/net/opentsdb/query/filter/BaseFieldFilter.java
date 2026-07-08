@@ -14,10 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import net.opentsdb.core.Const;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
-import net.opentsdb.core.Const;
 
 /** A base class for tag value filters including the raw filter and the tag key to check on. */
 public abstract class BaseFieldFilter implements QueryFilter {

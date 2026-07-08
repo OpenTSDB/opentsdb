@@ -14,30 +14,26 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
+
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.primitives.Bytes;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.exceptions.IllegalDataException;
-import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 
 public class TestTsdb1xTimeSeries extends SchemaBase {
   private static final byte[] TSUID = 

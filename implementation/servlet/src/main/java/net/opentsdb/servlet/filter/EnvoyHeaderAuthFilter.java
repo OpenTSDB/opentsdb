@@ -14,16 +14,8 @@
 // limitations under the License.
 package net.opentsdb.servlet.filter;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.Authorization;
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.servlet.auth.BaseAuthenticationPlugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.io.IOException;
+import java.security.Principal;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -32,8 +24,18 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.security.Principal;
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.servlet.auth.BaseAuthenticationPlugin;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 
 /**

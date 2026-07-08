@@ -38,27 +38,18 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
+import net.opentsdb.auth.Authentication;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.TSQuery;
-import net.opentsdb.query.TSSubQuery;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
+import net.opentsdb.query.TSQuery;
+import net.opentsdb.query.TSSubQuery;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TagVFilter;
@@ -70,13 +61,22 @@ import net.opentsdb.servlet.sinks.ServletSinkConfig;
 import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
 import net.opentsdb.threadpools.TSDTask;
-import net.opentsdb.stats.StatsCollector.StatsTimer;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.StringUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * Handles OpenTSDB version 2.0 JSON queries from the /api/query endpoint.

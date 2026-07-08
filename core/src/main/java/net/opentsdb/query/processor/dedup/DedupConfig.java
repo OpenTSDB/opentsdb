@@ -14,8 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.dedup;
 
-import com.google.common.hash.HashCode;
 import net.opentsdb.query.BaseQueryNodeConfig;
+
+import com.google.common.hash.HashCode;
 
 /**
  * A configuration for handling out-of-order and de-duplication of values 

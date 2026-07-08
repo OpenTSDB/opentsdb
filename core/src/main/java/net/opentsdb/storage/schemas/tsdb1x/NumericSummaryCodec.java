@@ -14,8 +14,6 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -25,6 +23,8 @@ import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.storage.WriteStatus;
 import net.opentsdb.utils.Bytes;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * A codec for handling TSDB 2.x rollup data points.

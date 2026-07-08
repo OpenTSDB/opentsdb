@@ -14,73 +14,67 @@
 // limitations under the License.
 package net.opentsdb.core;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+import java.lang.reflect.Field;
 import java.util.List;
 
-import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
-
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.PluginsConfig.PluginConfig;
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.readcache.GuavaLRUCache;
 import net.opentsdb.query.readcache.QueryReadCache;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
 
 /**
  * <B>NOTE:</b> This class depends on the behavior of {@link PluginLoader} from
  * the TSDB common class as well as
  * {@link DefaultRegistry#registerPlugin(Class, String, TSDBPlugin)}'s behavior.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ PluginsConfig.class, Schema.class,
-  SchemaFactory.class })
 public class TestPluginsConfig {
   private static int ORDER = 0;
   private MockTSDB tsdb;
   private PluginsConfig config;
-  
+
+  MockedConstruction<Schema> mockSchema;
+
   @Before
   public void before() throws Exception {
     ORDER = 0;
     tsdb = new MockTSDB();
     tsdb.registry = spy(new DefaultRegistry(tsdb));
     config = spy(new PluginsConfig());
-    Whitebox.setInternalState(tsdb.registry, "plugins", config);
-    
+    Field pluginsField = tsdb.registry.getClass().getDeclaredField("plugins");
+    pluginsField.setAccessible(true);
+    pluginsField.set(tsdb.registry, config);
+
     when(tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataConsumerFactory.class))
       .thenReturn((TimeSeriesDataConsumerFactory) mock(SchemaFactory.class));
     when(tsdb.getRegistry().getDefaultPlugin(TimeSeriesDataSourceFactory.class))
       .thenReturn((TimeSeriesDataSourceFactory) mock(SchemaFactory.class));
-    Schema schema = mock(Schema.class);
-    PowerMockito.whenNew(Schema.class).withAnyArguments().thenReturn(schema);
+    mockSchema = Mockito.mockConstruction(Schema.class);
+  }
+
+  @After
+  public void after() {
+      if (mockSchema != null) {
+          mockSchema.close();
+      }
   }
   
   @Test

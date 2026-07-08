@@ -15,12 +15,14 @@
 
 package net.opentsdb.data.types.status;
 
-import com.google.common.reflect.TypeToken;
+import java.util.Map;
+
+
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 
-import java.util.Map;
+import com.google.common.reflect.TypeToken;
 
 public class StatusIterator extends StatusValue implements TypedTimeSeriesIterator<StatusType> {
 

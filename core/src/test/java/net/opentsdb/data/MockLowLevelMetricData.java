@@ -14,16 +14,18 @@
 // limitations under the License.
 package net.opentsdb.data;
 
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Bytes;
-import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.types.numeric.NumericType;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+
+
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.numeric.NumericType;
+
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
 
 public class MockLowLevelMetricData implements LowLevelMetricData {
   protected List<TimeSeriesDatum> data = Lists.newArrayList();

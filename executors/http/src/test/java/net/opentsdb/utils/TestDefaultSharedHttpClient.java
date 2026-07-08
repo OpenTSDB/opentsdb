@@ -18,8 +18,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -32,34 +33,32 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ DefaultSharedHttpClient.class, HttpAsyncClients.class, 
-  HttpAsyncClientBuilder.class }) 
 public class TestDefaultSharedHttpClient {
+
+  private MockedStatic<HttpAsyncClients> mockedHttpAsyncClients;
 
   private CloseableHttpAsyncClient client;
   
   @Before
   public void before() throws Exception {
+    mockedHttpAsyncClients = Mockito.mockStatic(HttpAsyncClients.class);
     client = mock(CloseableHttpAsyncClient.class);
-    
-    PowerMockito.mockStatic(HttpAsyncClients.class);
     final HttpAsyncClientBuilder builder = 
-        PowerMockito.mock(HttpAsyncClientBuilder.class);
-    when(HttpAsyncClients.custom()).thenReturn(builder);
+        Mockito.mock(HttpAsyncClientBuilder.class);
+    mockedHttpAsyncClients.when(HttpAsyncClients::custom).thenReturn(builder);
     
-    PowerMockito.when(builder
+    Mockito.when(builder
         .setDefaultIOReactorConfig(any(IOReactorConfig.class)))
           .thenReturn(builder);
     when(builder.setMaxConnTotal(anyInt())).thenReturn(builder);
@@ -67,11 +66,20 @@ public class TestDefaultSharedHttpClient {
     when(builder.build()).thenReturn(client);
     
   }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedHttpAsyncClients.closeOnDemand();
+  }
   
   @Test
   public void initializeAndShutdown() throws Exception {
-    TSDB tsdb = mock(TSDB.class);
-    when(tsdb.getConfig()).thenReturn(mock(Configuration.class));
+    final Configuration config = mock(Configuration.class);
+    when(config.getInt(anyString())).thenReturn(2);
+
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+
     DefaultSharedHttpClient shared = new DefaultSharedHttpClient();
     assertNull(shared.initialize(tsdb, null).join(250));
     assertSame(client, shared.getClient());

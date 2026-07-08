@@ -15,9 +15,10 @@
 
 package net.opentsdb.data.types.status;
 
-import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+
+import com.google.common.reflect.TypeToken;
 
 public class StatusGroupValue implements StatusGroupType, TimeSeriesValue<StatusGroupType> {
 

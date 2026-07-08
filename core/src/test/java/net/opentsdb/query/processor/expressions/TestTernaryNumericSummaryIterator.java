@@ -14,18 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
 
 import java.util.Map;
 
-import org.junit.Test;
-
-import com.google.common.collect.ImmutableMap;
 
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -37,6 +29,10 @@ import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolator
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.rollup.RollupConfig;
+
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 public class TestTernaryNumericSummaryIterator extends BaseNumericSummaryTest {
 

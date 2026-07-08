@@ -28,7 +28,7 @@
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
-                <version>2.15.61</version>
+                <version>2.15.82</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -39,10 +39,15 @@
                 <scope>provided</scope>
             </dependency>
             <dependency>
+                <!-- No longer marked "provided": now that implementation/protobuf,
+                     storage/asynchbase, storage/bigtable, and storage/googlepubsub all
+                     exclude protobuf-java from their own shaded jars (relying on one
+                     shared copy instead of each bundling/relocating their own), this
+                     needs to actually flow into the assembly's runtime classpath so
+                     lib/ gets a single real protobuf-java-${protobuf.version}.jar. -->
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
-                <version>2.5.0</version>
-                <scope>provided</scope>
+                <version>${protobuf.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -203,7 +208,7 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>${maven.plugin.assembly.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -239,7 +244,7 @@
                 <plugins>
                     <plugin>
                         <artifactId>maven-antrun-plugin</artifactId>
-                        <version>3.0.0</version>
+                        <version>3.2.0</version>
                         <executions>
                             <execution>
                                 <id>horizon-ui</id>
@@ -527,7 +532,7 @@
 
                     <plugin>
                         <artifactId>maven-antrun-plugin</artifactId>
-                        <version>3.0.0</version>
+                        <version>3.2.0</version>
                         <executions>
                             <execution>
                                 <id>horizon-ui</id>

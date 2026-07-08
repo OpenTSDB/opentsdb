@@ -16,30 +16,16 @@ package net.opentsdb.meta.impl.es;
 
 import static net.opentsdb.meta.NamespacedAggregatedDocumentSchema.KEY_PREFIX;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.stumbleupon.async.Deferred;
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import net.opentsdb.configuration.ConfigurationException;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.meta.BatchMetaQuery;
-import net.opentsdb.meta.DefaultMetaQuery;
-import net.opentsdb.meta.MetaQuery;
-import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
-import net.opentsdb.meta.NamespacedKey;
-import net.opentsdb.meta.impl.MetaClient;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.stats.Span;
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.MultiSearchRequestBuilder;
 import org.elasticsearch.action.search.MultiSearchResponse;
@@ -54,6 +40,24 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.configuration.ConfigurationException;
+import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.meta.BatchMetaQuery;
+import net.opentsdb.meta.DefaultMetaQuery;
+import net.opentsdb.meta.MetaQuery;
+import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
+import net.opentsdb.meta.NamespacedKey;
+import net.opentsdb.meta.impl.MetaClient;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.stats.Span;
 
 /**
  * A single cluster client.

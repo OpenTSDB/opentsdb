@@ -21,9 +21,6 @@ import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.http.HttpServletResponse;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
@@ -31,6 +28,9 @@ import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.utils.JSON;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Static helper to handle an async query. 

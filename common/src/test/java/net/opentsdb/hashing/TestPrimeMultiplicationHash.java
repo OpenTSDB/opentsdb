@@ -18,10 +18,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import org.junit.Test;
-
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+
+
+import org.junit.Test;
 
 public class TestPrimeMultiplicationHash {
   private HashFunction f = new PrimeMultiplicationHash();

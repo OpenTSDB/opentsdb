@@ -15,13 +15,23 @@
 package net.opentsdb.uid;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDatumId;
+import net.opentsdb.stats.Span;
+import net.opentsdb.storage.StorageException;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.uid.*;
+import net.opentsdb.utils.Bytes;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -32,24 +42,6 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-
-import net.opentsdb.storage.StorageException;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.data.TimeSeriesDatumId;
-import net.opentsdb.stats.Span;
-import net.opentsdb.uid.IdOrError;
-import net.opentsdb.uid.RandomUniqueId;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdAssignmentAuthorizer;
-import net.opentsdb.uid.UniqueIdStore;
-import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Bytes;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.

@@ -14,15 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import net.opentsdb.data.TimeSeriesDatumStringId;
 
-import java.util.Map;
-import java.util.Map.Entry;
-
-import java.util.Set;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * Utilities for working with filters.

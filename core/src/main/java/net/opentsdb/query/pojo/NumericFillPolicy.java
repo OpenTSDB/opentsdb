@@ -14,17 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.core.Const;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+
 import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.hash.HashCode;
-
-import net.opentsdb.core.Const;
 
 /**
  * POJO for serdes of fill policies. It allows the user to pick either policies

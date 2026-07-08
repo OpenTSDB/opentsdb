@@ -16,10 +16,11 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.time.temporal.ChronoUnit;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * Represents a read-only sequence of continuous columns.

@@ -18,19 +18,18 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -46,28 +45,30 @@ import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.configuration.provider.ProviderFactory;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ AWSSecretsProvider.class, 
-  AWSSecretsManagerClientBuilder.class,
-  AWSSecretsManagerClientBuilder.class })
 public class TestAWSSecretsProvider {
+
+  private MockedStatic<AWSSecretsManagerClientBuilder> mockedAWSSecretsManagerClientBuilder;
 
   private UnitTestConfiguration config;
   private AWSSecretsManager client;
   
   @Before
   public void before() throws Exception {
+    mockedAWSSecretsManagerClientBuilder = Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
     config = (UnitTestConfiguration) UnitTestConfiguration.getConfiguration();
     client = mock(AWSSecretsManager.class);
     AWSSecretsManagerClientBuilder builder = 
-        PowerMockito.mock(AWSSecretsManagerClientBuilder.class);
-    
-    PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-    PowerMockito.when(AWSSecretsManagerClientBuilder.standard()).thenReturn(builder);
-    PowerMockito.when(builder.withRegion(anyString())).thenReturn(builder);
-    PowerMockito.when(builder.withCredentials(any(AWSCredentialsProvider.class)))
+        Mockito.mock(AWSSecretsManagerClientBuilder.class);
+    mockedAWSSecretsManagerClientBuilder.when(AWSSecretsManagerClientBuilder::standard).thenReturn(builder);
+    Mockito.when(builder.withRegion(anyString())).thenReturn(builder);
+    Mockito.when(builder.withCredentials(any(AWSCredentialsProvider.class)))
       .thenReturn(builder);
-    PowerMockito.when(builder.build()).thenReturn(client);
+    Mockito.when(builder.build()).thenReturn(client);
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedAWSSecretsManagerClientBuilder.closeOnDemand();
   }
   
   @Test

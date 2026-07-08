@@ -16,8 +16,8 @@ package net.opentsdb.query.anomaly;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +40,15 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.utils.JSON;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.params.SetParams;
 
 /**
  * A plugin to use a Redis Cluster for Anomaly state and prediction caching.
  * 
  * @since 3.0
  */
-public class RedisClusterPredictionCache extends BaseTSDBPlugin 
-    implements PredictionCache {
+public class RedisClusterPredictionCache extends BaseTSDBPlugin
+     implements PredictionCache {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisClusterPredictionCache.class);
   
@@ -199,8 +200,7 @@ public class RedisClusterPredictionCache extends BaseTSDBPlugin
                               final Span upstream_span) {
     try {
       final byte[] data = serdes.serialize(Lists.newArrayList(results));
-      cluster.set(key, data, RedisClusterQueryCache.NX, 
-          RedisClusterQueryCache.EXP, expiration);
+      cluster.set(key, data, SetParams.setParams().nx().px(expiration));
       tsdb.getStatsCollector().incrementCounter("anomaly.cache.redis.set", 
           (String[]) null);
       return Deferred.fromResult(null);

@@ -14,18 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
-import org.junit.Test;
-
-import com.google.common.collect.ImmutableMap;
 
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -36,6 +30,10 @@ import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
+
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 public class TestTernaryNumericArrayIterator extends BaseNumericTest {
 

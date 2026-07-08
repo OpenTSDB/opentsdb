@@ -16,13 +16,14 @@ package net.opentsdb.query.processor.summarizer;
 
 import java.io.IOException;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.query.QueryIterator;
+
+import com.google.common.reflect.TypeToken;
 
 public class SummarizerPassThroughNumericArrayIterator implements QueryIterator {
   SummarizedTimeSeries sts;

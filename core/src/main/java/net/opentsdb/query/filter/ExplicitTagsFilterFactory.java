@@ -14,20 +14,21 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A factory to generate an ExplicitTags filter node.
  * 
  * @since 3.0
  */
-public class ExplicitTagsFilterFactory extends BaseTSDBPlugin 
+public class ExplicitTagsFilterFactory extends BaseTSDBPlugin
     implements QueryFilterFactory {
 
   static final String TYPE = "ExplicitTags";

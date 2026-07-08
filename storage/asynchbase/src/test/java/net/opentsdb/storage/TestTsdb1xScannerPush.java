@@ -20,9 +20,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -34,21 +34,6 @@ import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 
-import org.hbase.async.HBaseClient;
-import org.hbase.async.Scanner;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.hash.TLongHashSet;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.NoDataPartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
@@ -81,8 +66,18 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ HBaseClient.class, Scanner.class })
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+import gnu.trove.set.hash.TLongHashSet;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.Scanner;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
 public class TestTsdb1xScannerPush extends UTBase {
   private static ObjectPool RUNNABLE_POOL;
   private static ObjectPool NO_DATA_POOL;
@@ -412,6 +407,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     scanner.keepers = spy(keepers);
     doAnswer(new Answer<Void>() {
       int count = 0;
+
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         throw new UnitTestException();
@@ -617,6 +613,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     
     doAnswer(new Answer<Duration>() {
       int count = 0;
+
       @Override
       public Duration answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {
@@ -648,6 +645,7 @@ public class TestTsdb1xScannerPush extends UTBase {
     
     doAnswer(new Answer<Duration>() {
       int count = 0;
+
       @Override
       public Duration answer(InvocationOnMock invocation) throws Throwable {
         if (count++ > 2) {

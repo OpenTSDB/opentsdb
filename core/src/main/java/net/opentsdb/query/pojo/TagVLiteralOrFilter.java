@@ -24,6 +24,7 @@ import net.opentsdb.query.filter.TagValueLiteralOrFilter;
 import net.opentsdb.utils.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;

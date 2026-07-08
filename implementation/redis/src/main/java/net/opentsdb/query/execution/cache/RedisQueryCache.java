@@ -33,6 +33,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.Protocol;
+import redis.clients.jedis.params.SetParams;
 
 /**
  * A cache implementation that supports a single Redis instance with or without
@@ -41,8 +42,8 @@ import redis.clients.jedis.Protocol;
  * 
  * @since 3.0
  */
-public class RedisQueryCache extends BaseTSDBPlugin 
-    implements ByteCache {
+public class RedisQueryCache extends BaseTSDBPlugin
+     implements ByteCache {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisQueryCache.class);
   
@@ -339,7 +340,7 @@ public class RedisQueryCache extends BaseTSDBPlugin
     }
     
     try (Jedis connection = connection_pool.getResource()) {
-      connection.set(key, data, NX, EXP, expiration);
+      connection.set(key, data, SetParams.setParams().nx().px(expiration));
       tsdb.getStatsCollector().incrementCounter("query.cache.redis.set", 
           (String[]) null);
     } catch (Exception e) {
@@ -384,7 +385,7 @@ public class RedisQueryCache extends BaseTSDBPlugin
         if (expirations[i] < 1) {
           continue;
         }
-        connection.set(keys[i], data[i], NX, EXP, expirations[i]);
+        connection.set(keys[i], data[i], SetParams.setParams().nx().px(expirations[i]));
         tsdb.getStatsCollector().incrementCounter("query.cache.redis.set", 
             (String[]) null);
       }

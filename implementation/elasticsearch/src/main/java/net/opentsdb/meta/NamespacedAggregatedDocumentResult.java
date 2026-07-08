@@ -14,12 +14,24 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
-import java.util.ArrayList;
-import java.util.TreeSet;
+
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.meta.BatchMetaQuery.Order;
@@ -30,15 +42,6 @@ import net.opentsdb.query.filter.MetricFilter;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.utils.UniqueKeyPair;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A meta query result that handles filtering, storing and sorting the results.

@@ -14,18 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import com.google.common.primitives.Bytes;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesStringId;
@@ -33,6 +23,12 @@ import net.opentsdb.stats.MockTrace;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.primitives.Bytes;
+import com.stumbleupon.async.Deferred;
 
 public class TestTSUID extends SchemaBase {
 

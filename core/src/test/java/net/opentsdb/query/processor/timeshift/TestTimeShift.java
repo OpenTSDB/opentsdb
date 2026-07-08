@@ -15,30 +15,22 @@
 package net.opentsdb.query.processor.timeshift;
 
 import static org.junit.Assert.assertSame;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 import java.util.Collection;
 
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.*;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
-
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.filter.MetricLiteralFilter;
 
 public class TestTimeShift {
 

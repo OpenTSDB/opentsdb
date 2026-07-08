@@ -17,6 +17,7 @@ package net.opentsdb.core;
 import java.util.concurrent.ExecutorService;
 
 import com.stumbleupon.async.Deferred;
+
 import io.netty.util.Timer;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.query.QueryContext;

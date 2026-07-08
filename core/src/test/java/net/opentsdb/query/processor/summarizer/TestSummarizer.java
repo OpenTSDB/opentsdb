@@ -14,36 +14,24 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.*;
 
 import java.util.Collections;
+
+
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
+import net.opentsdb.exceptions.QueryUpstreamException;
+import net.opentsdb.query.*;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
-
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.MockTSDBDefault;
-import net.opentsdb.exceptions.QueryUpstreamException;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.SemanticQuery;
 
 public class TestSummarizer {
 

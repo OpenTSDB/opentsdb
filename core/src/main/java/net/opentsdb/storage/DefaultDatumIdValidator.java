@@ -16,16 +16,17 @@ package net.opentsdb.storage;
 
 import java.util.Map.Entry;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDatumId;
 import net.opentsdb.data.TimeSeriesDatumStringId;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Validates a datum ID, making sure the metric, tag keys and tag values
@@ -45,7 +46,7 @@ import net.opentsdb.data.TimeSeriesDatumStringId;
  * 
  * @since 3.0
  */
-public class DefaultDatumIdValidator extends BaseTSDBPlugin 
+public class DefaultDatumIdValidator extends BaseTSDBPlugin
     implements DatumIdValidator {
   
   public static final String TYPE = 
@@ -219,7 +220,7 @@ public class DefaultDatumIdValidator extends BaseTSDBPlugin
     } else if ("".equals(s)) {
       return "Invalid " + type + ": empty string";
     }
-    if (!CharMatcher.ASCII.matchesAllOf(s)) {
+    if (!CharMatcher.ascii().matchesAllOf(s)) {
       return "Invalid " + type + ": Contains non-ASCII characters";
     }
     final int n = s.length();

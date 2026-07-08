@@ -14,9 +14,9 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
-import com.google.common.base.Strings;
-
 import net.opentsdb.storage.WriteStatus.WriteState;
+
+import com.google.common.base.Strings;
 
 /**
  * A response from an assignment that contains either a non-null UID

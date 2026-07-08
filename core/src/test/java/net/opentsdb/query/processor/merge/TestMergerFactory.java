@@ -14,11 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.processor.merge;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,41 +25,31 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
-import org.junit.Test;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericMillisecondShard;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.*;
 import net.opentsdb.data.types.numeric.aggregators.ArraySumFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.NumericArrayAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
+import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.processor.merge.MergerConfig.MergeMode;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
+
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 public class TestMergerFactory {
   
@@ -152,13 +140,13 @@ public class TestMergerFactory {
     when(context.tsdb()).thenReturn(tsdb);
     final Registry registry = mock(Registry.class);
     when(tsdb.getRegistry()).thenReturn(registry);
-    when(registry.getPlugin(eq(NumericArrayAggregatorFactory.class), anyString()))
+    when(registry.getPlugin(eq(NumericArrayAggregatorFactory.class), nullable(String.class)))
       .thenReturn(new ArraySumFactory());
     final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
     interp_factory.initialize(tsdb, null).join();
-    when(registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
+    when(registry.getPlugin(eq(QueryInterpolatorFactory.class), nullable(String.class)))
       .thenReturn(interp_factory);
-    when(registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+    when(registry.getPlugin(eq(NumericAggregatorFactory.class), nullable(String.class)))
       .thenReturn(new SumFactory());
     final MergerFactory factory = new MergerFactory();
     

@@ -17,10 +17,11 @@ package net.opentsdb.query.joins;
 import java.util.Iterator;
 import java.util.List;
 
-import gnu.trove.iterator.TLongObjectIterator;
-import gnu.trove.set.TLongSet;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.utils.Pair;
+
+import gnu.trove.iterator.TLongObjectIterator;
+import gnu.trove.set.TLongSet;
 
 /**
  * A base class for Join methods that handles iteration and storing of

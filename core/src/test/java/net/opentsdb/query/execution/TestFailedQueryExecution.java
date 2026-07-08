@@ -14,16 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
+
+
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestFailedQueryExecution {
   private TimeSeriesQuery query;

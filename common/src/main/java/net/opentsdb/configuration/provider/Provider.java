@@ -14,13 +14,12 @@
 // limitations under the License.
 package net.opentsdb.configuration.provider;
 
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.ConfigurationOverride;
-
 import java.io.Closeable;
 import java.util.Map;
 
 import io.netty.util.TimerTask;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.ConfigurationOverride;
 
 /**
  * The base class for a {@link Configuration} provider. It maintains a reference

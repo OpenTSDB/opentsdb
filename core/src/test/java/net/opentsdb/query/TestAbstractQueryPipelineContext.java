@@ -14,20 +14,25 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 import java.util.List;
+
+
+import net.opentsdb.common.Const;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.filter.MetricLiteralFilter;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.plan.DefaultQueryPlanner;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.stats.Span;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -38,24 +43,6 @@ import org.mockito.stubbing.Answer;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.TSDBPlugin;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.plan.DefaultQueryPlanner;
-import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.stats.Span;
 
 public class TestAbstractQueryPipelineContext {
 

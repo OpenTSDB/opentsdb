@@ -12,15 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import net.opentsdb.core.TSDB;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.hash.HashCode;
 
-import net.opentsdb.core.TSDB;
+import com.google.common.hash.HashCode;
 
 @JsonInclude(Include.NON_DEFAULT)
 @JsonDeserialize(builder = DefaultTimeSeriesDataSourceConfig.Builder.class)

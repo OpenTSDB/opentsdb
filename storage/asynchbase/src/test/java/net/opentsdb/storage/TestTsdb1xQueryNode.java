@@ -21,8 +21,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -32,42 +33,27 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.List;
 
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.Scanner;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Bytes;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.PartialTimeSeries;
+import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.meta.MetaDataStorageResult;
-import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
+import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.pools.ObjectPool;
+import net.opentsdb.query.DefaultTimeSeriesDataSourceConfig;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.SemanticQuery;
+import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.query.filter.MetricLiteralFilter;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
@@ -79,11 +65,25 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.UnitTestException;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ HBaseClient.class, Scanner.class, 
-  Tsdb1xHBaseQueryNode.class })
+import org.hbase.async.HBaseClient;
+import org.hbase.async.Scanner;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
+
 public class TestTsdb1xQueryNode extends UTBase {
   
+  private MockedConstruction<Tsdb1xScanners> mockedScanners;
+  private MockedConstruction<Tsdb1xQueryResult> mockedResult;
   private QueryPipelineContext context;
   private TimeSeriesDataSourceConfig source_config;
   private DefaultRollupConfig rollup_config;
@@ -94,13 +94,15 @@ public class TestTsdb1xQueryNode extends UTBase {
   private QueryNode upstream_a;
   private QueryNode upstream_b;
   private SemanticQuery query;
-  
+
   @Before
   public void before() throws Exception {
+    mockedScanners = Mockito.mockConstruction(Tsdb1xScanners.class);
+    mockedResult = Mockito.mockConstruction(Tsdb1xQueryResult.class);
     context = mock(QueryPipelineContext.class);
     QueryContext query_context = mock(QueryContext.class);
     when(context.queryContext()).thenReturn(query_context);
-    
+
     rollup_config = mock(DefaultRollupConfig.class);
     result = mock(Tsdb1xQueryResult.class);
     scanners = mock(Tsdb1xScanners.class);
@@ -108,13 +110,13 @@ public class TestTsdb1xQueryNode extends UTBase {
     meta_deferred = new Deferred<MetaDataStorageResult>();
     upstream_a = mock(QueryNode.class);
     upstream_b = mock(QueryNode.class);
-    
+
     ObjectPool scanners_pool = mock(ObjectPool.class);
     when(scanners_pool.claim()).thenReturn(scanners);
     when(scanners.object()).thenReturn(scanners);
     when(tsdb.getRegistry().getObjectPool(Tsdb1xScannersPool.TYPE))
-      .thenReturn(scanners_pool);
-    
+        .thenReturn(scanners_pool);
+
     query = SemanticQuery.newBuilder()
         .setMode(QueryMode.SINGLE)
         .setStart(Integer.toString(START_TS))
@@ -122,28 +124,34 @@ public class TestTsdb1xQueryNode extends UTBase {
         .setExecutionGraph(Collections.emptyList())
         .build();
     when(context.query()).thenReturn(query);
-    
+
     source_config = (TimeSeriesDataSourceConfig) baseConfig()
         .build();
-    
-    when(meta_schema.runQuery(any(QueryPipelineContext.class), 
-        any(TimeSeriesDataSourceConfig.class), any(Span.class)))
-      .thenReturn(meta_deferred);
-    
-    PowerMockito.whenNew(Tsdb1xQueryResult.class).withAnyArguments()
-      .thenReturn(result);
-    PowerMockito.whenNew(Tsdb1xScanners.class).withAnyArguments()
-      .thenReturn(scanners);
-    
+
+    when(meta_schema.runQuery(any(QueryPipelineContext.class),
+        any(TimeSeriesDataSourceConfig.class), nullable(Span.class)))
+        .thenReturn(meta_deferred);
+    // 'schema' is a static spy shared across tests; meta tests stub
+    // metaSchema() to a non-null value which would otherwise leak into the
+    // scanner-path tests and send them down the meta branch. Reset it here so
+    // each test starts on the scanner path unless it explicitly opts in.
+    when(schema.metaSchema()).thenReturn(null);
+
     when(context.upstream(any(QueryNode.class)))
-      .thenReturn(Lists.newArrayList(upstream_a, upstream_b));
+        .thenReturn(Lists.newArrayList(upstream_a, upstream_b));
     when(context.tsdb()).thenReturn(tsdb);
-    
+
     when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY))
-      .thenReturn(2);
+        .thenReturn(2);
     when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY))
-      .thenReturn(4);
+        .thenReturn(4);
     tsdb.runnables.clear();
+  }
+
+  @After
+  public void tearDown() {
+    if (mockedScanners != null) mockedScanners.close();
+    if (mockedResult != null) mockedResult.close();
   }
   
   @Test
@@ -293,61 +301,54 @@ public class TestTsdb1xQueryNode extends UTBase {
         data_store, context, source_config);
     node.fetchNext(null);
     
-    assertSame(scanners, node.executor);
-    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+    assertSame(mockedScanners.constructed().get(0), node.executor);
+    verify(mockedScanners.constructed().get(0), times(1)).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(1, node.sequence_id.get());
     assertTrue(node.initialized.get());
     assertTrue(node.initializing.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
-    
+    assertEquals(1, mockedResult.constructed().size());
+
     // next call
     node.fetchNext(null);
-    
-    assertSame(scanners, node.executor);
-    verify(scanners, times(2)).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+
+    assertSame(mockedScanners.constructed().get(0), node.executor);
+    verify(mockedScanners.constructed().get(0), times(2)).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(2, node.sequence_id.get());
     assertTrue(node.initialized.get());
     assertTrue(node.initializing.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(2))
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
-    
+    assertEquals(2, mockedResult.constructed().size());
+
     // next call
     node.fetchNext(null);
-    
-    assertSame(scanners, node.executor);
-    verify(scanners, times(3)).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+
+    assertSame(mockedScanners.constructed().get(0), node.executor);
+    verify(mockedScanners.constructed().get(0), times(3)).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(3, node.sequence_id.get());
     assertTrue(node.initialized.get());
     assertTrue(node.initializing.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(3))
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
+    assertEquals(3, mockedResult.constructed().size());
   }
   
   @Test
   public void fetchNextMeta() throws Exception {
-    Tsdb1xHBaseDataStore data_store = mock(Tsdb1xHBaseDataStore.class);
-    Schema schema = mock(Schema.class);
-    when(data_store.schema()).thenReturn(schema);
     when(schema.metaSchema()).thenReturn(meta_schema);
-    
+
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
         data_store, context, source_config);
     node.fetchNext(null);
     
     assertNull(node.executor);
-    verify(scanners, never()).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+    verify(scanners, never()).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(0, node.sequence_id.get());
     assertFalse(node.initialized.get());
     assertTrue(node.initializing.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, never())
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
-    verify(meta_schema, times(1)).runQuery(any(QueryPipelineContext.class), 
-        any(TimeSeriesDataSourceConfig.class), any(Span.class));
+    assertTrue(mockedResult.constructed().isEmpty());
+    verify(meta_schema, times(1)).runQuery(any(QueryPipelineContext.class),
+        any(TimeSeriesDataSourceConfig.class), nullable(Span.class));
     
     try {
       node.fetchNext(null);
@@ -418,36 +419,31 @@ public class TestTsdb1xQueryNode extends UTBase {
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
         data_store, context, source_config);
     node.setup(null);
-    
-    assertSame(scanners, node.executor);
-    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+
+    assertSame(mockedScanners.constructed().get(0), node.executor);
+    verify(mockedScanners.constructed().get(0), times(1)).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(1, node.sequence_id.get());
     assertTrue(node.initialized.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
+    assertEquals(1, mockedResult.constructed().size());
   }
-  
+
   @Test
   public void setupMeta() throws Exception {
-    Tsdb1xHBaseDataStore data_store = mock(Tsdb1xHBaseDataStore.class);
-    Schema schema = mock(Schema.class);
-    when(data_store.schema()).thenReturn(schema);
     when(schema.metaSchema()).thenReturn(meta_schema);
-    
+
     Tsdb1xHBaseQueryNode node = new Tsdb1xHBaseQueryNode(
         data_store, context, source_config);
     node.setup(null);
     
     assertNull(node.executor);
-    verify(scanners, never()).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+    verify(scanners, never()).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(0, node.sequence_id.get());
     assertFalse(node.initialized.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, never())
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
-    verify(meta_schema, times(1)).runQuery(any(QueryPipelineContext.class), 
-        any(TimeSeriesDataSourceConfig.class), any(Span.class));
+    assertTrue(mockedResult.constructed().isEmpty());
+    verify(meta_schema, times(1)).runQuery(any(QueryPipelineContext.class),
+        any(TimeSeriesDataSourceConfig.class), nullable(Span.class));
   }
 
   @Test
@@ -654,16 +650,15 @@ public class TestTsdb1xQueryNode extends UTBase {
         data_store, context, source_config);
     
     node.new MetaCB(null).call(meta_result);
-    
-    assertSame(scanners, node.executor);
-    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+
+    assertSame(mockedScanners.constructed().get(0), node.executor);
+    verify(mockedScanners.constructed().get(0), times(1)).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(1, node.sequence_id.get());
     assertTrue(node.initialized.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
+    assertEquals(1, mockedResult.constructed().size());
   }
-  
+
   @Test
   public void metaCBExceptionFallback() throws Exception {
     MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
@@ -673,14 +668,13 @@ public class TestTsdb1xQueryNode extends UTBase {
         data_store, context, source_config);
     
     node.new MetaCB(null).call(meta_result);
-    
-    assertSame(scanners, node.executor);
-    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
-        any(Span.class));
+
+    assertSame(mockedScanners.constructed().get(0), node.executor);
+    verify(mockedScanners.constructed().get(0), times(1)).fetchNext(any(Tsdb1xQueryResult.class),
+        nullable(Span.class));
     assertEquals(1, node.sequence_id.get());
     assertTrue(node.initialized.get());
-    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
-      .withArguments(anyLong(), any(Tsdb1xHBaseQueryNode.class), any(Schema.class));
+    assertEquals(1, mockedResult.constructed().size());
     verify(upstream_a, never()).onError(any(UnitTestException.class));
     verify(upstream_b, never()).onError(any(UnitTestException.class));
   }
@@ -747,8 +741,8 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     assertNull(node.executor);
     assertFalse(node.initialized.get());
-    verify(upstream_a, times(1)).onError(any(NoSuchUniqueName.class));
-    verify(upstream_b, times(1)).onError(any(NoSuchUniqueName.class));
+    verify(upstream_a, times(1)).onError(any(QueryExecutionException.class));
+    verify(upstream_b, times(1)).onError(any(QueryExecutionException.class));
   }
 
   @Test
@@ -819,10 +813,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     assertNull(node.executor);
     assertFalse(node.initialized.get());
-    verify(upstream_a, times(1)).onError(any(NoSuchUniqueName.class));
-    verify(upstream_b, times(1)).onError(any(NoSuchUniqueName.class));
+    verify(upstream_a, times(1)).onError(any(QueryExecutionException.class));
+    verify(upstream_b, times(1)).onError(any(QueryExecutionException.class));
   }
-  
+
   @Test
   public void resolveMetaStringTagkNSUNAllowed() throws Exception {
     // Seems the PowerMockito won't mock down to the nested classes
@@ -895,10 +889,10 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     assertNull(node.executor);
     assertFalse(node.initialized.get());
-    verify(upstream_a, times(1)).onError(any(NoSuchUniqueName.class));
-    verify(upstream_b, times(1)).onError(any(NoSuchUniqueName.class));
+    verify(upstream_a, times(1)).onError(any(QueryExecutionException.class));
+    verify(upstream_b, times(1)).onError(any(QueryExecutionException.class));
   }
-  
+
   @Test
   public void resolveMetaStringTagvNSUNAllowed() throws Exception {
     // Seems the PowerMockito won't mock down to the nested classes

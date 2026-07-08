@@ -32,13 +32,12 @@
           <artifactId>opentsdb-core</artifactId>
           <version>${project.version}</version>
         </dependency>
-		
-		<dependency>
-		  <groupId>com.amazonaws</groupId>
-		  <artifactId>aws-java-sdk-secretsmanager</artifactId>
-		  <version>1.11.439</version>
-		</dependency>
-        
+
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-secretsmanager</artifactId>
+          <version>1.12.797</version>
+        </dependency>
       </dependencies>
     </dependencyManagement>
     
@@ -51,11 +50,20 @@
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
       </dependency>
+      <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
+      </dependency>
       
-	    <dependency>
-	      <groupId>com.amazonaws</groupId>
-	      <artifactId>aws-java-sdk-secretsmanager</artifactId>
-	    </dependency>
+      <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk-secretsmanager</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+      </dependency>
     
       <!-- TESTING Deps. -->
       <dependency>
@@ -75,13 +83,8 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
 

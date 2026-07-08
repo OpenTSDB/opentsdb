@@ -16,12 +16,14 @@ package net.opentsdb.query.joins;
 
 import java.util.List;
 
-import com.google.common.collect.Lists;
 
-import gnu.trove.map.hash.TLongObjectHashMap;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.joins.Joiner.Operand;
+
+import gnu.trove.map.hash.TLongObjectHashMap;
+
+import com.google.common.collect.Lists;
 
 /**
  * A default implementation for the {@link BaseHashedJoinSet} that simply

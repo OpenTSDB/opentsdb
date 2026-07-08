@@ -17,16 +17,6 @@
 
 package net.opentsdb.utils;
 
-import com.google.common.collect.Maps;
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import net.opentsdb.collections.LongLongHashTable;
-import net.opentsdb.collections.UnsafeHelper;
-import net.opentsdb.core.TSDB;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -37,6 +27,19 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import sun.misc.Unsafe;
+
+import com.google.common.collect.Maps;
+
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
+import net.opentsdb.collections.LongLongHashTable;
+import net.opentsdb.collections.UnsafeHelper;
+import net.opentsdb.core.TSDB;
 
 /**
  * A helper that tracks memory allocations, frees and reads. Just used for
@@ -325,6 +328,7 @@ public class OffHeapDebugAllocator implements TimerTask {
           StackTraceElement element = stack[idx];
           if (element.getClassName().startsWith("sun.") ||
               element.getClassName().startsWith("java.") ||
+              element.getClassName().startsWith("jdk.") ||
               element.getClassName().contains("Java8StackHelper") ||
               element.getClassName().contains("OffHeapDebugAllocator")) {
             continue;

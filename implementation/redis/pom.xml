@@ -42,7 +42,7 @@
         <dependency>
            <groupId>redis.clients</groupId>
            <artifactId>jedis</artifactId>
-           <version>2.9.0</version>
+           <version>7.5.2</version>
         </dependency>
                 
       </dependencies>
@@ -56,6 +56,10 @@
       <dependency>
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
       </dependency>
       
       <dependency>
@@ -96,16 +100,10 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
-        <scope>test</scope>
-      </dependency>
-
     </dependencies>
     
     <build>
@@ -113,7 +111,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>2.3</version>
+          <version>${maven.plugin.shade.version}</version>
           <configuration>
             <artifactSet>
               <excludes>

@@ -21,17 +21,13 @@ import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 
-import org.junit.Test;
 
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
+
+import org.junit.Test;
 
 public class TestCombinedCachedNumeric {
   private static final int BASE_TIME = 1546300800;

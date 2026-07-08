@@ -14,14 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
+import java.util.List;
+
+
+import net.opentsdb.core.Const;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import net.opentsdb.core.Const;
-
-import java.util.List;
 
 /**
  * A default implementation of the NamedFilter.

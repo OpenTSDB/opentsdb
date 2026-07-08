@@ -14,26 +14,18 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
+
+
+import net.opentsdb.query.filter.*;
+import net.opentsdb.query.filter.ChainFilter.FilterOp;
+import net.opentsdb.stats.MockTrace;
+import net.opentsdb.storage.StorageException;
 
 import org.junit.Test;
 
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.query.filter.ChainFilter;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.filter.NotFilter;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.query.filter.TagValueWildcardFilter;
-import net.opentsdb.query.filter.ChainFilter.FilterOp;
-import net.opentsdb.stats.MockTrace;
-import net.opentsdb.storage.StorageException;
 
 public class TestFilterUidResolver extends SchemaBase {
 

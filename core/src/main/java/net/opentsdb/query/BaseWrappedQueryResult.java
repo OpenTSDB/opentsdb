@@ -17,12 +17,13 @@ package net.opentsdb.query;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.rollup.RollupConfig;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * The base class for wrapped results wherein the implementation doesn't

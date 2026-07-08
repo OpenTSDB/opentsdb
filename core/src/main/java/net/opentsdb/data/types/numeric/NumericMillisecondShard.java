@@ -17,28 +17,16 @@ package net.opentsdb.data.types.numeric;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.*;
+
+
+import net.opentsdb.data.*;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
+import net.opentsdb.utils.Bytes;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
-import net.opentsdb.utils.Bytes;
 
 /**
  * A class that concatenates individual numeric data points into two byte arrays

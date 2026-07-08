@@ -18,7 +18,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -31,9 +31,6 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TypedTimeSeriesIterator;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.bigtable.v2.Row;
 import com.google.cloud.bigtable.config.CredentialOptions;
@@ -60,9 +57,6 @@ import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ ExecutorService.class, BigtableSession.class, 
-  Tsdb1xBigtableQueryNode.class, CredentialOptions.class })
 public class TestTsdb1xBigtableQueryResult extends UTBase {
   //GMT: Monday, January 1, 2018 12:15:00 AM
   public static final int START_TS = 1514765700;

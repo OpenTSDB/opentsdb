@@ -16,14 +16,8 @@ package net.opentsdb.query.processor.expressions;
 
 import java.util.Map;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryDownstreamException;
@@ -34,13 +28,16 @@ import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
 import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.reflect.TypeToken;
+
 /**
  * The base class for numeric expression iterators. Each implementation 
  * will handle a different data type for numerics.
  * 
  * @since 3.0
  */
-public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType> 
+public abstract class BaseExpressionNumericIterator<T extends TimeSeriesDataType>
     implements QueryIterator, TimeSeriesValue<T> {
 
   /** Epsilon used for floating point calculations. */

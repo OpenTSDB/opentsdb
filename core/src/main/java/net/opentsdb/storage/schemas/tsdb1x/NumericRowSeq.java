@@ -17,7 +17,6 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -26,6 +25,8 @@ import net.opentsdb.pools.ArrayObjectPool;
 import net.opentsdb.pools.LongArrayPool;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.pools.PooledObject;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * Represents a read-only sequence of continuous numeric columns.

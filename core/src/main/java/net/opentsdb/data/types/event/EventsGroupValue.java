@@ -14,15 +14,19 @@
 // limitations under the License.
 package net.opentsdb.data.types.event;
 
+import java.util.Map;
+
+
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import com.google.common.reflect.TypeToken;
-import java.util.Map;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
 
 @JsonInclude(Include.NON_DEFAULT)
 @JsonIgnoreProperties(ignoreUnknown = true)

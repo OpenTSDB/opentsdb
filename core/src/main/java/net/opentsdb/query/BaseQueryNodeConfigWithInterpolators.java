@@ -14,25 +14,27 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
-import com.google.common.reflect.TypeToken;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.QueryInterpolatorFactory;
 import net.opentsdb.utils.Comparators.MapComparator;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import com.google.common.reflect.TypeToken;
 
 /**
  * Base node config class that handles interpolation configs.
@@ -41,8 +43,8 @@ import java.util.Map;
  */
 public abstract class BaseQueryNodeConfigWithInterpolators
     <B extends BaseQueryNodeConfigWithInterpolators.Builder<B, C>, 
-       C extends BaseQueryNodeConfigWithInterpolators> 
-          extends BaseQueryNodeConfig<B, C> {
+       C extends BaseQueryNodeConfigWithInterpolators>
+    extends BaseQueryNodeConfig<B, C> {
 
   /** A comparator for the interpolator map. */
   protected static MapComparator<TypeToken<?>, QueryInterpolatorConfig> INTERPOLATOR_CMP

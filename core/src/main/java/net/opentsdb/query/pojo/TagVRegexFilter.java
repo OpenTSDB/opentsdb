@@ -17,12 +17,13 @@ package net.opentsdb.query.pojo;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Objects;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagValueRegexFilter;
+
+import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A filter that allows for regular expression matching on tag values.

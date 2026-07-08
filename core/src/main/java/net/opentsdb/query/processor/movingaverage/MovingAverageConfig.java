@@ -17,20 +17,21 @@ package net.opentsdb.query.processor.movingaverage;
 import java.time.temporal.TemporalAmount;
 import java.util.List;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.utils.DateTime;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-
-import net.opentsdb.common.Const;
-import net.opentsdb.query.BaseQueryNodeConfig;
-import net.opentsdb.utils.DateTime;
 
 /**
  * The configuration class for a moving window node.

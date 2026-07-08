@@ -22,9 +22,10 @@ import static org.junit.Assert.assertTrue;
 import java.io.FileNotFoundException;
 import java.util.List;
 
-import net.opentsdb.utils.PluginLoader;
 
 import org.junit.Test;
+
+import net.opentsdb.utils.PluginLoader;
 
 /**
  * Note: for this to work the "plugin_test.jar" file must be created. Maven

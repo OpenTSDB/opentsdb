@@ -14,16 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+
+
+import net.opentsdb.data.TimeSeriesDataType;
 
 import org.junit.Test;
 
 import com.google.common.hash.HashCode;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeriesDataType;
 
 public class TestBaseInterpolatorConfig {
 

@@ -14,7 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import com.google.common.collect.Lists;
+import static org.junit.Assert.*;
+
+import java.util.Arrays;
+import java.util.Collections;
+
+
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -31,22 +36,12 @@ import net.opentsdb.query.processor.expressions.ExpressionFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.utils.JSON;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import com.google.common.collect.Lists;
 
 public class TestTimeSeriesQuery {
   

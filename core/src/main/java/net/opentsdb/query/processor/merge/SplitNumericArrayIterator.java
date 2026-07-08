@@ -16,7 +16,10 @@
  */
 package net.opentsdb.query.processor.merge;
 
-import com.google.common.reflect.TypeToken;
+import java.io.IOException;
+import java.util.Collection;
+
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -27,8 +30,7 @@ import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
-import java.io.IOException;
-import java.util.Collection;
+import com.google.common.reflect.TypeToken;
 
 public class SplitNumericArrayIterator implements QueryIterator,
         TimeSeriesValue<NumericArrayType> {

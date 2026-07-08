@@ -14,14 +14,14 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.pools.BaseObjectPoolAllocator;
 import net.opentsdb.pools.DefaultObjectPoolConfig;
 import net.opentsdb.pools.ObjectPoolConfig;
+
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A pool for the scanners executor.

@@ -27,8 +27,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import net.opentsdb.storage.TimeSeriesDataConsumer;
-import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +38,8 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.pools.ObjectPool;
 import net.opentsdb.servlet.resources.ServletResource;
+import net.opentsdb.storage.TimeSeriesDataConsumer;
+import net.opentsdb.storage.TimeSeriesDataConsumerFactory;
 
 /**
  * Handles a 1.x InfluxDB call with data in the line protocol format.

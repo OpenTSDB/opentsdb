@@ -14,6 +14,12 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+
+import java.util.Map;
+
+
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.utils.JSON;
@@ -22,14 +28,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Maps;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-
-import java.util.Map;
 
 public class TestExpression {
 

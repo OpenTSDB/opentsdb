@@ -449,13 +449,10 @@ public class Tsdb1xBigtableUniqueIdStore extends Base1xUniqueIdStore {
 
     }
 
-    try {
-      Futures.addCallback(data_store.executor().readRowsAsync(request),
-              new ResultCB(), data_store.pool());
-    } catch (InterruptedException e) {
-      return Deferred.fromError(new StorageException(
-              "Unexpected exception from storage", e));
-    }
+    // Let any synchronous exception propagate to the caller's handler (getName
+    // /getId wrap it once); catching it here would double-wrap the cause.
+    Futures.addCallback(data_store.executor().readRowsAsync(request),
+            new ResultCB(), data_store.pool());
     return deferred;
   }
 
@@ -494,7 +491,7 @@ public class Tsdb1xBigtableUniqueIdStore extends Base1xUniqueIdStore {
       Futures.addCallback(
           data_store.executor().readModifyWriteRowAsync(request),
           new IncrementCB(), data_store.pool());
-    } catch (InterruptedException e) {
+    } catch (Exception e) {
       return Deferred.fromError(new StorageException(
               "Unexpected exception from storage", e));
     }
@@ -550,7 +547,7 @@ public class Tsdb1xBigtableUniqueIdStore extends Base1xUniqueIdStore {
       Futures.addCallback(
               data_store.executor().checkAndMutateRowAsync(request),
               new CasCB(), data_store.pool());
-    } catch (InterruptedException e) {
+    } catch (Exception e) {
       return Deferred.fromError(e);
     }
     return deferred;

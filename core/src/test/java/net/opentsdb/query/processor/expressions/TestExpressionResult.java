@@ -15,22 +15,15 @@
 package net.opentsdb.query.processor.expressions;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.AdditionalMatchers.aryEq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.*;
 
 import java.util.Collection;
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
@@ -46,6 +39,12 @@ import net.opentsdb.query.joins.Joiner;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 public class TestExpressionResult {
   private static final byte[] LEFT = new byte[] { 0, 0, 1 };
@@ -116,9 +115,9 @@ public class TestExpressionResult {
             new TimeSeries[] { mock(TimeSeries.class), mock(TimeSeries.class) });
     when(joiner.join(any(Collection.class), 
                      any(ExpressionParseNode.class), 
-                     any(byte[].class), 
-                     any(byte[].class), 
-                     any(byte[].class)))
+                     nullable(byte[].class),
+                     nullable(byte[].class),
+                     nullable(byte[].class)))
       .thenReturn(joins);
     
     setupNode(false);
@@ -296,9 +295,9 @@ public class TestExpressionResult {
                            mock(TimeSeries.class) });
     when(joiner.join(any(Collection.class), 
                      any(ExpressionParseNode.class), 
-                     any(byte[].class), 
-                     any(byte[].class), 
-                     any(byte[].class)))
+                     nullable(byte[].class),
+                     nullable(byte[].class),
+                     nullable(byte[].class)))
       .thenReturn(joins);
     
     expression_config = (TernaryParseNode) TernaryParseNode.newBuilder()
@@ -447,9 +446,9 @@ public class TestExpressionResult {
             new TimeSeries[] { mock(TimeSeries.class), mock(TimeSeries.class) });
     when(joiner.join(any(Collection.class), 
                      any(ExpressionParseNode.class), 
-                     any(byte[].class), 
-                     any(byte[].class), 
-                     any(byte[].class)))
+                     nullable(byte[].class),
+                     nullable(byte[].class),
+                     nullable(byte[].class)))
         .thenReturn(joins);
     setupNode(true);
     ExpressionResult result = new ExpressionResult(node);
@@ -625,9 +624,9 @@ public class TestExpressionResult {
             new TimeSeries[] { mock(TimeSeries.class), mock(TimeSeries.class) });
     when(joiner.join(any(Collection.class), 
                      any(ExpressionParseNode.class), 
-                     any(byte[].class), 
-                     any(byte[].class), 
-                     any(byte[].class)))
+                     nullable(byte[].class),
+                     nullable(byte[].class),
+                     nullable(byte[].class)))
         .thenReturn(joins);
     
     expression_config = (TernaryParseNode) TernaryParseNode.newBuilder()

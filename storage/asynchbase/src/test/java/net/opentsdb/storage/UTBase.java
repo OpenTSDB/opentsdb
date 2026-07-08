@@ -16,22 +16,15 @@ package net.opentsdb.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
-
-import org.hbase.async.Bytes;
-import org.hbase.async.HBaseClient;
-import org.junit.BeforeClass;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import com.google.common.collect.Lists;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.core.MockTSDB;
@@ -41,17 +34,25 @@ import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaBase;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
-import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 import net.opentsdb.uid.LRUUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;
+
+import org.hbase.async.Bytes;
+import org.hbase.async.HBaseClient;
+import org.junit.BeforeClass;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import com.google.common.collect.Lists;
 
 /**
  * Base class that mocks out the various components and populates the
@@ -186,7 +187,7 @@ public class UTBase {
     uid_factory = mock(UniqueIdFactory.class);
     data_store = mock(Tsdb1xHBaseDataStore.class);
     
-    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(Tsdb1xDataStoreFactory.class), nullable(String.class)))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), any(), any(Schema.class)))
       .thenReturn(data_store);    
@@ -208,7 +209,7 @@ public class UTBase {
     uid_store = new Tsdb1xUniqueIdStore(data_store, null);
     when(tsdb.registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);
-    when(uid_factory.newInstance(eq(tsdb), anyString(), 
+    when(uid_factory.newInstance(eq(tsdb), nullable(String.class),
         any(UniqueIdType.class), eq(uid_store))).thenAnswer(new Answer<UniqueId>() {
           @Override
           public UniqueId answer(InvocationOnMock invocation)

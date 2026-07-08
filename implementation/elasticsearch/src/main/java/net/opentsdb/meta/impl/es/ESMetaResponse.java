@@ -15,11 +15,29 @@
 
 package net.opentsdb.meta.impl.es;
 
+import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
+import org.elasticsearch.search.aggregations.bucket.nested.InternalNested;
+import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import java.time.temporal.ChronoUnit;
-
 import com.google.common.collect.Sets;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesId;
@@ -27,11 +45,11 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.meta.BatchMetaQuery;
 import net.opentsdb.meta.BatchMetaQuery.QueryType;
 import net.opentsdb.meta.MetaDataStorageResult;
+import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.MetaQuery;
 import net.opentsdb.meta.NamespacedAggregatedDocumentQueryBuilder;
 import net.opentsdb.meta.NamespacedAggregatedDocumentResult;
 import net.opentsdb.meta.NamespacedKey;
-import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
 import net.opentsdb.meta.impl.MetaResponse;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.ChainFilter;
@@ -45,22 +63,6 @@ import net.opentsdb.query.filter.TagKeyFilter;
 import net.opentsdb.query.filter.TagValueFilter;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.UniqueKeyPair;
-import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.Aggregation;
-import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
-import org.elasticsearch.search.aggregations.bucket.nested.InternalNested;
-import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class ESMetaResponse implements MetaResponse {
 

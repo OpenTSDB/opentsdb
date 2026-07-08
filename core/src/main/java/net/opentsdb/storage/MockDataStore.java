@@ -14,76 +14,6 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
-import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.common.Const;
-import net.opentsdb.configuration.ConfigurationEntrySchema;
-import net.opentsdb.configuration.ConfigurationException;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.BaseTimeSeriesDatumStringId;
-import net.opentsdb.data.LowLevelMetricData;
-import net.opentsdb.data.LowLevelTimeSeriesData;
-import net.opentsdb.data.LowLevelTimeSeriesData.NamespacedLowLevelTimeSeriesData;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.PartialTimeSeries;
-import net.opentsdb.data.PartialTimeSeriesSet;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesDatum;
-import net.opentsdb.data.TimeSeriesDatumStringId;
-import net.opentsdb.data.TimeSeriesDatumStringWrapperId;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesSharedTagsAndTimeData;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.iterators.SlicedTimeSeries;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericLongArrayType;
-//import net.opentsdb.data.types.numeric.NumericMillisecondShard;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.pools.BaseObjectPoolAllocator;
-import net.opentsdb.pools.CloseablePooledObject;
-import net.opentsdb.pools.DefaultObjectPoolConfig;
-import net.opentsdb.pools.LongArrayPool;
-import net.opentsdb.pools.ObjectPool;
-import net.opentsdb.pools.ObjectPoolConfig;
-import net.opentsdb.pools.PooledObject;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.QueryResultId;
-import net.opentsdb.query.SemanticQuery;
-import net.opentsdb.query.TimeSeriesDataSourceConfig;
-import net.opentsdb.query.TimeSeriesQuery.LogLevel;
-import net.opentsdb.query.filter.FilterUtils;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.stats.Span;
-import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.Pair;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -102,6 +32,40 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.common.Const;
+import net.opentsdb.configuration.ConfigurationEntrySchema;
+import net.opentsdb.configuration.ConfigurationException;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.*;
+import net.opentsdb.data.LowLevelTimeSeriesData.NamespacedLowLevelTimeSeriesData;
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.iterators.SlicedTimeSeries;
+import net.opentsdb.data.types.numeric.*;
+import net.opentsdb.pools.*;
+import net.opentsdb.query.*;
+import net.opentsdb.query.TimeSeriesQuery.LogLevel;
+import net.opentsdb.query.filter.FilterUtils;
+import net.opentsdb.query.filter.QueryFilter;
+import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.stats.Span;
+import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.io.Files;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A simple store that generates a set of time series to query as well as stores

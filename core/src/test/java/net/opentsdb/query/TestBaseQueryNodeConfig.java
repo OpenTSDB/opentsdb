@@ -14,18 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import static org.junit.Assert.*;
+
+
+import net.opentsdb.utils.JSON;
+
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
-
-import net.opentsdb.utils.JSON;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class TestBaseQueryNodeConfig {
 

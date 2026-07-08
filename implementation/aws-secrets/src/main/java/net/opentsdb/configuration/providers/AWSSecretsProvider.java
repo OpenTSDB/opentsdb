@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.Map;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +30,6 @@ import com.amazonaws.services.secretsmanager.model.AWSSecretsManagerException;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.amazonaws.services.secretsmanager.model.ResourceNotFoundException;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 
 import io.netty.util.HashedWheelTimer;
 import net.opentsdb.common.Const;

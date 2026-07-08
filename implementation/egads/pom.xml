@@ -41,7 +41,7 @@
          <dependency>
            <groupId>com.yahoo.egads</groupId>
            <artifactId>egads</artifactId>
-           <version>0.4.4</version>
+           <version>0.4.5</version>
             <exclusions>
                <exclusion>
                   <groupId>org.apache.logging.log4j</groupId>
@@ -73,6 +73,11 @@
         <groupId>org.slf4j</groupId>
         <artifactId>log4j-over-slf4j</artifactId>
       </dependency>
+
+      <dependency>
+        <groupId>com.stumbleupon</groupId>
+        <artifactId>async</artifactId>
+      </dependency>
       
       <!-- TESTING Deps. -->
       <dependency>
@@ -102,16 +107,6 @@
          <artifactId>objenesis</artifactId>
          <scope>test</scope>
       </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-api-mockito</artifactId>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.powermock</groupId>
-         <artifactId>powermock-module-junit4</artifactId>
-         <scope>test</scope>
-      </dependency>
       
       <dependency>
         <groupId>ch.qos.logback</groupId>
@@ -131,7 +126,7 @@
          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.1</version>
+            <version>${maven.plugin.shade.version}</version>
             <configuration>
                <artifactSet>
                   <excludes>

@@ -19,34 +19,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import net.opentsdb.configuration.ConfigurationCallback;
+import net.opentsdb.configuration.ConfigurationEntrySchema;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
+
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import net.opentsdb.configuration.ConfigurationCallback;
-import net.opentsdb.configuration.ConfigurationEntrySchema;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.stats.StatsCollector.StatsTimer;
 
 /**
  * A ThreadPoolExecutor that keeps track of tasks by {@link net.opentsdb.auth.AuthState}. This

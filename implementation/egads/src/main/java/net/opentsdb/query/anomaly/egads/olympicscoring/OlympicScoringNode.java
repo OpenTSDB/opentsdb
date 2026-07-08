@@ -21,16 +21,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
-
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.opentsdb.data.PartialTimeSeries;
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
@@ -48,11 +47,11 @@ import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.QuerySinkCallback;
 import net.opentsdb.query.SemanticQuery;
 import net.opentsdb.query.SemanticQueryContext;
+import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
+import net.opentsdb.query.anomaly.AnomalyPredictionResult;
 import net.opentsdb.query.anomaly.AnomalyPredictionState;
 import net.opentsdb.query.anomaly.AnomalyPredictionState.State;
 import net.opentsdb.query.anomaly.BaseAnomalyNode;
-import net.opentsdb.query.anomaly.AnomalyConfig.ExecutionMode;
-import net.opentsdb.query.anomaly.AnomalyPredictionResult;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;

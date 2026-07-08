@@ -14,16 +14,17 @@
 // limitations under the License.
 package net.opentsdb.meta;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stumbleupon.async.Deferred;
+import java.util.Map;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesDataSourceConfig;
 import net.opentsdb.stats.Span;
 
-import java.util.Map;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * Handles querying a meta data store for time series identifiers given

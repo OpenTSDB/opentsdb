@@ -17,10 +17,10 @@ package net.opentsdb.data.types.numeric;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.data.TimeSeriesDataType;
+
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeriesDataType;
 
 /**
  * TODO - scratch work for now when we have a normalized timeseries.

@@ -14,18 +14,15 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import net.opentsdb.data.SecondTimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.storage.WriteStatus;
-import org.junit.Test;
 
-import net.opentsdb.data.types.numeric.NumericSummaryType;
+import org.junit.Test;
 
 public class TestNumericSummaryCodec {
 

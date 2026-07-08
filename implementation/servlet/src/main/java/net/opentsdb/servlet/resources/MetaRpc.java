@@ -14,38 +14,10 @@
 // limitations under the License.
 package net.opentsdb.servlet.resources;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
+import java.io.ByteArrayOutputStream;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.AuthState.AuthStatus;
-import net.opentsdb.auth.Authentication;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.meta.*;
-import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
-import net.opentsdb.meta.BatchMetaQuery.QueryType;
-import net.opentsdb.servlet.applications.OpenTSDBApplication;
-import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
-import net.opentsdb.servlet.filter.AuthFilter;
-import net.opentsdb.servlet.sinks.ServletSinkTee;
-import net.opentsdb.stats.Span;
-import net.opentsdb.stats.StatsCollector.StatsTimer;
-import net.opentsdb.stats.Trace;
-import net.opentsdb.stats.Tracer;
-import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.Pair;
-
-import net.opentsdb.utils.UniqueKeyPair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Map;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletConfig;
@@ -59,8 +31,38 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.ByteArrayOutputStream;
-import java.util.Map;
+
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.AuthState.AuthStatus;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.meta.*;
+import net.opentsdb.meta.BatchMetaQuery.QueryType;
+import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
+import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
+import net.opentsdb.servlet.filter.AuthFilter;
+import net.opentsdb.servlet.sinks.ServletSinkTee;
+import net.opentsdb.stats.Span;
+import net.opentsdb.stats.StatsCollector.StatsTimer;
+import net.opentsdb.stats.Trace;
+import net.opentsdb.stats.Tracer;
+import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.UniqueKeyPair;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 
 @Path("search/timeseries")
 public class MetaRpc {

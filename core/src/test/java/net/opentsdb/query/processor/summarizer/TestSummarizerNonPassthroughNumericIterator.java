@@ -14,39 +14,32 @@
 // limitations under the License.
 package net.opentsdb.query.processor.summarizer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import net.opentsdb.core.MockTSDB;
+import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.data.*;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
+import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.aggregators.*;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.rollup.DefaultRollupConfig;
+import net.opentsdb.rollup.DefaultRollupInterval;
+import net.opentsdb.rollup.RollupConfig;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import net.opentsdb.core.MockTSDB;
-import net.opentsdb.core.MockTSDBDefault;
-import net.opentsdb.data.types.numeric.MutableNumericValue;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.aggregators.AverageFactory;
-import net.opentsdb.data.types.numeric.aggregators.CountFactory;
-import net.opentsdb.data.types.numeric.aggregators.MaxFactory;
-import net.opentsdb.data.types.numeric.aggregators.MinFactory;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
-import net.opentsdb.data.types.numeric.aggregators.SumFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.rollup.DefaultRollupConfig;
-import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.DefaultRollupInterval;
 
 public class TestSummarizerNonPassthroughNumericIterator {
   public static MockTSDB TSDB;

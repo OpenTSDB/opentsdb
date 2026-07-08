@@ -14,15 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import com.google.common.reflect.TypeToken;
+import java.time.Duration;
+import java.time.Period;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.util.Arrays;
+import java.util.Optional;
 
-import net.opentsdb.data.Aggregator;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.*;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericArrayType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.aggregators.ArrayCountFactory.ArrayCount;
@@ -33,15 +33,10 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 
-import java.time.Duration;
-import java.time.Period;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
-import java.util.Arrays;
-import java.util.Optional;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.reflect.TypeToken;
 
 /**
  * Iterator that downsamples data points using an {@link net.opentsdb.data.Aggregator} following
@@ -80,7 +75,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * @since 3.0
  */
-public class DownsampleNumericToNumericArrayIterator 
+public class DownsampleNumericToNumericArrayIterator
     implements AggregatingQueryIterator, TimeSeriesValue<NumericArrayType> {
 
   private static final Logger LOG =

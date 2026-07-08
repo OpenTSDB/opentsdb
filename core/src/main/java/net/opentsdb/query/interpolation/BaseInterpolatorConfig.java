@@ -14,11 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
+import net.opentsdb.core.Const;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
-import net.opentsdb.core.Const;
 
 
 /**

@@ -19,6 +19,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDatumId;
+import net.opentsdb.stats.Span;
+import net.opentsdb.storage.StorageException;
+import net.opentsdb.utils.Bytes;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,13 +41,6 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import net.opentsdb.auth.AuthState;
-import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeriesDatumId;
-import net.opentsdb.stats.Span;
-import net.opentsdb.storage.StorageException;
-import net.opentsdb.utils.Bytes;
 
 /**
  * 

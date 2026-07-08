@@ -21,24 +21,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.data.*;
+import net.opentsdb.query.DefaultQueryResultId;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.joins.JoinConfig.JoinType;
+
+import gnu.trove.map.hash.TLongObjectHashMap;
 import org.junit.BeforeClass;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-
-import gnu.trove.map.hash.TLongObjectHashMap;
-import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesByteId;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesByteId;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.query.DefaultQueryResultId;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.joins.JoinConfig.JoinType;
 
 public class BaseJoinTest {
   protected static final String ID = "UT";

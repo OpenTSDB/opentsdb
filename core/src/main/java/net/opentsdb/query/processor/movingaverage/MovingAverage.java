@@ -18,26 +18,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TypedTimeSeriesIterator;
-import net.opentsdb.data.types.numeric.aggregators.AverageFactory;
-import net.opentsdb.data.types.numeric.aggregators.ExponentialWeightedMovingAverageConfig;
-import net.opentsdb.data.types.numeric.aggregators.ExponentialWeightedMovingAverageFactory;
-import net.opentsdb.data.types.numeric.aggregators.MovingMedianFactory;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregator;
-import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
-import net.opentsdb.data.types.numeric.aggregators.WeightedMovingAverageFactory;
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.BaseWrappedQueryResult;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
+import net.opentsdb.data.types.numeric.aggregators.*;
+import net.opentsdb.query.*;
+
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 /**
  * A node that computes an aggregation on a window that slides over the

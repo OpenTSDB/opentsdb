@@ -14,26 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.graph.GraphBuilder;
-import com.google.common.graph.MutableGraph;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+
 import net.opentsdb.core.MockTSDB;
-import net.opentsdb.data.BaseTimeSeriesStringId;
-import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.MockTimeSeries;
-import net.opentsdb.data.SecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.TimeSeriesDataSourceFactory;
-import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
-import net.opentsdb.data.types.numeric.NumericArrayTimeSeries;
-import net.opentsdb.data.types.numeric.NumericArrayType;
-import net.opentsdb.data.types.numeric.NumericMillisecondShard;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.data.*;
+import net.opentsdb.data.types.numeric.*;
 import net.opentsdb.data.types.numeric.aggregators.NumericAggregatorFactory;
 import net.opentsdb.data.types.numeric.aggregators.SumFactory;
 import net.opentsdb.query.DefaultQueryResultId;
@@ -60,28 +52,16 @@ import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.utils.Pair;
+
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.MutableGraph;
 
 public class TestDownsampleFactory {
   
@@ -174,9 +154,9 @@ public class TestDownsampleFactory {
     when(context.tsdb()).thenReturn(tsdb);
     final QueryInterpolatorFactory qif = new DefaultInterpolatorFactory();
     qif.initialize(tsdb, null);
-    when(tsdb.registry.getPlugin(eq(QueryInterpolatorFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(QueryInterpolatorFactory.class), nullable(String.class)))
       .thenReturn(qif);
-    when(tsdb.registry.getPlugin(eq(NumericAggregatorFactory.class), anyString()))
+    when(tsdb.registry.getPlugin(eq(NumericAggregatorFactory.class), nullable(String.class)))
       .thenReturn(new SumFactory());
     
     TimeSeriesDataSource downstream = mock(TimeSeriesDataSource.class);

@@ -14,9 +14,9 @@
 // limitations under the License.
 package net.opentsdb.query.filter;
 
-import org.junit.Test;
-
 import static org.junit.Assert.*;
+
+import org.junit.Test;
 
 public class TestDefaultNamedFilter {
 

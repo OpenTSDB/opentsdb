@@ -96,13 +96,8 @@
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
         <scope>test</scope>
       </dependency>
       
@@ -123,7 +118,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.0.2</version>
+          <version>${maven.plugin.jar.version}</version>
           <configuration>
             <archive>
               <manifestEntries>
@@ -144,13 +139,17 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>1.2.1</version>
+          <version>1.6.0</version>
           <executions>
             <execution>
               <id>create-plugin-test-jar</id>
               <!-- TODO: Put the jar in the target dir and fix surefire conf. -->
               <configuration>
-                <executable>jar</executable>
+                <!-- Resolve the JDK 'jar' tool via JAVA_HOME; it lives in
+                     $JAVA_HOME/bin but is not always on the CI runner's PATH.
+                     $JAVA_HOME/bin/jar is correct on JDK 8 and 9+ alike,
+                     whereas java.home differs between them ($JDK/jre vs $JDK). -->
+                <executable>${env.JAVA_HOME}/bin/jar</executable>
                   <arguments>
                   <argument>cvfm</argument>
                   <argument>plugin_test.jar</argument>

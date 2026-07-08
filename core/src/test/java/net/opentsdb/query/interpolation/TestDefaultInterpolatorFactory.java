@@ -14,20 +14,17 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Iterator;
 import java.util.Optional;
 
-import net.opentsdb.data.TypedTimeSeriesIterator;
-import org.junit.Test;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TypedTimeSeriesIterator;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -35,6 +32,8 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolator;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolator;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+
+import org.junit.Test;
 
 public class TestDefaultInterpolatorFactory {
 

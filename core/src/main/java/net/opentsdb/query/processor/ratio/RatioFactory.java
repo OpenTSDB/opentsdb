@@ -17,12 +17,6 @@ package net.opentsdb.query.processor.ratio;
 import java.util.List;
 import java.util.Set;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.DefaultQueryResultId;
@@ -34,12 +28,20 @@ import net.opentsdb.query.joins.JoinConfig.JoinType;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 import net.opentsdb.query.processor.expressions.ExpressionConfig;
-import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.ExpressionOp;
 import net.opentsdb.query.processor.expressions.ExpressionParseNode.OperandType;
+import net.opentsdb.query.processor.expressions.ExpressionParser.NumericLiteral;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 import net.opentsdb.query.processor.rate.Rate;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Handles computing the ratio for a metric from the sum of all of the time 

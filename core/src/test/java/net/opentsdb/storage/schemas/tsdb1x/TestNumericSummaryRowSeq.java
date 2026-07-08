@@ -14,23 +14,12 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.base.Strings;
-import com.google.common.primitives.Bytes;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
@@ -41,6 +30,13 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.DefaultRollupInterval;
 import net.opentsdb.rollup.RollupUtils;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.base.Strings;
+import com.google.common.primitives.Bytes;
 
 public class TestNumericSummaryRowSeq {
   private static final long BASE_TIME = 1514764800;

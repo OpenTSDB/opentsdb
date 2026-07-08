@@ -16,13 +16,14 @@ package net.opentsdb.query.pojo;
 
 import java.util.Map;
 
-import com.google.common.base.Objects;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.filter.NotFilter;
 import net.opentsdb.query.filter.QueryFilter;
 import net.opentsdb.query.filter.TagKeyLiteralOrFilter;
+
+import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 public class TagVNotKeyFilter extends TagVFilter {
   /** Name of this filter */

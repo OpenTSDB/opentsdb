@@ -16,11 +16,12 @@ package net.opentsdb.data.types.numeric.aggregators;
 
 import java.util.Arrays;
 
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.AggregatorConfig;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Just the count.

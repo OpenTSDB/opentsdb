@@ -17,15 +17,16 @@ package net.opentsdb.query.filter;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-import com.google.common.collect.Maps;
-import org.junit.Test;
+import java.util.Map;
 
-import com.fasterxml.jackson.databind.JsonNode;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
 
-import java.util.Map;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.Test;
+
+import com.google.common.collect.Maps;
 
 public class TestMetricLiteralFilter {
 

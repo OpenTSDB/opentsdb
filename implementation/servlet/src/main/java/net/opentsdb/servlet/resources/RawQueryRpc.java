@@ -33,17 +33,9 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-
 import net.opentsdb.auth.AuthState;
-import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.AuthState.AuthStatus;
+import net.opentsdb.auth.Authentication;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.SemanticQuery;
@@ -57,12 +49,20 @@ import net.opentsdb.servlet.sinks.ServletSinkFactory;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector.StatsTimer;
-import net.opentsdb.threadpools.TSDTask;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
+import net.opentsdb.threadpools.TSDTask;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.YAML;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 @Path("query/graph")
 public class RawQueryRpc {

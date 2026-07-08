@@ -16,6 +16,13 @@
  */
 package net.opentsdb.data.influx;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Map.Entry;
+
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.LowLevelMetricData;
@@ -33,13 +40,6 @@ import net.opentsdb.storage.TimeSeriesDataConverterFactory;
 import net.opentsdb.utils.StringUtils;
 import net.opentsdb.utils.XXHash;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Map.Entry;
-
 /**
  * A converter to encode raw data into Influx Line Protocol payloads. Some work
  * remains, particularly around escaping.
@@ -52,7 +52,7 @@ import java.util.Map.Entry;
  * TODO - The decode bits.
  */
 public class InfluxLineProtocolConverter extends BaseTSDBPlugin
-        implements TimeSeriesDataConverter,
+    implements TimeSeriesDataConverter,
                    TimeSeriesDataConverterFactory {
 
   public static final String TYPE = "InfluxLineProtocolConverter";

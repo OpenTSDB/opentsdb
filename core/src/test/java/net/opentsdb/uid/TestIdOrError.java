@@ -14,16 +14,13 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import org.junit.Test;
 
 import net.opentsdb.storage.WriteStatus.WriteState;
 import net.opentsdb.utils.UnitTestException;
+
+import org.junit.Test;
 
 public class TestIdOrError {
 

@@ -14,17 +14,15 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
-import org.junit.BeforeClass;
 
 import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.MockTSDBDefault;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.utils.JSON;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TestDownsampler {

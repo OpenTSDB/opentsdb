@@ -17,8 +17,8 @@ package net.opentsdb.configuration.provider;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,34 +28,37 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ HttpAsyncClients.class, HttpAsyncClientBuilder.class })
 public class TestHttpProviderFactory {
+
+  private MockedStatic<HttpAsyncClients> mockedHttpAsyncClients;
 
 private CloseableHttpAsyncClient client;
   
   @Before
   public void before() throws Exception {
+    mockedHttpAsyncClients = Mockito.mockStatic(HttpAsyncClients.class);
     client = mock(CloseableHttpAsyncClient.class);
-    
-    PowerMockito.mockStatic(HttpAsyncClients.class);
     final HttpAsyncClientBuilder builder = 
-        PowerMockito.mock(HttpAsyncClientBuilder.class);
-    when(HttpAsyncClients.custom()).thenReturn(builder);
+        Mockito.mock(HttpAsyncClientBuilder.class);
+    mockedHttpAsyncClients.when(HttpAsyncClients::custom).thenReturn(builder);
     
-    PowerMockito.when(builder
+    Mockito.when(builder
         .setDefaultIOReactorConfig(any(IOReactorConfig.class)))
           .thenReturn(builder);
     when(builder.setMaxConnTotal(anyInt())).thenReturn(builder);
     when(builder.setMaxConnPerRoute(anyInt())).thenReturn(builder);
     when(builder.build()).thenReturn(client);
+  }
+
+  @After
+  public void tearDownStaticMocks() {
+    mockedHttpAsyncClients.closeOnDemand();
   }
   
   @Test

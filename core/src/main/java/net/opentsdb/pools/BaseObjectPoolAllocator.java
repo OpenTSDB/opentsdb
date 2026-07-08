@@ -14,13 +14,13 @@
 // limitations under the License.
 package net.opentsdb.pools;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.TSDB;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.core.TSDB;
 
 /**
  * A useful base class for object pool allocators.

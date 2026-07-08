@@ -15,8 +15,9 @@
 
 package net.opentsdb.data.types.status;
 
-import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeriesDataType;
+
+import com.google.common.reflect.TypeToken;
 
 public interface StatusGroupType extends TimeSeriesDataType<StatusGroupType> {
 

@@ -16,15 +16,11 @@ package net.opentsdb.query.processor.timeshift;
 
 import java.time.temporal.TemporalAmount;
 
+import net.opentsdb.query.*;
+import net.opentsdb.utils.Pair;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.utils.Pair;
 
 /**
  * A node for wrapping QueryResults and shifting the timestamps to align with

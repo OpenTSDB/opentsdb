@@ -15,24 +15,22 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotEquals;
-import static org.mockito.Mockito.mock;
 
 import net.opentsdb.data.TimeSeriesDataSourceFactory;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.types.annotation.AnnotationType;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.idconverter.ByteToStringIdConverterConfig;
+import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
+import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
+import net.opentsdb.utils.JSON;
+
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.types.annotation.AnnotationType;
-import net.opentsdb.data.types.numeric.NumericSummaryType;
-import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.interpolation.BaseInterpolatorConfig;
-import net.opentsdb.query.interpolation.QueryInterpolatorConfig;
-import net.opentsdb.utils.JSON;
 
 public class TestBaseQueryNodeConfigWithInterpolators {
 

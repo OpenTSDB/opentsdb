@@ -14,16 +14,17 @@
 // limitations under the License.
 package net.opentsdb.rollup;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.utils.DateTime;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+
 import com.google.common.base.Objects;
 import com.google.common.hash.HashCode;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.utils.DateTime;
 
 /**
  * Holds information about a rollup interval. During construction the inputs

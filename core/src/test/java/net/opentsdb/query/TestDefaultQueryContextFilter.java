@@ -14,18 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.google.common.collect.Maps;
 
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.MockTSDB;
@@ -33,17 +25,17 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.PreAggConfig.MetricPattern;
 import net.opentsdb.query.PreAggConfig.TagsAndAggs;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.filter.ChainFilter;
-import net.opentsdb.query.filter.DefaultNamedFilter;
-import net.opentsdb.query.filter.ExplicitTagsFilter;
-import net.opentsdb.query.filter.MetricLiteralFilter;
-import net.opentsdb.query.filter.QueryFilter;
-import net.opentsdb.query.filter.TagValueLiteralOrFilter;
-import net.opentsdb.query.filter.TagValueWildcardFilter;
+import net.opentsdb.query.filter.*;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
+
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.common.collect.Maps;
 
 public class TestDefaultQueryContextFilter {
   private static final int BASE_TIMESTAMP = 1546300800;
